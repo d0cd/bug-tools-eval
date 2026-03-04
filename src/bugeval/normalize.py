@@ -16,7 +16,10 @@ from bugeval.result_models import Comment, CommentType, NormalizedResult, Result
 
 def normalize_pr_result(case_id: str, tool: str, raw_dir: Path) -> NormalizedResult:
     """Normalize PR-mode comments.json → NormalizedResult."""
-    raw: list[dict] = json.loads((raw_dir / "comments.json").read_text())
+    comments_path = raw_dir / "comments.json"
+    if not comments_path.exists():
+        raise FileNotFoundError(f"comments.json missing in {raw_dir}")
+    raw: list[dict] = json.loads(comments_path.read_text())
     comments = []
     for c in raw:
         source = c.get("source", "")
@@ -40,7 +43,10 @@ def normalize_api_result(
     case_id: str, tool: str, context_level: str, raw_dir: Path
 ) -> NormalizedResult:
     """Normalize API-mode findings.json → NormalizedResult."""
-    raw: list[dict] = json.loads((raw_dir / "findings.json").read_text())
+    findings_path = raw_dir / "findings.json"
+    if not findings_path.exists():
+        raise FileNotFoundError(f"findings.json missing in {raw_dir}")
+    raw: list[dict] = json.loads(findings_path.read_text())
     comments = [
         Comment(
             file=item.get("path") or item.get("file", ""),

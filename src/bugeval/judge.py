@@ -88,6 +88,7 @@ def judge_case(
     model: str = "claude-opus-4-6",
     n_votes: int = 3,
     dry_run: bool = False,
+    client: Anthropic | None = None,
 ) -> JudgeScore:
     """Run n_votes independent judge calls. Return majority-vote JudgeScore."""
     if dry_run:
@@ -99,13 +100,14 @@ def judge_case(
             reasoning="dry-run",
         )
 
-    client = Anthropic()
+    _client = client or Anthropic()
     user_prompt = _build_judge_prompt(case, result)
     votes: list[int] = []
-    last_judgments: list[CommentJudgment] = []
+    parse_failures = 0
+    all_valid_judgments: list[list[CommentJudgment]] = []
 
     for _ in range(n_votes):
-        response = client.messages.create(
+        response = _client.messages.create(
             model=model,
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],  # type: ignore[arg-type]
@@ -118,15 +120,15 @@ def judge_case(
                 break
         data = _extract_judge_json(text)
         if data is None:
+            parse_failures += 1
             votes.append(0)
             continue
         votes.append(int(data.get("score", 0)))
-        # Keep last valid judgment list
         raw_judgments = data.get("comment_judgments", [])
-        last_judgments = []
+        parsed: list[CommentJudgment] = []
         for j in raw_judgments:
             try:
-                last_judgments.append(
+                parsed.append(
                     CommentJudgment(
                         id=int(j["id"]),
                         classification=CommentClassification(j["classification"]),
@@ -135,18 +137,24 @@ def judge_case(
                 )
             except (KeyError, ValueError):
                 pass
+        all_valid_judgments.append(parsed)
 
     score = majority_vote(votes)
+    last_judgments = all_valid_judgments[-1] if all_valid_judgments else []
     tp_count = sum(1 for j in last_judgments if j.classification == CommentClassification.tp)
     total = len(result.comments)
     snr = tp_count / total if total > 0 else 0.0
+
+    reasoning = f"Votes: {votes}. Majority: {score}."
+    if parse_failures:
+        reasoning += f" ({parse_failures}/{n_votes} votes failed to parse.)"
 
     return JudgeScore(
         test_case_id=case.id,
         tool=result.tool,
         score=score,
         votes=votes,
-        reasoning=f"Votes: {votes}. Majority: {score}.",
+        reasoning=reasoning,
         comment_judgments=last_judgments,
         noise=NoiseStats(total_comments=total, true_positives=tp_count, snr=snr),
     )
@@ -215,6 +223,8 @@ def judge(
     scores_dir = resolved / "scores"
     scores_dir.mkdir(exist_ok=True)
 
+    api_client = None if dry_run else Anthropic()
+
     for path, result in sorted(parsed, key=lambda x: x[0]):
         case = cases.get(result.test_case_id)
         if case is None:
@@ -222,7 +232,9 @@ def judge(
             continue
 
         click.echo(f"[judging] {path.stem}")
-        score = judge_case(case, result, system_prompt=system_prompt, dry_run=dry_run)
+        score = judge_case(
+            case, result, system_prompt=system_prompt, dry_run=dry_run, client=api_client
+        )
         out = scores_dir / path.name
         out.write_text(yaml.safe_dump(score.model_dump(mode="json"), sort_keys=False))
         click.echo(f"[score={score.score}] {path.stem}")
