@@ -5,6 +5,7 @@ import click
 from bugeval.analyze import analyze
 from bugeval.curate import curate
 from bugeval.extract_patch import extract_patch
+from bugeval.human_judge import human_judge
 from bugeval.judge import judge
 from bugeval.manage_forks import manage_forks
 from bugeval.normalize import normalize
@@ -31,3 +32,4 @@ cli.add_command(run_agent_eval)
 cli.add_command(normalize)
 cli.add_command(judge)
 cli.add_command(analyze)
+cli.add_command(human_judge)
