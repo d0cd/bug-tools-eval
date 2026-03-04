@@ -27,7 +27,19 @@ def test_normalized_result_yaml_round_trip(tmp_path: Path) -> None:
     loaded = NormalizedResult(**yaml.safe_load(path.read_text()))
     assert loaded.test_case_id == "case-001"
     assert loaded.comments[0].file == "a.rs"
+    assert loaded.comments[0].type == CommentType.inline
     assert loaded.metadata.tokens == 100
+
+
+def test_comment_pr_level_type_yaml_round_trip(tmp_path: Path) -> None:
+    import yaml
+
+    c = Comment(body="general review", type=CommentType.pr_level)
+    data = c.model_dump(mode="json")
+    path = tmp_path / "comment.yaml"
+    path.write_text(yaml.safe_dump(data))
+    loaded = Comment(**yaml.safe_load(path.read_text()))
+    assert loaded.type == CommentType.pr_level
 
 
 def test_normalized_result_defaults() -> None:
@@ -35,3 +47,5 @@ def test_normalized_result_defaults() -> None:
     assert r.context_level == ""
     assert r.comments == []
     assert r.metadata.tokens == 0
+    assert r.metadata.cost_usd == 0.0
+    assert r.metadata.time_seconds == 0.0
