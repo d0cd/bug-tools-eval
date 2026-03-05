@@ -166,7 +166,7 @@ uv run bugeval human-judge export \
   --output human_judge_sample.csv
 
 # After raters fill in human_score column:
-uv run bugeval human-judge import \
+uv run bugeval human-judge import-scores \
   --run-dir results/run-<date> \
   --input human_judge_sample_filled.csv
 
@@ -193,4 +193,4 @@ If kappa < 0.85: adjust `config/judge_prompt.md`, re-run judging, re-calibrate.
 
 - **Docker isolation for agent mode:** The agent currently clones to a local temp dir (no container). Use `--require-docker` to enforce Docker availability or run in a CI environment with Docker.
 - **PR tool cost tracking:** Commercial PR tool costs are not captured automatically (no API to query). Record manually in a separate cost log.
-- **`diff+repo+domain` domain prompts:** The current domain context passes case metadata (category, severity, language). For ZK/cryptographic bugs, consider augmenting `config/agent_prompt.md` with domain-specific guidance on proof system invariants.
+- **Kappa threshold configurability:** The 0.85 kappa threshold is hardcoded in `human_judge.py`. Adjust it there if the experiment design changes.
