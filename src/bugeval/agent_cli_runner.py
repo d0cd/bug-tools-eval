@@ -94,3 +94,74 @@ def run_claude_cli(
         wall_time_seconds=wall_time,
         model=model,
     )
+
+
+def run_claude_cli_docker(
+    repo_dir: Path,
+    prompt: str,
+    max_turns: int = 10,
+    timeout_seconds: int = 300,
+    model: str = "claude-sonnet-4-6",
+    image: str = "bugeval-agent",
+) -> AgentResult:
+    """Run claude --print inside a Docker container with repo_dir mounted at /work.
+
+    The container is removed after execution (--rm). The repo directory is
+    mounted at /work which is also the working directory.
+    """
+    cmd = [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{repo_dir.resolve()}:/work",
+        "-w",
+        "/work",
+        image,
+        "claude",
+        "--print",
+        "-p",
+        prompt,
+        "--max-turns",
+        str(max_turns),
+        "--model",
+        model,
+    ]
+    start = time.monotonic()
+
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired:
+        wall_time = time.monotonic() - start
+        return AgentResult(
+            wall_time_seconds=wall_time,
+            model=model,
+            error="timeout",
+        )
+
+    wall_time = time.monotonic() - start
+    stdout = result.stdout or ""
+    stderr = result.stderr or ""
+
+    if result.returncode != 0:
+        return AgentResult(
+            stdout=stdout,
+            stderr=stderr,
+            wall_time_seconds=wall_time,
+            model=model,
+            error=f"claude exited with code {result.returncode}: {stderr[:500]}",
+        )
+
+    findings = _parse_cli_findings(stdout)
+    return AgentResult(
+        findings=findings,
+        stdout=stdout,
+        stderr=stderr,
+        wall_time_seconds=wall_time,
+        model=model,
+    )
