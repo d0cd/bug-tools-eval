@@ -4,12 +4,81 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 from bugeval.git_miner import (
     detect_fix_keywords,
     find_introducing_commit,
+    parse_fix_commits,
     score_git_candidate,
 )
+
+# --- parse_fix_commits ---
+
+MOCK_GIT_LOG_TWO_COMMITS = (
+    "COMMIT_START\n"
+    "abc123\n"
+    "fix: off by one in parser\n"
+    "\n"
+    "5\t2\tsrc/parser.rs\n"
+    "COMMIT_START\n"
+    "def456\n"
+    "fix: null pointer in handler\n"
+    "\n"
+    "3\t1\tsrc/handler.rs\n"
+)
+
+MOCK_GIT_LOG_MERGE_NO_NUMSTAT = (
+    "COMMIT_START\n"
+    "aaa111\n"
+    "Merge branch 'feature'\n"
+    "parent1 parent2\n"
+    "COMMIT_START\n"
+    "bbb222\n"
+    "fix: race condition\n"
+    "\n"
+    "10\t5\tsrc/lock.rs\n"
+)
+
+MOCK_GIT_LOG_BINARY_FILE = (
+    "COMMIT_START\nccc333\nfix: update icon asset\n\n-\t-\tassets/icon.png\n2\t1\tsrc/config.rs\n"
+)
+
+
+def test_parse_fix_commits_two_commits(tmp_path: Path) -> None:
+    """Two normal fix commits are both parsed correctly."""
+    with patch("bugeval.git_miner.run_git", return_value=MOCK_GIT_LOG_TWO_COMMITS):
+        commits = parse_fix_commits(tmp_path, "main", limit=500)
+    assert len(commits) == 2
+    assert commits[0]["sha"] == "abc123"
+    assert commits[1]["sha"] == "def456"
+    assert commits[0]["files"] == ["src/parser.rs"]
+    assert commits[1]["files"] == ["src/handler.rs"]
+
+
+def test_parse_fix_commits_merge_no_numstat(tmp_path: Path) -> None:
+    """Merge commit with no numstat doesn't swallow the next commit."""
+    with patch("bugeval.git_miner.run_git", return_value=MOCK_GIT_LOG_MERGE_NO_NUMSTAT):
+        commits = parse_fix_commits(tmp_path, "main", limit=500)
+    shas = [c["sha"] for c in commits]
+    assert "bbb222" in shas
+
+
+def test_parse_fix_commits_binary_file_included(tmp_path: Path) -> None:
+    """Binary files (- numstat) are included in the files list."""
+    with patch("bugeval.git_miner.run_git", return_value=MOCK_GIT_LOG_BINARY_FILE):
+        commits = parse_fix_commits(tmp_path, "main", limit=500)
+    assert len(commits) == 1
+    assert "assets/icon.png" in commits[0]["files"]
+    assert "src/config.rs" in commits[0]["files"]
+
+
+def test_parse_fix_commits_empty_output(tmp_path: Path) -> None:
+    """Empty git log returns empty list."""
+    with patch("bugeval.git_miner.run_git", return_value=""):
+        commits = parse_fix_commits(tmp_path, "main", limit=500)
+    assert commits == []
+
 
 # --- detect_fix_keywords ---
 

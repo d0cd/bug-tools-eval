@@ -2,6 +2,7 @@
 
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -162,6 +163,26 @@ class TestIsRepo:
         not_repo = tmp_path / "not_a_repo"
         not_repo.mkdir()
         assert is_repo(not_repo) is False
+
+
+class TestTimeouts:
+    def test_run_git_timeout(self, tmp_path: Path) -> None:
+        """run_git raises GitError on subprocess timeout."""
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd="git", timeout=60),
+        ):
+            with pytest.raises(GitError, match="timed out"):
+                run_git("log", cwd=tmp_path)
+
+    def test_clone_repo_timeout(self, tmp_path: Path) -> None:
+        """clone_repo raises GitError on subprocess timeout."""
+        with patch(
+            "subprocess.run",
+            side_effect=subprocess.TimeoutExpired(cmd="git", timeout=600),
+        ):
+            with pytest.raises(GitError, match="timed out"):
+                clone_repo("https://example.com/repo.git", tmp_path / "repo")
 
 
 class TestCloneRepo:

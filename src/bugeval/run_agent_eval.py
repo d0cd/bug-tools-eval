@@ -80,7 +80,13 @@ def process_case_agent(
             else:
                 result = run_claude_cli(repo_dir, user_prompt, max_turns=max_turns)
         elif tool.name == "anthropic-api":
-            result = run_agent_api(repo_dir, system_prompt, user_prompt, max_turns=max_turns)
+            result = run_agent_api(
+                repo_dir,
+                system_prompt,
+                user_prompt,
+                max_turns=max_turns,
+                context_level=context_level,
+            )
         else:
             raise ValueError(f"Unknown agent tool: {tool.name!r}")
 

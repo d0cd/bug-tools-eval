@@ -17,6 +17,7 @@ _FIX_KEYWORDS = re.compile(
 _ISSUE_REF = re.compile(r"(close[sd]?|fix(e[sd])?|resolve[sd]?)\s*#\d+|#\d+", re.IGNORECASE)
 
 _LLM_MODEL = "claude-haiku-4-5-20251001"
+_COMMIT_SEP = "COMMIT_START"
 
 
 def detect_fix_keywords(message: str) -> list[str]:
@@ -74,40 +75,60 @@ def parse_fix_commits(cwd: Path, branch: str, limit: int) -> list[dict[str, Any]
     """Parse git log on branch and return commit dicts filtered to potential bug-fixes."""
     log_output = run_git(
         "log",
-        "--format=%H%n%s%n%P",
-        "--numstat",
         f"-{limit}",
+        f"--format={_COMMIT_SEP}%n%H%n%s%n%P",
+        "--numstat",
+        "--first-parent",
         branch,
         cwd=cwd,
     )
 
-    commits: list[dict[str, Any]] = []
-    blocks = log_output.strip().split("\n\n")
+    if not log_output.strip():
+        return []
 
-    for block in blocks:
-        lines = block.strip().splitlines()
+    # Split on the sentinel; first element is empty (before first COMMIT_START)
+    raw_blocks = log_output.split(_COMMIT_SEP)
+    commits: list[dict[str, Any]] = []
+
+    for block in raw_blocks:
+        block = block.strip()
+        if not block:
+            continue
+
+        lines = block.splitlines()
         if len(lines) < 2:
             continue
+
         sha = lines[0].strip()
         subject = lines[1].strip()
-        parents_line = lines[2].strip() if len(lines) > 2 else ""
-        is_merge = len(parents_line.split()) > 1
-
-        lines_added = 0
-        lines_deleted = 0
-        files: list[str] = []
-
-        for line in lines[3:]:
-            parts = line.split("\t")
-            if len(parts) >= 3 and parts[0] != "-" and parts[1] != "-":
-                try:
-                    lines_added += int(parts[0])
-                    lines_deleted += int(parts[1])
-                except ValueError:
-                    pass
-                files.append(parts[2])
+        parents = lines[2].strip() if len(lines) > 2 else ""
+        is_merge = len(parents.split()) > 1
 
         if not sha:
+            continue
+
+        # Everything after the header lines is numstat
+        files: list[str] = []
+        lines_added = 0
+        lines_deleted = 0
+
+        for line in lines[3:]:
+            line = line.strip()
+            if not line:
+                continue
+            parts = line.split("\t")
+            if len(parts) >= 3:
+                if parts[0] != "-" and parts[1] != "-":
+                    try:
+                        lines_added += int(parts[0])
+                        lines_deleted += int(parts[1])
+                    except ValueError:
+                        pass
+                files.append(parts[2])  # Always include the file path
+
+        # Only include if fix keywords detected
+        signals = detect_fix_keywords(subject)
+        if not signals:
             continue
 
         commits.append(

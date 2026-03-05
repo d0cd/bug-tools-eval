@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-from unittest.mock import patch
+from unittest.mock import ANY, patch
 
 import yaml
 from click.testing import CliRunner
@@ -149,6 +149,9 @@ def test_run_agent_eval_help() -> None:
     assert "--context-level" in result.output
     assert "--max-turns" in result.output
     assert "--dry-run" in result.output
+    assert "--use-docker" in result.output
+    assert "--docker-image" in result.output
+    assert "--require-docker" in result.output
 
 
 def test_run_agent_eval_no_cases(tmp_path: Path) -> None:
@@ -480,7 +483,12 @@ def test_process_case_agent_uses_docker_when_flag_set(tmp_path: Path) -> None:
                     docker_image="bugeval-agent",
                 )
 
-    mock_docker.assert_called_once()
+    mock_docker.assert_called_once_with(
+        tmp_path / "repo",
+        ANY,
+        max_turns=5,
+        image="bugeval-agent",
+    )
 
 
 def test_process_case_agent_no_docker_by_default(tmp_path: Path) -> None:

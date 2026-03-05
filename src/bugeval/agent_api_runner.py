@@ -107,23 +107,37 @@ def execute_tool(tool_name: str, tool_input: dict[str, Any], repo_dir: Path) -> 
 
 
 def _parse_api_findings(text: str) -> list[dict[str, Any]]:
-    """Extract JSON findings array from final response text."""
-    fence_match = re.search(r"```(?:json)?\s*(\[.*?\])\s*```", text, re.DOTALL)
-    if fence_match:
-        candidate = fence_match.group(1)
-    else:
-        array_match = re.search(r"\[.*\]", text, re.DOTALL)
-        if not array_match:
-            return []
-        candidate = array_match.group(0)
+    """Extract JSON array of findings from agent text output.
 
-    try:
-        result = json.loads(candidate)
-        if isinstance(result, list):
-            return result  # type: ignore[no-any-return]
+    Handles fenced code blocks and raw JSON. Uses bracket counting
+    instead of regex to correctly handle nested arrays/objects.
+    """
+    # Strip fenced code blocks to get inner content
+    fence_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?\s*```", text, re.DOTALL)
+    search_text = fence_match.group(1) if fence_match else text
+
+    # Find the outermost [...] using bracket counting
+    start = search_text.find("[")
+    if start == -1:
         return []
-    except json.JSONDecodeError:
-        return []
+
+    depth = 0
+    for i in range(start, len(search_text)):
+        if search_text[i] == "[":
+            depth += 1
+        elif search_text[i] == "]":
+            depth -= 1
+            if depth == 0:
+                candidate = search_text[start : i + 1]
+                try:
+                    parsed = json.loads(candidate)
+                    if isinstance(parsed, list):
+                        return [item for item in parsed if isinstance(item, dict)]
+                except json.JSONDecodeError:
+                    pass
+                return []
+
+    return []
 
 
 def run_agent_api(
@@ -132,11 +146,13 @@ def run_agent_api(
     user_prompt: str,
     max_turns: int = 20,
     model: str = "claude-sonnet-4-6",
+    context_level: str = "diff+repo",
 ) -> AgentResult:
     """Multi-turn agentic loop: send → tool_use? → execute → append result → repeat.
 
     Uses anthropic.Anthropic() (sync client). Accumulates token usage.
     Terminates on end_turn or max_turns.
+    In diff-only mode, no file tools are provided to enforce experimental control.
     """
     client = Anthropic()
     messages: list[dict[str, Any]] = [{"role": "user", "content": user_prompt}]
@@ -145,14 +161,15 @@ def run_agent_api(
     turns = 0
     findings: list[dict[str, Any]] = []
     start = time.monotonic()
+    active_tools: list[dict[str, Any]] = AGENT_TOOLS if context_level != "diff-only" else []
 
     while turns < max_turns:
         response = client.messages.create(
             model=model,
             system=system_prompt,
             messages=messages,  # type: ignore[arg-type]
-            tools=AGENT_TOOLS,  # type: ignore[arg-type]
-            max_tokens=4096,
+            tools=active_tools,  # type: ignore[arg-type]
+            max_tokens=16384,
         )
         turns += 1
         total_tokens += response.usage.input_tokens + response.usage.output_tokens
@@ -187,6 +204,14 @@ def run_agent_api(
                     )
             messages.append({"role": "user", "content": tool_results})
             conversation.append({"role": "user", "content": tool_results})
+        elif response.stop_reason == "max_tokens":
+            # Attempt to extract findings from truncated response before giving up
+            for block in response.content:
+                if block.type == "text":
+                    findings = _parse_api_findings(block.text)
+                    if findings:
+                        break
+            break
         else:
             # Unknown stop reason — terminate
             break

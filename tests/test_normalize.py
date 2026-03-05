@@ -166,6 +166,33 @@ def test_parse_raw_dir_name() -> None:
     assert _parse_raw_dir_name("foo-bar") == ("foo", "bar")
 
 
+def test_parse_raw_dir_name_two_digit_case_id() -> None:
+    """Case ID with 2 digits + hyphenated tool name."""
+    from bugeval.normalize import _parse_raw_dir_name
+
+    case_id, tool = _parse_raw_dir_name("aleo-lang-42-anthropic-api")
+    assert case_id == "aleo-lang-42"
+    assert tool == "anthropic-api"
+
+
+def test_parse_raw_dir_name_four_digit_case_id() -> None:
+    """Case ID with 4 digits + hyphenated tool name."""
+    from bugeval.normalize import _parse_raw_dir_name
+
+    case_id, tool = _parse_raw_dir_name("sentry-1234-greptile")
+    assert case_id == "sentry-1234"
+    assert tool == "greptile"
+
+
+def test_parse_raw_dir_name_single_digit_case_id() -> None:
+    """Case ID with 1 digit + hyphenated tool name."""
+    from bugeval.normalize import _parse_raw_dir_name
+
+    case_id, tool = _parse_raw_dir_name("cal-1-claude-code-cli")
+    assert case_id == "cal-1"
+    assert tool == "claude-code-cli"
+
+
 def _make_config_yaml(tmp_path: Path) -> Path:
     config_data = {
         "github": {"eval_org": "provable-eval"},

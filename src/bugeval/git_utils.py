@@ -17,10 +17,13 @@ class GitError(Exception):
         super().__init__(f"Git command failed: {' '.join(command)}\n{stderr}")
 
 
-def run_git(*args: str, cwd: Path) -> str:
+def run_git(*args: str, cwd: Path, timeout: int = 60) -> str:
     """Run a git command and return stdout. Raises GitError on failure."""
     cmd = ["git", *args]
-    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    try:
+        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise GitError(cmd, f"Command timed out after {timeout}s")
     if result.returncode != 0:
         raise GitError(cmd, result.stderr)
     return result.stdout
@@ -46,8 +49,11 @@ def get_diff_stats(base: str, head: str, cwd: Path) -> CaseStats:
         if line:
             parts = line.split("\t")
             if len(parts) >= 2 and parts[0] != "-" and parts[1] != "-":
-                lines_added += int(parts[0])
-                lines_deleted += int(parts[1])
+                try:
+                    lines_added += int(parts[0])
+                    lines_deleted += int(parts[1])
+                except ValueError:
+                    pass
                 files_changed += 1
 
     diff_output = run_git("diff", base, head, cwd=cwd)
@@ -75,12 +81,15 @@ def apply_patch_check(patch_path: Path, cwd: Path) -> bool:
         return False
 
 
-def clone_repo(url: str, dest: Path, branch: str | None = None) -> Path:
+def clone_repo(url: str, dest: Path, branch: str | None = None, timeout: int = 600) -> Path:
     """Clone a git repository. Returns the destination path."""
     args = ["git", "clone", url, str(dest)]
     if branch:
         args.extend(["-b", branch])
-    result = subprocess.run(args, capture_output=True, text=True)
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise GitError(args, f"Clone timed out after {timeout}s")
     if result.returncode != 0:
         raise GitError(args, result.stderr)
     return dest

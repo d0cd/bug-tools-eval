@@ -111,15 +111,44 @@ def discover_raw_dirs(run_dir: Path) -> list[Path]:
     return [p for p in raw_dir.iterdir() if p.is_dir()]
 
 
+# Known tool name suffixes listed longest-first so the most specific match wins.
+_KNOWN_TOOLS = [
+    "claude-code-cli",
+    "anthropic-api",
+    "graphite-diamond",
+    "augment-code",
+    "coderabbit",
+    "deepsource",
+    "greptile",
+    "bugbot",
+]
+
+
 def _parse_raw_dir_name(name: str) -> tuple[str, str]:
-    """Parse '{case-id}-{tool}' from a raw dir name. Returns (case_id, tool)."""
-    m = re.match(r"^(.+-\d{3})-(.+)$", name)
+    """Parse '{case-id}-{tool}' from a raw dir name. Returns (case_id, tool).
+
+    Strategy 1: match against known tool names (handles hyphenated tools correctly).
+    Strategy 2: split at digit-to-alpha boundary (e.g. 'repo-042-toolname').
+    Strategy 3: last-hyphen fallback.
+    """
+    # Strategy 1: known tool suffix match
+    for tool in _KNOWN_TOOLS:
+        suffix = f"-{tool}"
+        if name.endswith(suffix):
+            case_id = name[: -len(suffix)]
+            if case_id:
+                return case_id, tool
+
+    # Strategy 2: split at digit-to-alpha boundary
+    m = re.match(r"^(.+-\d+)-([a-zA-Z].*)$", name)
     if m:
         return m.group(1), m.group(2)
-    # Fallback: split at last hyphen
+
+    # Strategy 3: last-hyphen fallback
     parts = name.rsplit("-", 1)
     if len(parts) == 2:
         return parts[0], parts[1]
+
     return "unknown", name
 
 

@@ -123,6 +123,9 @@ for level in diff-only diff+repo diff+repo+domain; do
     --cases-dir cases/ \
     --patches-dir patches/ \
     --context-level $level \
+    --use-docker \
+    --docker-image bugeval-agent \
+    --require-docker \
     --run-dir results/run-$(date +%Y-%m-%d)-agent-$level
 done
 ```
@@ -191,6 +194,6 @@ If kappa < 0.85: adjust `config/judge_prompt.md`, re-run judging, re-calibrate.
 
 ## Known Gaps
 
-- **Docker isolation for agent mode:** The agent currently clones to a local temp dir (no container). Use `--require-docker` to enforce Docker availability or run in a CI environment with Docker.
+- **Docker isolation for agent mode:** Add `--use-docker` to `run-agent-eval` to run `claude-code-cli` in a container. Build the image first: `docker build -t bugeval-agent .`. The `anthropic-api` mode runs locally (path-traversal guard applied).
 - **PR tool cost tracking:** Commercial PR tool costs are not captured automatically (no API to query). Record manually in a separate cost log.
 - **Kappa threshold configurability:** The 0.85 kappa threshold is hardcoded in `human_judge.py`. Adjust it there if the experiment design changes.
