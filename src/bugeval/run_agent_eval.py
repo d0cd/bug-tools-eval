@@ -13,7 +13,7 @@ from pathlib import Path
 import click
 
 from bugeval.agent_api_runner import run_agent_api
-from bugeval.agent_cli_runner import run_claude_cli
+from bugeval.agent_cli_runner import run_claude_cli, run_claude_cli_docker
 from bugeval.agent_models import AgentResult
 from bugeval.agent_prompts import build_user_prompt, load_agent_prompt
 from bugeval.models import TestCase
@@ -50,6 +50,8 @@ def process_case_agent(
     context_level: str,
     dry_run: bool,
     max_turns: int,
+    use_docker: bool = False,
+    docker_image: str = "bugeval-agent",
 ) -> CaseToolState:
     """Run the agent state machine for one (case, tool) pair. Returns final state."""
     now = datetime.now(tz=UTC).isoformat()
@@ -71,7 +73,12 @@ def process_case_agent(
 
         state.status = CaseToolStatus.running
         if tool.name == "claude-code-cli":
-            result: AgentResult = run_claude_cli(repo_dir, user_prompt, max_turns=max_turns)
+            if use_docker:
+                result: AgentResult = run_claude_cli_docker(
+                    repo_dir, user_prompt, max_turns=max_turns, image=docker_image
+                )
+            else:
+                result = run_claude_cli(repo_dir, user_prompt, max_turns=max_turns)
         elif tool.name == "anthropic-api":
             result = run_agent_api(repo_dir, system_prompt, user_prompt, max_turns=max_turns)
         else:
@@ -121,6 +128,8 @@ async def _eval_agent_tool(
     checkpoint_path: Path,
     dry_run: bool,
     max_turns: int,
+    use_docker: bool = False,
+    docker_image: str = "bugeval-agent",
 ) -> None:
     """Evaluate all cases against one agent tool, sequentially."""
     for case in cases:
@@ -154,6 +163,8 @@ async def _eval_agent_tool(
             context_level,
             dry_run,
             max_turns,
+            use_docker,
+            docker_image,
         )
         run_state.set(final_state)
         run_state.save(checkpoint_path)
@@ -214,6 +225,18 @@ async def _eval_agent_tool(
     default=False,
     help="Exit with error if Docker daemon is not reachable.",
 )
+@click.option(
+    "--use-docker",
+    is_flag=True,
+    default=False,
+    help="Run claude-code-cli inside a Docker container for isolation.",
+)
+@click.option(
+    "--docker-image",
+    default="bugeval-agent",
+    show_default=True,
+    help="Docker image name to use with --use-docker.",
+)
 def run_agent_eval(
     config_path: str,
     cases_dir: str,
@@ -224,6 +247,8 @@ def run_agent_eval(
     max_turns: int,
     dry_run: bool,
     require_docker: bool,
+    use_docker: bool,
+    docker_image: str,
 ) -> None:
     """Async orchestrator: run in-house agent evaluation across all (case × tool) pairs."""
     if not is_docker_available():
@@ -273,6 +298,8 @@ def run_agent_eval(
                     checkpoint_path,
                     dry_run,
                     max_turns,
+                    use_docker,
+                    docker_image,
                 )
                 for tool in agent_tools
             ]

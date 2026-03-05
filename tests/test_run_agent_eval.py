@@ -450,3 +450,62 @@ def test_run_agent_eval_max_turns_passed_through(tmp_path: Path) -> None:
                 )
 
     assert 7 in captured_max_turns
+
+
+def test_process_case_agent_uses_docker_when_flag_set(tmp_path: Path) -> None:
+    """When use_docker=True, run_claude_cli_docker is called instead of run_claude_cli."""
+    from bugeval.agent_models import AgentResult
+
+    case = make_case()
+    tool = ToolDef(name="claude-code-cli", type=ToolType.agent, cooldown_seconds=0)
+    patch_path = tmp_path / "case-001.patch"
+    patch_path.write_text("--- a\n+++ b\n")
+
+    mock_result = AgentResult(findings=[])
+
+    with patch("bugeval.run_agent_eval.setup_repo_for_case", return_value=tmp_path / "repo"):
+        with patch(
+            "bugeval.run_agent_eval.run_claude_cli_docker", return_value=mock_result
+        ) as mock_docker:
+            with patch("bugeval.run_agent_eval.cleanup_repo"):
+                process_case_agent(
+                    case=case,
+                    tool=tool,
+                    patch_path=patch_path,
+                    run_dir=tmp_path,
+                    context_level="diff-only",
+                    dry_run=False,
+                    max_turns=5,
+                    use_docker=True,
+                    docker_image="bugeval-agent",
+                )
+
+    mock_docker.assert_called_once()
+
+
+def test_process_case_agent_no_docker_by_default(tmp_path: Path) -> None:
+    """When use_docker=False (default), run_claude_cli is called (not docker variant)."""
+    from bugeval.agent_models import AgentResult
+
+    case = make_case()
+    tool = ToolDef(name="claude-code-cli", type=ToolType.agent, cooldown_seconds=0)
+    patch_path = tmp_path / "case-001.patch"
+    patch_path.write_text("--- a\n+++ b\n")
+
+    mock_result = AgentResult(findings=[])
+
+    with patch("bugeval.run_agent_eval.setup_repo_for_case", return_value=tmp_path / "repo"):
+        with patch("bugeval.run_agent_eval.run_claude_cli", return_value=mock_result) as mock_local:
+            with patch("bugeval.run_agent_eval.cleanup_repo"):
+                process_case_agent(
+                    case=case,
+                    tool=tool,
+                    patch_path=patch_path,
+                    run_dir=tmp_path,
+                    context_level="diff-only",
+                    dry_run=False,
+                    max_turns=5,
+                    use_docker=False,
+                )
+
+    mock_local.assert_called_once()
