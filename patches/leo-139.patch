@@ -1,0 +1,147 @@
+diff --git a/compiler/src/statement/iteration/iteration.rs b/compiler/src/statement/iteration/iteration.rs
+index af4ffde859..ea7af7a1eb 100644
+--- a/compiler/src/statement/iteration/iteration.rs
++++ b/compiler/src/statement/iteration/iteration.rs
+@@ -57,7 +57,8 @@ impl<'a, F: PrimeField, G: GroupType<F>> ConstrainedProgram<'a, F, G> {
+             (true, true) => Box::new(from..=to),
+             (true, false) => Box::new(from..to),
+             (false, true) => Box::new((to..=from).rev()),
+-            (false, false) => Box::new((to..from).rev()),
++            // add the range to the values to get correct bound
++            (false, false) => Box::new(((to + 1)..(from + 1)).rev()),
+         };
+ 
+         for i in iter {
+diff --git a/tests/compiler/statements/all_loops.leo b/tests/compiler/statements/all_loops.leo
+index 994d0f8264..d8128513d5 100644
+--- a/tests/compiler/statements/all_loops.leo
++++ b/tests/compiler/statements/all_loops.leo
+@@ -6,7 +6,7 @@ input_file: inputs/dummy.in
+ 
+ function main(k: bool) -> bool {
+     let reverse: u32 = 0;
+-    for i in 10..0 {
++    for i in 9..0 {
+         reverse += i;
+     }
+ 
+diff --git a/tests/compiler/statements/reverse_loops.leo b/tests/compiler/statements/reverse_loops.leo
+new file mode 100644
+index 0000000000..9e28299f68
+--- /dev/null
++++ b/tests/compiler/statements/reverse_loops.leo
+@@ -0,0 +1,19 @@
++/*
++namespace: Compile
++expectation: Pass
++input_file: inputs/dummy.in
++*/
++
++function main(k: bool) -> bool {
++    let reverse: u32 = 0;
++    for i in 25..1 {
++        reverse += i;
++    }
++
++    let reverse_inclusive: u32 = 0;
++    for a in 25..=1 {
++        reverse_inclusive += a;
++    }
++
++    return (reverse + 1 == reverse_inclusive) && k;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/statements/reverse_one.leo b/tests/compiler/statements/reverse_one.leo
+new file mode 100644
+index 0000000000..c8273669c8
+--- /dev/null
++++ b/tests/compiler/statements/reverse_one.leo
+@@ -0,0 +1,19 @@
++/*
++namespace: Compile
++expectation: Pass
++input_file: inputs/dummy.in
++*/
++
++function main(k: bool) -> bool {
++    let reverse: u32 = 0;
++    for i in 1..0 {
++        reverse += i;
++    }
++
++    let reverse_inclusive: u32 = 0;
++    for a in 1..=0 {
++        reverse_inclusive += a;
++    }
++
++    return (reverse == 1) && (reverse_inclusive == 1) && k;
++}
+\ No newline at end of file
+diff --git a/tests/expectations/compiler/compiler/statements/all_loops.leo.out b/tests/expectations/compiler/compiler/statements/all_loops.leo.out
+index ead54a1743..392b2542c0 100644
+--- a/tests/expectations/compiler/compiler/statements/all_loops.leo.out
++++ b/tests/expectations/compiler/compiler/statements/all_loops.leo.out
+@@ -16,6 +16,6 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: 7ecd56e44c6b1cb4f702a2712a2a7fe3bf564dac26a70e1f14151a688fb24769
+-    canonicalized_ast: 360ecac21f95b0e1d949d49458f2c4557446d01db08333d6f25621ef47a78a66
+-    type_inferenced_ast: 853fdefe080011aaa35363e827a527ab7ce6c7e93cd568c8a150211fa6e402fe
++    initial_ast: 280277fb32e4eece0eab1f72338a9b60b6792d7f11124e8c4a5678ef3fc4a04e
++    canonicalized_ast: 84769d3580d79825fef6fd00dd9ab88dc6eaf16bf2e3f3c46feae654f8f1f746
++    type_inferenced_ast: 078070bc5df73c49f8de0ca37ac624c93a67551e0221dc1c65a84588507a2a6f
+diff --git a/tests/expectations/compiler/compiler/statements/reverse_loops.leo.out b/tests/expectations/compiler/compiler/statements/reverse_loops.leo.out
+new file mode 100644
+index 0000000000..315612b6fe
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/statements/reverse_loops.leo.out
+@@ -0,0 +1,21 @@
++---
++namespace: Compile
++expectation: Pass
++outputs:
++  - circuit:
++      num_public_variables: 0
++      num_private_variables: 1
++      num_constraints: 1
++      at: 042610d0fd1fe6d6ac112138f8755752f44c7d2a00f1b5960574d6da5cda393f
++      bt: e97756698880ab7555a959a5fb5c6b4e15bd64612aa677adbfe2d0bd91f0a83c
++      ct: cf1cbb66a638b4860a516671fb74850e6ccf787fe6c4c8d29e9c04efe880bd05
++    output:
++      - input_file: inputs/dummy.in
++        output:
++          registers:
++            r0:
++              type: bool
++              value: "true"
++    initial_ast: 41a0c534538a94dc81b72250c2fc9f4119c6b8d3f3e99e47e239365284bd0084
++    canonicalized_ast: 6c3f732c92874e90be8cab55ac665c6f6d4292d76fce147ae89ed9dbdfe685ea
++    type_inferenced_ast: 2258791abdb7bde2e3f28a12ff8b5d593985c42d78e3750d6b5f44d88d0560ed
+diff --git a/tests/expectations/compiler/compiler/statements/reverse_one.leo.out b/tests/expectations/compiler/compiler/statements/reverse_one.leo.out
+new file mode 100644
+index 0000000000..2efc997d1c
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/statements/reverse_one.leo.out
+@@ -0,0 +1,21 @@
++---
++namespace: Compile
++expectation: Pass
++outputs:
++  - circuit:
++      num_public_variables: 0
++      num_private_variables: 1
++      num_constraints: 1
++      at: 042610d0fd1fe6d6ac112138f8755752f44c7d2a00f1b5960574d6da5cda393f
++      bt: e97756698880ab7555a959a5fb5c6b4e15bd64612aa677adbfe2d0bd91f0a83c
++      ct: cf1cbb66a638b4860a516671fb74850e6ccf787fe6c4c8d29e9c04efe880bd05
++    output:
++      - input_file: inputs/dummy.in
++        output:
++          registers:
++            r0:
++              type: bool
++              value: "true"
++    initial_ast: 55d64e1ef9318084a66cee912987308a21c5779cdad1f0103d6b3fb195f74d8a
++    canonicalized_ast: 467824b3c4be8e0d10d6008a036f40bed2659a18ab7eb2ea2a5c7124146d9b06
++    type_inferenced_ast: b0908f46546647877409194ca817072d02f157b720236c7f58b5d3b0b7cfb81f

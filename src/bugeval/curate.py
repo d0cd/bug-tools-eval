@@ -8,10 +8,9 @@ import time
 from pathlib import Path
 from typing import Any
 
-import anyio
 import click
 import yaml
-from claude_agent_sdk import ClaudeAgentOptions, query
+from anthropic import Anthropic
 
 from bugeval.git_utils import GitError, run_git
 from bugeval.io import load_candidates, save_case
@@ -195,49 +194,34 @@ def _extract_json_from_text(text: str) -> dict[str, Any] | None:
         return None
 
 
-async def _curate_async(
-    candidate: Candidate,
-    diff_context: str,
-    git_log: str,
-    case_id: str,
-    system_prompt: str,
-) -> TestCase | None:
-    """Async core: call Claude via the Agent SDK and parse the response."""
-    prompt = build_curation_prompt(candidate, diff_context, git_log)
-
-    text = ""
-    async for message in query(
-        prompt=prompt,
-        options=ClaudeAgentOptions(
-            system_prompt=system_prompt,
-            allowed_tools=[],
-        ),
-    ):
-        # AssistantMessage has a .content list of blocks; each text block has .text
-        for block in getattr(message, "content", []):
-            block_text = getattr(block, "text", None)
-            if block_text:
-                text += block_text
-
-    data = _extract_json_from_text(text)
-    if data is None:
-        return None
-
-    try:
-        return parse_llm_response(data, case_id, candidate)
-    except (KeyError, ValueError):
-        return None
-
-
 def curate_candidate(
     candidate: Candidate,
     diff_context: str,
     git_log: str,
     case_id: str,
     system_prompt: str,
+    model: str = "claude-opus-4-6",
 ) -> TestCase | None:
-    """Curate a single candidate via the Claude Agent SDK (uses Pro Max quota)."""
-    return anyio.run(_curate_async, candidate, diff_context, git_log, case_id, system_prompt)
+    """Curate a single candidate via the Anthropic API."""
+    prompt = build_curation_prompt(candidate, diff_context, git_log)
+    client = Anthropic()
+    response = client.messages.create(
+        model=model,
+        max_tokens=2048,
+        system=system_prompt,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    from anthropic.types import TextBlock
+    text = "".join(
+        block.text for block in response.content if isinstance(block, TextBlock)
+    )
+    data = _extract_json_from_text(text)
+    if data is None:
+        return None
+    try:
+        return parse_llm_response(data, case_id, candidate)
+    except (KeyError, ValueError):
+        return None
 
 
 @click.command("curate")

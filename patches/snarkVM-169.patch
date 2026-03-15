@@ -1,0 +1,26 @@
+diff --git a/ledger/query/src/query.rs b/ledger/query/src/query.rs
+index 4c22ff589..e4fbfd29e 100644
+--- a/ledger/query/src/query.rs
++++ b/ledger/query/src/query.rs
+@@ -59,7 +59,7 @@ impl<N: Network, B: BlockStorage<N>> From<&str> for Query<N, B> {
+     }
+ }
+ 
+-#[cfg_attr(feature = "async", async_trait)]
++#[cfg_attr(feature = "async", async_trait(?Send))]
+ impl<N: Network, B: BlockStorage<N>> QueryTrait<N> for Query<N, B> {
+     /// Returns the current state root.
+     fn current_state_root(&self) -> Result<N::StateRoot> {
+diff --git a/ledger/query/src/traits.rs b/ledger/query/src/traits.rs
+index 7a178525e..cdef8937b 100644
+--- a/ledger/query/src/traits.rs
++++ b/ledger/query/src/traits.rs
+@@ -14,7 +14,7 @@
+ 
+ use console::{network::Network, prelude::Result, program::StatePath, types::Field};
+ 
+-#[cfg_attr(feature = "async", async_trait)]
++#[cfg_attr(feature = "async", async_trait(?Send))]
+ pub trait QueryTrait<N: Network> {
+     /// Returns the current state root.
+     fn current_state_root(&self) -> Result<N::StateRoot>;

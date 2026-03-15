@@ -1,0 +1,22 @@
+diff --git a/ledger/puzzle/src/lib.rs b/ledger/puzzle/src/lib.rs
+index 29915fa41..b52eaae06 100644
+--- a/ledger/puzzle/src/lib.rs
++++ b/ledger/puzzle/src/lib.rs
+@@ -173,7 +173,7 @@ impl<N: Network> Puzzle<N> {
+                     // Ensure that the proof target matches the expected proof target.
+                     ensure!(
+                         solution.target() == *proof_target,
+-                        "The proof target does not match the expected proof target"
++                        "The proof target does not match the cached proof target"
+                     );
+                     targets[i] = *proof_target
+                 }
+@@ -196,7 +196,7 @@ impl<N: Network> Puzzle<N> {
+                     // Ensure that the proof target matches the expected proof target.
+                     ensure!(
+                         solution.target() == proof_target,
+-                        "The proof target does not match the expected proof target"
++                        "The proof target does not match the computed proof target"
+                     );
+                     // Insert the proof target into the cache.
+                     self.proof_target_cache.write().put(*solution_id, proof_target);

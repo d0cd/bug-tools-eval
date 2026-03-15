@@ -1,0 +1,99 @@
+diff --git a/compiler/passes/src/type_checking/ast.rs b/compiler/passes/src/type_checking/ast.rs
+index 92b771dd44..247415f1bf 100644
+--- a/compiler/passes/src/type_checking/ast.rs
++++ b/compiler/passes/src/type_checking/ast.rs
+@@ -1025,24 +1025,8 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+ 
+         // Async functions return a single future.
+         let mut ret = if func.variant == Variant::AsyncFunction {
+-            // Type check after resolving the input types.
+-            let actual = Type::Future(FutureType::new(
+-                Vec::new(),
+-                Some(Location::new(callee_program, input.function.name)),
+-                false,
+-            ));
+-            match expected {
+-                Some(Type::Future(_)) | None => {
+-                    // If the expected type is a `Future` or if it's not set, then just return the
+-                    // actual type of the future from the expression itself
+-                    actual
+-                }
+-                Some(_) => {
+-                    // Otherwise, error out. There is a mismatch in types.
+-                    self.maybe_assert_type(&actual, expected, input.span());
+-                    Type::Unit
+-                }
+-            }
++            // Async functions always return futures.
++            Type::Future(FutureType::new(Vec::new(), Some(Location::new(callee_program, input.function.name)), false))
+         } else if func.variant == Variant::AsyncTransition {
+             // Fully infer future type.
+             let Some(inputs) = self
+diff --git a/tests/expectations/compiler/bugs/b28793.out b/tests/expectations/compiler/bugs/b28793.out
+new file mode 100644
+index 0000000000..c97ca8cffd
+--- /dev/null
++++ b/tests/expectations/compiler/bugs/b28793.out
+@@ -0,0 +1,5 @@
++Error [ETYC0372003]: Expected type `()` but type `Future<Fn()>` was found
++    --> compiler-test:4:16
++     |
++   4 |         return bar();
++     |                ^^^^^
+diff --git a/tests/expectations/compiler/finalize/unknown_mapping_operation_fail.out b/tests/expectations/compiler/finalize/unknown_mapping_operation_fail.out
+index e6f02251eb..81150de355 100644
+--- a/tests/expectations/compiler/finalize/unknown_mapping_operation_fail.out
++++ b/tests/expectations/compiler/finalize/unknown_mapping_operation_fail.out
+@@ -1,8 +1,3 @@
+-Error [ETYC0372117]: Expected type `()` but type `Future<Fn()>` was found.
+-    --> compiler-test:7:17
+-     |
+-   7 |          return finalize_mint_public(receiver, amount);
+-     |                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ Error [ETYC0372003]: Expected type `()` but type `Future<Fn(address,u64)>` was found
+     --> compiler-test:7:17
+      |
+diff --git a/tests/expectations/compiler/type_inference/futures_fail.out b/tests/expectations/compiler/type_inference/futures_fail.out
+index fe8d12283f..cfbfa58279 100644
+--- a/tests/expectations/compiler/type_inference/futures_fail.out
++++ b/tests/expectations/compiler/type_inference/futures_fail.out
+@@ -3,11 +3,6 @@ Error [ETYC0372003]: Expected type `u32` but type `Future<Fn()>` was found
+      |
+    7 |         let f: u32 = child.aleo/foo();
+      |                      ^^^^^^^^^^^^^^^^
+-Error [ETYC0372117]: Expected type `u8` but type `Future<Fn()>` was found.
+-    --> compiler-test:8:21
+-     |
+-   8 |         let r: u8 = foo(f);
+-     |                     ^^^^^^
+ Error [ETYC0372117]: Expected type `Future<Fn()>` but type `u32` was found.
+     --> compiler-test:8:25
+      |
+@@ -35,11 +30,6 @@ Error [ETYC0372003]: Expected type `(u8, u8)` but type `Future<Fn()>` was found
+      |
+   13 |         let f: (u8, u8) = child.aleo/bar();
+      |                           ^^^^^^^^^^^^^^^^
+-Error [ETYC0372117]: Expected type `bool` but type `Future<Fn()>` was found.
+-    --> compiler-test:14:23
+-     |
+-  14 |         let r: bool = foo(f);
+-     |                       ^^^^^^
+ Error [ETYC0372117]: Expected type `Future<Fn()>` but type `(u8, u8)` was found.
+     --> compiler-test:14:27
+      |
+diff --git a/tests/tests/compiler/bugs/b28793.leo b/tests/tests/compiler/bugs/b28793.leo
+new file mode 100644
+index 0000000000..a15b451c5c
+--- /dev/null
++++ b/tests/tests/compiler/bugs/b28793.leo
+@@ -0,0 +1,10 @@
++program b28610.aleo {
++    // This should produce only one type error.
++    async transition foo() {
++        return bar();
++    }
++
++    async function bar() {
++        assert(true);
++    }
++}

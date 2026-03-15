@@ -1,0 +1,62 @@
+diff --git a/ledger/src/advance.rs b/ledger/src/advance.rs
+index 800fa0e7a..a44fc34df 100644
+--- a/ledger/src/advance.rs
++++ b/ledger/src/advance.rs
+@@ -91,6 +91,20 @@ impl<N: Network, C: ConsensusStorage<N>> Ledger<N, C> {
+     pub fn advance_to_next_block(&self, block: &Block<N>) -> Result<()> {
+         // Acquire the write lock on the current block.
+         let mut current_block = self.current_block.write();
++        // Check again for any possible race conditions.
++        if current_block.is_genesis() {
++            // current block is initialized as the genesis block, but the ledger will
++            // also advance to it on startup.
++            ensure!(
++                current_block.height() == block.height() || current_block.height() + 1 == block.height(),
++                "The given block is not the direct successor of the latest block"
++            );
++        } else {
++            ensure!(
++                current_block.height() + 1 == block.height(),
++                "The given block is not the direct successor of the latest block"
++            );
++        }
+         // Update the VM.
+         self.vm.add_next_block(block)?;
+         // Update the current block.
+diff --git a/ledger/src/check_next_block.rs b/ledger/src/check_next_block.rs
+index 67154e4bc..2decceb4b 100644
+--- a/ledger/src/check_next_block.rs
++++ b/ledger/src/check_next_block.rs
+@@ -21,17 +21,18 @@ impl<N: Network, C: ConsensusStorage<N>> Ledger<N, C> {
+     /// Checks the given block is valid next block.
+     pub fn check_next_block<R: CryptoRng + Rng>(&self, block: &Block<N>, rng: &mut R) -> Result<()> {
+         let height = block.height();
++        let latest_block = self.latest_block();
++
++        // Check that this is actually the next block.
++        if height != latest_block.height() + 1 {
++            bail!("Block height is {height}, but expected {}", latest_block.height() + 1);
++        }
+ 
+         // Ensure the block hash does not already exist.
+         if self.contains_block_hash(&block.hash())? {
+             bail!("Block hash '{}' already exists in the ledger", block.hash())
+         }
+ 
+-        // Ensure the block height does not already exist.
+-        if self.contains_block_height(block.height())? {
+-            bail!("Block height '{height}' already exists in the ledger")
+-        }
+-
+         // Ensure the solutions do not already exist.
+         for solution_id in block.solutions().solution_ids() {
+             if self.contains_solution_id(solution_id)? {
+@@ -98,7 +99,7 @@ impl<N: Network, C: ConsensusStorage<N>> Ledger<N, C> {
+ 
+         // Ensure the block is correct.
+         let (expected_existing_solution_ids, expected_existing_transaction_ids) = block.verify(
+-            &self.latest_block(),
++            &latest_block,
+             self.latest_state_root(),
+             &previous_committee_lookback,
+             &committee_lookback,

@@ -1,0 +1,60 @@
+diff --git a/ledger/src/state/tests.rs b/ledger/src/state/tests.rs
+index 8b9162e2b..f13f1c642 100644
+--- a/ledger/src/state/tests.rs
++++ b/ledger/src/state/tests.rs
+@@ -215,7 +215,11 @@ fn test_get_block_locators() {
+     let block_locators = ledger
+         .get_block_locators(ledger.latest_block_height())
+         .expect("Failed to get block locators");
+-    assert!(ledger.check_block_locators(&block_locators).expect("Failed to check block locators"));
++    assert!(
++        ledger
++            .check_block_locators(&block_locators)
++            .expect("Failed to check block locators")
++    );
+ 
+     // Mine the next block.
+     let block_2 = ledger.mine_next_block(address, &[], &terminator, rng).expect("Failed to mine");
+@@ -226,7 +230,11 @@ fn test_get_block_locators() {
+     let block_locators = ledger
+         .get_block_locators(ledger.latest_block_height())
+         .expect("Failed to get block locators");
+-    assert!(ledger.check_block_locators(&block_locators).expect("Failed to check block locators"));
++    assert!(
++        ledger
++            .check_block_locators(&block_locators)
++            .expect("Failed to check block locators")
++    );
+ 
+     // Mine the next block.
+     let block_3 = ledger.mine_next_block(address, &[], &terminator, rng).expect("Failed to mine");
+@@ -237,5 +245,9 @@ fn test_get_block_locators() {
+     let block_locators = ledger
+         .get_block_locators(ledger.latest_block_height())
+         .expect("Failed to get block locators");
+-    assert!(ledger.check_block_locators(&block_locators).expect("Failed to check block locators"));
++    assert!(
++        ledger
++            .check_block_locators(&block_locators)
++            .expect("Failed to check block locators")
++    );
+ }
+diff --git a/src/node.rs b/src/node.rs
+index d7b6daaa8..5d921f776 100644
+--- a/src/node.rs
++++ b/src/node.rs
+@@ -14,13 +14,12 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{network::Server, Client, ClientTrial, Display, Environment, Miner, MinerTrial, NodeType};
++use crate::{helpers::Updater, network::Server, Client, ClientTrial, Display, Environment, Miner, MinerTrial, NodeType};
+ use snarkvm::{
+     dpc::{prelude::*, testnet2::Testnet2},
+     prelude::*,
+ };
+ 
+-use crate::helpers::Updater;
+ use anyhow::Result;
+ use std::str::FromStr;
+ use structopt::StructOpt;

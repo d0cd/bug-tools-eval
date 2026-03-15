@@ -1,0 +1,2444 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 6f2c1b3d3a..c63f946813 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -2176,7 +2176,11 @@ dependencies = [
+ name = "leo-fmt"
+ version = "3.4.0"
+ dependencies = [
++ "leo-ast",
++ "leo-compiler",
++ "leo-errors",
+  "leo-parser-rowan",
++ "leo-span",
+  "similar",
+  "walkdir",
+ ]
+diff --git a/leo-fmt/Cargo.toml b/leo-fmt/Cargo.toml
+index 800a4c4257..7f7a6af00f 100644
+--- a/leo-fmt/Cargo.toml
++++ b/leo-fmt/Cargo.toml
+@@ -16,8 +16,21 @@ include = [ "Cargo.toml", "src", "README.md", "LICENSE.md" ]
+ license = "GPL-3.0"
+ edition = "2024"
+ 
++[features]
++default = []
++validate = [
++  "dep:leo-compiler",
++  "dep:leo-ast",
++  "dep:leo-errors",
++  "dep:leo-span",
++]
++
+ [dependencies]
+ leo-parser-rowan    = { workspace = true }
++leo-compiler        = { workspace = true, optional = true }
++leo-ast             = { workspace = true, optional = true }
++leo-errors          = { workspace = true, optional = true }
++leo-span            = { workspace = true, optional = true }
+ 
+ [dev-dependencies]
+ similar             = { version = "2.6" }
+diff --git a/leo-fmt/src/format.rs b/leo-fmt/src/format.rs
+index 396d3818aa..dea508c53a 100644
+--- a/leo-fmt/src/format.rs
++++ b/leo-fmt/src/format.rs
+@@ -16,12 +16,11 @@
+ 
+ //! Formatting logic for Leo source code.
+ 
+-use crate::output::Output;
++use crate::{LINE_WIDTH, output::Output};
+ use leo_parser_rowan::{
+     SyntaxElement,
+     SyntaxKind::{self, *},
+     SyntaxNode,
+-    SyntaxToken,
+ };
+ 
+ /// Format any syntax node.
+@@ -333,7 +332,7 @@ fn format_function(node: &SyntaxNode, out: &mut Output) {
+                         out.write(tok.text());
+                     }
+                     COLON_COLON => {
+-                        // Part of const params, handled by CONST_PARAM_LIST
++                        out.write("::");
+                     }
+                     ARROW => {
+                         out.space();
+@@ -363,6 +362,11 @@ fn format_function(node: &SyntaxNode, out: &mut Output) {
+             }
+         }
+     }
++    // Check next sibling for stolen trailing comments
++    if let Some(next) = node.next_sibling() {
++        emit_stolen_trailing_comments(&next, out);
++    }
++    out.set_mark();
+     out.ensure_newline();
+ }
+ 
+@@ -407,7 +411,8 @@ fn format_composite(node: &SyntaxNode, out: &mut Output) {
+     // Emit leading comments
+     emit_leading_comments(node, out);
+ 
+-    // Write keyword and name
++    // Write keyword, name, and body
++    let mut after_lbrace = false;
+     for elem in &elems {
+         match elem {
+             SyntaxElement::Token(tok) => {
+@@ -417,19 +422,34 @@ fn format_composite(node: &SyntaxNode, out: &mut Output) {
+                         out.write(tok.text());
+                         out.space();
+                     }
+-                    IDENT => {
++                    IDENT if !after_lbrace => {
+                         out.write(tok.text());
+                         out.space();
+                     }
+                     COLON_COLON => {
+-                        // Handled by CONST_PARAM_LIST
++                        out.write("::");
+                     }
+                     L_BRACE => {
+                         out.write("{");
+                         out.newline();
++                        after_lbrace = true;
+                     }
+                     R_BRACE => {}
+                     COMMA => {}
++                    // Emit comments that are direct children of the struct body
++                    // (e.g. block comments after the last member's comma).
++                    COMMENT_LINE if after_lbrace => {
++                        out.indented(|out| {
++                            out.write(tok.text().trim_end());
++                        });
++                        out.newline();
++                    }
++                    COMMENT_BLOCK if after_lbrace => {
++                        out.indented(|out| {
++                            out.write(tok.text());
++                        });
++                        out.newline();
++                    }
+                     WHITESPACE | LINEBREAK => {}
+                     _ => {}
+                 }
+@@ -442,6 +462,10 @@ fn format_composite(node: &SyntaxNode, out: &mut Output) {
+                         out.indented(|out| {
+                             format_struct_member(n, out);
+                             out.write(",");
++                            // Emit stolen trailing comments from next member
++                            if let Some(next) = n.next_sibling() {
++                                emit_stolen_trailing_comments(&next, out);
++                            }
+                         });
+                         out.newline();
+                     }
+@@ -451,19 +475,35 @@ fn format_composite(node: &SyntaxNode, out: &mut Output) {
+         }
+     }
+     out.write("}");
+-    out.set_mark();
+     // Emit comments after closing brace
+     if let Some(idx) = rbrace_idx {
+         emit_comments_after(&elems, idx, out);
+     }
++    // Check next sibling for stolen trailing comments
++    if let Some(next) = node.next_sibling() {
++        emit_stolen_trailing_comments(&next, out);
++    }
++    out.set_mark();
+     out.ensure_newline();
+ }
+ 
+ fn format_struct_member(node: &SyntaxNode, out: &mut Output) {
++    // Emit leading comments (the parser attaches comments as leading trivia
++    // of the next token, so STRUCT_MEMBER may start with comments).
++    emit_leading_comments(node, out);
++
++    // Skip leading trivia (already handled above), then format the member.
++    let mut past_leading_trivia = false;
+     for elem in node.children_with_tokens() {
+         match elem {
+             SyntaxElement::Token(tok) => {
+                 let k = tok.kind();
++                if !past_leading_trivia {
++                    match k {
++                        WHITESPACE | LINEBREAK | COMMENT_LINE | COMMENT_BLOCK => continue,
++                        _ => past_leading_trivia = true,
++                    }
++                }
+                 match k {
+                     COLON => {
+                         out.write(":");
+@@ -479,7 +519,10 @@ fn format_struct_member(node: &SyntaxNode, out: &mut Output) {
+                     _ => out.write(tok.text()),
+                 }
+             }
+-            SyntaxElement::Node(n) if is_type_node(n.kind()) => format_type(&n, out),
++            SyntaxElement::Node(n) if is_type_node(n.kind()) => {
++                past_leading_trivia = true;
++                format_type(&n, out);
++            }
+             _ => {}
+         }
+     }
+@@ -620,17 +663,37 @@ fn format_global_const(node: &SyntaxNode, out: &mut Output) {
+ fn format_parameter_list(node: &SyntaxNode, out: &mut Output) {
+     let params: Vec<_> = node.children().filter(|c| c.kind() == PARAM).collect();
+ 
+-    out.write("(");
+-    for (i, param) in params.iter().enumerate() {
+-        format_parameter(param, out);
+-        if i < params.len() - 1 {
+-            out.write(",");
+-            // Emit any trailing comments after this comma
+-            emit_inline_comments_after_param(node, param, out);
+-            out.space();
++    let param_strings: Vec<String> = params.iter().map(format_node_to_string).collect();
++    let col = out.current_column();
++
++    if fits_on_one_line(col, "(", ")", &param_strings) {
++        // Single-line: (param1, param2)
++        out.write("(");
++        for (i, param) in params.iter().enumerate() {
++            format_parameter(param, out);
++            if i < params.len() - 1 {
++                out.write(",");
++                emit_inline_comments_after_param(node, param, out);
++                out.space();
++            }
+         }
++        out.write(")");
++    } else {
++        // Multi-line: wrap each param on its own line
++        out.write("(");
++        out.newline();
++        out.indented(|out| {
++            for (i, param) in params.iter().enumerate() {
++                format_parameter(param, out);
++                out.write(",");
++                if i < params.len() - 1 {
++                    emit_inline_comments_after_param(node, param, out);
++                }
++                out.newline();
++            }
++        });
++        out.write(")");
+     }
+-    out.write(")");
+ }
+ 
+ fn format_parameter(node: &SyntaxNode, out: &mut Output) {
+@@ -659,9 +722,44 @@ fn format_parameter(node: &SyntaxNode, out: &mut Output) {
+ }
+ 
+ fn format_return_type(node: &SyntaxNode, out: &mut Output) {
+-    // RETURN_TYPE wraps tuple return types: (vis Type, vis Type, ...)
+-    // Iterate children_with_tokens and emit them preserving structure.
+-    // We use the COMMA tokens from the tree to know where to place commas.
++    // First try single-line
++    let single_line = format_return_type_to_string(node);
++    let col = out.current_column();
++
++    if col + single_line.len() <= LINE_WIDTH {
++        out.write(&single_line);
++    } else {
++        // Multi-line: wrap tuple return type entries
++        // Only tuple return types (with L_PAREN) get wrapped
++        if has_token(node, L_PAREN) {
++            // Collect return type entries: each is a sequence of visibility + type tokens/nodes
++            // between commas. We format them individually.
++            let entries = collect_return_type_entries(node);
++
++            out.write("(");
++            out.newline();
++            out.indented(|out| {
++                for entry in &entries {
++                    out.write(entry);
++                    out.write(",");
++                    out.newline();
++                }
++            });
++            out.write(")");
++        } else {
++            // Non-tuple — just emit inline
++            out.write(&single_line);
++        }
++    }
++}
++
++fn format_return_type_to_string(node: &SyntaxNode) -> String {
++    let mut out = Output::new();
++    format_return_type_inline(node, &mut out);
++    out.into_raw()
++}
++
++fn format_return_type_inline(node: &SyntaxNode, out: &mut Output) {
+     for elem in node.children_with_tokens() {
+         match elem {
+             SyntaxElement::Token(tok) => {
+@@ -687,6 +785,58 @@ fn format_return_type(node: &SyntaxNode, out: &mut Output) {
+     }
+ }
+ 
++/// Collect the entries of a tuple return type as formatted strings.
++/// Each entry is e.g. "public u64" or "field".
++fn collect_return_type_entries(node: &SyntaxNode) -> Vec<String> {
++    let mut entries = Vec::new();
++    let mut current = String::new();
++    let mut in_tuple = false;
++
++    for elem in node.children_with_tokens() {
++        match elem {
++            SyntaxElement::Token(tok) => {
++                let k = tok.kind();
++                match k {
++                    L_PAREN => {
++                        in_tuple = true;
++                    }
++                    R_PAREN => {
++                        let trimmed = current.trim().to_string();
++                        if !trimmed.is_empty() {
++                            entries.push(trimmed);
++                        }
++                        current.clear();
++                    }
++                    COMMA if in_tuple => {
++                        let trimmed = current.trim().to_string();
++                        if !trimmed.is_empty() {
++                            entries.push(trimmed);
++                        }
++                        current.clear();
++                    }
++                    KW_PUBLIC | KW_PRIVATE | KW_CONSTANT if in_tuple => {
++                        current.push_str(tok.text());
++                        current.push(' ');
++                    }
++                    WHITESPACE | LINEBREAK => {}
++                    _ if in_tuple => {
++                        current.push_str(tok.text());
++                    }
++                    _ => {}
++                }
++            }
++            SyntaxElement::Node(n) if is_type_node(n.kind()) && in_tuple => {
++                let mut tmp = Output::new();
++                format_type(&n, &mut tmp);
++                current.push_str(&tmp.into_raw());
++            }
++            _ => {}
++        }
++    }
++
++    entries
++}
++
+ fn format_const_parameter(node: &SyntaxNode, out: &mut Output) {
+     for elem in node.children_with_tokens() {
+         match elem {
+@@ -711,7 +861,7 @@ fn format_const_parameter(node: &SyntaxNode, out: &mut Output) {
+ fn format_const_parameter_list(node: &SyntaxNode, out: &mut Output) {
+     let params: Vec<_> = node.children().filter(|c| c.kind() == CONST_PARAM).collect();
+ 
+-    out.write("::[");
++    out.write("[");
+     for (i, param) in params.iter().enumerate() {
+         format_const_parameter(param, out);
+         if i < params.len() - 1 {
+@@ -725,7 +875,7 @@ fn format_const_parameter_list(node: &SyntaxNode, out: &mut Output) {
+ fn format_const_argument_list(node: &SyntaxNode, out: &mut Output) {
+     let args: Vec<_> = node.children().filter(|c| is_type_node(c.kind()) || is_expression(c.kind())).collect();
+ 
+-    out.write("::[");
++    out.write("[");
+     for (i, arg) in args.iter().enumerate() {
+         format_node(arg, out);
+         if i < args.len() - 1 {
+@@ -1150,18 +1300,34 @@ fn format_assert(node: &SyntaxNode, out: &mut Output) {
+ }
+ 
+ fn format_assert_pair(node: &SyntaxNode, out: &mut Output, keyword: &str) {
++    let exprs: Vec<_> = node.children().filter(|c| is_expression(c.kind())).collect();
++    let expr_strings: Vec<String> = exprs.iter().map(format_node_to_string).collect();
++
+     out.write(keyword);
+     out.write("(");
++    let col = out.current_column();
+ 
+-    let exprs: Vec<_> = node.children().filter(|c| is_expression(c.kind())).collect();
+-    for (i, expr) in exprs.iter().enumerate() {
+-        format_node(expr, out);
+-        if i < exprs.len() - 1 {
+-            out.write(",");
+-            out.space();
++    if fits_on_one_line(col, "", ");", &expr_strings) {
++        for (i, expr) in exprs.iter().enumerate() {
++            format_node(expr, out);
++            if i < exprs.len() - 1 {
++                out.write(",");
++                out.space();
++            }
+         }
++    } else {
++        // Multi-line (no trailing comma — fixed arity)
++        out.newline();
++        out.indented(|out| {
++            for (i, expr) in exprs.iter().enumerate() {
++                format_node(expr, out);
++                if i < exprs.len() - 1 {
++                    out.write(",");
++                }
++                out.newline();
++            }
++        });
+     }
+-
+     out.write(")");
+     write_semicolon_with_comments(node, out);
+ }
+@@ -1195,6 +1361,59 @@ fn format_literal(node: &SyntaxNode, out: &mut Output) {
+ 
+ fn format_call(node: &SyntaxNode, out: &mut Output) {
+     // CALL_EXPR: callee_node, L_PAREN, [args separated by COMMA], R_PAREN
++    let col = out.current_column();
++    let single_line = format_call_inline(node);
++
++    if col + single_line.len() <= LINE_WIDTH {
++        // Fits on one line — write the pre-formatted string directly
++        out.write(&single_line);
++    } else {
++        // Wrap: write callee, then wrap args
++        let elems = elements(node);
++        let lparen_idx = find_token_index(&elems, L_PAREN).unwrap_or(elems.len());
++
++        // Write callee (everything before L_PAREN)
++        for elem in elems[..lparen_idx].iter() {
++            match elem {
++                SyntaxElement::Token(tok) => {
++                    let k = tok.kind();
++                    if k != WHITESPACE && k != LINEBREAK {
++                        out.write(tok.text());
++                    }
++                }
++                SyntaxElement::Node(n) => format_node(n, out),
++            }
++        }
++
++        // Collect args (expression nodes after L_PAREN)
++        let args: Vec<_> = elems[lparen_idx..]
++            .iter()
++            .filter_map(|e| {
++                if let SyntaxElement::Node(n) = e {
++                    if is_expression(n.kind()) { Some(n.clone()) } else { None }
++                } else {
++                    None
++                }
++            })
++            .collect();
++
++        out.write("(");
++        out.newline();
++        out.indented(|out| {
++            for arg in &args {
++                format_node(arg, out);
++                out.write(",");
++                out.newline();
++            }
++        });
++        out.write(")");
++    }
++}
++
++/// Format a call expression as a single-line string (no wrapping).
++/// Used for measurement to avoid infinite recursion with format_node_to_string.
++fn format_call_inline(node: &SyntaxNode) -> String {
++    let mut out = Output::new();
+     for elem in node.children_with_tokens() {
+         match elem {
+             SyntaxElement::Token(tok) => {
+@@ -1210,9 +1429,10 @@ fn format_call(node: &SyntaxNode, out: &mut Output) {
+                     _ => out.write(tok.text()),
+                 }
+             }
+-            SyntaxElement::Node(n) => format_node(&n, out),
++            SyntaxElement::Node(n) => format_node(&n, &mut out),
+         }
+     }
++    out.into_raw()
+ }
+ 
+ fn format_binary(node: &SyntaxNode, out: &mut Output) {
+@@ -1351,7 +1571,7 @@ fn format_array_expr(node: &SyntaxNode, out: &mut Output) {
+     let has_semi = has_token(node, SEMICOLON);
+ 
+     if has_semi {
+-        // Repeat expression: [value; count]
++        // Repeat expression: [value; count] — never wraps
+         let exprs: Vec<_> = node.children().filter(|c| is_expression(c.kind())).collect();
+         out.write("[");
+         if exprs.len() >= 2 {
+@@ -1364,34 +1584,34 @@ fn format_array_expr(node: &SyntaxNode, out: &mut Output) {
+     } else {
+         // Array literal: [a, b, c]
+         let exprs: Vec<_> = node.children().filter(|c| is_expression(c.kind())).collect();
+-        out.write("[");
+-        for (i, expr) in exprs.iter().enumerate() {
+-            format_node(expr, out);
+-            if i < exprs.len() - 1 {
+-                out.write(",");
+-                out.space();
+-            }
+-        }
+-        out.write("]");
++        format_wrapping_list(out, "[", "]", &exprs, true);
+     }
+ }
+ 
+ fn format_tuple_expr(node: &SyntaxNode, out: &mut Output) {
+     let exprs: Vec<_> = node.children().filter(|c| is_expression(c.kind())).collect();
+ 
+-    out.write("(");
+-    for (i, expr) in exprs.iter().enumerate() {
+-        format_node(expr, out);
+-        if i < exprs.len() - 1 {
+-            out.write(",");
+-            out.space();
+-        }
+-    }
+-    // Single-element tuples need a trailing comma to distinguish from PAREN_EXPR.
+     if exprs.len() == 1 {
+-        out.write(",");
++        // Single-element tuples need a trailing comma to distinguish from PAREN_EXPR.
++        let item_string = format_node_to_string(&exprs[0]);
++        let col = out.current_column();
++        if fits_on_one_line(col, "(", ",)", &[item_string]) {
++            out.write("(");
++            format_node(&exprs[0], out);
++            out.write(",)");
++        } else {
++            out.write("(");
++            out.newline();
++            out.indented(|out| {
++                format_node(&exprs[0], out);
++                out.write(",");
++                out.newline();
++            });
++            out.write(")");
++        }
++    } else {
++        format_wrapping_list(out, "(", ")", &exprs, true);
+     }
+-    out.write(")");
+ }
+ 
+ fn format_parenthesized(node: &SyntaxNode, out: &mut Output) {
+@@ -1433,20 +1653,13 @@ fn format_struct_expr(node: &SyntaxNode, out: &mut Output) {
+         }
+     }
+ 
+-    out.space();
+-    out.write("{");
+-    if !inits.is_empty() {
+-        out.space();
+-        for (i, init) in inits.iter().enumerate() {
+-            format_struct_field_init(init, out);
+-            if i < inits.len() - 1 {
+-                out.write(",");
+-                out.space();
+-            }
+-        }
++    if inits.is_empty() {
+         out.space();
++        out.write("{}");
++        return;
+     }
+-    out.write("}");
++
++    format_wrapping_list(out, " { ", " }", &inits, true);
+ }
+ 
+ fn format_struct_field_init(node: &SyntaxNode, out: &mut Output) {
+@@ -1577,19 +1790,31 @@ fn emit_comments_after(elems: &[SyntaxElement], start_idx: usize, out: &mut Outp
+ /// Emit leading comment tokens that appear before the first non-trivia token in a node.
+ /// In rowan, `skip_trivia()` in the parser causes leading trivia (including comments)
+ /// to be consumed into item nodes. We need to emit these before the structural content.
++///
++/// Comments that appear before any LINEBREAK in the leading trivia are "stolen"
++/// trailing comments from the previous item (on the same line as the previous
++/// item's closing token). These are skipped here and should be handled by the
++/// previous item's formatter via `emit_stolen_trailing_comments`.
+ fn emit_leading_comments(node: &SyntaxNode, out: &mut Output) {
++    let mut saw_linebreak = false;
+     for elem in node.children_with_tokens() {
+         match &elem {
+             SyntaxElement::Token(tok) => match tok.kind() {
+-                COMMENT_LINE => {
++                LINEBREAK => {
++                    saw_linebreak = true;
++                }
++                COMMENT_LINE if saw_linebreak => {
+                     out.write(tok.text().trim_end());
+                     out.newline();
+                 }
+-                COMMENT_BLOCK => {
++                COMMENT_BLOCK if saw_linebreak => {
+                     out.write(tok.text());
+                     out.newline();
+                 }
+-                WHITESPACE | LINEBREAK => {}
++                // Inline comment before any linebreak — stolen trailing comment
++                // from the previous item. Skip it here.
++                COMMENT_LINE | COMMENT_BLOCK => {}
++                WHITESPACE => {}
+                 _ => break, // Stop at first structural token
+             },
+             SyntaxElement::Node(_) => break, // Stop at first child node
+@@ -1597,6 +1822,33 @@ fn emit_leading_comments(node: &SyntaxNode, out: &mut Output) {
+     }
+ }
+ 
++/// Emit "stolen" trailing comments from a node's leading trivia.
++///
++/// The parser consumes trailing comments (e.g. `// foo` after a semicolon)
++/// into the next item's node as leading trivia. This function detects such
++/// comments (those appearing before any LINEBREAK) and emits them inline
++/// so they stay on the previous item's line.
++fn emit_stolen_trailing_comments(node: &SyntaxNode, out: &mut Output) {
++    for elem in node.children_with_tokens() {
++        match &elem {
++            SyntaxElement::Token(tok) => match tok.kind() {
++                LINEBREAK => break,
++                COMMENT_LINE => {
++                    out.space();
++                    out.write(tok.text().trim_end());
++                }
++                COMMENT_BLOCK => {
++                    out.space();
++                    out.write(tok.text());
++                }
++                WHITESPACE => {}
++                _ => break,
++            },
++            SyntaxElement::Node(_) => break,
++        }
++    }
++}
++
+ /// Emit inline comments that appear after a child node within its parent.
+ /// Scans sibling elements after `child` (past the COMMA) and emits any comments
+ /// found before the next structural element.
+@@ -1638,13 +1890,83 @@ fn emit_inline_comments_after_param(parent: &SyntaxNode, child: &SyntaxNode, out
+ }
+ 
+ /// Write a semicolon and emit any trailing comments that follow it.
++///
++/// Also checks the next sibling node for "stolen" trailing comments that
++/// the parser consumed into the following item's leading trivia.
+ fn write_semicolon_with_comments(node: &SyntaxNode, out: &mut Output) {
+     out.write(";");
+-    out.set_mark();
+     let elems = elements(node);
+     if let Some(idx) = find_token_index(&elems, SEMICOLON) {
+         emit_comments_after(&elems, idx, out);
+     }
++    // Check next sibling for stolen trailing comments
++    if let Some(next) = node.next_sibling() {
++        emit_stolen_trailing_comments(&next, out);
++    }
++    out.set_mark();
++}
++
++// =============================================================================
++// Line-width measurement helpers
++// =============================================================================
++
++/// Format a comma-separated list of nodes, wrapping to multiple lines if needed.
++///
++/// Single-line: `{open}item1, item2{close}`
++/// Multi-line (trailing spaces stripped from `open`, leading from `close`):
++/// ```text
++/// {open}
++///     item1,
++///     item2,
++/// {close}
++/// ```
++fn format_wrapping_list(out: &mut Output, open: &str, close: &str, items: &[SyntaxNode], multi_trailing_comma: bool) {
++    let item_strings: Vec<String> = items.iter().map(format_node_to_string).collect();
++    let col = out.current_column();
++
++    if fits_on_one_line(col, open, close, &item_strings) {
++        out.write(open);
++        for (i, item) in items.iter().enumerate() {
++            format_node(item, out);
++            if i < items.len() - 1 {
++                out.write(",");
++                out.space();
++            }
++        }
++        out.write(close);
++    } else {
++        out.write(open.trim_end());
++        out.newline();
++        out.indented(|out| {
++            for (i, item) in items.iter().enumerate() {
++                format_node(item, out);
++                if multi_trailing_comma || i < items.len() - 1 {
++                    out.write(",");
++                }
++                out.newline();
++            }
++        });
++        out.write(close.trim_start());
++    }
++}
++
++/// Format a node into a temporary buffer and return the result as a string.
++fn format_node_to_string(node: &SyntaxNode) -> String {
++    let mut out = Output::new();
++    format_node(node, &mut out);
++    out.into_raw()
++}
++
++/// Check if a delimited list fits on one line.
++///
++/// Computes: `col + prefix.len() + joined_items(", ") + suffix.len() <= LINE_WIDTH`
++fn fits_on_one_line(col: usize, prefix: &str, suffix: &str, items: &[String]) -> bool {
++    let items_len: usize = if items.is_empty() {
++        0
++    } else {
++        items.iter().map(|s| s.len()).sum::<usize>() + (items.len() - 1) * 2 // ", " between items
++    };
++    col + prefix.len() + items_len + suffix.len() <= LINE_WIDTH
+ }
+ 
+ // =============================================================================
+@@ -1755,14 +2077,9 @@ fn elements(node: &SyntaxNode) -> Vec<SyntaxElement> {
+     node.children_with_tokens().collect()
+ }
+ 
+-/// Get the first child token with a given kind.
+-fn first_token(node: &SyntaxNode, kind: SyntaxKind) -> Option<SyntaxToken> {
+-    node.children_with_tokens().filter_map(|e| e.into_token()).find(|t| t.kind() == kind)
+-}
+-
+ /// Check if a node has a child token of a given kind.
+ fn has_token(node: &SyntaxNode, kind: SyntaxKind) -> bool {
+-    first_token(node, kind).is_some()
++    node.children_with_tokens().any(|e| matches!(e, SyntaxElement::Token(t) if t.kind() == kind))
+ }
+ 
+ /// Find the index of a token with a given kind.
+diff --git a/leo-fmt/src/lib.rs b/leo-fmt/src/lib.rs
+index abce5f8ba6..4f1ecce8d8 100644
+--- a/leo-fmt/src/lib.rs
++++ b/leo-fmt/src/lib.rs
+@@ -42,6 +42,9 @@ pub const INDENT: &str = "    ";
+ /// Newline character.
+ pub const NEWLINE: &str = "\n";
+ 
++/// Maximum line width before wrapping.
++pub const LINE_WIDTH: usize = 100;
++
+ /// Format Leo source code.
+ ///
+ /// Takes Leo source code as input and returns formatted source code.
+diff --git a/leo-fmt/src/output.rs b/leo-fmt/src/output.rs
+index 0deb20f863..33387e20fb 100644
+--- a/leo-fmt/src/output.rs
++++ b/leo-fmt/src/output.rs
+@@ -125,6 +125,26 @@ impl Output {
+         self.dedent();
+     }
+ 
++    /// Return the current column (0-based character offset from the last newline).
++    ///
++    /// When `at_line_start` is true, the pending indentation hasn't been emitted
++    /// yet, so we return `depth * INDENT.len()`.
++    pub fn current_column(&self) -> usize {
++        if self.at_line_start {
++            return self.depth * INDENT.len();
++        }
++        match self.buf.rfind('\n') {
++            Some(pos) => self.buf.len() - pos - 1,
++            None => self.buf.len(),
++        }
++    }
++
++    /// Consume the buffer and return the raw string without trailing-newline
++    /// normalization. Used by measurement helpers.
++    pub fn into_raw(self) -> String {
++        self.buf
++    }
++
+     /// Consume the buffer and return the final formatted string.
+     ///
+     /// Ensures the output ends with exactly one trailing newline.
+@@ -211,6 +231,33 @@ mod tests {
+         assert_eq!(out.finish(), "x\n");
+     }
+ 
++    #[test]
++    fn current_column() {
++        // Fresh buffer: at_line_start, depth 0
++        assert_eq!(Output::new().current_column(), 0);
++
++        // After writing: no newline in buffer, so len from start
++        let mut out = Output::new();
++        out.write("ab");
++        out.space();
++        out.write("cd");
++        assert_eq!(out.current_column(), 5); // "ab cd"
++
++        // After newline: back to pending indent width
++        out.newline();
++        assert_eq!(out.current_column(), 0);
++
++        // Indented write
++        let mut out = Output::new();
++        out.indent();
++        out.write("x");
++        assert_eq!(out.current_column(), 5); // 4-space indent + 1 char
++
++        // at_line_start with depth reports pending indent
++        out.newline();
++        assert_eq!(out.current_column(), 4);
++    }
++
+     #[test]
+     fn finish_normalizes_trailing_newlines() {
+         // Adds missing newline
+diff --git a/leo-fmt/tests/harness.rs b/leo-fmt/tests/harness.rs
+index ab93937649..5111599dbb 100644
+--- a/leo-fmt/tests/harness.rs
++++ b/leo-fmt/tests/harness.rs
+@@ -122,3 +122,81 @@ fn test_idempotency() {
+ 
+     assert!(failures.is_empty(), "{} file(s) not idempotent: {failures:?}", failures.len());
+ }
++
++// =============================================================================
++// Compilation validation (feature-gated)
++// =============================================================================
++
++/// Files that are expected to fail type checking (error recovery tests,
++/// import tests, empty programs, annotated functions).
++#[cfg(feature = "validate")]
++const SKIP_VALIDATION: &[&str] = &[
++    "error_recovery_item",
++    "error_recovery_stmt",
++    "import_single",
++    "import_multiple",
++    "empty_program",
++    "function_annotated",
++];
++
++/// Validate that target files pass Leo type checking.
++///
++/// Runs parse + intermediate passes (name validation, type checking, static
++/// analysis) on each target file, skipping files in SKIP_VALIDATION.
++/// Stops before code generation. Catches issues like undeclared variables,
++/// type mismatches, and invalid syntax that the formatter's rowan parser
++/// wouldn't flag.
++///
++/// Run with: `cargo test -p leo-fmt --features validate -- validate_targets_compile`
++#[cfg(feature = "validate")]
++#[test]
++fn validate_targets_compile() {
++    use leo_ast::{NetworkName, NodeBuilder};
++    use leo_compiler::Compiler;
++    use leo_errors::Handler;
++    use leo_span::{create_session_if_not_set_then, source_map::FileName};
++    use std::rc::Rc;
++
++    let target_dir = tests_dir().join("target");
++    let target_files = collect_leo_files(&target_dir);
++
++    create_session_if_not_set_then(|_| {
++        let mut failures = Vec::new();
++
++        for target_path in &target_files {
++            let name = target_path.file_stem().unwrap().to_str().unwrap();
++            if SKIP_VALIDATION.contains(&name) {
++                continue;
++            }
++
++            let source = std::fs::read_to_string(target_path)
++                .unwrap_or_else(|_| panic!("Failed to read: {}", target_path.display()));
++
++            let (handler, buf) = Handler::new_with_buf();
++            let mut compiler = Compiler::new(
++                None,
++                false,
++                handler,
++                Rc::new(NodeBuilder::default()),
++                "/tmp".into(),
++                None,
++                Default::default(),
++                NetworkName::TestnetV0,
++            );
++
++            let result = compiler
++                .parse(&source, FileName::Custom(name.into()), &[])
++                .and_then(|_| compiler.intermediate_passes().map(|_| ()));
++
++            if let Err(e) = result {
++                println!("\n=== TYPE CHECK ERROR: {} ===", target_path.display());
++                println!("{e}");
++                println!("{}", buf.extract_errs());
++                println!("=== END ===\n");
++                failures.push(target_path.clone());
++            }
++        }
++
++        assert!(failures.is_empty(), "{} file(s) failed type checking: {failures:?}", failures.len());
++    });
++}
+diff --git a/leo-fmt/tests/source/comment_between.leo b/leo-fmt/tests/source/comment_between.leo
+index 82fc38ce15..878c57f15e 100644
+--- a/leo-fmt/tests/source/comment_between.leo
++++ b/leo-fmt/tests/source/comment_between.leo
+@@ -1,5 +1,5 @@
+ program test.aleo{
+-        function process(  a  : u64  )  ->  u64  {
++        transition process(  a  : u64  )  ->  u64  {
+                         // validate input
+         assert(  a  >  0u64  );
+     // compute result
+diff --git a/leo-fmt/tests/source/comment_end_of_block.leo b/leo-fmt/tests/source/comment_end_of_block.leo
+index 4e2f7a506c..440a693874 100644
+--- a/leo-fmt/tests/source/comment_end_of_block.leo
++++ b/leo-fmt/tests/source/comment_end_of_block.leo
+@@ -1,11 +1,11 @@
+ program test.aleo   {
+-    function compute(   a  :  u64  )  ->  u64    {
++    transition compute(   a  :  u64  )  ->  u64    {
+   let x  :  u64  =  a  *  2u64  ;
+           return x  ;
+                 // end of function
+         }
+ 
+-function empty_with_comment(  )  {
++transition empty_with_comment(  )  {
+                             // only a comment here
+ }
+ }
+diff --git a/leo-fmt/tests/source/comment_mixed.leo b/leo-fmt/tests/source/comment_mixed.leo
+index 1831a53679..7b748fc26c 100644
+--- a/leo-fmt/tests/source/comment_mixed.leo
++++ b/leo-fmt/tests/source/comment_mixed.leo
+@@ -1,6 +1,6 @@
+                 // File-level comment
+     program test.aleo    {
+-        function example(   a  :  u64  ,    b  :  u64  )  ->  u64    {
++        transition example(   a  :  u64  ,    b  :  u64  )  ->  u64    {
+     let x  :  u64  =    a  +  b  ;         // trailing comment
+             // standalone comment
+             let y  :  u64  =    x  *  2u64  ;
+diff --git a/leo-fmt/tests/source/comment_multiline.leo b/leo-fmt/tests/source/comment_multiline.leo
+index 93d094ba05..10a72928eb 100644
+--- a/leo-fmt/tests/source/comment_multiline.leo
++++ b/leo-fmt/tests/source/comment_multiline.leo
+@@ -1,6 +1,5 @@
+          // The token program.
+ // Implements minting and transferring of tokens.
+-    import credits.aleo;
+ 
+ program test.aleo {
+ // A token record.
+@@ -15,8 +14,8 @@ program test.aleo {
+ 
+         // The function `mint_public` issues the specified token amount
+  // for the token receiver publicly on the network.
+-    async transition mint_public(  public receiver:address ,  public amount:u64  )->Future{
+-    return finalize_mint(  receiver  ,  amount  );
++    transition mint_public(  public receiver:address ,  public amount:u64  ){
++    return;
+     }
+ 
+ /* Transfer */
+@@ -29,11 +28,11 @@ program test.aleo {
+     // This function is public and both the sender and receiver
+ 
+       // are visible on-chain.
+-        async transition transfer_public(  public receiver:address  ,  public amount:u64  )->Future{
++        transition transfer_public(  public receiver:address  ,  public amount:u64  ){
+         // Compute the change amount.
+     // This `sub` operation is safe, and the proof will fail
+                      // if an overflow occurs.
+     let change:u64=amount-1u64;
+-                return finalize_transfer(  self.caller  ,  receiver  ,  amount  );
++                return;
+     }
+ }
+diff --git a/leo-fmt/tests/source/comment_struct_members.leo b/leo-fmt/tests/source/comment_struct_members.leo
+new file mode 100644
+index 0000000000..fe85cfef0b
+--- /dev/null
++++ b/leo-fmt/tests/source/comment_struct_members.leo
+@@ -0,0 +1,17 @@
++program test.aleo {
++    struct Foo {
++        // leading comment on x
++        x:    u32, // trailing comment on x
++        y: u32,   /* block comment on y */
++    }
++
++    struct Bar {
++        // comment before first
++        a: u32,
++        b: bool,  // inline comment
++    } // after struct
++
++    transition main(f: Foo, b: Bar) -> u32 {
++        return f.x + b.a;
++    }
++}
+diff --git a/leo-fmt/tests/source/comment_trailing_inline.leo b/leo-fmt/tests/source/comment_trailing_inline.leo
+new file mode 100644
+index 0000000000..779ce54dc4
+--- /dev/null
++++ b/leo-fmt/tests/source/comment_trailing_inline.leo
+@@ -0,0 +1,15 @@
++program test.aleo {
++    const X: u32 = 4u32; // trailing on const
++
++    struct Foo {
++        x: u32,
++    }
++
++    mapping balances: address => u64; // trailing on mapping
++
++    const Y: bool = true; /* block trailing */
++
++    transition main(f: Foo) -> u32 {
++        return f.x + X;
++    } // after function
++}
+diff --git a/leo-fmt/tests/source/expr_access.leo b/leo-fmt/tests/source/expr_access.leo
+index ddccfbf19b..5235dd3959 100644
+--- a/leo-fmt/tests/source/expr_access.leo
++++ b/leo-fmt/tests/source/expr_access.leo
+@@ -2,7 +2,7 @@ program test.aleo{
+ struct Point  {  x:u64,
+     y  :  u64  }
+ 
+-	function main(  )  ->  u64   {
++	transition main(  )  ->  u64   {
+ 
+                 let arr  :[u64;3]  =  [1u64  ,  2u64  ,  3u64];
+     let first  :u64  =  arr  [  0u32  ]  ;
+diff --git a/leo-fmt/tests/source/expr_binary.leo b/leo-fmt/tests/source/expr_binary.leo
+index ea82862617..d3baec438e 100644
+--- a/leo-fmt/tests/source/expr_binary.leo
++++ b/leo-fmt/tests/source/expr_binary.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function compute(a: u64,b: u64) -> u64 {
++    transition compute(a: u64,b: u64) -> u64 {
+ 
+         let sum: u64  =a
+         +   b;
+@@ -16,7 +16,7 @@ let prod
+             ;
+ 
+ let pow: u64=a  **
+-    2u64;
++    2u32;
+     let lt: bool =  a
+         <b;
+ let gt
+diff --git a/leo-fmt/tests/source/expr_call.leo b/leo-fmt/tests/source/expr_call.leo
+index ff7afb51fc..5944b49e23 100644
+--- a/leo-fmt/tests/source/expr_call.leo
++++ b/leo-fmt/tests/source/expr_call.leo
+@@ -2,7 +2,10 @@ program test.aleo   {
+ 	function add(   a  :  u64  ,
+ 	    b  :  u64  )  ->  u64  {  return   a  +  b  ;  }
+ 
+-    function main(
++    function to_field(
++	    a  :  u64  )  ->  field  {  return  a  as  field  ;  }
++
++    transition main(
+             )  ->  u64   {
+ 
+ let x
+@@ -16,19 +19,10 @@ let x
+ 
+ 
+ 	    let hash
+-	        :field  =  BHP256::hash_to_field(
++	        :field  =  to_field(
+ 	                1u64  )  ;
+ 
+-let mapped
+-    :   u64=Mapping::get(
+-    balances
+-        ,
+-                self.caller
+-    )  ;
+-
+             return
+                 x  ;
+     }
+-
+-	mapping balances  :  address  =>  u64  ;
+ }
+diff --git a/leo-fmt/tests/source/expr_cast.leo b/leo-fmt/tests/source/expr_cast.leo
+index 2db2e01971..6c83d9d6f7 100644
+--- a/leo-fmt/tests/source/expr_cast.leo
++++ b/leo-fmt/tests/source/expr_cast.leo
+@@ -1,5 +1,5 @@
+ program test.aleo   {
+-	function main(   a
++	transition main(   a
+ 	        :  u64  )  ->  u32  {
+ 
+ let b  :  u32
+diff --git a/leo-fmt/tests/source/expr_collections.leo b/leo-fmt/tests/source/expr_collections.leo
+index c8da8073c5..1439e8f0e1 100644
+--- a/leo-fmt/tests/source/expr_collections.leo
++++ b/leo-fmt/tests/source/expr_collections.leo
+@@ -1,6 +1,6 @@
+ program test.aleo
+     {
+-	function main(  ){
++	transition main(  ){
+ 
+             let arr  :  [u64;  3]  =  [
+                 1u64  ,
+diff --git a/leo-fmt/tests/source/expr_const_arg_list.leo b/leo-fmt/tests/source/expr_const_arg_list.leo
+new file mode 100644
+index 0000000000..4cdbbae3ce
+--- /dev/null
++++ b/leo-fmt/tests/source/expr_const_arg_list.leo
+@@ -0,0 +1,5 @@
++program test.aleo {
++    transition main(  bits  :  [bool  ;  256]  )  ->  [u8  ;  32] {
++        return Deserialize  ::  from_bits_raw  ::  [  [u8  ;  32]  ](  bits  )  ;
++    }
++}
+diff --git a/leo-fmt/tests/source/expr_literals.leo b/leo-fmt/tests/source/expr_literals.leo
+index f055959aa5..1d3617a50d 100644
+--- a/leo-fmt/tests/source/expr_literals.leo
++++ b/leo-fmt/tests/source/expr_literals.leo
+@@ -1,5 +1,5 @@
+ program test.aleo{
+-	function main(  ){
++	transition main(  ){
+ 
+ let a  :u8  =  1u8;
+                     let b:u16=2u16;
+diff --git a/leo-fmt/tests/source/expr_method_chain.leo b/leo-fmt/tests/source/expr_method_chain.leo
+index 5fa819d8af..076fad3e80 100644
+--- a/leo-fmt/tests/source/expr_method_chain.leo
++++ b/leo-fmt/tests/source/expr_method_chain.leo
+@@ -8,10 +8,21 @@ program test.aleo
+ 	}
+ 
+   async transition deposit(
+-            public sender
+-                :  address  ,
+-    public amount
+-        :  u64  )  ->  Future  {
++            public amount
++                :  u64  )  ->  Future  {
++	    let caller  :  address  =  self.caller
++	        ;
++        let signer  :  address
++    =  self.signer;
++            return finalize_deposit(
++    caller  ,
++        amount  )
++            ;
++        }
++
++  async function finalize_deposit(
++    sender  :  address  ,
++        amount  :  u64  )  {
+ 	    let bal  :  u64  =  balances.get(
+                             sender
+                                 );
+@@ -26,37 +37,32 @@ balances.remove(
+     let val  :  u64  =  balances.get_or_use(  sender  ,
+ 	        0u64  )
+ 	            ;
+-            return finalize_deposit(
+-    sender  ,
+-        amount  )
+-            ;
+-        }
+-
+-	function use_special(
+-	        )  ->  address  {
+-let caller  :  address  =  self.caller
+-    ;
+-                let signer  :  address
+-    =  self.signer;
++        let bal2  :  u64  =  Mapping  ::  get(  balances  ,
++                sender  )  ;
++    Mapping  ::  set(  balances  ,  sender  ,
++            amount  )  ;
++        Mapping  ::  remove(  balances  ,
++    sender  )  ;
++            let val2  :  u64  =  Mapping  ::  get_or_use(  balances  ,
++        sender  ,  0u64  )  ;
+ 	    let h  :  u32  =  block.height
+ 	        ;
+-            let t  :  u128  =
++            let t  :  i64  =
+         block.timestamp
+             ;
+-    let n  :  u16  =  network.id;
+-	                return
+-	                    caller  ;
+-}
++    }
+ 
+       function access_chain(
+             w  :  Wrapper  ,
+ 	    arr  :  [u64;  3]  ,
+-    tup  :  (u64,  u64)
++    x  :  u64  ,
++        y  :  u64
+         )  ->  u64   {
+         let a  :  u64  =  w.inner
+             ;
+ let b  :  u64
+                 =  arr[  0u32  ]  ;
++        let tup  :  (u64,  u64)  =  (  x  ,  y  )  ;
+ 	    let c  :  u64  =  tup.0
+ 	        ;
+             let d  :  u64  =  tup.1;
+diff --git a/leo-fmt/tests/source/expr_struct.leo b/leo-fmt/tests/source/expr_struct.leo
+index 85f298043a..fef6302544 100644
+--- a/leo-fmt/tests/source/expr_struct.leo
++++ b/leo-fmt/tests/source/expr_struct.leo
+@@ -3,7 +3,7 @@ program test.aleo   {
+   x  :u64  ,
+             y  :  u64  }
+ 
+-    function main(  )  ->  Point   {
++    transition main(  )  ->  Point   {
+ 
+ let p  :Point  =  Point  {   x  :  1u64  ,
+         y  :  2u64   }  ;
+diff --git a/leo-fmt/tests/source/expr_ternary.leo b/leo-fmt/tests/source/expr_ternary.leo
+index eccd7aae12..b05a192d6d 100644
+--- a/leo-fmt/tests/source/expr_ternary.leo
++++ b/leo-fmt/tests/source/expr_ternary.leo
+@@ -1,6 +1,6 @@
+ program test.aleo
+ {
+-	function main(  a  :  u64  ,
++	transition main(  a  :  u64  ,
+ 	        b
+ 	            :  u64  )  ->  u64  {
+ 
+diff --git a/leo-fmt/tests/source/expr_unary.leo b/leo-fmt/tests/source/expr_unary.leo
+index 96a8c18218..c3e8b50264 100644
+--- a/leo-fmt/tests/source/expr_unary.leo
++++ b/leo-fmt/tests/source/expr_unary.leo
+@@ -1,11 +1,11 @@
+ program test.aleo{
+-	function main(  a  :  u64  )  ->  u64  {
++	transition main(  a  :  i64  )  ->  i64  {
+ 
+-            let neg  :  u64  =  -  a;
++            let neg  :  i64  =  -  a;
+ 
+     let not  :  bool  =  !  true;
+ 
+-let double_neg  :  u64  =
++let double_neg  :  i64  =
+         -  -  a;
+ 
+ 	    return neg  ;
+diff --git a/leo-fmt/tests/source/function_simple.leo b/leo-fmt/tests/source/function_simple.leo
+index 083a6e744e..7dad4e5b71 100644
+--- a/leo-fmt/tests/source/function_simple.leo
++++ b/leo-fmt/tests/source/function_simple.leo
+@@ -1,5 +1,5 @@
+ program test.aleo{
+-  function add( a :u64,  b:u64 )  ->  u64 {
++  transition add( a :u64,  b:u64 )  ->  u64 {
+       return a+b;
+    }
+ }
+diff --git a/leo-fmt/tests/source/mapping_simple.leo b/leo-fmt/tests/source/mapping_simple.leo
+index 942b1794ea..9f88bf6e84 100644
+--- a/leo-fmt/tests/source/mapping_simple.leo
++++ b/leo-fmt/tests/source/mapping_simple.leo
+@@ -1,4 +1,14 @@
+ program test.aleo{
+   mapping   balances :  address   =>u64
+ ;
++
++    async   transition deposit(  amount  :  u64  )  ->  Future  {
++	    return finalize_deposit(
++	        self.caller  ,  amount  )  ;
++    }
++
++  async function finalize_deposit(  caller  :  address  ,
++        amount  :  u64  )  {
++            balances.set(  caller  ,
++                amount  )  ;  }
+ }
+diff --git a/leo-fmt/tests/source/program_mixed.leo b/leo-fmt/tests/source/program_mixed.leo
+index f2a9b75672..d6c65baf7d 100644
+--- a/leo-fmt/tests/source/program_mixed.leo
++++ b/leo-fmt/tests/source/program_mixed.leo
+@@ -1,13 +1,20 @@
+ program test.aleo
+   {
+ struct Data{
+-value:u64,
++amount:u64,
+ }
+     mapping store:field  =>Data;
+ 
+ 
+-  transition save(d:Data){
++  async transition save(d:Data)  ->  Future{
+ 
+-return;
++return finalize_save(
++    1field  ,  d  )  ;
+ }
++
++    async function finalize_save(  key  :  field  ,
++        d  :  Data  )  {
++            store.set(  key  ,
++                d  )  ;
++    }
+ }
+diff --git a/leo-fmt/tests/source/record_basic.leo b/leo-fmt/tests/source/record_basic.leo
+index 5053d2ed86..d2eadcf889 100644
+--- a/leo-fmt/tests/source/record_basic.leo
++++ b/leo-fmt/tests/source/record_basic.leo
+@@ -7,4 +7,9 @@ owner:address,
+ 
+   amount :  u64 ,
+     }
++
++  transition mint(  owner  :  address  ,
++        amount  :  u64  )  ->  Token  {
++    return Token  {  owner  :  owner  ,  amount  :  amount  }  ;
++    }
+ }
+diff --git a/leo-fmt/tests/source/stmt_assert.leo b/leo-fmt/tests/source/stmt_assert.leo
+index 7fc4c39832..8c405345ba 100644
+--- a/leo-fmt/tests/source/stmt_assert.leo
++++ b/leo-fmt/tests/source/stmt_assert.leo
+@@ -1,5 +1,5 @@
+ program test.aleo{
+-	function main(   a  :  u64  ,
++	transition main(   a  :  u64  ,
+ 	        b  :  u64   )  {
+ 
+             assert(  a  >  0u64  )
+diff --git a/leo-fmt/tests/source/stmt_assign.leo b/leo-fmt/tests/source/stmt_assign.leo
+index a263e7b43a..00027233ee 100644
+--- a/leo-fmt/tests/source/stmt_assign.leo
++++ b/leo-fmt/tests/source/stmt_assign.leo
+@@ -1,6 +1,6 @@
+ program test.aleo
+   {
+-	function main(  ){
++	transition main(  ){
+ 
+ let x  :  u64  =
+         5u64
+@@ -23,7 +23,7 @@ x  /=
+                         ;
+         x%=  3u64  ;
+ 
+-	x  **=  2u64  ;
++	x  **=  2u32  ;
+ 
+ }
+ }
+diff --git a/leo-fmt/tests/source/stmt_const.leo b/leo-fmt/tests/source/stmt_const.leo
+index 32e646f1b2..26c4ec4578 100644
+--- a/leo-fmt/tests/source/stmt_const.leo
++++ b/leo-fmt/tests/source/stmt_const.leo
+@@ -1,6 +1,6 @@
+ program test.aleo
+         {
+-	function main(
++	transition main(
+ 	    )  ->  u64   {
+ const X  :u64
+         =  100u64
+diff --git a/leo-fmt/tests/source/stmt_expression.leo b/leo-fmt/tests/source/stmt_expression.leo
+index 5ef002b7c1..408221acd2 100644
+--- a/leo-fmt/tests/source/stmt_expression.leo
++++ b/leo-fmt/tests/source/stmt_expression.leo
+@@ -1,15 +1,23 @@
+ program test.aleo
+     {
++    function process(  a  :  u64  ,
++                    b  :  u64  ,
++                        c  :  u64  )
++                            {
++    assert(  a  >
++        0u64  )  ;  }
++
+ 	transition main(
+             item
+                 :  u64
+     )  {
+-    Mapping::set(  balances  ,
+-                    self.caller  ,
++    process(  item  ,
++                    item  ,
+                         item  )
+                             ;
+-	    Mapping::get(  balances  ,
+-        self.caller  )
++	    process(  item  ,
++        1u64  ,
++            2u64  )
+             ;
+     }
+ }
+diff --git a/leo-fmt/tests/source/stmt_for.leo b/leo-fmt/tests/source/stmt_for.leo
+index 21daef1c43..7e598a7e38 100644
+--- a/leo-fmt/tests/source/stmt_for.leo
++++ b/leo-fmt/tests/source/stmt_for.leo
+@@ -1,5 +1,5 @@
+ program test.aleo{
+-	function main(  )  ->  u64  {
++	transition main(  )  ->  u64  {
+             let sum  :  u64
+                 =  0u64
+                     ;
+diff --git a/leo-fmt/tests/source/stmt_if.leo b/leo-fmt/tests/source/stmt_if.leo
+index 300af89c7b..01852a4be1 100644
+--- a/leo-fmt/tests/source/stmt_if.leo
++++ b/leo-fmt/tests/source/stmt_if.leo
+@@ -1,15 +1,17 @@
+ program test.aleo{
+-	function main(  a
++	transition main(  a
+ 	        :  u64  )  ->  u64   {
+-            if  a  >  5u64  {  return
+-                1u64  ;  }
++        let result  :  u64  =
++                0u64  ;
++            if  a  >  5u64  {  result
++                =  1u64  ;  }
+     if a  <  3u64
+ 	{
+-                    return
++                    result  =
+                         2u64  ;
+-        }
+-if a  ==  4u64  {  return 3u64  ;  }  else  {  return
+-        4u64  ;  }
++        }  else  {
++    result  =  3u64
++        ;  }
+ 	    if a  >10u64{
+             return 5u64
+                 ;
+@@ -18,7 +20,7 @@ if a  ==  4u64  {  return 3u64  ;  }  else  {  return
+ 	{  return
+ 	    6u64  ;  }
+             else  {
+-    return 7u64
++    return result
+         ;
+         }
+     }
+diff --git a/leo-fmt/tests/source/stmt_let_destructure.leo b/leo-fmt/tests/source/stmt_let_destructure.leo
+index 6a06a1e8f9..c624f2a069 100644
+--- a/leo-fmt/tests/source/stmt_let_destructure.leo
++++ b/leo-fmt/tests/source/stmt_let_destructure.leo
+@@ -1,12 +1,12 @@
+ program test.aleo
+   {
+-	function main(  )   {
++	transition main(  )   {
+             let (  a  ,
+                 b  )  =  (  1u64  ,
+                     2u64  )  ;
+     let (  x  ,
+ 	    y  )  =  get_pair(
+-                    )
++                    1u64  )
+                         ;
+ let (  p  ,  q  )  :  (  u64  ,  u64  )  =  (
+         3u64  ,
+@@ -14,9 +14,9 @@ let (  p  ,  q  )  :  (  u64  ,  u64  )  =  (
+     }
+ 
+ 	function get_pair(
+-	        )  ->  (  u64  ,  u64  )   {
+-            return (  1u64  ,
+-    2u64  )
++	        n  :  u64  )  ->  (  u64  ,  u64  )   {
++            return (  n  ,
++    n  )
+         ;
+     }
+ }
+diff --git a/leo-fmt/tests/source/stmt_let_simple.leo b/leo-fmt/tests/source/stmt_let_simple.leo
+index 86be81ec7e..0f50eb9471 100644
+--- a/leo-fmt/tests/source/stmt_let_simple.leo
++++ b/leo-fmt/tests/source/stmt_let_simple.leo
+@@ -1,5 +1,5 @@
+ program test.aleo   {
+-	function main(  )  {
++	transition main(  )  {
+             let x  =  5u64;
+     let    y
+             =  10u64;
+diff --git a/leo-fmt/tests/source/stmt_let_typed.leo b/leo-fmt/tests/source/stmt_let_typed.leo
+index 4765d763f0..60de325022 100644
+--- a/leo-fmt/tests/source/stmt_let_typed.leo
++++ b/leo-fmt/tests/source/stmt_let_typed.leo
+@@ -1,6 +1,6 @@
+ program test.aleo
+     {
+-	function main(  )   {
++	transition main(  )   {
+ let x  :  u64
+         =  5u64
+             ;
+diff --git a/leo-fmt/tests/source/stmt_return.leo b/leo-fmt/tests/source/stmt_return.leo
+index 91264cc7f8..eedffae735 100644
+--- a/leo-fmt/tests/source/stmt_return.leo
++++ b/leo-fmt/tests/source/stmt_return.leo
+@@ -1,18 +1,18 @@
+ program test.aleo
+             {
+-	function with_expr(  a  :  u64  )  ->  u64  {
++	transition with_expr(  a  :  u64  )  ->  u64  {
+     return   a  *
+                     2u64
+                         ;
+         }
+ 
+-	function bare_return(
++	transition bare_return(
+ 	        )  ->  (  )  {
+             return
+                 ;
+     }
+ 
+-        function with_tuple(  a  :  u64  ,
++        transition with_tuple(  a  :  u64  ,
+ 	    b
+ 	        :  u64  )  ->  (  u64  ,  u64  )  {
+ return    (  a  +  b  ,
+diff --git a/leo-fmt/tests/source/struct_simple.leo b/leo-fmt/tests/source/struct_simple.leo
+index 025524cc25..3e104e122d 100644
+--- a/leo-fmt/tests/source/struct_simple.leo
++++ b/leo-fmt/tests/source/struct_simple.leo
+@@ -2,4 +2,8 @@ program test.aleo{
+ struct Point{
+   x :  u64,
+         y:u64}
++
++  transition main(  )  ->  Point  {
++    return Point  {  x  :  1u64  ,  y  :  2u64  }  ;
++    }
+ }
+diff --git a/leo-fmt/tests/source/wrap_array_tuple.leo b/leo-fmt/tests/source/wrap_array_tuple.leo
+new file mode 100644
+index 0000000000..f1eb9e06de
+--- /dev/null
++++ b/leo-fmt/tests/source/wrap_array_tuple.leo
+@@ -0,0 +1,25 @@
++program test.aleo
++{
++	    transition main(  public  a  :  u64  ,
++	        public  b  :  u64  )  ->  u64  {
++
++    let short_arr  :  [u64  ;  3]  =  [
++        1u64  ,
++            2u64  ,
++                3u64  ]  ;
++let first_amount  :u64  =a  +  1u64  ;
++            let second_amount  :  u64  =b  +2u64  ;
++	let third_amount  :  u64  =  a  +  3u64  ;
++                    let fourth_amount  :  u64=b  +  4u64  ;
++    let fifth_amount  :u64  =  a  +  5u64  ;
++let long_arr  :  [u64;5]  =  [  first_amount  ,  second_amount  ,  third_amount  ,  fourth_amount  ,  fifth_amount  ]  ;
++	    let repeat  :  [u64  ;  4]  =  [   0u64
++	        ;  4u64  ]  ;
++    let short_tup  :  (u64  ,  u64)  =(
++            a  ,
++        b  )  ;
++let long_tup  :(u64  ,u64  ,u64  ,u64  ,u64)  =(  first_amount  ,  second_amount  ,  third_amount  ,  fourth_amount  ,  fifth_amount  )  ;
++                return short_arr[  0u32  ]  +
++                    long_arr[  0u32  ]  ;
++    }
++}
+diff --git a/leo-fmt/tests/source/wrap_assert_pair.leo b/leo-fmt/tests/source/wrap_assert_pair.leo
+new file mode 100644
+index 0000000000..1e16bef3d6
+--- /dev/null
++++ b/leo-fmt/tests/source/wrap_assert_pair.leo
+@@ -0,0 +1,17 @@
++program test.aleo  {
++    transition main(
++	    public  a  :  u64  ,
++	        public  b  :  u64  )  {
++
++assert_eq(
++    a  ,
++            b  )  ;
++    let expected_first_balance  :u64
++        =  a  +  b  ;
++            let computed_second_balance
++                :  u64  =  a  *  2u64  ;
++assert_eq(  expected_first_balance  +  computed_second_balance  ,  computed_second_balance  +  expected_first_balance  )  ;
++	    assert_neq(  a  ,
++	        0u64  )  ;
++                assert_neq(  expected_first_balance  *  computed_second_balance  ,  computed_second_balance  *  expected_first_balance  )  ;
++}  }
+diff --git a/leo-fmt/tests/source/wrap_call_args.leo b/leo-fmt/tests/source/wrap_call_args.leo
+new file mode 100644
+index 0000000000..37032a5abf
+--- /dev/null
++++ b/leo-fmt/tests/source/wrap_call_args.leo
+@@ -0,0 +1,26 @@
++program test.aleo
++    {
++	function compute_sum(  first  :  u64  ,  second  :u64  ,  third  :  u64  )  ->  u64  {
++        return  first  +
++            second  +  third
++                ;  }
++
++    transition main(   public   a  :  u64  ,
++                public  b  :  u64  )  ->  u64  {
++
++let short  :u64  =  compute_sum(
++    a  ,
++        b  ,
++            a  )  ;
++	    let first_value
++	        :  u64  =  a  *  2u64  ;
++            let second_value  :u64  =b  *
++                3u64  ;
++    let third_value  :  u64
++        =a  +  b  ;
++let long  :  u64  =  compute_sum(  first_value  +  second_value  ,  second_value  +  third_value  ,  third_value  +  first_value  )
++    ;
++                    return short  +
++                        long  ;
++    }
++}
+diff --git a/leo-fmt/tests/source/wrap_comprehensive.leo b/leo-fmt/tests/source/wrap_comprehensive.leo
+new file mode 100644
+index 0000000000..0506ffe2c1
+--- /dev/null
++++ b/leo-fmt/tests/source/wrap_comprehensive.leo
+@@ -0,0 +1,27 @@
++program test.aleo
++    {
++	struct TransferInfo  {
++    sender_amount  :u64  ,
++                receiver_amount  :  u64  ,
++        transfer_fee  :  u64  ,  }
++
++function compute_remaining(  sender_amount  :  u64  ,  receiver_amount  :u64  ,  transfer_fee  :  u64  ,  bonus_amount  :  u64  )  ->  u64  {
++return sender_amount  -  receiver_amount  -
++    transfer_fee  +  bonus_amount
++        ;  }
++
++    transition transfer(  public  sender_amount  :  u64  ,  public  receiver_amount  :  u64  ,  private  transfer_fee  :  u64  ,  private  is_valid  :  bool  )  ->  u64  {
++let bonus_amount
++    :  u64  =  sender_amount  +
++        1u64  ;
++            let remaining  :  u64  =  compute_remaining(  sender_amount  ,  receiver_amount  ,  transfer_fee  ,  bonus_amount  )  ;
++    let info  :TransferInfo  =  TransferInfo  {  sender_amount  :  sender_amount  ,  receiver_amount  :  receiver_amount  ,  transfer_fee  :  transfer_fee  }
++        ;
++	assert_eq(  info.sender_amount  ,
++	    sender_amount  )  ;
++                assert_eq(  info.sender_amount  +  info.receiver_amount  +  info.transfer_fee  ,  sender_amount  +  receiver_amount  +  transfer_fee  )  ;
++    let amounts  :  [u64  ;  5]  =  [  sender_amount  ,  receiver_amount  ,  transfer_fee  ,  remaining  ,  sender_amount  +  receiver_amount  ]  ;
++        return
++            remaining  ;
++}
++}
+diff --git a/leo-fmt/tests/source/wrap_function_params.leo b/leo-fmt/tests/source/wrap_function_params.leo
+new file mode 100644
+index 0000000000..1c060304e3
+--- /dev/null
++++ b/leo-fmt/tests/source/wrap_function_params.leo
+@@ -0,0 +1,10 @@
++program test.aleo  {  function add(   a  :u64  ,
++	    b  :  u64  )  ->  u64  {  return   a  +  b  ;  }
++
++	transition transfer_tokens(  public   sender_balance  :  u64  ,  public  receiver_balance  :u64  ,  private   transfer_amount  :u64  )  ->  u64  {
++        let remaining
++            :u64  =sender_balance   -  transfer_amount
++                ;
++                return
++	        remaining  ;  }
++}
+diff --git a/leo-fmt/tests/source/wrap_struct_expr.leo b/leo-fmt/tests/source/wrap_struct_expr.leo
+new file mode 100644
+index 0000000000..5db10ab038
+--- /dev/null
++++ b/leo-fmt/tests/source/wrap_struct_expr.leo
+@@ -0,0 +1,20 @@
++program test.aleo{
++	struct Point  {
++            x  :  u64  ,
++        y  :u64  }
++
++    struct TransferInfo  {
++        sender_amount  :  u64  ,receiver_amount  :  u64  ,   transfer_fee  :  u64  ,
++    }
++
++transition main(  public  a  :  u64  ,
++            public  b  :  u64  )  ->  u64  {
++
++    let p  :  Point  =  Point  {
++        x  :  1u64  ,
++                y  :  2u64  }  ;
++	let info  :TransferInfo  =  TransferInfo  {  sender_amount  :  a  ,  receiver_amount  :  b  ,  transfer_fee  :  10u64  }
++	    ;
++        return  p.x  +
++            info.sender_amount  ;
++}  }
+diff --git a/leo-fmt/tests/target/comment_between.leo b/leo-fmt/tests/target/comment_between.leo
+index 958f060d5a..c5dc1a433e 100644
+--- a/leo-fmt/tests/target/comment_between.leo
++++ b/leo-fmt/tests/target/comment_between.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function process(a: u64) -> u64 {
++    transition process(a: u64) -> u64 {
+         // validate input
+         assert(a > 0u64);
+         // compute result
+diff --git a/leo-fmt/tests/target/comment_end_of_block.leo b/leo-fmt/tests/target/comment_end_of_block.leo
+index bab0a61672..929cdb67d4 100644
+--- a/leo-fmt/tests/target/comment_end_of_block.leo
++++ b/leo-fmt/tests/target/comment_end_of_block.leo
+@@ -1,11 +1,11 @@
+ program test.aleo {
+-    function compute(a: u64) -> u64 {
++    transition compute(a: u64) -> u64 {
+         let x: u64 = a * 2u64;
+         return x;
+         // end of function
+     }
+ 
+-    function empty_with_comment() {
++    transition empty_with_comment() {
+         // only a comment here
+     }
+ }
+diff --git a/leo-fmt/tests/target/comment_mixed.leo b/leo-fmt/tests/target/comment_mixed.leo
+index 55700fab3d..43afb670ac 100644
+--- a/leo-fmt/tests/target/comment_mixed.leo
++++ b/leo-fmt/tests/target/comment_mixed.leo
+@@ -1,6 +1,6 @@
+ // File-level comment
+ program test.aleo {
+-    function example(a: u64, b: u64) -> u64 {
++    transition example(a: u64, b: u64) -> u64 {
+         let x: u64 = a + b; // trailing comment
+         // standalone comment
+         let y: u64 = x * 2u64;
+diff --git a/leo-fmt/tests/target/comment_multiline.leo b/leo-fmt/tests/target/comment_multiline.leo
+index f142701892..1c8a3813b1 100644
+--- a/leo-fmt/tests/target/comment_multiline.leo
++++ b/leo-fmt/tests/target/comment_multiline.leo
+@@ -1,7 +1,5 @@
+ // The token program.
+ // Implements minting and transferring of tokens.
+-import credits.aleo;
+-
+ program test.aleo {
+     // A token record.
+     // - `owner` : The token owner.
+@@ -14,19 +12,19 @@ program test.aleo {
+     /* Mint */
+     // The function `mint_public` issues the specified token amount
+     // for the token receiver publicly on the network.
+-    async transition mint_public(public receiver: address, public amount: u64) -> Future {
+-        return finalize_mint(receiver, amount);
++    transition mint_public(public receiver: address, public amount: u64) {
++        return;
+     }
+ 
+     /* Transfer */
+     // Transfers tokens from one address to another.
+     // This function is public and both the sender and receiver
+     // are visible on-chain.
+-    async transition transfer_public(public receiver: address, public amount: u64) -> Future {
++    transition transfer_public(public receiver: address, public amount: u64) {
+         // Compute the change amount.
+         // This `sub` operation is safe, and the proof will fail
+         // if an overflow occurs.
+         let change: u64 = amount - 1u64;
+-        return finalize_transfer(self.caller, receiver, amount);
++        return;
+     }
+ }
+diff --git a/leo-fmt/tests/target/comment_struct_members.leo b/leo-fmt/tests/target/comment_struct_members.leo
+new file mode 100644
+index 0000000000..5fba3f5166
+--- /dev/null
++++ b/leo-fmt/tests/target/comment_struct_members.leo
+@@ -0,0 +1,19 @@
++program test.aleo {
++    struct Foo {
++        // leading comment on x
++        x: u32, // trailing comment on x
++        y: u32,
++        /* block comment on y */
++    }
++
++    struct Bar {
++        // comment before first
++        a: u32,
++        b: bool,
++        // inline comment
++    } // after struct
++
++    transition main(f: Foo, b: Bar) -> u32 {
++        return f.x + b.a;
++    }
++}
+diff --git a/leo-fmt/tests/target/comment_trailing_inline.leo b/leo-fmt/tests/target/comment_trailing_inline.leo
+new file mode 100644
+index 0000000000..5c50a1bbe9
+--- /dev/null
++++ b/leo-fmt/tests/target/comment_trailing_inline.leo
+@@ -0,0 +1,16 @@
++program test.aleo {
++    const X: u32 = 4u32; // trailing on const
++
++    struct Foo {
++        x: u32,
++    }
++
++    mapping balances: address => u64; // trailing on mapping
++
++    const Y: bool = true; /* block trailing */
++
++    transition main(f: Foo) -> u32 {
++        return f.x + X;
++    }
++    // after function
++}
+diff --git a/leo-fmt/tests/target/expr_access.leo b/leo-fmt/tests/target/expr_access.leo
+index 7ad00fe40b..d10e888644 100644
+--- a/leo-fmt/tests/target/expr_access.leo
++++ b/leo-fmt/tests/target/expr_access.leo
+@@ -4,7 +4,7 @@ program test.aleo {
+         y: u64,
+     }
+ 
+-    function main() -> u64 {
++    transition main() -> u64 {
+         let arr: [u64; 3] = [1u64, 2u64, 3u64];
+         let first: u64 = arr[0u32];
+         let tup: (u64, u64) = (1u64, 2u64);
+diff --git a/leo-fmt/tests/target/expr_binary.leo b/leo-fmt/tests/target/expr_binary.leo
+index 59367c3de1..6fd6143d76 100644
+--- a/leo-fmt/tests/target/expr_binary.leo
++++ b/leo-fmt/tests/target/expr_binary.leo
+@@ -1,11 +1,11 @@
+ program test.aleo {
+-    function compute(a: u64, b: u64) -> u64 {
++    transition compute(a: u64, b: u64) -> u64 {
+         let sum: u64 = a + b;
+         let diff: u64 = a - b;
+         let prod: u64 = a * b;
+         let quot: u64 = a / b;
+         let rem: u64 = a % b;
+-        let pow: u64 = a ** 2u64;
++        let pow: u64 = a ** 2u32;
+         let lt: bool = a < b;
+         let gt: bool = a > b;
+         let le: bool = a <= b;
+diff --git a/leo-fmt/tests/target/expr_call.leo b/leo-fmt/tests/target/expr_call.leo
+index 6c21516ea2..c717eb7053 100644
+--- a/leo-fmt/tests/target/expr_call.leo
++++ b/leo-fmt/tests/target/expr_call.leo
+@@ -3,13 +3,14 @@ program test.aleo {
+         return a + b;
+     }
+ 
+-    function main() -> u64 {
++    function to_field(a: u64) -> field {
++        return a as field;
++    }
++
++    transition main() -> u64 {
+         let x: u64 = add(1u64, 2u64);
+         let y: u64 = add(1u64, 2u64);
+-        let hash: field = BHP256::hash_to_field(1u64);
+-        let mapped: u64 = Mapping::get(balances, self.caller);
++        let hash: field = to_field(1u64);
+         return x;
+     }
+-
+-    mapping balances: address => u64;
+ }
+diff --git a/leo-fmt/tests/target/expr_cast.leo b/leo-fmt/tests/target/expr_cast.leo
+index 7a50804a2e..11a17dd4ed 100644
+--- a/leo-fmt/tests/target/expr_cast.leo
++++ b/leo-fmt/tests/target/expr_cast.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function main(a: u64) -> u32 {
++    transition main(a: u64) -> u32 {
+         let b: u32 = a as u32;
+         let c: field = a as field;
+         return b;
+diff --git a/leo-fmt/tests/target/expr_collections.leo b/leo-fmt/tests/target/expr_collections.leo
+index 730e6851d4..f029da3fd1 100644
+--- a/leo-fmt/tests/target/expr_collections.leo
++++ b/leo-fmt/tests/target/expr_collections.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function main() {
++    transition main() {
+         let arr: [u64; 3] = [1u64, 2u64, 3u64];
+         let tup: (u64, u64, u64) = (1u64, 2u64, 3u64);
+         let nested: [[u64; 2]; 2] = [[1u64, 2u64], [3u64, 4u64]];
+diff --git a/leo-fmt/tests/target/expr_const_arg_list.leo b/leo-fmt/tests/target/expr_const_arg_list.leo
+new file mode 100644
+index 0000000000..0bbd55c4d3
+--- /dev/null
++++ b/leo-fmt/tests/target/expr_const_arg_list.leo
+@@ -0,0 +1,5 @@
++program test.aleo {
++    transition main(bits: [bool; 256]) -> [u8; 32] {
++        return Deserialize::from_bits_raw::[[u8; 32]](bits);
++    }
++}
+diff --git a/leo-fmt/tests/target/expr_literals.leo b/leo-fmt/tests/target/expr_literals.leo
+index 5a6f8bba63..4fb72a4031 100644
+--- a/leo-fmt/tests/target/expr_literals.leo
++++ b/leo-fmt/tests/target/expr_literals.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function main() {
++    transition main() {
+         let a: u8 = 1u8;
+         let b: u16 = 2u16;
+         let c: u32 = 3u32;
+diff --git a/leo-fmt/tests/target/expr_method_chain.leo b/leo-fmt/tests/target/expr_method_chain.leo
+index 0a0ff55aaa..9a59c6472c 100644
+--- a/leo-fmt/tests/target/expr_method_chain.leo
++++ b/leo-fmt/tests/target/expr_method_chain.leo
+@@ -5,27 +5,30 @@ program test.aleo {
+         inner: u64,
+     }
+ 
+-    async transition deposit(public sender: address, public amount: u64) -> Future {
++    async transition deposit(public amount: u64) -> Future {
++        let caller: address = self.caller;
++        let signer: address = self.signer;
++        return finalize_deposit(caller, amount);
++    }
++
++    async function finalize_deposit(sender: address, amount: u64) {
+         let bal: u64 = balances.get(sender);
+         let check: bool = balances.contains(sender);
+         balances.set(sender, amount);
+         balances.remove(sender);
+         let val: u64 = balances.get_or_use(sender, 0u64);
+-        return finalize_deposit(sender, amount);
+-    }
+-
+-    function use_special() -> address {
+-        let caller: address = self.caller;
+-        let signer: address = self.signer;
++        let bal2: u64 = Mapping::get(balances, sender);
++        Mapping::set(balances, sender, amount);
++        Mapping::remove(balances, sender);
++        let val2: u64 = Mapping::get_or_use(balances, sender, 0u64);
+         let h: u32 = block.height;
+-        let t: u128 = block.timestamp;
+-        let n: u16 = network.id;
+-        return caller;
++        let t: i64 = block.timestamp;
+     }
+ 
+-    function access_chain(w: Wrapper, arr: [u64; 3], tup: (u64, u64)) -> u64 {
++    function access_chain(w: Wrapper, arr: [u64; 3], x: u64, y: u64) -> u64 {
+         let a: u64 = w.inner;
+         let b: u64 = arr[0u32];
++        let tup: (u64, u64) = (x, y);
+         let c: u64 = tup.0;
+         let d: u64 = tup.1;
+         return a;
+diff --git a/leo-fmt/tests/target/expr_struct.leo b/leo-fmt/tests/target/expr_struct.leo
+index 2d9aee3c1a..228218e1fa 100644
+--- a/leo-fmt/tests/target/expr_struct.leo
++++ b/leo-fmt/tests/target/expr_struct.leo
+@@ -4,7 +4,7 @@ program test.aleo {
+         y: u64,
+     }
+ 
+-    function main() -> Point {
++    transition main() -> Point {
+         let p: Point = Point { x: 1u64, y: 2u64 };
+         let q: Point = Point { x: p.x, y: p.y };
+         return p;
+diff --git a/leo-fmt/tests/target/expr_ternary.leo b/leo-fmt/tests/target/expr_ternary.leo
+index 636a19ff64..202f553e36 100644
+--- a/leo-fmt/tests/target/expr_ternary.leo
++++ b/leo-fmt/tests/target/expr_ternary.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function main(a: u64, b: u64) -> u64 {
++    transition main(a: u64, b: u64) -> u64 {
+         let result: u64 = a > b ? a : b;
+         let nested: u64 = a > b ? a > 10u64 ? a : 10u64 : b;
+         return result;
+diff --git a/leo-fmt/tests/target/expr_unary.leo b/leo-fmt/tests/target/expr_unary.leo
+index 0d13b197bc..7de697fcc0 100644
+--- a/leo-fmt/tests/target/expr_unary.leo
++++ b/leo-fmt/tests/target/expr_unary.leo
+@@ -1,8 +1,8 @@
+ program test.aleo {
+-    function main(a: u64) -> u64 {
+-        let neg: u64 = -a;
++    transition main(a: i64) -> i64 {
++        let neg: i64 = -a;
+         let not: bool = !true;
+-        let double_neg: u64 = --a;
++        let double_neg: i64 = --a;
+         return neg;
+     }
+ }
+diff --git a/leo-fmt/tests/target/function_simple.leo b/leo-fmt/tests/target/function_simple.leo
+index 69b9c0e759..55b68013e1 100644
+--- a/leo-fmt/tests/target/function_simple.leo
++++ b/leo-fmt/tests/target/function_simple.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function add(a: u64, b: u64) -> u64 {
++    transition add(a: u64, b: u64) -> u64 {
+         return a + b;
+     }
+ }
+diff --git a/leo-fmt/tests/target/mapping_simple.leo b/leo-fmt/tests/target/mapping_simple.leo
+index 5c6aa17fff..f1e8937e11 100644
+--- a/leo-fmt/tests/target/mapping_simple.leo
++++ b/leo-fmt/tests/target/mapping_simple.leo
+@@ -1,3 +1,11 @@
+ program test.aleo {
+     mapping balances: address => u64;
++
++    async transition deposit(amount: u64) -> Future {
++        return finalize_deposit(self.caller, amount);
++    }
++
++    async function finalize_deposit(caller: address, amount: u64) {
++        balances.set(caller, amount);
++    }
+ }
+diff --git a/leo-fmt/tests/target/program_mixed.leo b/leo-fmt/tests/target/program_mixed.leo
+index 3d39440b17..19f70322b0 100644
+--- a/leo-fmt/tests/target/program_mixed.leo
++++ b/leo-fmt/tests/target/program_mixed.leo
+@@ -1,11 +1,15 @@
+ program test.aleo {
+     struct Data {
+-        value: u64,
++        amount: u64,
+     }
+ 
+     mapping store: field => Data;
+ 
+-    transition save(d: Data) {
+-        return;
++    async transition save(d: Data) -> Future {
++        return finalize_save(1field, d);
++    }
++
++    async function finalize_save(key: field, d: Data) {
++        store.set(key, d);
+     }
+ }
+diff --git a/leo-fmt/tests/target/record_basic.leo b/leo-fmt/tests/target/record_basic.leo
+index c1bd5995bc..6d0bb4e485 100644
+--- a/leo-fmt/tests/target/record_basic.leo
++++ b/leo-fmt/tests/target/record_basic.leo
+@@ -3,4 +3,8 @@ program test.aleo {
+         owner: address,
+         amount: u64,
+     }
++
++    transition mint(owner: address, amount: u64) -> Token {
++        return Token { owner: owner, amount: amount };
++    }
+ }
+diff --git a/leo-fmt/tests/target/stmt_assert.leo b/leo-fmt/tests/target/stmt_assert.leo
+index 2b14c96045..a6e35b2afa 100644
+--- a/leo-fmt/tests/target/stmt_assert.leo
++++ b/leo-fmt/tests/target/stmt_assert.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function main(a: u64, b: u64) {
++    transition main(a: u64, b: u64) {
+         assert(a > 0u64);
+         assert(b > 0u64);
+         assert_eq(a, b);
+diff --git a/leo-fmt/tests/target/stmt_assign.leo b/leo-fmt/tests/target/stmt_assign.leo
+index f6949ea841..a8c4663dff 100644
+--- a/leo-fmt/tests/target/stmt_assign.leo
++++ b/leo-fmt/tests/target/stmt_assign.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function main() {
++    transition main() {
+         let x: u64 = 5u64;
+         x = 10u64;
+         x += 5u64;
+@@ -7,6 +7,6 @@ program test.aleo {
+         x *= 3u64;
+         x /= 2u64;
+         x %= 3u64;
+-        x **= 2u64;
++        x **= 2u32;
+     }
+ }
+diff --git a/leo-fmt/tests/target/stmt_const.leo b/leo-fmt/tests/target/stmt_const.leo
+index 846bba0055..6cc765ba89 100644
+--- a/leo-fmt/tests/target/stmt_const.leo
++++ b/leo-fmt/tests/target/stmt_const.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function main() -> u64 {
++    transition main() -> u64 {
+         const X: u64 = 100u64;
+         const Y: field = 1field;
+         const Z: bool = true;
+diff --git a/leo-fmt/tests/target/stmt_expression.leo b/leo-fmt/tests/target/stmt_expression.leo
+index 3b719593db..582f3f75de 100644
+--- a/leo-fmt/tests/target/stmt_expression.leo
++++ b/leo-fmt/tests/target/stmt_expression.leo
+@@ -1,6 +1,10 @@
+ program test.aleo {
++    function process(a: u64, b: u64, c: u64) {
++        assert(a > 0u64);
++    }
++
+     transition main(item: u64) {
+-        Mapping::set(balances, self.caller, item);
+-        Mapping::get(balances, self.caller);
++        process(item, item, item);
++        process(item, 1u64, 2u64);
+     }
+ }
+diff --git a/leo-fmt/tests/target/stmt_for.leo b/leo-fmt/tests/target/stmt_for.leo
+index b30d110268..bd1ec344d6 100644
+--- a/leo-fmt/tests/target/stmt_for.leo
++++ b/leo-fmt/tests/target/stmt_for.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function main() -> u64 {
++    transition main() -> u64 {
+         let sum: u64 = 0u64;
+         for i in 0u64..10u64 {
+             sum += i;
+diff --git a/leo-fmt/tests/target/stmt_if.leo b/leo-fmt/tests/target/stmt_if.leo
+index e07999affe..fb7bd65afc 100644
+--- a/leo-fmt/tests/target/stmt_if.leo
++++ b/leo-fmt/tests/target/stmt_if.leo
+@@ -1,22 +1,20 @@
+ program test.aleo {
+-    function main(a: u64) -> u64 {
++    transition main(a: u64) -> u64 {
++        let result: u64 = 0u64;
+         if a > 5u64 {
+-            return 1u64;
++            result = 1u64;
+         }
+         if a < 3u64 {
+-            return 2u64;
+-        }
+-        if a == 4u64 {
+-            return 3u64;
++            result = 2u64;
+         } else {
+-            return 4u64;
++            result = 3u64;
+         }
+         if a > 10u64 {
+             return 5u64;
+         } else if a > 7u64 {
+             return 6u64;
+         } else {
+-            return 7u64;
++            return result;
+         }
+     }
+ }
+diff --git a/leo-fmt/tests/target/stmt_let_destructure.leo b/leo-fmt/tests/target/stmt_let_destructure.leo
+index 8e45463e66..c7136cdea5 100644
+--- a/leo-fmt/tests/target/stmt_let_destructure.leo
++++ b/leo-fmt/tests/target/stmt_let_destructure.leo
+@@ -1,11 +1,11 @@
+ program test.aleo {
+-    function main() {
++    transition main() {
+         let (a, b) = (1u64, 2u64);
+-        let (x, y) = get_pair();
++        let (x, y) = get_pair(1u64);
+         let (p, q): (u64, u64) = (3u64, 4u64);
+     }
+ 
+-    function get_pair() -> (u64, u64) {
+-        return (1u64, 2u64);
++    function get_pair(n: u64) -> (u64, u64) {
++        return (n, n);
+     }
+ }
+diff --git a/leo-fmt/tests/target/stmt_let_simple.leo b/leo-fmt/tests/target/stmt_let_simple.leo
+index 4d33604db3..a8f0b16a8e 100644
+--- a/leo-fmt/tests/target/stmt_let_simple.leo
++++ b/leo-fmt/tests/target/stmt_let_simple.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function main() {
++    transition main() {
+         let x = 5u64;
+         let y = 10u64;
+         let z = x;
+diff --git a/leo-fmt/tests/target/stmt_let_typed.leo b/leo-fmt/tests/target/stmt_let_typed.leo
+index 2c7fd887c4..7e8fc3cbf4 100644
+--- a/leo-fmt/tests/target/stmt_let_typed.leo
++++ b/leo-fmt/tests/target/stmt_let_typed.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    function main() {
++    transition main() {
+         let x: u64 = 5u64;
+         let y: field = 1field;
+         let z: bool = true;
+diff --git a/leo-fmt/tests/target/stmt_return.leo b/leo-fmt/tests/target/stmt_return.leo
+index ca91477427..5c8e64dc1a 100644
+--- a/leo-fmt/tests/target/stmt_return.leo
++++ b/leo-fmt/tests/target/stmt_return.leo
+@@ -1,13 +1,13 @@
+ program test.aleo {
+-    function with_expr(a: u64) -> u64 {
++    transition with_expr(a: u64) -> u64 {
+         return a * 2u64;
+     }
+ 
+-    function bare_return() -> () {
++    transition bare_return() -> () {
+         return;
+     }
+ 
+-    function with_tuple(a: u64, b: u64) -> (u64, u64) {
++    transition with_tuple(a: u64, b: u64) -> (u64, u64) {
+         return (a + b, a * b);
+     }
+ }
+diff --git a/leo-fmt/tests/target/struct_simple.leo b/leo-fmt/tests/target/struct_simple.leo
+index e34bdd68dd..f07a945fe9 100644
+--- a/leo-fmt/tests/target/struct_simple.leo
++++ b/leo-fmt/tests/target/struct_simple.leo
+@@ -3,4 +3,8 @@ program test.aleo {
+         x: u64,
+         y: u64,
+     }
++
++    transition main() -> Point {
++        return Point { x: 1u64, y: 2u64 };
++    }
+ }
+diff --git a/leo-fmt/tests/target/wrap_array_tuple.leo b/leo-fmt/tests/target/wrap_array_tuple.leo
+new file mode 100644
+index 0000000000..d1a18c4e0a
+--- /dev/null
++++ b/leo-fmt/tests/target/wrap_array_tuple.leo
+@@ -0,0 +1,27 @@
++program test.aleo {
++    transition main(public a: u64, public b: u64) -> u64 {
++        let short_arr: [u64; 3] = [1u64, 2u64, 3u64];
++        let first_amount: u64 = a + 1u64;
++        let second_amount: u64 = b + 2u64;
++        let third_amount: u64 = a + 3u64;
++        let fourth_amount: u64 = b + 4u64;
++        let fifth_amount: u64 = a + 5u64;
++        let long_arr: [u64; 5] = [
++            first_amount,
++            second_amount,
++            third_amount,
++            fourth_amount,
++            fifth_amount,
++        ];
++        let repeat: [u64; 4] = [0u64; 4u64];
++        let short_tup: (u64, u64) = (a, b);
++        let long_tup: (u64, u64, u64, u64, u64) = (
++            first_amount,
++            second_amount,
++            third_amount,
++            fourth_amount,
++            fifth_amount,
++        );
++        return short_arr[0u32] + long_arr[0u32];
++    }
++}
+diff --git a/leo-fmt/tests/target/wrap_assert_pair.leo b/leo-fmt/tests/target/wrap_assert_pair.leo
+new file mode 100644
+index 0000000000..c17cff5490
+--- /dev/null
++++ b/leo-fmt/tests/target/wrap_assert_pair.leo
+@@ -0,0 +1,16 @@
++program test.aleo {
++    transition main(public a: u64, public b: u64) {
++        assert_eq(a, b);
++        let expected_first_balance: u64 = a + b;
++        let computed_second_balance: u64 = a * 2u64;
++        assert_eq(
++            expected_first_balance + computed_second_balance,
++            computed_second_balance + expected_first_balance
++        );
++        assert_neq(a, 0u64);
++        assert_neq(
++            expected_first_balance * computed_second_balance,
++            computed_second_balance * expected_first_balance
++        );
++    }
++}
+diff --git a/leo-fmt/tests/target/wrap_call_args.leo b/leo-fmt/tests/target/wrap_call_args.leo
+new file mode 100644
+index 0000000000..40b1b7176f
+--- /dev/null
++++ b/leo-fmt/tests/target/wrap_call_args.leo
+@@ -0,0 +1,18 @@
++program test.aleo {
++    function compute_sum(first: u64, second: u64, third: u64) -> u64 {
++        return first + second + third;
++    }
++
++    transition main(public a: u64, public b: u64) -> u64 {
++        let short: u64 = compute_sum(a, b, a);
++        let first_value: u64 = a * 2u64;
++        let second_value: u64 = b * 3u64;
++        let third_value: u64 = a + b;
++        let long: u64 = compute_sum(
++            first_value + second_value,
++            second_value + third_value,
++            third_value + first_value,
++        );
++        return short + long;
++    }
++}
+diff --git a/leo-fmt/tests/target/wrap_comprehensive.leo b/leo-fmt/tests/target/wrap_comprehensive.leo
+new file mode 100644
+index 0000000000..a11142db75
+--- /dev/null
++++ b/leo-fmt/tests/target/wrap_comprehensive.leo
+@@ -0,0 +1,49 @@
++program test.aleo {
++    struct TransferInfo {
++        sender_amount: u64,
++        receiver_amount: u64,
++        transfer_fee: u64,
++    }
++
++    function compute_remaining(
++        sender_amount: u64,
++        receiver_amount: u64,
++        transfer_fee: u64,
++        bonus_amount: u64,
++    ) -> u64 {
++        return sender_amount - receiver_amount - transfer_fee + bonus_amount;
++    }
++
++    transition transfer(
++        public sender_amount: u64,
++        public receiver_amount: u64,
++        private transfer_fee: u64,
++        private is_valid: bool,
++    ) -> u64 {
++        let bonus_amount: u64 = sender_amount + 1u64;
++        let remaining: u64 = compute_remaining(
++            sender_amount,
++            receiver_amount,
++            transfer_fee,
++            bonus_amount,
++        );
++        let info: TransferInfo = TransferInfo {
++            sender_amount: sender_amount,
++            receiver_amount: receiver_amount,
++            transfer_fee: transfer_fee,
++        };
++        assert_eq(info.sender_amount, sender_amount);
++        assert_eq(
++            info.sender_amount + info.receiver_amount + info.transfer_fee,
++            sender_amount + receiver_amount + transfer_fee
++        );
++        let amounts: [u64; 5] = [
++            sender_amount,
++            receiver_amount,
++            transfer_fee,
++            remaining,
++            sender_amount + receiver_amount,
++        ];
++        return remaining;
++    }
++}
+diff --git a/leo-fmt/tests/target/wrap_function_params.leo b/leo-fmt/tests/target/wrap_function_params.leo
+new file mode 100644
+index 0000000000..78abae2b28
+--- /dev/null
++++ b/leo-fmt/tests/target/wrap_function_params.leo
+@@ -0,0 +1,14 @@
++program test.aleo {
++    function add(a: u64, b: u64) -> u64 {
++        return a + b;
++    }
++
++    transition transfer_tokens(
++        public sender_balance: u64,
++        public receiver_balance: u64,
++        private transfer_amount: u64,
++    ) -> u64 {
++        let remaining: u64 = sender_balance - transfer_amount;
++        return remaining;
++    }
++}
+diff --git a/leo-fmt/tests/target/wrap_struct_expr.leo b/leo-fmt/tests/target/wrap_struct_expr.leo
+new file mode 100644
+index 0000000000..5ad2c3cd0a
+--- /dev/null
++++ b/leo-fmt/tests/target/wrap_struct_expr.leo
+@@ -0,0 +1,22 @@
++program test.aleo {
++    struct Point {
++        x: u64,
++        y: u64,
++    }
++
++    struct TransferInfo {
++        sender_amount: u64,
++        receiver_amount: u64,
++        transfer_fee: u64,
++    }
++
++    transition main(public a: u64, public b: u64) -> u64 {
++        let p: Point = Point { x: 1u64, y: 2u64 };
++        let info: TransferInfo = TransferInfo {
++            sender_amount: a,
++            receiver_amount: b,
++            transfer_fee: 10u64,
++        };
++        return p.x + info.sender_amount;
++    }
++}

@@ -1,0 +1,119 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 3e4da41f8..c0d196ef0 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -56,7 +56,7 @@ name = "snarkos"
+ path = "snarkos/main.rs"
+ 
+ [features]
+-metrics = [ "snarkos-node-metrics", "snarkos-node/metrics" ]
++default = [ "snarkos-node-metrics", "snarkos-node/metrics", "snarkos-cli/metrics" ]
+ history = [ "snarkos-node/history" ]
+ test_targets = [ "snarkos-cli/test_targets" ]
+ 
+diff --git a/cli/Cargo.toml b/cli/Cargo.toml
+index 6dd5f1223..be61eed43 100644
+--- a/cli/Cargo.toml
++++ b/cli/Cargo.toml
+@@ -17,7 +17,7 @@ license = "Apache-2.0"
+ edition = "2021"
+ 
+ [features]
+-default = [ "snarkos-node/metrics" ]
++metrics = [ "dep:metrics", "snarkos-node/metrics" ]
+ test_targets = [ "snarkvm/test_targets" ]
+ 
+ [dependencies.aleo-std]
+@@ -50,6 +50,7 @@ features = [ "serde", "rayon" ]
+ package = "snarkos-node-metrics"
+ path = "../node/metrics"
+ version = "=3.2.0"
++optional = true
+ 
+ [dependencies.num_cpus]
+ version = "1"
+diff --git a/cli/src/commands/start.rs b/cli/src/commands/start.rs
+index d0ddc6cc6..056cb472c 100644
+--- a/cli/src/commands/start.rs
++++ b/cli/src/commands/start.rs
+@@ -137,9 +137,11 @@ pub struct Start {
+     pub logfile: PathBuf,
+ 
+     /// Enables the metrics exporter
++    #[cfg(feature = "metrics")]
+     #[clap(default_value = "false", long = "metrics")]
+     pub metrics: bool,
+     /// Specify the IP address and port for the metrics exporter
++    #[cfg(feature = "metrics")]
+     #[clap(long = "metrics-ip")]
+     pub metrics_ip: Option<SocketAddr>,
+ 
+@@ -587,6 +589,7 @@ impl Start {
+         crate::helpers::check_validator_machine(node_type);
+ 
+         // Initialize the metrics.
++        #[cfg(feature = "metrics")]
+         if self.metrics {
+             metrics::initialize_metrics(self.metrics_ip);
+         }
+diff --git a/node/tcp/Cargo.toml b/node/tcp/Cargo.toml
+index eb42bfea5..7054e2fd3 100644
+--- a/node/tcp/Cargo.toml
++++ b/node/tcp/Cargo.toml
+@@ -25,31 +25,31 @@ async-trait = "0.1"
+ bytes = "1"
+ parking_lot = "0.12"
+ 
+-  [dependencies.futures-util]
+-  version = "0.3"
+-  features = [ "sink" ]
+-
+-  [dependencies.metrics]
+-  package = "snarkos-node-metrics"
+-  path = "../metrics"
+-  version = "=3.2.0"
+-  optional = true
+-
+-  [dependencies.once_cell]
+-  version = "1"
+-  features = [ "parking_lot" ]
+-
+-  [dependencies.tokio]
+-  version = "1.28"
+-  features = [ "io-util", "net", "parking_lot", "rt", "sync", "time" ]
+-
+-  [dependencies.tokio-util]
+-  version = "0.7"
+-  features = [ "codec" ]
+-
+-  [dependencies.tracing]
+-  version = "0.1"
+-  default-features = false
++[dependencies.futures-util]
++version = "0.3"
++features = [ "sink" ]
++
++[dependencies.metrics]
++package = "snarkos-node-metrics"
++path = "../metrics"
++version = "=3.2.0"
++optional = true
++
++[dependencies.once_cell]
++version = "1"
++features = [ "parking_lot" ]
++
++[dependencies.tokio]
++version = "1.28"
++features = [ "io-util", "net", "parking_lot", "rt", "sync", "time" ]
++
++[dependencies.tokio-util]
++version = "0.7"
++features = [ "codec" ]
++
++[dependencies.tracing]
++version = "0.1"
++default-features = false
+ 
+ [dev-dependencies.tokio]
+ version = "1.28"

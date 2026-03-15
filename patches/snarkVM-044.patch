@@ -1,0 +1,48 @@
+diff --git a/ledger/src/tests.rs b/ledger/src/tests.rs
+index 3b4ccb48a..e20ebde59 100644
+--- a/ledger/src/tests.rs
++++ b/ledger/src/tests.rs
+@@ -596,7 +596,7 @@ fn test_aborted_transaction_indexing() {
+         .unwrap();
+ 
+     // Check that the next block is valid.
+-    ledger.check_next_block(&transfer_block).unwrap();
++    ledger.check_next_block(&transfer_block, rng).unwrap();
+ 
+     // Add the deployment block to the ledger.
+     ledger.advance_to_next_block(&transfer_block).unwrap();
+@@ -631,7 +631,7 @@ fn test_aborted_transaction_indexing() {
+     assert_eq!(block.aborted_transaction_ids(), &[aborted_transaction_id]);
+ 
+     // Check that the next block is valid.
+-    ledger.check_next_block(&block).unwrap();
++    ledger.check_next_block(&block, rng).unwrap();
+ 
+     // Add the deployment block to the ledger.
+     ledger.advance_to_next_block(&block).unwrap();
+diff --git a/synthesizer/process/Cargo.toml b/synthesizer/process/Cargo.toml
+index 5d9ca9969..67860d238 100644
+--- a/synthesizer/process/Cargo.toml
++++ b/synthesizer/process/Cargo.toml
+@@ -86,7 +86,7 @@ version = "=0.16.9"
+ [dependencies.utilities]
+ package = "snarkvm-utilities"
+ path = "../../utilities"
+-version = "=0.16.8"
++version = "=0.16.9"
+ 
+ [dependencies.aleo-std]
+ version = "0.1.18"
+diff --git a/synthesizer/src/vm/finalize.rs b/synthesizer/src/vm/finalize.rs
+index dcc4a315f..29f239e71 100644
+--- a/synthesizer/src/vm/finalize.rs
++++ b/synthesizer/src/vm/finalize.rs
+@@ -130,7 +130,7 @@ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+     /// The maximum number of confirmed transactions allowed in a block.
+     #[cfg(not(any(test, feature = "test")))]
+-    pub const MAXIMUM_CONFIRMED_TRANSACTIONS: usize = Self::MAX_TRANSACTIONS;
++    pub const MAXIMUM_CONFIRMED_TRANSACTIONS: usize = Transactions::<N>::MAX_TRANSACTIONS;
+     /// The maximum number of confirmed transactions allowed in a block.
+     /// This is set to a deliberately low value (8) for testing purposes only.
+     #[cfg(any(test, feature = "test"))]

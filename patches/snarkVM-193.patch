@@ -1,0 +1,35 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index d82c25db7..dea29421f 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -44,7 +44,7 @@ jobs:
+           args: --all-features --examples --all --benches
+ 
+   test-wasm:
+-    name: Check Tests (Wasm)
++    name: WASM
+     runs-on: ubuntu-latest
+     steps:
+       - name: Checkout
+@@ -76,7 +76,8 @@ jobs:
+           wasm-pack test --node
+ #          cargo test --target wasm32-unknown-unknown --features wasm
+ 
+-  check-windows:  
++  check-windows:
++    name: Windows
+     strategy:
+       matrix:
+         library: [algorithms, curves, derives, dpc, fields, gadgets, marlin, parameters, polycommit, profiler, r1cs, utilities]
+diff --git a/marlin/src/marlin/circuit_verifying_key.rs b/marlin/src/marlin/circuit_verifying_key.rs
+index 7738bc53b..8a74dd51c 100644
+--- a/marlin/src/marlin/circuit_verifying_key.rs
++++ b/marlin/src/marlin/circuit_verifying_key.rs
+@@ -30,6 +30,7 @@ use snarkvm_utilities::{
+     error,
+     errors::SerializationError,
+     serialize::*,
++    string::String,
+     FromBytes,
+     FromBytesDeserializer,
+     ToBytes,

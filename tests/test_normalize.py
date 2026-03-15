@@ -193,6 +193,23 @@ def test_parse_raw_dir_name_single_digit_case_id() -> None:
     assert tool == "claude-code-cli"
 
 
+def test_parse_raw_dir_name_new_agent_tools() -> None:
+    """New agent tools added to _KNOWN_TOOLS parse correctly via Strategy 1."""
+    from bugeval.normalize import _parse_raw_dir_name
+
+    assert _parse_raw_dir_name("snarkVM-042-claude-cli-sonnet") == (
+        "snarkVM-042",
+        "claude-cli-sonnet",
+    )
+    assert _parse_raw_dir_name("leo-001-openai-api-o4") == ("leo-001", "openai-api-o4")
+    assert _parse_raw_dir_name("aleo-lang-010-google-api-flash-lite") == (
+        "aleo-lang-010",
+        "google-api-flash-lite",
+    )
+    assert _parse_raw_dir_name("repo-003-gemini-cli-flash") == ("repo-003", "gemini-cli-flash")
+    assert _parse_raw_dir_name("repo-003-codex-cli-mini") == ("repo-003", "codex-cli-mini")
+
+
 def _make_config_yaml(tmp_path: Path) -> Path:
     config_data = {
         "github": {"eval_org": "provable-eval"},
@@ -220,6 +237,45 @@ def test_normalize_dry_run_no_files(tmp_path: Path) -> None:
     assert result.exit_code == 0
     # No output YAML should have been created
     assert not (tmp_path / "case-001-greptile.yaml").exists()
+
+
+def test_normalize_agent_result_preserves_enriched_fields(tmp_path: Path) -> None:
+    raw_dir = tmp_path / "raw" / "case-001-anthropic-api"
+    raw_dir.mkdir(parents=True)
+    findings = [
+        {
+            "file": "src/main.rs",
+            "line": 42,
+            "summary": "Use-after-free",
+            "confidence": 0.9,
+            "severity": "high",
+            "category": "memory-safety",
+            "suggested_fix": "Use Rc instead of raw pointer",
+            "reasoning": "ptr is freed before use",
+        }
+    ]
+    (raw_dir / "findings.json").write_text(json.dumps(findings))
+    result = normalize_agent_result("case-001", "anthropic-api", raw_dir)
+    c = result.comments[0]
+    assert c.body == "Use-after-free"
+    assert c.confidence == 0.9
+    assert c.severity == "high"
+    assert c.category == "memory-safety"
+    assert c.suggested_fix == "Use Rc instead of raw pointer"
+    assert c.reasoning == "ptr is freed before use"
+
+
+def test_normalize_agent_result_enriched_fields_missing_is_none(tmp_path: Path) -> None:
+    """Findings without enriched fields produce None values (not errors)."""
+    raw_dir = tmp_path / "raw" / "case-001-anthropic-api"
+    raw_dir.mkdir(parents=True)
+    findings = [{"file": "a.rs", "line": 1, "summary": "bug"}]
+    (raw_dir / "findings.json").write_text(json.dumps(findings))
+    result = normalize_agent_result("case-001", "anthropic-api", raw_dir)
+    c = result.comments[0]
+    assert c.confidence is None
+    assert c.severity is None
+    assert c.suggested_fix is None
 
 
 def test_normalize_dry_run_prints_summary(tmp_path: Path) -> None:

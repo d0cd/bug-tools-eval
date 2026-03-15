@@ -401,6 +401,67 @@ def test_metadata_json_has_time_seconds(tmp_path: Path) -> None:
     assert "cost_usd" not in meta
 
 
+def test_run_api_eval_limit_slices_cases(tmp_path: Path) -> None:
+    """--limit should process at most N cases per tool."""
+    config_path = _make_config_yaml(tmp_path)
+    cases_dir = tmp_path / "cases"
+    for i in range(1, 4):
+        _make_case_yaml(cases_dir, f"case-{i:03d}")
+    patches_dir = tmp_path / "patches"
+    patches_dir.mkdir()
+    for i in range(1, 4):
+        (patches_dir / f"case-{i:03d}.patch").write_text("--- a\n+++ b\n")
+    run_dir = tmp_path / "results"
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "run-api-eval",
+            "--config", str(config_path),
+            "--cases-dir", str(cases_dir),
+            "--patches-dir", str(patches_dir),
+            "--run-dir", str(run_dir),
+            "--limit", "2",
+            "--dry-run",
+        ],
+    )
+    assert result.exit_code == 0
+    checkpoint = run_dir / "checkpoint.yaml"
+    rs = RunState.load(checkpoint)
+    assert len(rs.states()) == 2
+
+
+def test_run_api_eval_fail_after_aborts(tmp_path: Path) -> None:
+    """--fail-after should abort the tool loop after N consecutive failures."""
+    config_path = _make_config_yaml(tmp_path)
+    cases_dir = tmp_path / "cases"
+    for i in range(1, 5):
+        _make_case_yaml(cases_dir, f"case-{i:03d}")
+    patches_dir = tmp_path / "patches"
+    patches_dir.mkdir()
+    # No patches — all cases will fail with "patch not found"
+    run_dir = tmp_path / "results"
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "run-api-eval",
+            "--config", str(config_path),
+            "--cases-dir", str(cases_dir),
+            "--patches-dir", str(patches_dir),
+            "--run-dir", str(run_dir),
+            "--fail-after", "2",
+        ],
+    )
+    assert result.exit_code == 0
+    checkpoint = run_dir / "checkpoint.yaml"
+    rs = RunState.load(checkpoint)
+    failed = [s for s in rs.states() if s.status == CaseToolStatus.failed]
+    assert len(failed) == 2
+
+
 def test_run_api_eval_unknown_tools_filter_exits(tmp_path: Path) -> None:
     config_path = _make_config_yaml(tmp_path)
     cases_dir = tmp_path / "cases"

@@ -20,6 +20,11 @@ class Comment(BaseModel):
     line: int = 0
     body: str
     type: CommentType = CommentType.inline
+    confidence: float | None = None
+    severity: str | None = None
+    category: str | None = None
+    suggested_fix: str | None = None
+    reasoning: str | None = None
 
 
 class ResultMetadata(BaseModel):

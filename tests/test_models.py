@@ -172,6 +172,39 @@ class TestCaseStats:
         assert stats.hunks == 3
 
 
+class TestVerified:
+    def test_verified_defaults_false(self) -> None:
+        case = TestCase(**make_test_case())  # type: ignore[arg-type]
+        assert case.verified is False
+
+    def test_verified_by_defaults_none(self) -> None:
+        case = TestCase(**make_test_case())  # type: ignore[arg-type]
+        assert case.verified_by is None
+
+    def test_verified_can_be_set(self) -> None:
+        case = TestCase(**make_test_case(verified=True, verified_by="alice"))  # type: ignore[arg-type]
+        assert case.verified is True
+        assert case.verified_by == "alice"
+
+    def test_yaml_round_trip_with_verified(self) -> None:
+        case = TestCase(**make_test_case(verified=True, verified_by="bob"))  # type: ignore[arg-type]
+        data = case.model_dump(mode="json")
+        yaml_str = yaml.safe_dump(data)
+        loaded = yaml.safe_load(yaml_str)
+        case2 = TestCase(**loaded)
+        assert case2.verified is True
+        assert case2.verified_by == "bob"
+
+    def test_existing_yaml_without_verified_loads_with_defaults(self) -> None:
+        """Backward compat: YAML without verified fields loads with verified=False."""
+        data = make_test_case()
+        # Simulate old YAML that has no verified/verified_by keys
+        assert "verified" not in data
+        case = TestCase(**data)  # type: ignore[arg-type]
+        assert case.verified is False
+        assert case.verified_by is None
+
+
 class TestVisibility:
     def test_visibility_enum_values(self) -> None:
         assert Visibility.public == "public"

@@ -1,0 +1,805 @@
+diff --git a/node/bft/src/helpers/pending.rs b/node/bft/src/helpers/pending.rs
+index 7c30e31f9..4ea0d322b 100644
+--- a/node/bft/src/helpers/pending.rs
++++ b/node/bft/src/helpers/pending.rs
+@@ -13,29 +13,43 @@
+ // limitations under the License.
+ 
+ use crate::MAX_FETCH_TIMEOUT_IN_MS;
++use snarkos_node_bft_ledger_service::LedgerService;
++use snarkvm::{console::network::Network, ledger::committee::Committee};
+ 
+ use parking_lot::{Mutex, RwLock};
+ use std::{
+     collections::{HashMap, HashSet},
+     hash::Hash,
+     net::SocketAddr,
++    sync::Arc,
+ };
+ use time::OffsetDateTime;
+ use tokio::sync::oneshot;
+ 
+-#[cfg(not(test))]
+-pub const NUM_REDUNDANT_REQUESTS: usize = 2;
+-#[cfg(test)]
+-pub const NUM_REDUNDANT_REQUESTS: usize = 10;
+-
+ const CALLBACK_TIMEOUT_IN_SECS: i64 = MAX_FETCH_TIMEOUT_IN_MS as i64 / 1000;
+ 
++/// Returns the maximum number of redundant requests for the number of validators in the specified round.
++pub fn max_redundant_requests<N: Network>(ledger: Arc<dyn LedgerService<N>>, round: u64) -> usize {
++    // Determine the number of validators in the committee lookback for the given round.
++    let num_validators = ledger
++        .get_committee_lookback_for_round(round)
++        .map(|committee| committee.num_members())
++        .ok()
++        .unwrap_or(Committee::<N>::MAX_COMMITTEE_SIZE as usize);
++
++    // Note: It is adequate to set this value to the availability threshold,
++    // as with high probability one will respond honestly (in the best and worst case
++    // with stake spread across the validators evenly and unevenly, respectively).
++    1 + num_validators.saturating_div(3)
++}
++
+ #[derive(Debug)]
+ pub struct Pending<T: PartialEq + Eq + Hash, V: Clone> {
+     /// The map of pending `items` to `peer IPs` that have the item.
+     pending: RwLock<HashMap<T, HashSet<SocketAddr>>>,
+     /// The optional callback queue.
+-    callbacks: Mutex<HashMap<T, Vec<(oneshot::Sender<V>, i64)>>>,
++    /// Each callback has a timeout and a flag indicating if it is associated with a sent request.
++    callbacks: Mutex<HashMap<T, Vec<(oneshot::Sender<V>, i64, bool)>>>,
+ }
+ 
+ impl<T: Copy + Clone + PartialEq + Eq + Hash, V: Clone> Default for Pending<T, V> {
+@@ -85,12 +99,29 @@ impl<T: Copy + Clone + PartialEq + Eq + Hash, V: Clone> Pending<T, V> {
+         self.callbacks.lock().get(&item).map_or(0, |callbacks| callbacks.len())
+     }
+ 
++    /// Returns the number of pending sent requests for the specified `item`.
++    pub fn num_sent_requests(&self, item: impl Into<T>) -> usize {
++        let item = item.into();
++        // Clear the callbacks that have expired.
++        self.clear_expired_callbacks_for_item(item);
++        // Return the number of live callbacks.
++        self.callbacks
++            .lock()
++            .get(&item)
++            .map_or(0, |callbacks| callbacks.iter().filter(|(_, _, request_sent)| *request_sent).count())
++    }
++
+     /// Inserts the specified `item` and `peer IP` to the pending queue,
+     /// returning `true` if the `peer IP` was newly-inserted into the entry for the `item`.
+     ///
+     /// In addition, an optional `callback` may be provided, that is triggered upon removal.
+     /// Note: The callback, if provided, is **always** inserted into the callback queue.
+-    pub fn insert(&self, item: impl Into<T>, peer_ip: SocketAddr, callback: Option<oneshot::Sender<V>>) -> bool {
++    pub fn insert(
++        &self,
++        item: impl Into<T>,
++        peer_ip: SocketAddr,
++        callback: Option<(oneshot::Sender<V>, bool)>,
++    ) -> bool {
+         let item = item.into();
+         // Insert the peer IP into the pending queue.
+         let result = self.pending.write().entry(item).or_default().insert(peer_ip);
+@@ -99,8 +130,12 @@ impl<T: Copy + Clone + PartialEq + Eq + Hash, V: Clone> Pending<T, V> {
+         self.clear_expired_callbacks_for_item(item);
+ 
+         // If a callback is provided, insert it into the callback queue.
+-        if let Some(callback) = callback {
+-            self.callbacks.lock().entry(item).or_default().push((callback, OffsetDateTime::now_utc().unix_timestamp()));
++        if let Some((callback, request_sent)) = callback {
++            self.callbacks.lock().entry(item).or_default().push((
++                callback,
++                OffsetDateTime::now_utc().unix_timestamp(),
++                request_sent,
++            ));
+         }
+         // Return the result.
+         result
+@@ -117,7 +152,7 @@ impl<T: Copy + Clone + PartialEq + Eq + Hash, V: Clone> Pending<T, V> {
+         if let Some(callbacks) = self.callbacks.lock().remove(&item) {
+             if let Some(callback_value) = callback_value {
+                 // Send a notification to the callback.
+-                for (callback, _) in callbacks {
++                for (callback, _, _) in callbacks {
+                     callback.send(callback_value.clone()).ok();
+                 }
+             }
+@@ -133,7 +168,7 @@ impl<T: Copy + Clone + PartialEq + Eq + Hash, V: Clone> Pending<T, V> {
+             // Fetch the current timestamp.
+             let now = OffsetDateTime::now_utc().unix_timestamp();
+             // Remove the callbacks that have expired.
+-            callbacks.retain(|(_, timestamp)| now - *timestamp <= CALLBACK_TIMEOUT_IN_SECS);
++            callbacks.retain(|(_, timestamp, _)| now - *timestamp <= CALLBACK_TIMEOUT_IN_SECS);
+         }
+     }
+ }
+@@ -150,6 +185,8 @@ mod tests {
+ 
+     type CurrentNetwork = snarkvm::prelude::MainnetV0;
+ 
++    const ITERATIONS: usize = 100;
++
+     #[test]
+     fn test_pending() {
+         let rng = &mut TestRng::default();
+@@ -233,13 +270,13 @@ mod tests {
+         let (callback_sender_3, _) = oneshot::channel();
+ 
+         // Insert the commitments.
+-        assert!(pending.insert(commitment_1, addr_1, Some(callback_sender_1)));
+-        assert!(pending.insert(commitment_1, addr_2, Some(callback_sender_2)));
++        assert!(pending.insert(commitment_1, addr_1, Some((callback_sender_1, true))));
++        assert!(pending.insert(commitment_1, addr_2, Some((callback_sender_2, true))));
+ 
+         // Sleep for a few seconds.
+         thread::sleep(Duration::from_secs(CALLBACK_TIMEOUT_IN_SECS as u64 - 1));
+ 
+-        assert!(pending.insert(commitment_1, addr_3, Some(callback_sender_3)));
++        assert!(pending.insert(commitment_1, addr_3, Some((callback_sender_3, true))));
+ 
+         // Check that the number of callbacks has not changed.
+         assert_eq!(pending.num_callbacks(commitment_1), 3);
+@@ -256,6 +293,37 @@ mod tests {
+         // Ensure that the expired callbacks have been removed.
+         assert_eq!(pending.num_callbacks(commitment_1), 0);
+     }
++
++    #[test]
++    fn test_num_sent_requests() {
++        let rng = &mut TestRng::default();
++
++        // Initialize the ready queue.
++        let pending = Pending::<TransmissionID<CurrentNetwork>, ()>::new();
++
++        for _ in 0..ITERATIONS {
++            // Generate a commitment.
++            let commitment = TransmissionID::Solution(PuzzleCommitment::from_g1_affine(rng.gen()));
++            // Check if the number of sent requests is correct.
++            let mut expected_num_sent_requests = 0;
++            for i in 0..ITERATIONS {
++                // Generate a peer address.
++                let addr = SocketAddr::from(([127, 0, 0, 1], i as u16));
++                // Initialize a callback.
++                let (callback_sender, _) = oneshot::channel();
++                // Randomly determine if the callback is associated with a sent request.
++                let is_sent_request = rng.gen();
++                // Increment the expected number of sent requests.
++                if is_sent_request {
++                    expected_num_sent_requests += 1;
++                }
++                // Insert the commitment.
++                assert!(pending.insert(commitment, addr, Some((callback_sender, is_sent_request))));
++            }
++            // Ensure that the number of sent requests is correct.
++            assert_eq!(pending.num_sent_requests(commitment), expected_num_sent_requests);
++        }
++    }
+ }
+ 
+ #[cfg(test)]
+diff --git a/node/bft/src/sync/mod.rs b/node/bft/src/sync/mod.rs
+index 46cc1885d..555bdb5a4 100644
+--- a/node/bft/src/sync/mod.rs
++++ b/node/bft/src/sync/mod.rs
+@@ -13,7 +13,7 @@
+ // limitations under the License.
+ 
+ use crate::{
+-    helpers::{fmt_id, BFTSender, Pending, Storage, SyncReceiver, NUM_REDUNDANT_REQUESTS},
++    helpers::{fmt_id, max_redundant_requests, BFTSender, Pending, Storage, SyncReceiver},
+     Gateway,
+     Transport,
+     MAX_FETCH_TIMEOUT_IN_MS,
+@@ -410,19 +410,27 @@ impl<N: Network> Sync<N> {
+     ) -> Result<BatchCertificate<N>> {
+         // Initialize a oneshot channel.
+         let (callback_sender, callback_receiver) = oneshot::channel();
++        // Determine how many sent requests are pending.
++        let num_sent_requests = self.pending.num_sent_requests(certificate_id);
++        // Determine the maximum number of redundant requests.
++        let num_redundant_requests = max_redundant_requests(self.ledger.clone(), self.storage.current_round());
++        // Determine if we should send a certificate request to the peer.
++        let should_send_request = num_sent_requests < num_redundant_requests;
++
+         // Insert the certificate ID into the pending queue.
+-        if self.pending.insert(certificate_id, peer_ip, Some(callback_sender)) {
+-            // Determine how many requests are pending for the certificate.
+-            let num_pending_requests = self.pending.num_callbacks(certificate_id);
+-            // If the number of requests is less than or equal to the redundancy factor, send the certificate request to the peer.
+-            if num_pending_requests <= NUM_REDUNDANT_REQUESTS {
+-                // Send the certificate request to the peer.
+-                if self.gateway.send(peer_ip, Event::CertificateRequest(certificate_id.into())).await.is_none() {
+-                    bail!("Unable to fetch batch certificate {certificate_id} - failed to send request")
+-                }
+-            } else {
+-                trace!("Skipped sending redundant request for certificate {} to '{peer_ip}'", fmt_id(certificate_id));
++        self.pending.insert(certificate_id, peer_ip, Some((callback_sender, should_send_request)));
++
++        // If the number of requests is less than or equal to the redundancy factor, send the certificate request to the peer.
++        if should_send_request {
++            // Send the certificate request to the peer.
++            if self.gateway.send(peer_ip, Event::CertificateRequest(certificate_id.into())).await.is_none() {
++                bail!("Unable to fetch batch certificate {certificate_id} - failed to send request")
+             }
++        } else {
++            debug!(
++                "Skipped sending request for certificate {} to '{peer_ip}' ({num_sent_requests} redundant requests)",
++                fmt_id(certificate_id)
++            );
+         }
+         // Wait for the certificate to be fetched.
+         match tokio::time::timeout(core::time::Duration::from_millis(MAX_FETCH_TIMEOUT_IN_MS), callback_receiver).await
+diff --git a/node/bft/src/worker.rs b/node/bft/src/worker.rs
+index 4e59a399e..e19670374 100644
+--- a/node/bft/src/worker.rs
++++ b/node/bft/src/worker.rs
+@@ -14,7 +14,7 @@
+ 
+ use crate::{
+     events::{Event, TransmissionRequest, TransmissionResponse},
+-    helpers::{fmt_id, Pending, Ready, Storage, WorkerReceiver, NUM_REDUNDANT_REQUESTS},
++    helpers::{fmt_id, max_redundant_requests, Pending, Ready, Storage, WorkerReceiver},
+     ProposedBatch,
+     Transport,
+     MAX_FETCH_TIMEOUT_IN_MS,
+@@ -90,6 +90,11 @@ impl<N: Network> Worker<N> {
+     pub const fn id(&self) -> u8 {
+         self.id
+     }
++
++    /// Returns a reference to the pending transmissions queue.
++    pub fn pending(&self) -> &Arc<Pending<TransmissionID<N>, Transmission<N>>> {
++        &self.pending
++    }
+ }
+ 
+ impl<N: Network> Worker<N> {
+@@ -384,18 +389,27 @@ impl<N: Network> Worker<N> {
+     ) -> Result<(TransmissionID<N>, Transmission<N>)> {
+         // Initialize a oneshot channel.
+         let (callback_sender, callback_receiver) = oneshot::channel();
++        // Determine how many sent requests are pending.
++        let num_sent_requests = self.pending.num_sent_requests(transmission_id);
++        // Determine the maximum number of redundant requests.
++        let num_redundant_requests = max_redundant_requests(self.ledger.clone(), self.storage.current_round());
++        // Determine if we should send a transmission request to the peer.
++        let should_send_request = num_sent_requests < num_redundant_requests;
++
+         // Insert the transmission ID into the pending queue.
+-        self.pending.insert(transmission_id, peer_ip, Some(callback_sender));
+-        // Determine how many requests are pending for the transmission.
+-        let num_pending_requests = self.pending.num_callbacks(transmission_id);
++        self.pending.insert(transmission_id, peer_ip, Some((callback_sender, should_send_request)));
++
+         // If the number of requests is less than or equal to the the redundancy factor, send the transmission request to the peer.
+-        if num_pending_requests <= NUM_REDUNDANT_REQUESTS {
++        if should_send_request {
+             // Send the transmission request to the peer.
+             if self.gateway.send(peer_ip, Event::TransmissionRequest(transmission_id.into())).await.is_none() {
+                 bail!("Unable to fetch transmission - failed to send request")
+             }
+         } else {
+-            trace!("Skipped sending redundant request for transmission {} to '{peer_ip}'", fmt_id(transmission_id));
++            debug!(
++                "Skipped sending request for transmission {} to '{peer_ip}' ({num_sent_requests} redundant requests)",
++                fmt_id(transmission_id)
++            );
+         }
+         // Wait for the transmission to be fetched.
+         match timeout(Duration::from_millis(MAX_FETCH_TIMEOUT_IN_MS), callback_receiver).await {
+@@ -527,15 +541,35 @@ mod tests {
+         }
+     }
+ 
++    #[tokio::test]
++    async fn test_max_redundant_requests() {
++        let rng = &mut TestRng::default();
++        // Sample a committee.
++        let committee = snarkvm::ledger::committee::test_helpers::sample_committee_for_round_and_size(0, 100, rng);
++        let committee_clone = committee.clone();
++        // Setup the mock ledger.
++        let mut mock_ledger = MockLedger::default();
++        mock_ledger.expect_current_committee().returning(move || Ok(committee.clone()));
++        mock_ledger.expect_get_committee_lookback_for_round().returning(move |_| Ok(committee_clone.clone()));
++        mock_ledger.expect_contains_transmission().returning(|_| Ok(false));
++        mock_ledger.expect_check_solution_basic().returning(|_, _| Ok(()));
++        let ledger: Arc<dyn LedgerService<CurrentNetwork>> = Arc::new(mock_ledger);
++
++        // Ensure the maximum number of redundant requests is correct and consistent across iterations.
++        assert_eq!(max_redundant_requests(ledger, 0), 34, "Update me if the formula changes");
++    }
++
+     #[tokio::test]
+     async fn test_process_transmission() {
+         let rng = &mut TestRng::default();
+         // Sample a committee.
+         let committee = snarkvm::ledger::committee::test_helpers::sample_committee(rng);
++        let committee_clone = committee.clone();
+         // Setup the mock gateway and ledger.
+         let gateway = MockGateway::default();
+         let mut mock_ledger = MockLedger::default();
+         mock_ledger.expect_current_committee().returning(move || Ok(committee.clone()));
++        mock_ledger.expect_get_committee_lookback_for_round().returning(move |_| Ok(committee_clone.clone()));
+         mock_ledger.expect_contains_transmission().returning(|_| Ok(false));
+         mock_ledger.expect_check_solution_basic().returning(|_, _| Ok(()));
+         let ledger: Arc<dyn LedgerService<CurrentNetwork>> = Arc::new(mock_ledger);
+@@ -565,6 +599,7 @@ mod tests {
+         let rng = &mut TestRng::default();
+         // Sample a committee.
+         let committee = snarkvm::ledger::committee::test_helpers::sample_committee(rng);
++        let committee_clone = committee.clone();
+         // Setup the mock gateway and ledger.
+         let mut gateway = MockGateway::default();
+         gateway.expect_send().returning(|_, _| {
+@@ -573,6 +608,7 @@ mod tests {
+         });
+         let mut mock_ledger = MockLedger::default();
+         mock_ledger.expect_current_committee().returning(move || Ok(committee.clone()));
++        mock_ledger.expect_get_committee_lookback_for_round().returning(move |_| Ok(committee_clone.clone()));
+         mock_ledger.expect_ensure_transmission_id_matches().returning(|_, _| Ok(()));
+         let ledger: Arc<dyn LedgerService<CurrentNetwork>> = Arc::new(mock_ledger);
+         // Initialize the storage.
+@@ -600,6 +636,7 @@ mod tests {
+         let rng = &mut TestRng::default();
+         // Sample a committee.
+         let committee = snarkvm::ledger::committee::test_helpers::sample_committee(rng);
++        let committee_clone = committee.clone();
+         // Setup the mock gateway and ledger.
+         let mut gateway = MockGateway::default();
+         gateway.expect_send().returning(|_, _| {
+@@ -608,6 +645,7 @@ mod tests {
+         });
+         let mut mock_ledger = MockLedger::default();
+         mock_ledger.expect_current_committee().returning(move || Ok(committee.clone()));
++        mock_ledger.expect_get_committee_lookback_for_round().returning(move |_| Ok(committee_clone.clone()));
+         mock_ledger.expect_contains_transmission().returning(|_| Ok(false));
+         mock_ledger.expect_check_solution_basic().returning(|_, _| Ok(()));
+         let ledger: Arc<dyn LedgerService<CurrentNetwork>> = Arc::new(mock_ledger);
+@@ -638,6 +676,7 @@ mod tests {
+         let rng = &mut TestRng::default();
+         // Sample a committee.
+         let committee = snarkvm::ledger::committee::test_helpers::sample_committee(rng);
++        let committee_clone = committee.clone();
+         // Setup the mock gateway and ledger.
+         let mut gateway = MockGateway::default();
+         gateway.expect_send().returning(|_, _| {
+@@ -646,6 +685,7 @@ mod tests {
+         });
+         let mut mock_ledger = MockLedger::default();
+         mock_ledger.expect_current_committee().returning(move || Ok(committee.clone()));
++        mock_ledger.expect_get_committee_lookback_for_round().returning(move |_| Ok(committee_clone.clone()));
+         mock_ledger.expect_contains_transmission().returning(|_| Ok(false));
+         mock_ledger.expect_check_solution_basic().returning(|_, _| Err(anyhow!("")));
+         let ledger: Arc<dyn LedgerService<CurrentNetwork>> = Arc::new(mock_ledger);
+@@ -676,6 +716,7 @@ mod tests {
+         let mut rng = &mut TestRng::default();
+         // Sample a committee.
+         let committee = snarkvm::ledger::committee::test_helpers::sample_committee(rng);
++        let committee_clone = committee.clone();
+         // Setup the mock gateway and ledger.
+         let mut gateway = MockGateway::default();
+         gateway.expect_send().returning(|_, _| {
+@@ -684,6 +725,7 @@ mod tests {
+         });
+         let mut mock_ledger = MockLedger::default();
+         mock_ledger.expect_current_committee().returning(move || Ok(committee.clone()));
++        mock_ledger.expect_get_committee_lookback_for_round().returning(move |_| Ok(committee_clone.clone()));
+         mock_ledger.expect_contains_transmission().returning(|_| Ok(false));
+         mock_ledger.expect_check_transaction_basic().returning(|_, _| Ok(()));
+         let ledger: Arc<dyn LedgerService<CurrentNetwork>> = Arc::new(mock_ledger);
+@@ -714,6 +756,7 @@ mod tests {
+         let mut rng = &mut TestRng::default();
+         // Sample a committee.
+         let committee = snarkvm::ledger::committee::test_helpers::sample_committee(rng);
++        let committee_clone = committee.clone();
+         // Setup the mock gateway and ledger.
+         let mut gateway = MockGateway::default();
+         gateway.expect_send().returning(|_, _| {
+@@ -722,6 +765,7 @@ mod tests {
+         });
+         let mut mock_ledger = MockLedger::default();
+         mock_ledger.expect_current_committee().returning(move || Ok(committee.clone()));
++        mock_ledger.expect_get_committee_lookback_for_round().returning(move |_| Ok(committee_clone.clone()));
+         mock_ledger.expect_contains_transmission().returning(|_| Ok(false));
+         mock_ledger.expect_check_transaction_basic().returning(|_, _| Err(anyhow!("")));
+         let ledger: Arc<dyn LedgerService<CurrentNetwork>> = Arc::new(mock_ledger);
+@@ -746,6 +790,84 @@ mod tests {
+         assert!(!worker.pending.contains(transmission_id));
+         assert!(!worker.ready.contains(transmission_id));
+     }
++
++    #[tokio::test]
++    async fn test_flood_transmission_requests() {
++        let mut rng = &mut TestRng::default();
++        // Sample a committee.
++        let committee = snarkvm::ledger::committee::test_helpers::sample_committee(rng);
++        let committee_clone = committee.clone();
++        // Setup the mock gateway and ledger.
++        let mut gateway = MockGateway::default();
++        gateway.expect_send().returning(|_, _| {
++            let (_tx, rx) = oneshot::channel();
++            Some(rx)
++        });
++        let mut mock_ledger = MockLedger::default();
++        mock_ledger.expect_current_committee().returning(move || Ok(committee.clone()));
++        mock_ledger.expect_get_committee_lookback_for_round().returning(move |_| Ok(committee_clone.clone()));
++        mock_ledger.expect_contains_transmission().returning(|_| Ok(false));
++        mock_ledger.expect_check_transaction_basic().returning(|_, _| Ok(()));
++        let ledger: Arc<dyn LedgerService<CurrentNetwork>> = Arc::new(mock_ledger);
++        // Initialize the storage.
++        let storage = Storage::<CurrentNetwork>::new(ledger.clone(), Arc::new(BFTMemoryService::new()), 1);
++
++        // Create the Worker.
++        let worker = Worker::new(0, Arc::new(gateway), storage, ledger, Default::default()).unwrap();
++        let transaction_id: <CurrentNetwork as Network>::TransactionID = Field::<CurrentNetwork>::rand(&mut rng).into();
++        let transmission_id = TransmissionID::Transaction(transaction_id);
++        let peer_ip = SocketAddr::from(([127, 0, 0, 1], 1234));
++
++        // Determine the number of redundant requests are sent.
++        let num_redundant_requests = max_redundant_requests(worker.ledger.clone(), worker.storage.current_round());
++        let num_flood_requests = num_redundant_requests * 10;
++        // Flood the pending queue with transmission requests.
++        for i in 1..=num_flood_requests {
++            let worker_ = worker.clone();
++            tokio::spawn(async move {
++                let _ = worker_.send_transmission_request(peer_ip, transmission_id).await;
++            });
++            tokio::time::sleep(Duration::from_millis(10)).await;
++            // Check that the number of sent requests does not exceed the maximum number of redundant requests.
++            assert!(worker.pending.num_sent_requests(transmission_id) <= num_redundant_requests);
++            assert_eq!(worker.pending.num_callbacks(transmission_id), i);
++        }
++        // Check that the number of sent requests does not exceed the maximum number of redundant requests.
++        assert_eq!(worker.pending.num_sent_requests(transmission_id), num_redundant_requests);
++        assert_eq!(worker.pending.num_callbacks(transmission_id), num_flood_requests);
++
++        // Let all the requests expire.
++        tokio::time::sleep(Duration::from_millis(MAX_FETCH_TIMEOUT_IN_MS + 1000)).await;
++        assert_eq!(worker.pending.num_sent_requests(transmission_id), 0);
++        assert_eq!(worker.pending.num_callbacks(transmission_id), 0);
++
++        // Flood the pending queue with transmission requests again.
++        for i in 1..=num_flood_requests {
++            let worker_ = worker.clone();
++            tokio::spawn(async move {
++                let _ = worker_.send_transmission_request(peer_ip, transmission_id).await;
++            });
++            tokio::time::sleep(Duration::from_millis(10)).await;
++            assert!(worker.pending.num_sent_requests(transmission_id) <= num_redundant_requests);
++            assert_eq!(worker.pending.num_callbacks(transmission_id), i);
++        }
++        // Check that the number of sent requests does not exceed the maximum number of redundant requests.
++        assert_eq!(worker.pending.num_sent_requests(transmission_id), num_redundant_requests);
++        assert_eq!(worker.pending.num_callbacks(transmission_id), num_flood_requests);
++
++        // Check that fulfilling a transmission request clears the pending queue.
++        let result = worker
++            .process_unconfirmed_transaction(
++                transaction_id,
++                Data::Buffer(Bytes::from((0..512).map(|_| rng.gen::<u8>()).collect::<Vec<_>>())),
++            )
++            .await;
++        assert!(result.is_ok());
++        assert_eq!(worker.pending.num_sent_requests(transmission_id), 0);
++        assert_eq!(worker.pending.num_callbacks(transmission_id), 0);
++        assert!(!worker.pending.contains(transmission_id));
++        assert!(worker.ready.contains(transmission_id));
++    }
+ }
+ 
+ #[cfg(test)]
+diff --git a/node/bft/tests/bft_e2e.rs b/node/bft/tests/bft_e2e.rs
+index cd2a442f5..22f2be82d 100644
+--- a/node/bft/tests/bft_e2e.rs
++++ b/node/bft/tests/bft_e2e.rs
+@@ -14,6 +14,8 @@
+ 
+ #[allow(dead_code)]
+ mod common;
++#[allow(dead_code)]
++mod components;
+ 
+ use crate::common::primary::{TestNetwork, TestNetworkConfig};
+ use deadline::deadline;
+diff --git a/node/bft/tests/common/primary.rs b/node/bft/tests/common/primary.rs
+index ef7eb9161..43b4ce8d3 100644
+--- a/node/bft/tests/common/primary.rs
++++ b/node/bft/tests/common/primary.rs
+@@ -324,7 +324,7 @@ impl TestNetwork {
+ }
+ 
+ // Initializes a new test committee.
+-fn new_test_committee(n: u16) -> (Vec<Account<CurrentNetwork>>, Committee<CurrentNetwork>) {
++pub fn new_test_committee(n: u16) -> (Vec<Account<CurrentNetwork>>, Committee<CurrentNetwork>) {
+     let mut accounts = Vec::with_capacity(n as usize);
+     let mut members = IndexMap::with_capacity(n as usize);
+     for i in 0..n {
+@@ -346,7 +346,7 @@ fn genesis_cache() -> &'static Mutex<HashMap<Vec<u8>, Block<CurrentNetwork>>> {
+     CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+ }
+ 
+-fn genesis_block(
++pub fn genesis_block(
+     genesis_private_key: PrivateKey<CurrentNetwork>,
+     committee: Committee<CurrentNetwork>,
+     public_balances: IndexMap<Address<CurrentNetwork>, u64>,
+@@ -361,7 +361,7 @@ fn genesis_block(
+     vm.genesis_quorum(&genesis_private_key, committee, public_balances, bonded_balances, rng).unwrap()
+ }
+ 
+-fn genesis_ledger(
++pub fn genesis_ledger(
+     genesis_private_key: PrivateKey<CurrentNetwork>,
+     committee: Committee<CurrentNetwork>,
+     public_balances: IndexMap<Address<CurrentNetwork>, u64>,
+diff --git a/node/bft/tests/components/mod.rs b/node/bft/tests/components/mod.rs
+new file mode 100644
+index 000000000..1a11df65a
+--- /dev/null
++++ b/node/bft/tests/components/mod.rs
+@@ -0,0 +1,80 @@
++// Copyright (C) 2019-2023 Aleo Systems Inc.
++// This file is part of the snarkOS library.
++
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at:
++// http://www.apache.org/licenses/LICENSE-2.0
++
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++pub mod pending;
++pub mod worker;
++
++use crate::common::{primary, CurrentNetwork, TranslucentLedgerService};
++use snarkos_account::Account;
++use snarkos_node_bft::{helpers::Storage, Gateway, Worker};
++use snarkos_node_bft_ledger_service::LedgerService;
++use snarkos_node_bft_storage_service::BFTMemoryService;
++use snarkvm::{
++    console::{account::Address, network::Network},
++    ledger::{narwhal::BatchHeader, store::helpers::memory::ConsensusMemory},
++    prelude::TestRng,
++};
++
++use indexmap::IndexMap;
++use parking_lot::RwLock;
++use std::{str::FromStr, sync::Arc};
++
++const ITERATIONS: u32 = 100;
++
++/// Samples a new ledger with the given number of nodes.
++pub fn sample_ledger(
++    num_nodes: u16,
++    rng: &mut TestRng,
++) -> Arc<TranslucentLedgerService<CurrentNetwork, ConsensusMemory<CurrentNetwork>>> {
++    let (accounts, committee) = primary::new_test_committee(num_nodes);
++    let bonded_balances: IndexMap<_, _> =
++        committee.members().iter().map(|(address, (amount, _))| (*address, (*address, *amount))).collect();
++    let gen_key = *accounts[0].private_key();
++    let public_balance_per_validator =
++        (1_500_000_000_000_000 - (num_nodes as u64) * 1_000_000_000_000) / (num_nodes as u64);
++    let mut balances = IndexMap::<Address<CurrentNetwork>, u64>::new();
++    for account in accounts.iter() {
++        balances.insert(account.address(), public_balance_per_validator);
++    }
++
++    let gen_ledger =
++        primary::genesis_ledger(gen_key, committee.clone(), balances.clone(), bonded_balances.clone(), rng);
++    Arc::new(TranslucentLedgerService::new(gen_ledger, Default::default()))
++}
++
++/// Samples a new storage with the given ledger.
++pub fn sample_storage<N: Network>(ledger: Arc<TranslucentLedgerService<N, ConsensusMemory<N>>>) -> Storage<N> {
++    Storage::new(ledger, Arc::new(BFTMemoryService::new()), BatchHeader::<N>::MAX_GC_ROUNDS as u64)
++}
++
++/// Samples a new gateway with the given ledger.
++pub fn sample_gateway<N: Network>(ledger: Arc<TranslucentLedgerService<N, ConsensusMemory<N>>>) -> Gateway<N> {
++    let num_nodes: u16 = ledger.current_committee().unwrap().num_members().try_into().unwrap();
++    let (accounts, _committee) = primary::new_test_committee(num_nodes);
++    let account = Account::from_str(&accounts[0].private_key().to_string()).unwrap();
++    // Initialize the gateway.
++    Gateway::new(account, ledger, None, &[], None).unwrap()
++}
++
++/// Samples a new worker with the given ledger.
++pub fn sample_worker<N: Network>(id: u8, ledger: Arc<TranslucentLedgerService<N, ConsensusMemory<N>>>) -> Worker<N> {
++    // Sample a storage.
++    let storage = sample_storage(ledger.clone());
++    // Sample a gateway.
++    let gateway = sample_gateway(ledger.clone());
++    // Sample a dummy proposed batch.
++    let proposed_batch = Arc::new(RwLock::new(None));
++    // Construct the worker instance.
++    Worker::new(id, Arc::new(gateway.clone()), storage.clone(), ledger, proposed_batch).unwrap()
++}
+diff --git a/node/bft/tests/components/pending.rs b/node/bft/tests/components/pending.rs
+new file mode 100644
+index 000000000..b1405207d
+--- /dev/null
++++ b/node/bft/tests/components/pending.rs
+@@ -0,0 +1,29 @@
++// Copyright (C) 2019-2023 Aleo Systems Inc.
++// This file is part of the snarkOS library.
++
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at:
++// http://www.apache.org/licenses/LICENSE-2.0
++
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++use crate::components::sample_ledger;
++use snarkos_node_bft::helpers::max_redundant_requests;
++use snarkvm::prelude::TestRng;
++
++#[test]
++fn test_max_redundant_requests() {
++    const NUM_NODES: u16 = 100;
++
++    // Initialize the RNG.
++    let rng = &mut TestRng::default();
++    // Sample a ledger.
++    let ledger = sample_ledger(NUM_NODES, rng);
++    // Ensure the maximum number of redundant requests is correct and consistent across iterations.
++    assert_eq!(max_redundant_requests(ledger, 0), 34, "Update me if the formula changes");
++}
+diff --git a/node/bft/tests/components/worker.rs b/node/bft/tests/components/worker.rs
+new file mode 100644
+index 000000000..279bc1bf9
+--- /dev/null
++++ b/node/bft/tests/components/worker.rs
+@@ -0,0 +1,141 @@
++// Copyright (C) 2019-2023 Aleo Systems Inc.
++// This file is part of the snarkOS library.
++
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at:
++// http://www.apache.org/licenses/LICENSE-2.0
++
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++use crate::{
++    common::CurrentNetwork,
++    components::{sample_ledger, sample_worker},
++};
++use snarkos_node_bft::helpers::max_redundant_requests;
++use snarkvm::{
++    ledger::narwhal::TransmissionID,
++    prelude::{Network, TestRng},
++};
++
++use std::net::SocketAddr;
++
++#[tokio::test]
++#[rustfmt::skip]
++async fn test_resend_transmission_request() {
++    const NUM_NODES: u16 = 100;
++
++    // Initialize the RNG.
++    let rng = &mut TestRng::default();
++    // Sample a ledger.
++    let ledger = sample_ledger(NUM_NODES, rng);
++    // Sample a worker.
++    let worker = sample_worker(0, ledger.clone());
++
++    // Prepare a dummy transmission ID.
++    let peer_ip = SocketAddr::from(([127, 0, 0, 1], 1234));
++    let transmission_id = TransmissionID::Transaction(<CurrentNetwork as Network>::TransactionID::default());
++
++    // Ensure the worker does not have the dummy transmission ID.
++    assert!(!worker.contains_transmission(transmission_id), "Transmission should not exist");
++
++    // Send a request to fetch the dummy transmission.
++    let worker_ = worker.clone();
++    tokio::spawn(async move { worker_.get_or_fetch_transmission(peer_ip, transmission_id).await });
++
++    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
++
++    let pending = worker.pending();
++    // Ensure the transmission ID exists in the pending queue.
++    assert!(pending.contains(transmission_id), "Missing a transmission in the pending queue");
++    // Ensure the peer IP is in the pending queue for the transmission ID.
++    assert!(pending.contains_peer(transmission_id, peer_ip), "Missing a peer IP for transmission in the pending queue");
++    assert_eq!(pending.get(transmission_id), Some([peer_ip].into_iter().collect()), "Missing a peer IP for transmission in the pending queue");
++    // Ensure the number of callbacks is correct.
++    assert_eq!(pending.num_callbacks(transmission_id), 1, "Incorrect number of callbacks for transmission");
++    // Ensure the number of sent requests is correct.
++    assert_eq!(pending.num_sent_requests(transmission_id), 1, "Incorrect number of sent requests for transmission");
++
++    // Rebroadcast the same request to fetch the dummy transmission.
++    for i in 1..=10 {
++        let worker_ = worker.clone();
++        tokio::spawn(async move { worker_.get_or_fetch_transmission(peer_ip, transmission_id).await });
++
++        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
++
++        // Ensure the transmission ID exists in the pending queue.
++        assert!(pending.contains(transmission_id), "Missing a transmission in the pending queue");
++        // Ensure the peer IP is in the pending queue for the transmission ID.
++        assert!(pending.contains_peer(transmission_id, peer_ip), "Missing a peer IP for transmission in the pending queue");
++        assert_eq!(pending.get(transmission_id), Some([peer_ip].into_iter().collect()), "Missing a peer IP for transmission in the pending queue");
++        // Ensure the number of callbacks is correct.
++        assert_eq!(pending.num_callbacks(transmission_id), 1 + i, "Incorrect number of callbacks for transmission");
++        // Ensure the number of sent requests is correct.
++        assert_eq!(pending.num_sent_requests(transmission_id), 1 + i, "Incorrect number of sent requests for transmission");
++    }
++}
++
++#[tokio::test]
++#[rustfmt::skip]
++async fn test_flood_transmission_requests() {
++    const NUM_NODES: u16 = 100;
++
++    // Initialize the RNG.
++    let rng = &mut TestRng::default();
++    // Sample a ledger.
++    let ledger = sample_ledger(NUM_NODES, rng);
++    // Sample a worker.
++    let worker = sample_worker(0, ledger.clone());
++
++    // Determine the maximum number of redundant requests.
++    let max_redundancy = max_redundant_requests(ledger.clone(), 0);
++    assert_eq!(max_redundancy, 34, "Update me if the formula changes");
++
++    // Prepare a dummy transmission ID.
++    let peer_ip = SocketAddr::from(([127, 0, 0, 1], 1234));
++    let transmission_id = TransmissionID::Transaction(<CurrentNetwork as Network>::TransactionID::default());
++
++    // Ensure the worker does not have the dummy transmission ID.
++    assert!(!worker.contains_transmission(transmission_id), "Transmission should not exist");
++
++    // Send the maximum number of redundant requests to fetch the dummy transmission.
++    for _ in 0..max_redundancy {
++        let worker_ = worker.clone();
++        tokio::spawn(async move { worker_.get_or_fetch_transmission(peer_ip, transmission_id).await });
++    }
++
++    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
++
++    let pending = worker.pending();
++    // Ensure the transmission ID exists in the pending queue.
++    assert!(pending.contains(transmission_id), "Missing a transmission in the pending queue");
++    // Ensure the peer IP is in the pending queue for the transmission ID.
++    assert!(pending.contains_peer(transmission_id, peer_ip), "Missing a peer IP for transmission in the pending queue");
++    assert_eq!(pending.get(transmission_id), Some([peer_ip].into_iter().collect()), "Missing a peer IP for transmission in the pending queue");
++    // Ensure the number of callbacks is correct.
++    assert_eq!(pending.num_callbacks(transmission_id), max_redundancy, "Incorrect number of callbacks for transmission");
++    // Ensure the number of sent requests is correct.
++    assert_eq!(pending.num_sent_requests(transmission_id), max_redundancy, "Incorrect number of sent requests for transmission");
++
++    // Ensure any further redundant requests are not sent.
++    for i in 1..=20 {
++        let worker_ = worker.clone();
++        tokio::spawn(async move { worker_.get_or_fetch_transmission(peer_ip, transmission_id).await });
++
++        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
++
++        // Ensure the transmission ID exists in the pending queue.
++        assert!(pending.contains(transmission_id), "Missing a transmission in the pending queue");
++        // Ensure the peer IP is in the pending queue for the transmission ID.
++        assert!(pending.contains_peer(transmission_id, peer_ip), "Missing a peer IP for transmission in the pending queue");
++        assert_eq!(pending.get(transmission_id), Some([peer_ip].into_iter().collect()), "Missing a peer IP for transmission in the pending queue");
++        // Ensure the number of callbacks is correct.
++        assert_eq!(pending.num_callbacks(transmission_id), max_redundancy + i, "Incorrect number of callbacks for transmission");
++        // Ensure the number of sent requests is correct.
++        assert_eq!(pending.num_sent_requests(transmission_id), max_redundancy, "Incorrect number of sent requests for transmission");
++    }
++}

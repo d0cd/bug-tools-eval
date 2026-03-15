@@ -1,0 +1,1738 @@
+diff --git a/circuit/account/src/compute_key/mod.rs b/circuit/account/src/compute_key/mod.rs
+index 40f904d9f..dd74ccd02 100644
+--- a/circuit/account/src/compute_key/mod.rs
++++ b/circuit/account/src/compute_key/mod.rs
+@@ -124,16 +124,16 @@ pub(crate) mod tests {
+ 
+     #[test]
+     fn test_compute_key_new_constant() -> Result<()> {
+-        check_new(Mode::Constant, 262, 0, 0, 0)
++        check_new(Mode::Constant, 274, 0, 0, 0)
+     }
+ 
+     #[test]
+     fn test_compute_key_new_public() -> Result<()> {
+-        check_new(Mode::Public, 5, 4, 597, 600)
++        check_new(Mode::Public, 9, 4, 621, 622)
+     }
+ 
+     #[test]
+     fn test_compute_key_new_private() -> Result<()> {
+-        check_new(Mode::Private, 5, 0, 601, 600)
++        check_new(Mode::Private, 9, 0, 621, 620)
+     }
+ }
+diff --git a/circuit/account/src/signature/mod.rs b/circuit/account/src/signature/mod.rs
+index 4b76e4295..ef882b6f0 100644
+--- a/circuit/account/src/signature/mod.rs
++++ b/circuit/account/src/signature/mod.rs
+@@ -120,16 +120,16 @@ mod tests {
+ 
+     #[test]
+     fn test_signature_new_constant() -> Result<()> {
+-        check_new(Mode::Constant, 264, 0, 0, 0)
++        check_new(Mode::Constant, 276, 0, 0, 0)
+     }
+ 
+     #[test]
+     fn test_signature_new_public() -> Result<()> {
+-        check_new(Mode::Public, 5, 6, 597, 600)
++        check_new(Mode::Public, 9, 6, 621, 622)
+     }
+ 
+     #[test]
+     fn test_signature_new_private() -> Result<()> {
+-        check_new(Mode::Private, 5, 0, 603, 600)
++        check_new(Mode::Private, 9, 0, 623, 620)
+     }
+ }
+diff --git a/circuit/algorithms/src/bhp/commit.rs b/circuit/algorithms/src/bhp/commit.rs
+index ba5ed4232..31e32f3b4 100644
+--- a/circuit/algorithms/src/bhp/commit.rs
++++ b/circuit/algorithms/src/bhp/commit.rs
+@@ -85,11 +85,11 @@ mod tests {
+ 
+     #[test]
+     fn test_commit_public() -> Result<()> {
+-        check_commit::<32, 48>(Mode::Public, 1044, 0, 10419, 10491)
++        check_commit::<32, 48>(Mode::Public, 1044, 0, 10279, 10281)
+     }
+ 
+     #[test]
+     fn test_commit_private() -> Result<()> {
+-        check_commit::<32, 48>(Mode::Private, 1044, 0, 10419, 10491)
++        check_commit::<32, 48>(Mode::Private, 1044, 0, 10279, 10281)
+     }
+ }
+diff --git a/circuit/algorithms/src/bhp/commit_uncompressed.rs b/circuit/algorithms/src/bhp/commit_uncompressed.rs
+index 4397b8e36..d2d77d356 100644
+--- a/circuit/algorithms/src/bhp/commit_uncompressed.rs
++++ b/circuit/algorithms/src/bhp/commit_uncompressed.rs
+@@ -41,6 +41,7 @@ impl<E: Environment, const NUM_WINDOWS: u8, const WINDOW_SIZE: u8> CommitUncompr
+ mod tests {
+     use super::*;
+     use snarkvm_circuit_types::environment::Circuit;
++    use snarkvm_curves::ProjectiveCurve;
+     use snarkvm_utilities::{TestRng, Uniform};
+ 
+     use anyhow::Result;
+@@ -82,6 +83,8 @@ mod tests {
+                 let candidate = circuit.commit_uncompressed(&circuit_input, &circuit_randomizer);
+                 assert_scope!(<=num_constants, num_public, num_private, num_constraints);
+                 assert_eq!(expected, candidate.eject_value());
++                assert!(candidate.eject_value().to_affine().is_on_curve());
++                assert!(candidate.eject_value().to_affine().is_in_correct_subgroup_assuming_on_curve());
+             });
+             Circuit::reset();
+         }
+@@ -95,11 +98,11 @@ mod tests {
+ 
+     #[test]
+     fn test_commit_uncompressed_public() -> Result<()> {
+-        check_commit_uncompressed::<32, 48>(Mode::Public, 1044, 0, 10419, 10491)
++        check_commit_uncompressed::<32, 48>(Mode::Public, 1044, 0, 10279, 10281)
+     }
+ 
+     #[test]
+     fn test_commit_uncompressed_private() -> Result<()> {
+-        check_commit_uncompressed::<32, 48>(Mode::Private, 1044, 0, 10419, 10491)
++        check_commit_uncompressed::<32, 48>(Mode::Private, 1044, 0, 10279, 10281)
+     }
+ }
+diff --git a/circuit/algorithms/src/bhp/hash.rs b/circuit/algorithms/src/bhp/hash.rs
+index 07ac0e896..ee5604ca9 100644
+--- a/circuit/algorithms/src/bhp/hash.rs
++++ b/circuit/algorithms/src/bhp/hash.rs
+@@ -75,16 +75,16 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_constant() -> Result<()> {
+-        check_hash::<32, 48>(Mode::Constant, 7311, 0, 0, 0)
++        check_hash::<32, 48>(Mode::Constant, 7239, 0, 0, 0)
+     }
+ 
+     #[test]
+     fn test_hash_public() -> Result<()> {
+-        check_hash::<32, 48>(Mode::Public, 542, 0, 8662, 8733)
++        check_hash::<32, 48>(Mode::Public, 470, 0, 8522, 8523)
+     }
+ 
+     #[test]
+     fn test_hash_private() -> Result<()> {
+-        check_hash::<32, 48>(Mode::Private, 542, 0, 8662, 8733)
++        check_hash::<32, 48>(Mode::Private, 470, 0, 8522, 8523)
+     }
+ }
+diff --git a/circuit/algorithms/src/bhp/hash_uncompressed.rs b/circuit/algorithms/src/bhp/hash_uncompressed.rs
+index 381dce14a..acd2387fd 100644
+--- a/circuit/algorithms/src/bhp/hash_uncompressed.rs
++++ b/circuit/algorithms/src/bhp/hash_uncompressed.rs
+@@ -67,6 +67,7 @@ impl<E: Environment, const NUM_WINDOWS: u8, const WINDOW_SIZE: u8> HashUncompres
+ mod tests {
+     use super::*;
+     use snarkvm_circuit_types::environment::Circuit;
++    use snarkvm_curves::ProjectiveCurve;
+     use snarkvm_utilities::{TestRng, Uniform};
+ 
+     use anyhow::Result;
+@@ -93,6 +94,8 @@ mod tests {
+                     let candidate = circuit.hash_uncompressed(&circuit_input);
+                     assert_scope!($num_constants, $num_public, $num_private, $num_constraints);
+                     assert_eq!(expected, candidate.eject_value());
++                    assert!(candidate.eject_value().to_affine().is_on_curve());
++                    assert!(candidate.eject_value().to_affine().is_in_correct_subgroup_assuming_on_curve());
+                 });
+                 Circuit::reset();
+             }
+@@ -138,104 +141,104 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_uncompressed_constant() -> Result<()> {
+-        check_hash_uncompressed::<32, 48>(Mode::Constant, 7311, 0, 0, 0)
++        check_hash_uncompressed::<32, 48>(Mode::Constant, 7239, 0, 0, 0)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_public() -> Result<()> {
+-        check_hash_uncompressed::<32, 48>(Mode::Public, 542, 0, 8662, 8733)
++        check_hash_uncompressed::<32, 48>(Mode::Public, 470, 0, 8522, 8523)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_private() -> Result<()> {
+-        check_hash_uncompressed::<32, 48>(Mode::Private, 542, 0, 8662, 8733)
++        check_hash_uncompressed::<32, 48>(Mode::Private, 470, 0, 8522, 8523)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp256_constant() -> Result<()> {
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP256, Constant, 261, (762, 0, 0, 0), &mut rng)
++        check_hash_uncompressed!(BHP256, Constant, 261, (756, 0, 0, 0), &mut rng)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp256_public() -> Result<()> {
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP256, Public, 261, (409, 0, 453, 457), &mut rng)
++        check_hash_uncompressed!(BHP256, Public, 261, (403, 0, 445, 445), &mut rng)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp256_private() -> Result<()> {
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP256, Private, 261, (409, 0, 453, 457), &mut rng)
++        check_hash_uncompressed!(BHP256, Private, 261, (403, 0, 445, 445), &mut rng)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp512_constant() -> Result<()> {
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP512, Constant, 522, (1125, 0, 0, 0), &mut rng)
++        check_hash_uncompressed!(BHP512, Constant, 522, (1113, 0, 0, 0), &mut rng)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp512_public() -> Result<()> {
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP512, Public, 522, (421, 0, 915, 925), &mut rng)
++        check_hash_uncompressed!(BHP512, Public, 522, (409, 0, 895, 895), &mut rng)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp512_private() -> Result<()> {
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP512, Private, 522, (421, 0, 915, 925), &mut rng)
++        check_hash_uncompressed!(BHP512, Private, 522, (409, 0, 895, 895), &mut rng)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp768_constant() -> Result<()> {
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP768, Constant, 783, (1518, 0, 0, 0), &mut rng)
++        check_hash_uncompressed!(BHP768, Constant, 783, (1488, 0, 0, 0), &mut rng)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp768_public() -> Result<()> {
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP768, Public, 783, (459, 0, 1413, 1437), &mut rng)
++        check_hash_uncompressed!(BHP768, Public, 783, (429, 0, 1365, 1365), &mut rng)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp768_private() -> Result<()> {
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP768, Private, 783, (459, 0, 1413, 1437), &mut rng)
++        check_hash_uncompressed!(BHP768, Private, 783, (429, 0, 1365, 1365), &mut rng)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp1024_constant() -> Result<()> {
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP1024, Constant, 1043, (1831, 0, 0, 0), &mut rng)?;
+-        check_hash_uncompressed!(BHP1024, Constant, 1044, (1831, 0, 0, 0), &mut rng)?;
+-        check_hash_uncompressed!(BHP1024, Constant, 1046, (2433, 0, 0, 0), &mut rng)
++        check_hash_uncompressed!(BHP1024, Constant, 1043, (1815, 0, 0, 0), &mut rng)?;
++        check_hash_uncompressed!(BHP1024, Constant, 1044, (1815, 0, 0, 0), &mut rng)?;
++        check_hash_uncompressed!(BHP1024, Constant, 1046, (2413, 0, 0, 0), &mut rng)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp1024_public() -> Result<()> {
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP1024, Public, 1043, (429, 0, 1803, 1817), &mut rng)?;
+-        check_hash_uncompressed!(BHP1024, Public, 1044, (429, 0, 1803, 1817), &mut rng)?;
+-        check_hash_uncompressed!(BHP1024, Public, 1046, (438, 0, 2493, 2512), &mut rng)
++        check_hash_uncompressed!(BHP1024, Public, 1043, (413, 0, 1775, 1775), &mut rng)?;
++        check_hash_uncompressed!(BHP1024, Public, 1044, (413, 0, 1775, 1775), &mut rng)?;
++        check_hash_uncompressed!(BHP1024, Public, 1046, (418, 0, 2457, 2458), &mut rng)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp1024_private() -> Result<()> {
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP1024, Private, 1043, (429, 0, 1803, 1817), &mut rng)?;
+-        check_hash_uncompressed!(BHP1024, Private, 1044, (429, 0, 1803, 1817), &mut rng)?;
+-        check_hash_uncompressed!(BHP1024, Private, 1046, (438, 0, 2493, 2512), &mut rng)
++        check_hash_uncompressed!(BHP1024, Private, 1043, (413, 0, 1775, 1775), &mut rng)?;
++        check_hash_uncompressed!(BHP1024, Private, 1044, (413, 0, 1775, 1775), &mut rng)?;
++        check_hash_uncompressed!(BHP1024, Private, 1046, (418, 0, 2457, 2458), &mut rng)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_cost_comparison() -> Result<()> {
+         // The cost to hash 512 bits for each BHP variant is:
+         let mut rng = TestRng::default();
+-        check_hash_uncompressed!(BHP256, Private, 512, (422, 0, 1567, 1578), &mut rng)?;
+-        check_hash_uncompressed!(BHP512, Private, 512, (421, 0, 900, 910), &mut rng)?;
+-        check_hash_uncompressed!(BHP768, Private, 512, (447, 0, 936, 954), &mut rng)?;
+-        check_hash_uncompressed!(BHP1024, Private, 512, (417, 0, 891, 899), &mut rng)
++        check_hash_uncompressed!(BHP256, Private, 512, (410, 0, 1547, 1548), &mut rng)?;
++        check_hash_uncompressed!(BHP512, Private, 512, (409, 0, 880, 880), &mut rng)?;
++        check_hash_uncompressed!(BHP768, Private, 512, (423, 0, 900, 900), &mut rng)?;
++        check_hash_uncompressed!(BHP1024, Private, 512, (407, 0, 875, 875), &mut rng)
+     }
+ }
+diff --git a/circuit/algorithms/src/bhp/hasher/hash_uncompressed.rs b/circuit/algorithms/src/bhp/hasher/hash_uncompressed.rs
+index b3443f870..40de37a71 100644
+--- a/circuit/algorithms/src/bhp/hasher/hash_uncompressed.rs
++++ b/circuit/algorithms/src/bhp/hasher/hash_uncompressed.rs
+@@ -46,6 +46,8 @@ impl<E: Environment, const NUM_WINDOWS: u8, const WINDOW_SIZE: u8> HashUncompres
+             false => E::halt(format!("Inputs to this BHP cannot exceed {} bits", Self::MAX_BITS)),
+         }
+ 
++        // Declare the 1 constant field element.
++        let one = Field::one();
+         // Declare the 1/2 constant field element.
+         let one_half = Field::constant(console::Field::<E::Network>::half());
+ 
+@@ -155,9 +157,9 @@ impl<E: Environment, const NUM_WINDOWS: u8, const WINDOW_SIZE: u8> HashUncompres
+                 match &sum {
+                     Some((sum_x, sum_y)) => {
+                         // Convert the accumulated sum into a point on the twisted Edwards curve.
+-                        // TODO: If we know that sum_y is nonzero, then we can replace with `sum_x * sum_y.inverse()`.
+-                        let edwards_x = sum_x / sum_y; // 5 constraints;
+-                        Group::from_x_coordinate(edwards_x) // 3 constraints
++                        let edwards_x = sum_x.div_unchecked(sum_y); // 1 constraint (`sum_y` is never 0)
++                        let edwards_y = (sum_x - &one).div_unchecked(&(sum_x + &one)); // 1 constraint (numerator & denominator are never both 0)
++                        Group::from_xy_coordinates_unchecked(edwards_x, edwards_y) // 0 constraints (this is safe)
+                     }
+                     None => E::halt("Invalid iteration of BHP detected, a window was not evaluated"),
+                 }
+@@ -170,6 +172,7 @@ impl<E: Environment, const NUM_WINDOWS: u8, const WINDOW_SIZE: u8> HashUncompres
+ mod tests {
+     use super::*;
+     use snarkvm_circuit_types::environment::Circuit;
++    use snarkvm_curves::ProjectiveCurve;
+     use snarkvm_utilities::{TestRng, Uniform};
+ 
+     use anyhow::Result;
+@@ -213,6 +216,8 @@ mod tests {
+                 let candidate = circuit.hash_uncompressed(&circuit_input);
+                 assert_scope!(num_constants, num_public, num_private, num_constraints);
+                 assert_eq!(expected, candidate.eject_value());
++                assert!(candidate.eject_value().to_affine().is_on_curve());
++                assert!(candidate.eject_value().to_affine().is_in_correct_subgroup_assuming_on_curve());
+             });
+         }
+         Ok(())
+@@ -220,16 +225,16 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_uncompressed_constant() -> Result<()> {
+-        check_hash_uncompressed::<32, 48>(Mode::Constant, 6303, 0, 0, 0)
++        check_hash_uncompressed::<32, 48>(Mode::Constant, 6239, 0, 0, 0)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_public() -> Result<()> {
+-        check_hash_uncompressed::<32, 48>(Mode::Public, 129, 0, 7962, 8026)
++        check_hash_uncompressed::<32, 48>(Mode::Public, 65, 0, 7834, 7834)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_private() -> Result<()> {
+-        check_hash_uncompressed::<32, 48>(Mode::Private, 129, 0, 7962, 8026)
++        check_hash_uncompressed::<32, 48>(Mode::Private, 65, 0, 7834, 7834)
+     }
+ }
+diff --git a/circuit/algorithms/src/elligator2/encode.rs b/circuit/algorithms/src/elligator2/encode.rs
+index 667b1a793..40e19e2a3 100644
+--- a/circuit/algorithms/src/elligator2/encode.rs
++++ b/circuit/algorithms/src/elligator2/encode.rs
+@@ -24,7 +24,7 @@ impl<E: Environment> Elligator2<E> {
+         debug_assert!(console::Group::<E::Network>::EDWARDS_D.legendre().is_qnr());
+ 
+         // Ensure the input is nonzero.
+-        E::assert(!input.is_zero());
++        E::assert_neq(input, &Field::<E>::zero());
+ 
+         // Define `1` as a constant.
+         let one = Field::one();
+@@ -56,7 +56,7 @@ impl<E: Environment> Elligator2<E> {
+             let ur2 = edwards_d * input.square();
+             let one_plus_ur2 = &one + &ur2;
+             // Verify A^2 * ur^2 != B(1 + ur^2)^2.
+-            E::assert((a.square() * &ur2).is_not_equal(&(&b * one_plus_ur2.square())));
++            E::assert_neq(a.square() * &ur2, &b * one_plus_ur2.square());
+ 
+             // Let v = -A / (1 + ur^2).
+             let v = -&a / one_plus_ur2;
+@@ -75,7 +75,7 @@ impl<E: Environment> Elligator2<E> {
+             let y = -&e * rhs.square_root();
+ 
+             // Ensure v * e * x * y != 0.
+-            E::assert((&v * &e * &x * &y).is_not_equal(&Field::zero()));
++            E::assert_neq(&v * &e * &x * &y, Field::<E>::zero());
+ 
+             // Ensure (x, y) is a valid Weierstrass element on: y^2 == x^3 + A * x^2 + B * x.
+             let y2 = y.square();
+@@ -97,8 +97,11 @@ impl<E: Environment> Elligator2<E> {
+         // Convert the Montgomery element (u, v) to the twisted Edwards element (x, y).
+         let x = &u / v;
+         let y = (&u - &one) / (u + &one);
+-        let encoding = Group::from_xy_coordinates(x, y);
+ 
++        // Recover the point and check that it is 1) on the curve, and 2) in the correct subgroup.
++        let encoding = Group::from_xy_coordinates_unchecked(x, y);
++        // Ensure the encoding is on the curve.
++        encoding.enforce_on_curve();
+         // Cofactor clear the twisted Edwards element (x, y).
+         encoding.mul_by_cofactor()
+     }
+@@ -142,11 +145,11 @@ mod tests {
+ 
+     #[test]
+     fn test_encode_public() {
+-        check_encode(Mode::Public, 263, 0, 377, 392);
++        check_encode(Mode::Public, 263, 0, 370, 373);
+     }
+ 
+     #[test]
+     fn test_encode_private() {
+-        check_encode(Mode::Private, 263, 0, 377, 392);
++        check_encode(Mode::Private, 263, 0, 370, 373);
+     }
+ }
+diff --git a/circuit/algorithms/src/pedersen/mod.rs b/circuit/algorithms/src/pedersen/mod.rs
+index 281fc99cd..c17e56d0b 100644
+--- a/circuit/algorithms/src/pedersen/mod.rs
++++ b/circuit/algorithms/src/pedersen/mod.rs
+@@ -94,10 +94,10 @@ mod tests {
+     #[test]
+     fn test_setup_constant() {
+         // Set the number of windows, and modulate the window size.
+-        check_setup::<NUM_BITS_MULTIPLIER>(1036, 0, 0, 0);
+-        check_setup::<{ 2 * NUM_BITS_MULTIPLIER }>(1068, 0, 0, 0);
+-        check_setup::<{ 3 * NUM_BITS_MULTIPLIER }>(1100, 0, 0, 0);
+-        check_setup::<{ 4 * NUM_BITS_MULTIPLIER }>(1132, 0, 0, 0);
+-        check_setup::<{ 5 * NUM_BITS_MULTIPLIER }>(1164, 0, 0, 0);
++        check_setup::<NUM_BITS_MULTIPLIER>(2590, 0, 0, 0);
++        check_setup::<{ 2 * NUM_BITS_MULTIPLIER }>(2670, 0, 0, 0);
++        check_setup::<{ 3 * NUM_BITS_MULTIPLIER }>(2750, 0, 0, 0);
++        check_setup::<{ 4 * NUM_BITS_MULTIPLIER }>(2830, 0, 0, 0);
++        check_setup::<{ 5 * NUM_BITS_MULTIPLIER }>(2910, 0, 0, 0);
+     }
+ }
+diff --git a/circuit/algorithms/src/poseidon/hash_to_group.rs b/circuit/algorithms/src/poseidon/hash_to_group.rs
+index afe342f1d..223a50478 100644
+--- a/circuit/algorithms/src/poseidon/hash_to_group.rs
++++ b/circuit/algorithms/src/poseidon/hash_to_group.rs
+@@ -93,12 +93,12 @@ mod tests {
+ 
+     #[test]
+     fn test_poseidon2_hash_to_group_public() -> Result<()> {
+-        check_hash_to_group!(Poseidon2, Public, 2, (529, 0, 1030, 1060))
++        check_hash_to_group!(Poseidon2, Public, 2, (529, 0, 1016, 1022))
+     }
+ 
+     #[test]
+     fn test_poseidon2_hash_to_group_private() -> Result<()> {
+-        check_hash_to_group!(Poseidon2, Private, 2, (529, 0, 1030, 1060))
++        check_hash_to_group!(Poseidon2, Private, 2, (529, 0, 1016, 1022))
+     }
+ 
+     #[test]
+@@ -108,12 +108,12 @@ mod tests {
+ 
+     #[test]
+     fn test_poseidon4_hash_to_group_public() -> Result<()> {
+-        check_hash_to_group!(Poseidon4, Public, 2, (529, 0, 1100, 1130))
++        check_hash_to_group!(Poseidon4, Public, 2, (529, 0, 1086, 1092))
+     }
+ 
+     #[test]
+     fn test_poseidon4_hash_to_group_private() -> Result<()> {
+-        check_hash_to_group!(Poseidon4, Private, 2, (529, 0, 1100, 1130))
++        check_hash_to_group!(Poseidon4, Private, 2, (529, 0, 1086, 1092))
+     }
+ 
+     #[test]
+@@ -123,11 +123,11 @@ mod tests {
+ 
+     #[test]
+     fn test_poseidon8_hash_to_group_public() -> Result<()> {
+-        check_hash_to_group!(Poseidon8, Public, 2, (529, 0, 1240, 1270))
++        check_hash_to_group!(Poseidon8, Public, 2, (529, 0, 1226, 1232))
+     }
+ 
+     #[test]
+     fn test_poseidon8_hash_to_group_private() -> Result<()> {
+-        check_hash_to_group!(Poseidon8, Private, 2, (529, 0, 1240, 1270))
++        check_hash_to_group!(Poseidon8, Private, 2, (529, 0, 1226, 1232))
+     }
+ }
+diff --git a/circuit/collections/src/merkle_tree/helpers/leaf_hash.rs b/circuit/collections/src/merkle_tree/helpers/leaf_hash.rs
+index b0b862bce..080fafc33 100644
+--- a/circuit/collections/src/merkle_tree/helpers/leaf_hash.rs
++++ b/circuit/collections/src/merkle_tree/helpers/leaf_hash.rs
+@@ -98,17 +98,17 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_leaf_bhp1024_constant() -> Result<()> {
+-        check_hash_leaf!(BHP1024, Constant, 1024, (1807, 0, 0, 0))
++        check_hash_leaf!(BHP1024, Constant, 1024, (1791, 0, 0, 0))
+     }
+ 
+     #[test]
+     fn test_hash_leaf_bhp1024_public() -> Result<()> {
+-        check_hash_leaf!(BHP1024, Public, 1024, (429, 0, 1772, 1786))
++        check_hash_leaf!(BHP1024, Public, 1024, (413, 0, 1744, 1744))
+     }
+ 
+     #[test]
+     fn test_hash_leaf_bhp1024_private() -> Result<()> {
+-        check_hash_leaf!(BHP1024, Private, 1024, (429, 0, 1772, 1786))
++        check_hash_leaf!(BHP1024, Private, 1024, (413, 0, 1744, 1744))
+     }
+ 
+     #[test]
+diff --git a/circuit/collections/src/merkle_tree/helpers/path_hash.rs b/circuit/collections/src/merkle_tree/helpers/path_hash.rs
+index f034d0d82..fcf095a65 100644
+--- a/circuit/collections/src/merkle_tree/helpers/path_hash.rs
++++ b/circuit/collections/src/merkle_tree/helpers/path_hash.rs
+@@ -104,17 +104,17 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_children_bhp512_constant() -> Result<()> {
+-        check_hash_children!(BHP512, Constant, (1611, 0, 0, 0))
++        check_hash_children!(BHP512, Constant, (1599, 0, 0, 0))
+     }
+ 
+     #[test]
+     fn test_hash_children_bhp512_public() -> Result<()> {
+-        check_hash_children!(BHP512, Public, (421, 0, 1395, 1407))
++        check_hash_children!(BHP512, Public, (409, 0, 1375, 1377))
+     }
+ 
+     #[test]
+     fn test_hash_children_bhp512_private() -> Result<()> {
+-        check_hash_children!(BHP512, Private, (421, 0, 1395, 1407))
++        check_hash_children!(BHP512, Private, (409, 0, 1375, 1377))
+     }
+ 
+     #[test]
+diff --git a/circuit/collections/src/merkle_tree/verify.rs b/circuit/collections/src/merkle_tree/verify.rs
+index 8ef7064b4..a056a56d1 100644
+--- a/circuit/collections/src/merkle_tree/verify.rs
++++ b/circuit/collections/src/merkle_tree/verify.rs
+@@ -148,17 +148,17 @@ mod tests {
+ 
+     #[test]
+     fn test_verify_bhp512_constant() -> Result<()> {
+-        check_verify!(BHP1024, BHP512, Constant, 32, 1024, (53360, 0, 0, 0))
++        check_verify!(BHP1024, BHP512, Constant, 32, 1024, (52960, 0, 0, 0))
+     }
+ 
+     #[test]
+     fn test_verify_bhp512_public() -> Result<()> {
+-        check_verify!(BHP1024, BHP512, Public, 32, 1024, (13901, 0, 46478, 46877))
++        check_verify!(BHP1024, BHP512, Public, 32, 1024, (13501, 0, 45810, 45875))
+     }
+ 
+     #[test]
+     fn test_verify_bhp512_private() -> Result<()> {
+-        check_verify!(BHP1024, BHP512, Private, 32, 1024, (13901, 0, 46478, 46877))
++        check_verify!(BHP1024, BHP512, Private, 32, 1024, (13501, 0, 45810, 45875))
+     }
+ 
+     #[test]
+diff --git a/circuit/environment/src/environment.rs b/circuit/environment/src/environment.rs
+index 18956427c..65001b2e0 100644
+--- a/circuit/environment/src/environment.rs
++++ b/circuit/environment/src/environment.rs
+@@ -14,7 +14,7 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{Assignment, Inject, LinearCombination, Mode, Variable, R1CS};
++use crate::{witness_mode, Assignment, Inject, LinearCombination, Mode, Variable, R1CS};
+ use snarkvm_curves::AffineCurve;
+ use snarkvm_fields::traits::*;
+ 
+@@ -83,6 +83,28 @@ pub trait Environment: 'static + Copy + Clone + fmt::Debug + fmt::Display + Eq +
+         Self::enforce(|| (a, Self::one(), b))
+     }
+ 
++    /// Adds one constraint enforcing that the `A != B`.
++    fn assert_neq<A, B>(a: A, b: B)
++    where
++        A: Into<LinearCombination<Self::BaseField>>,
++        B: Into<LinearCombination<Self::BaseField>>,
++    {
++        let (a, b) = (a.into(), b.into());
++        let mode = witness_mode!(a, b);
++
++        // Compute `(a - b)`.
++        let a_minus_b = a - b;
++
++        // Compute `multiplier` as `1 / (a - b)`.
++        let multiplier = match a_minus_b.value().inverse() {
++            Some(inverse) => Self::new_variable(mode, inverse).into(),
++            None => Self::zero(),
++        };
++
++        // Enforce `(a - b) * multiplier == 1`.
++        Self::enforce(|| (a_minus_b, multiplier, Self::one()));
++    }
++
+     /// Returns `true` if all constraints in the environment are satisfied.
+     fn is_satisfied() -> bool;
+ 
+diff --git a/circuit/program/src/request/verify.rs b/circuit/program/src/request/verify.rs
+index b3997b3d2..e8d0aab52 100644
+--- a/circuit/program/src/request/verify.rs
++++ b/circuit/program/src/request/verify.rs
+@@ -394,16 +394,16 @@ mod tests {
+         // Note: This is correct. At this (high) level of a program, we override the default mode in the `Record` case,
+         // based on the user-defined visibility in the record type. Thus, we have nonzero private and constraint values.
+         // These bounds are determined experimentally.
+-        check_verify(Mode::Constant, 37000, 0, 15500, 15500)
++        check_verify(Mode::Constant, 46000, 0, 15100, 15100)
+     }
+ 
+     #[test]
+     fn test_sign_and_verify_public() -> Result<()> {
+-        check_verify(Mode::Public, 32552, 0, 28169, 28245)
++        check_verify(Mode::Public, 41170, 0, 28119, 28153)
+     }
+ 
+     #[test]
+     fn test_sign_and_verify_private() -> Result<()> {
+-        check_verify(Mode::Private, 32552, 0, 28169, 28245)
++        check_verify(Mode::Private, 41170, 0, 28119, 28153)
+     }
+ }
+diff --git a/circuit/program/src/response/from_outputs.rs b/circuit/program/src/response/from_outputs.rs
+index b7d5d4e7a..9c79cc48f 100644
+--- a/circuit/program/src/response/from_outputs.rs
++++ b/circuit/program/src/response/from_outputs.rs
+@@ -265,16 +265,16 @@ mod tests {
+ 
+     #[test]
+     fn test_from_outputs_constant() -> Result<()> {
+-        check_from_outputs(Mode::Constant, 20000, 6, 9400, 9400)
++        check_from_outputs(Mode::Constant, 26000, 6, 9500, 9500)
+     }
+ 
+     #[test]
+     fn test_from_outputs_public() -> Result<()> {
+-        check_from_outputs(Mode::Public, 19221, 6, 13772, 13821)
++        check_from_outputs(Mode::Public, 24781, 6, 13708, 13725)
+     }
+ 
+     #[test]
+     fn test_from_outputs_private() -> Result<()> {
+-        check_from_outputs(Mode::Private, 19221, 6, 13772, 13821)
++        check_from_outputs(Mode::Private, 24781, 6, 13708, 13725)
+     }
+ }
+diff --git a/circuit/program/src/response/process_outputs_from_callback.rs b/circuit/program/src/response/process_outputs_from_callback.rs
+index dc3563a77..633f43f6b 100644
+--- a/circuit/program/src/response/process_outputs_from_callback.rs
++++ b/circuit/program/src/response/process_outputs_from_callback.rs
+@@ -295,16 +295,16 @@ mod tests {
+ 
+     #[test]
+     fn test_from_callback_constant() -> Result<()> {
+-        check_from_callback(Mode::Constant, 16611, 5, 4241, 4258)
++        check_from_callback(Mode::Constant, 20695, 5, 4257, 4262)
+     }
+ 
+     #[test]
+     fn test_from_callback_public() -> Result<()> {
+-        check_from_callback(Mode::Public, 16611, 5, 5536, 5553)
++        check_from_callback(Mode::Public, 20695, 5, 5552, 5557)
+     }
+ 
+     #[test]
+     fn test_from_callback_private() -> Result<()> {
+-        check_from_callback(Mode::Private, 19959, 5, 5536, 5553)
++        check_from_callback(Mode::Private, 20695, 5, 5552, 5557)
+     }
+ }
+diff --git a/circuit/program/src/state_path/verify.rs b/circuit/program/src/state_path/verify.rs
+index 30d2e212f..3e03be816 100644
+--- a/circuit/program/src/state_path/verify.rs
++++ b/circuit/program/src/state_path/verify.rs
+@@ -226,43 +226,43 @@ mod tests {
+ 
+     #[test]
+     fn test_state_path_verify_global_constant() -> Result<()> {
+-        check_verify_global(Mode::Constant, true, 102293, 1, 2, 3)?;
+-        check_verify_global(Mode::Constant, false, 102293, 1, 2, 3)
++        check_verify_global(Mode::Constant, true, 101535, 1, 2, 3)?;
++        check_verify_global(Mode::Constant, false, 101535, 1, 2, 3)
+     }
+ 
+     #[test]
+     fn test_state_path_verify_global_public() -> Result<()> {
+-        check_verify_global(Mode::Public, true, 27353, 453, 87468, 88616)?;
+-        check_verify_global(Mode::Public, false, 27353, 453, 87468, 88616)
++        check_verify_global(Mode::Public, true, 26595, 453, 86212, 86732)?;
++        check_verify_global(Mode::Public, false, 26595, 453, 86212, 86732)
+     }
+ 
+     #[test]
+     fn test_state_path_verify_global_private() -> Result<()> {
+-        check_verify_global(Mode::Private, true, 27353, 1, 87920, 88616)?;
+-        check_verify_global(Mode::Private, false, 27353, 1, 87920, 88616)
++        check_verify_global(Mode::Private, true, 26595, 1, 86664, 86732)?;
++        check_verify_global(Mode::Private, false, 26595, 1, 86664, 86732)
+     }
+ 
+     #[test]
+     fn test_state_path_verify_local_constant() -> Result<()> {
+-        check_verify_local(Mode::Constant, false, true, 102293, 1, 2, 3)?;
+-        check_verify_local(Mode::Constant, false, false, 102293, 1, 2, 3)?;
+-        check_verify_local(Mode::Constant, true, true, 102293, 1, 2, 3)?;
+-        check_verify_local(Mode::Constant, true, false, 102293, 1, 2, 3)
++        check_verify_local(Mode::Constant, false, true, 101535, 1, 2, 3)?;
++        check_verify_local(Mode::Constant, false, false, 101535, 1, 2, 3)?;
++        check_verify_local(Mode::Constant, true, true, 101535, 1, 2, 3)?;
++        check_verify_local(Mode::Constant, true, false, 101535, 1, 2, 3)
+     }
+ 
+     #[test]
+     fn test_state_path_verify_local_public() -> Result<()> {
+-        check_verify_local(Mode::Public, false, true, 27353, 453, 87468, 88616)?;
+-        check_verify_local(Mode::Public, false, false, 27353, 453, 87468, 88616)?;
+-        check_verify_local(Mode::Public, true, true, 27353, 453, 87468, 88616)?;
+-        check_verify_local(Mode::Public, true, false, 27353, 453, 87468, 88616)
++        check_verify_local(Mode::Public, false, true, 26595, 453, 86212, 86732)?;
++        check_verify_local(Mode::Public, false, false, 26595, 453, 86212, 86732)?;
++        check_verify_local(Mode::Public, true, true, 26595, 453, 86212, 86732)?;
++        check_verify_local(Mode::Public, true, false, 26595, 453, 86212, 86732)
+     }
+ 
+     #[test]
+     fn test_state_path_verify_local_private() -> Result<()> {
+-        check_verify_local(Mode::Private, false, true, 27353, 1, 87920, 88616)?;
+-        check_verify_local(Mode::Private, false, false, 27353, 1, 87920, 88616)?;
+-        check_verify_local(Mode::Private, true, true, 27353, 1, 87920, 88616)?;
+-        check_verify_local(Mode::Private, true, false, 27353, 1, 87920, 88616)
++        check_verify_local(Mode::Private, false, true, 26595, 1, 86664, 86732)?;
++        check_verify_local(Mode::Private, false, false, 26595, 1, 86664, 86732)?;
++        check_verify_local(Mode::Private, true, true, 26595, 1, 86664, 86732)?;
++        check_verify_local(Mode::Private, true, false, 26595, 1, 86664, 86732)
+     }
+ }
+diff --git a/circuit/types/address/src/helpers/from_bits.rs b/circuit/types/address/src/helpers/from_bits.rs
+index 2088b144a..579e09cda 100644
+--- a/circuit/types/address/src/helpers/from_bits.rs
++++ b/circuit/types/address/src/helpers/from_bits.rs
+@@ -73,31 +73,31 @@ mod tests {
+ 
+     #[test]
+     fn test_from_bits_le_constant() {
+-        check_from_bits_le(Mode::Constant, 3, 0, 0, 0);
++        check_from_bits_le(Mode::Constant, 11, 0, 0, 0);
+     }
+ 
+     #[test]
+     fn test_from_bits_le_public() {
+-        check_from_bits_le(Mode::Public, 2, 0, 255, 256);
++        check_from_bits_le(Mode::Public, 4, 0, 267, 266);
+     }
+ 
+     #[test]
+     fn test_from_bits_le_private() {
+-        check_from_bits_le(Mode::Private, 2, 0, 255, 256);
++        check_from_bits_le(Mode::Private, 4, 0, 267, 266);
+     }
+ 
+     #[test]
+     fn test_from_bits_be_constant() {
+-        check_from_bits_be(Mode::Constant, 3, 0, 0, 0);
++        check_from_bits_be(Mode::Constant, 11, 0, 0, 0);
+     }
+ 
+     #[test]
+     fn test_from_bits_be_public() {
+-        check_from_bits_be(Mode::Public, 2, 0, 255, 256);
++        check_from_bits_be(Mode::Public, 4, 0, 267, 266);
+     }
+ 
+     #[test]
+     fn test_from_bits_be_private() {
+-        check_from_bits_be(Mode::Private, 2, 0, 255, 256);
++        check_from_bits_be(Mode::Private, 4, 0, 267, 266);
+     }
+ }
+diff --git a/circuit/types/address/src/helpers/from_field.rs b/circuit/types/address/src/helpers/from_field.rs
+index b3a84eec0..87bef4bfb 100644
+--- a/circuit/types/address/src/helpers/from_field.rs
++++ b/circuit/types/address/src/helpers/from_field.rs
+@@ -65,16 +65,16 @@ mod tests {
+ 
+     #[test]
+     fn test_from_field_constant() {
+-        check_from_field(Mode::Constant, 3, 0, 0, 0);
++        check_from_field(Mode::Constant, 11, 0, 0, 0);
+     }
+ 
+     #[test]
+     fn test_from_field_public() {
+-        check_from_field(Mode::Public, 2, 0, 3, 3);
++        check_from_field(Mode::Public, 4, 0, 15, 13);
+     }
+ 
+     #[test]
+     fn test_from_field_private() {
+-        check_from_field(Mode::Private, 2, 0, 3, 3);
++        check_from_field(Mode::Private, 4, 0, 15, 13);
+     }
+ }
+diff --git a/circuit/types/field/src/div.rs b/circuit/types/field/src/div.rs
+index 63cdfa1b7..06d1cf171 100644
+--- a/circuit/types/field/src/div.rs
++++ b/circuit/types/field/src/div.rs
+@@ -57,36 +57,15 @@ impl<E: Environment> DivAssign<Self> for Field<E> {
+ }
+ 
+ impl<E: Environment> DivAssign<&Self> for Field<E> {
++    #[allow(clippy::suspicious_op_assign_impl)]
+     fn div_assign(&mut self, other: &Self) {
+         match other.is_constant() {
+             // If `other` is a constant and zero, halt since the inverse of zero is undefined.
+             true if other.eject_value().is_zero() => E::halt("Attempted to divide by zero."),
+-            // If `other` is a constant and non-zero, we can perform the multiplication and inversion
+-            // without paying for any private variables or constraints.
+-            // TODO: Can the case where self is constant and other is not constant be optimized in the same way?
+-            true => {
+-                *self *= other.inverse();
+-            }
+-            // Otherwise, we can perform division with 1 constraint by using a `quotient` witness,
+-            // and ensuring that `quotient * other == self`.
+-            false => {
+-                // Enforce that `other` is not zero.
+-                E::assert(!other.is_zero());
+-
+-                // Construct the quotient as a witness.
+-                let quotient = witness!(|self, other| {
+-                    // Note: This band-aid was added to prevent a panic when `other` is zero.
+-                    let other = if other.is_zero() { console::Field::one() } else { other };
+-                    self / other
+-                });
+-
+-                // Ensure the quotient is correct by enforcing:
+-                // `quotient * other == self`.
+-                E::enforce(|| (&quotient, other, &*self));
+-
+-                // Assign the quotient to `self`.
+-                *self = quotient;
+-            }
++            // If `other` is a constant and non-zero, we can perform multiplication and inversion for 0 constraints.
++            // If `self` is a constant, we can perform multiplication and inversion for 1 constraint.
++            // Otherwise, we can perform multiplication and inversion for 2 constraints.
++            _ => *self *= other.inverse(),
+         }
+     }
+ }
+@@ -97,7 +76,8 @@ impl<E: Environment> Metrics<dyn Div<Field<E>, Output = Field<E>>> for Field<E>
+     fn count(case: &Self::Case) -> Count {
+         match case {
+             (Mode::Constant, Mode::Constant) | (_, Mode::Constant) => Count::is(1, 0, 0, 0),
+-            (_, _) => Count::is(0, 0, 3, 5),
++            (Mode::Constant, _) => Count::is(0, 0, 1, 1),
++            (_, _) => Count::is(0, 0, 2, 2),
+         }
+     }
+ }
+diff --git a/circuit/types/field/src/div_unchecked.rs b/circuit/types/field/src/div_unchecked.rs
+new file mode 100644
+index 000000000..0e1231ddf
+--- /dev/null
++++ b/circuit/types/field/src/div_unchecked.rs
+@@ -0,0 +1,214 @@
++// Copyright (C) 2019-2022 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use super::*;
++
++impl<E: Environment> DivUnchecked<Field<E>> for Field<E> {
++    type Output = Field<E>;
++
++    /// Performs unchecked division of two field elements.
++    /// This method does **not** enforce the case of `0 / 0`.
++    #[doc(hidden)]
++    fn div_unchecked(&self, other: &Field<E>) -> Self::Output {
++        match (self.is_constant(), other.is_constant()) {
++            // If `other` is a constant and zero, halt since the inverse of zero is undefined.
++            (_, true) if other.eject_value().is_zero() => E::halt("Attempted to divide by zero."),
++            // If `other` is a constant and non-zero, we can perform the multiplication and inversion
++            // without paying for any private variables or constraints.
++            // If `self` is a constant, we can perform the multiplication and inversion for 1 constraint.
++            (_, true) | (true, false) => self * other.inverse(),
++            // Otherwise, we can perform division with 1 constraint by using a `quotient` witness,
++            // and ensuring that `quotient * other == self`.
++            (false, false) => {
++                // Construct the quotient as a witness.
++                let quotient: Field<E> = witness!(|self, other| {
++                    // Note: This band-aid was added to prevent a panic when `other` is zero.
++                    let other = if other.is_zero() { console::Field::one() } else { other };
++                    self / other
++                });
++
++                // Ensure the quotient is correct by enforcing:
++                // `quotient * other == self`.
++                E::enforce(|| (&quotient, other, self));
++
++                // Return the quotient.
++                quotient
++            }
++        }
++    }
++}
++
++impl<E: Environment> Metrics<dyn DivUnchecked<Field<E>, Output = Field<E>>> for Field<E> {
++    type Case = (Mode, Mode);
++
++    fn count(case: &Self::Case) -> Count {
++        match case {
++            (Mode::Constant, Mode::Constant) | (_, Mode::Constant) => Count::is(1, 0, 0, 0),
++            (_, _) => Count::is(0, 0, 1, 1),
++        }
++    }
++}
++
++impl<E: Environment> OutputMode<dyn DivUnchecked<Field<E>, Output = Field<E>>> for Field<E> {
++    type Case = (CircuitType<Field<E>>, CircuitType<Field<E>>);
++
++    fn output_mode(case: &Self::Case) -> Mode {
++        match (case.0.mode(), case.1.mode()) {
++            (Mode::Constant, Mode::Constant) => Mode::Constant,
++            (Mode::Public, Mode::Constant) => match &case.1 {
++                CircuitType::Constant(constant) => match constant.eject_value().is_one() {
++                    true => Mode::Public,
++                    false => Mode::Private,
++                },
++                _ => E::halt("The constant is required to determine the output mode of Public + Constant"),
++            },
++            (_, _) => Mode::Private,
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use snarkvm_circuit_environment::{assert_count_fails, Circuit};
++
++    const ITERATIONS: u64 = 1000;
++
++    fn check_div_unchecked(
++        name: &str,
++        first: &console::Field<<Circuit as Environment>::Network>,
++        second: &console::Field<<Circuit as Environment>::Network>,
++        mode_a: Mode,
++        mode_b: Mode,
++    ) {
++        let a = &Field::<Circuit>::new(mode_a, *first);
++        let b = &Field::<Circuit>::new(mode_b, *second);
++
++        match second.is_zero() {
++            true => match mode_b.is_constant() {
++                true => {
++                    let result = std::panic::catch_unwind(|| a.div_unchecked(b));
++                    assert!(result.is_err());
++                }
++                false => {
++                    Circuit::scope(name, || {
++                        let _ = a.div_unchecked(b);
++                        assert_count_fails!(DivUnchecked(Field, Field) => Field, &(a.eject_mode(), b.eject_mode()));
++                    });
++                }
++            },
++            false => {
++                let expected = *first / *second;
++                Circuit::scope(name, || {
++                    let candidate = a.div_unchecked(b);
++                    assert_eq!(expected, candidate.eject_value(), "({} / {})", a.eject_value(), b.eject_value());
++                    assert_count!(DivUnchecked(Field, Field) => Field, &(a.eject_mode(), b.eject_mode()));
++                    assert_output_mode!(DivUnchecked(Field, Field) => Field, &(CircuitType::from(a), CircuitType::from(b)), candidate);
++                });
++            }
++        }
++    }
++
++    fn run_test(mode_a: Mode, mode_b: Mode) {
++        let mut rng = TestRng::default();
++
++        for i in 0..ITERATIONS {
++            let first = Uniform::rand(&mut rng);
++            let second = Uniform::rand(&mut rng);
++
++            let name = format!("Div: a / b {}", i);
++            check_div_unchecked(&name, &first, &second, mode_a, mode_b);
++
++            // Check division by one.
++            let one = console::Field::<<Circuit as Environment>::Network>::one();
++            let name = format!("Div By One {}", i);
++            check_div_unchecked(&name, &first, &one, mode_a, mode_b);
++
++            // Check division by zero.
++            let zero = console::Field::<<Circuit as Environment>::Network>::zero();
++            let name = format!("Div By Zero {}", i);
++            check_div_unchecked(&name, &first, &zero, mode_a, mode_b);
++        }
++    }
++
++    #[test]
++    fn test_constant_div_unchecked_constant() {
++        run_test(Mode::Constant, Mode::Constant);
++    }
++
++    #[test]
++    fn test_constant_div_unchecked_public() {
++        run_test(Mode::Constant, Mode::Public);
++    }
++
++    #[test]
++    fn test_constant_div_unchecked_private() {
++        run_test(Mode::Constant, Mode::Private);
++    }
++
++    #[test]
++    fn test_public_div_unchecked_constant() {
++        run_test(Mode::Public, Mode::Constant);
++    }
++
++    #[test]
++    fn test_public_div_unchecked_public() {
++        run_test(Mode::Public, Mode::Public);
++    }
++
++    #[test]
++    fn test_public_div_unchecked_private() {
++        run_test(Mode::Public, Mode::Private);
++    }
++
++    #[test]
++    fn test_private_div_unchecked_constant() {
++        run_test(Mode::Private, Mode::Constant);
++    }
++
++    #[test]
++    fn test_private_div_unchecked_public() {
++        run_test(Mode::Private, Mode::Public);
++    }
++
++    #[test]
++    fn test_private_div_unchecked_private() {
++        run_test(Mode::Private, Mode::Private);
++    }
++
++    #[test]
++    fn test_div_unchecked_by_zero_fails() {
++        let zero = console::Field::<<Circuit as Environment>::Network>::zero();
++        let one = console::Field::<<Circuit as Environment>::Network>::one();
++
++        let result = std::panic::catch_unwind(|| Field::<Circuit>::one() / Field::zero());
++        assert!(result.is_err()); // Probe further for specific error type here, if desired
++
++        let result =
++            std::panic::catch_unwind(|| Field::<Circuit>::new(Mode::Constant, one) / Field::new(Mode::Constant, zero));
++        assert!(result.is_err()); // Probe further for specific error type here, if desired
++
++        Circuit::scope("Public Div by Zero", || {
++            let _ = Field::<Circuit>::new(Mode::Public, one) / Field::new(Mode::Public, zero);
++            assert!(!Circuit::is_satisfied_in_scope());
++        });
++
++        Circuit::scope("Private Div by Zero", || {
++            let _ = Field::<Circuit>::new(Mode::Private, one) / Field::new(Mode::Private, zero);
++            assert!(!Circuit::is_satisfied_in_scope());
++        });
++    }
++}
+diff --git a/circuit/types/field/src/lib.rs b/circuit/types/field/src/lib.rs
+index 4295c2e12..045ddff7a 100644
+--- a/circuit/types/field/src/lib.rs
++++ b/circuit/types/field/src/lib.rs
+@@ -23,6 +23,7 @@ mod helpers;
+ pub mod add;
+ pub mod compare;
+ pub mod div;
++pub mod div_unchecked;
+ pub mod double;
+ pub mod equal;
+ pub mod inverse;
+diff --git a/circuit/types/group/src/helpers/from_bits.rs b/circuit/types/group/src/helpers/from_bits.rs
+index c5db4ca03..5f055ab43 100644
+--- a/circuit/types/group/src/helpers/from_bits.rs
++++ b/circuit/types/group/src/helpers/from_bits.rs
+@@ -79,31 +79,31 @@ mod tests {
+ 
+     #[test]
+     fn test_from_bits_le_constant() {
+-        check_from_bits_le(Mode::Constant, 3, 0, 0, 0);
++        check_from_bits_le(Mode::Constant, 11, 0, 0, 0);
+     }
+ 
+     #[test]
+     fn test_from_bits_le_public() {
+-        check_from_bits_le(Mode::Public, 2, 0, 255, 256);
++        check_from_bits_le(Mode::Public, 4, 0, 267, 266);
+     }
+ 
+     #[test]
+     fn test_from_bits_le_private() {
+-        check_from_bits_le(Mode::Private, 2, 0, 255, 256);
++        check_from_bits_le(Mode::Private, 4, 0, 267, 266);
+     }
+ 
+     #[test]
+     fn test_from_bits_be_constant() {
+-        check_from_bits_be(Mode::Constant, 3, 0, 0, 0);
++        check_from_bits_be(Mode::Constant, 11, 0, 0, 0);
+     }
+ 
+     #[test]
+     fn test_from_bits_be_public() {
+-        check_from_bits_be(Mode::Public, 2, 0, 255, 256);
++        check_from_bits_be(Mode::Public, 4, 0, 267, 266);
+     }
+ 
+     #[test]
+     fn test_from_bits_be_private() {
+-        check_from_bits_be(Mode::Private, 2, 0, 255, 256);
++        check_from_bits_be(Mode::Private, 4, 0, 267, 266);
+     }
+ }
+diff --git a/circuit/types/group/src/helpers/from_x_coordinate.rs b/circuit/types/group/src/helpers/from_x_coordinate.rs
+index 547e91e90..d39b06003 100644
+--- a/circuit/types/group/src/helpers/from_x_coordinate.rs
++++ b/circuit/types/group/src/helpers/from_x_coordinate.rs
+@@ -64,16 +64,16 @@ mod tests {
+ 
+     #[test]
+     fn test_from_x_coordinate_constant() {
+-        check_from_x_coordinate(Mode::Constant, 3, 0, 0, 0);
++        check_from_x_coordinate(Mode::Constant, 11, 0, 0, 0);
+     }
+ 
+     #[test]
+     fn test_from_x_coordinate_public() {
+-        check_from_x_coordinate(Mode::Public, 2, 0, 3, 3);
++        check_from_x_coordinate(Mode::Public, 4, 0, 15, 13);
+     }
+ 
+     #[test]
+     fn test_from_x_coordinate_private() {
+-        check_from_x_coordinate(Mode::Private, 2, 0, 3, 3);
++        check_from_x_coordinate(Mode::Private, 4, 0, 15, 13);
+     }
+ }
+diff --git a/circuit/types/group/src/helpers/from_xy_coordinates.rs b/circuit/types/group/src/helpers/from_xy_coordinates.rs
+index e7177fae9..4055fd10e 100644
+--- a/circuit/types/group/src/helpers/from_xy_coordinates.rs
++++ b/circuit/types/group/src/helpers/from_xy_coordinates.rs
+@@ -18,29 +18,16 @@ use super::*;
+ 
+ impl<E: Environment> Group<E> {
+     /// Initializes an affine group element from a given x- and y-coordinate field element.
+-    /// For safety, the resulting point is always enforced to be on the curve with constraints.
++    /// For safety, the resulting point is always enforced to be on the curve and in the subgroup.
+     pub fn from_xy_coordinates(x: Field<E>, y: Field<E>) -> Self {
+-        //
+-        // Check the point is on the curve.
+-        //
+-        // Ensure ax^2 + y^2 = 1 + dx^2y^2
+-        // by checking that y^2 * (dx^2 - 1) = (ax^2 - 1)
+-        //
+-        {
+-            let a = Field::constant(console::Field::new(E::EDWARDS_A));
+-            let d = Field::constant(console::Field::new(E::EDWARDS_D));
+-
+-            let x2 = x.square();
+-            let y2 = y.square();
+-
+-            let first = y2;
+-            let second = (d * &x2) - &Field::one();
+-            let third = (a * x2) - Field::one();
+-
+-            // Ensure y^2 * (dx^2 - 1) = (ax^2 - 1).
+-            E::enforce(|| (first, second, third));
+-        }
++        // Recover point from the `(x, y)` coordinates as a witness.
++        witness!(|x, y| console::Group::from_xy_coordinates(x, y))
++    }
+ 
++    /// Initializes an affine group element from a given x- and y-coordinate field element.
++    /// Note: The resulting point is **not** enforced to be on the curve or in the subgroup.
++    #[doc(hidden)]
++    pub fn from_xy_coordinates_unchecked(x: Field<E>, y: Field<E>) -> Self {
+         Self { x, y }
+     }
+ }
+@@ -77,18 +64,58 @@ mod tests {
+         }
+     }
+ 
++    fn check_from_xy_coordinates_unchecked(
++        mode: Mode,
++        num_constants: u64,
++        num_public: u64,
++        num_private: u64,
++        num_constraints: u64,
++    ) {
++        let mut rng = TestRng::default();
++
++        for i in 0..ITERATIONS {
++            // Sample a random element.
++            let point: console::Group<<Circuit as Environment>::Network> = Uniform::rand(&mut rng);
++
++            // Inject the x- and y-coordinates.
++            let x_coordinate = Field::new(mode, point.to_x_coordinate());
++            let y_coordinate = Field::new(mode, point.to_y_coordinate());
++
++            Circuit::scope(format!("{mode} {i}"), || {
++                let affine = Group::<Circuit>::from_xy_coordinates_unchecked(x_coordinate, y_coordinate);
++                assert_eq!(point, affine.eject_value());
++                assert_scope!(num_constants, num_public, num_private, num_constraints);
++            });
++        }
++    }
++
+     #[test]
+     fn test_from_xy_coordinates_constant() {
+-        check_from_xy_coordinates(Mode::Constant, 2, 0, 0, 0);
++        check_from_xy_coordinates(Mode::Constant, 10, 0, 0, 0);
+     }
+ 
+     #[test]
+     fn test_from_xy_coordinates_public() {
+-        check_from_xy_coordinates(Mode::Public, 2, 0, 2, 3);
++        check_from_xy_coordinates(Mode::Public, 4, 0, 14, 13);
+     }
+ 
+     #[test]
+     fn test_from_xy_coordinates_private() {
+-        check_from_xy_coordinates(Mode::Private, 2, 0, 2, 3);
++        check_from_xy_coordinates(Mode::Private, 4, 0, 14, 13);
++    }
++
++    #[test]
++    fn test_from_xy_coordinates_unchecked_constant() {
++        check_from_xy_coordinates_unchecked(Mode::Constant, 0, 0, 0, 0);
++    }
++
++    #[test]
++    fn test_from_xy_coordinates_unchecked_public() {
++        check_from_xy_coordinates_unchecked(Mode::Public, 0, 0, 0, 0);
++    }
++
++    #[test]
++    fn test_from_xy_coordinates_unchecked_private() {
++        check_from_xy_coordinates_unchecked(Mode::Private, 0, 0, 0, 0);
+     }
+ }
+diff --git a/circuit/types/group/src/lib.rs b/circuit/types/group/src/lib.rs
+index e677a4f9f..a15f1b95e 100644
+--- a/circuit/types/group/src/lib.rs
++++ b/circuit/types/group/src/lib.rs
+@@ -56,12 +56,61 @@ impl<E: Environment> Inject for Group<E> {
+     /// For safety, the resulting point is always enforced to be on the curve with constraints.
+     /// regardless of whether the y-coordinate was recovered.
+     fn new(mode: Mode, group: Self::Primitive) -> Self {
+-        // Initialize the x- and y-coordinate field elements.
+-        let (x, y) = group.to_xy_coordinate();
+-        let x = Field::new(mode, x);
+-        let y = Field::new(mode, y);
++        // Inject `point_inv` from the `(x_inv, y_inv)` coordinates as field elements.
++        let point_inv = {
++            // Compute the `(x_inv, y_inv)` coordinates from `(point / COFACTOR)`.
++            let (x_inv, y_inv) = group.div_by_cofactor().to_xy_coordinates();
++            // If the mode is `Public`, then allocate them privately, as we will allocate a `Public` point at the end.
++            match mode.is_public() {
++                true => Self { x: Field::new(Mode::Private, x_inv), y: Field::new(Mode::Private, y_inv) },
++                false => Self { x: Field::new(mode, x_inv), y: Field::new(mode, y_inv) },
++            }
++        };
++
++        // Ensure `point_inv` is on the curve.
++        point_inv.enforce_on_curve();
++
++        // Return the `point` as `point_inv * COFACTOR`.
++        let point = point_inv.mul_by_cofactor();
++
++        if mode.is_public() {
++            // Inject the point as `Mode::Public`.
++            let public_point = {
++                // Initialize the (x, y) coordinates of the point as field elements.
++                let (x, y) = group.to_xy_coordinates();
++                // Inject the `(x, y)` coordinates as field elements.
++                Self { x: Field::new(mode, x), y: Field::new(mode, y) }
++            };
++
++            // Ensure the `point == public_point`.
++            E::assert_eq(&point, &public_point);
++
++            // Return the public point.
++            public_point
++        } else {
++            point
++        }
++    }
++}
++
++impl<E: Environment> Group<E> {
++    /// Checks `(x, y)` is on the curve.
++    ///
++    /// Ensure ax^2 + y^2 = 1 + dx^2y^2
++    /// by checking that y^2 * (dx^2 - 1) = (ax^2 - 1)
++    pub fn enforce_on_curve(&self) {
++        let a = Field::constant(console::Field::new(E::EDWARDS_A));
++        let d = Field::constant(console::Field::new(E::EDWARDS_D));
++
++        let x2 = self.x.square();
++        let y2 = self.y.square();
++
++        let first = y2;
++        let second = (d * &x2) - &Field::one();
++        let third = (a * x2) - Field::one();
+ 
+-        Self::from_xy_coordinates(x, y)
++        // Ensure y^2 * (dx^2 - 1) = (ax^2 - 1).
++        E::enforce(|| (first, second, third));
+     }
+ }
+ 
+@@ -76,7 +125,7 @@ impl<E: Environment> Eject for Group<E> {
+ 
+     /// Ejects the group as a constant group element.
+     fn eject_value(&self) -> Self::Primitive {
+-        console::Group::from_xy_coordinates((self.x.eject_value(), self.y.eject_value()))
++        console::Group::from_xy_coordinates_unchecked(self.x.eject_value(), self.y.eject_value())
+     }
+ }
+ 
+@@ -179,7 +228,7 @@ mod tests {
+             Circuit::scope(&format!("Constant {}", i), || {
+                 let affine = Group::<Circuit>::new(Mode::Constant, point);
+                 assert_eq!(point, affine.eject_value());
+-                assert_scope!(4, 0, 0, 0);
++                assert_scope!(10, 0, 0, 0);
+             });
+         }
+ 
+@@ -191,7 +240,7 @@ mod tests {
+             Circuit::scope(&format!("Public {}", i), || {
+                 let affine = Group::<Circuit>::new(Mode::Public, point);
+                 assert_eq!(point, affine.eject_value());
+-                assert_scope!(2, 2, 2, 3);
++                assert_scope!(4, 2, 14, 14);
+             });
+         }
+ 
+@@ -203,7 +252,7 @@ mod tests {
+             Circuit::scope(&format!("Private {}", i), || {
+                 let affine = Group::<Circuit>::new(Mode::Private, point);
+                 assert_eq!(point, affine.eject_value());
+-                assert_scope!(2, 0, 4, 3);
++                assert_scope!(4, 0, 14, 13);
+             });
+         }
+     }
+diff --git a/circuit/types/integers/src/div_wrapped.rs b/circuit/types/integers/src/div_wrapped.rs
+index c9e01364c..dca27d323 100644
+--- a/circuit/types/integers/src/div_wrapped.rs
++++ b/circuit/types/integers/src/div_wrapped.rs
+@@ -46,7 +46,7 @@ impl<E: Environment, I: IntegerType> DivWrapped<Self> for Integer<E, I> {
+                 } else {
+                     // Ensure that `other` is not zero.
+                     // Note that all other implementations of `div_wrapped` and `div_checked` invoke this check.
+-                    E::assert(other.is_not_equal(&Self::zero()));
++                    E::assert_neq(other, &Self::zero());
+                     // If the product of two unsigned integers can fit in the base field, then we can perform an optimized division operation.
+                     if 2 * I::BITS < E::BaseField::size_in_data_bits() as u64 {
+                         self.unsigned_division_via_witness(other).0
+diff --git a/circuit/types/integers/src/rem_wrapped.rs b/circuit/types/integers/src/rem_wrapped.rs
+index 0dc2294e8..36ff0c21a 100644
+--- a/circuit/types/integers/src/rem_wrapped.rs
++++ b/circuit/types/integers/src/rem_wrapped.rs
+@@ -44,7 +44,7 @@ impl<E: Environment, I: IntegerType> RemWrapped<Self> for Integer<E, I> {
+                 } else {
+                     // Check that `other` is not zero.
+                     // Note that all other implementations of `rem_wrapped` and `rem_checked` invoke this check.
+-                    E::assert(other.is_not_equal(&Self::zero()));
++                    E::assert_neq(other, &Self::zero());
+ 
+                     // If the product of two unsigned integers can fit in the base field, then we can perform an optimized division operation.
+                     if 2 * I::BITS < E::BaseField::size_in_data_bits() as u64 {
+diff --git a/console/algorithms/src/elligator2/decode.rs b/console/algorithms/src/elligator2/decode.rs
+index 1252b624c..bfd08e93b 100644
+--- a/console/algorithms/src/elligator2/decode.rs
++++ b/console/algorithms/src/elligator2/decode.rs
+@@ -32,7 +32,7 @@ impl<E: Environment> Elligator2<E> {
+             Err(_) => bail!("Montgomery B must be invertible in order to use Elligator2"),
+         };
+ 
+-        let (x, y) = group.to_xy_coordinate();
++        let (x, y) = group.to_xy_coordinates();
+ 
+         // Ensure that x != -A.
+         ensure!(x != -a, "Elligator2 failed: x == -A");
+diff --git a/console/algorithms/src/elligator2/encode.rs b/console/algorithms/src/elligator2/encode.rs
+index 7f5526059..095723f56 100644
+--- a/console/algorithms/src/elligator2/encode.rs
++++ b/console/algorithms/src/elligator2/encode.rs
+@@ -117,6 +117,11 @@ impl<E: Environment> Elligator2<E> {
+         let x = u * v.inverse().map_err(|_| anyhow!("Elligator2 failed: v == 0"))?;
+         let y = (u - one) * (u + one).inverse().map_err(|_| anyhow!("Elligator2 failed: (u + 1) == 0"))?;
+ 
+-        Ok((Group::from_xy_coordinates((x, y)), sign_high))
++        // Recover the point from the twisted Edwards element (x, y).
++        let point = Group::from_xy_coordinates_unchecked(x, y);
++        // Ensure the recovered point is on the curve.
++        ensure!(point.to_affine().is_on_curve(), "Elligator2 failed: point is not on the curve");
++        // Return the recovered point.
++        Ok((point, sign_high))
+     }
+ }
+diff --git a/console/network/environment/src/traits/arithmetic.rs b/console/network/environment/src/traits/arithmetic.rs
+index b889f5a19..11c989d26 100644
+--- a/console/network/environment/src/traits/arithmetic.rs
++++ b/console/network/environment/src/traits/arithmetic.rs
+@@ -37,6 +37,13 @@ pub trait AddWrapped<Rhs: ?Sized = Self> {
+     fn add_wrapped(&self, rhs: &Rhs) -> Self::Output;
+ }
+ 
++/// Binary operator for dividing two values, without checking specific conditions.
++pub trait DivUnchecked<Rhs: ?Sized = Self> {
++    type Output;
++
++    fn div_unchecked(&self, rhs: &Rhs) -> Self::Output;
++}
++
+ /// Binary operator for dividing two values, enforcing an overflow never occurs.
+ pub trait DivChecked<Rhs: ?Sized = Self> {
+     type Output;
+diff --git a/console/types/group/src/from_xy_coordinate.rs b/console/types/group/src/from_xy_coordinates.rs
+similarity index 58%
+rename from console/types/group/src/from_xy_coordinate.rs
+rename to console/types/group/src/from_xy_coordinates.rs
+index d958715c5..b1de30011 100644
+--- a/console/types/group/src/from_xy_coordinate.rs
++++ b/console/types/group/src/from_xy_coordinates.rs
+@@ -18,7 +18,16 @@ use super::*;
+ 
+ impl<E: Environment> Group<E> {
+     /// Initializes a new group from the `(x, y)` affine coordinates.
+-    pub fn from_xy_coordinates((x, y): (Field<E>, Field<E>)) -> Self {
+-        Self { group: E::Affine::from_coordinates((*x, *y)).into() }
++    pub fn from_xy_coordinates(x: Field<E>, y: Field<E>) -> Self {
++        match E::Affine::from_coordinates((*x, *y)) {
++            Some(point) => Self { group: point.into() },
++            None => E::halt("Attempted to recover an invalid group element from (x, y) coordinates"),
++        }
++    }
++
++    /// Initializes a new group from the `(x, y)` affine coordinates.
++    /// Note: The resulting point is **not** enforced to be on the curve or in the subgroup.
++    pub fn from_xy_coordinates_unchecked(x: Field<E>, y: Field<E>) -> Self {
++        Self { group: E::Affine::from_coordinates_unchecked((*x, *y)).into() }
+     }
+ }
+diff --git a/console/types/group/src/lib.rs b/console/types/group/src/lib.rs
+index 8370f646d..a3e3ed276 100644
+--- a/console/types/group/src/lib.rs
++++ b/console/types/group/src/lib.rs
+@@ -24,7 +24,7 @@ mod from_bits;
+ mod from_field;
+ mod from_fields;
+ mod from_x_coordinate;
+-mod from_xy_coordinate;
++mod from_xy_coordinates;
+ mod parse;
+ mod random;
+ mod serialize;
+@@ -34,7 +34,7 @@ mod to_bits;
+ mod to_field;
+ mod to_fields;
+ mod to_x_coordinate;
+-mod to_xy_coordinate;
++mod to_xy_coordinates;
+ mod to_y_coordinate;
+ mod zero;
+ 
+@@ -91,10 +91,6 @@ impl<E: Environment> Group<E> {
+ 
+     /// Returns `self / COFACTOR`.
+     pub fn div_by_cofactor(&self) -> Self {
+-        // (For advanced users) The cofactor for this curve is `4`. Thus doubling is used to be performant.
+-        // See unit tests below, which sanity check that this condition holds.
+-        debug_assert!(E::Affine::cofactor().len() == 1 && E::Affine::cofactor()[0] == 4);
+-
+         Self { group: self.group.to_affine().mul_by_cofactor_inv().into() }
+     }
+ }
+diff --git a/console/types/group/src/to_xy_coordinate.rs b/console/types/group/src/to_xy_coordinates.rs
+similarity index 94%
+rename from console/types/group/src/to_xy_coordinate.rs
+rename to console/types/group/src/to_xy_coordinates.rs
+index 3e3d00251..81eef1276 100644
+--- a/console/types/group/src/to_xy_coordinate.rs
++++ b/console/types/group/src/to_xy_coordinates.rs
+@@ -18,7 +18,7 @@ use super::*;
+ 
+ impl<E: Environment> Group<E> {
+     /// Returns the *x-coordinate* and *y-coordinate* in the affine coordinates of the group.
+-    pub fn to_xy_coordinate(&self) -> (Field<E>, Field<E>) {
++    pub fn to_xy_coordinates(&self) -> (Field<E>, Field<E>) {
+         // Convert to affine.
+         let affine = self.group.to_affine();
+         // Returns the (x, y) coordinates.
+diff --git a/curves/src/templates/short_weierstrass_jacobian/affine.rs b/curves/src/templates/short_weierstrass_jacobian/affine.rs
+index 6bab36023..c6b9a5401 100644
+--- a/curves/src/templates/short_weierstrass_jacobian/affine.rs
++++ b/curves/src/templates/short_weierstrass_jacobian/affine.rs
+@@ -93,11 +93,21 @@ impl<P: Parameters> AffineCurve for Affine<P> {
+     type ScalarField = P::ScalarField;
+ 
+     /// Initializes a new affine group element from the given coordinates.
+-    fn from_coordinates(coordinates: Self::Coordinates) -> Self {
++    fn from_coordinates(coordinates: Self::Coordinates) -> Option<Self> {
+         let (x, y, infinity) = coordinates;
+         let point = Self { x, y, infinity };
+-        assert!(point.is_on_curve());
+-        point
++        // Check that the point is on the curve, and in the correct subgroup.
++        match point.is_on_curve() && point.is_in_correct_subgroup_assuming_on_curve() {
++            true => Some(point),
++            false => None,
++        }
++    }
++
++    /// Initializes a new affine group element from the given coordinates.
++    /// Note: The resulting point is **not** enforced to be on the curve or in the correct subgroup.
++    fn from_coordinates_unchecked(coordinates: Self::Coordinates) -> Self {
++        let (x, y, infinity) = coordinates;
++        Self { x, y, infinity }
+     }
+ 
+     #[inline]
+diff --git a/curves/src/templates/twisted_edwards_extended/affine.rs b/curves/src/templates/twisted_edwards_extended/affine.rs
+index db4b9e2c7..53c99e3df 100644
+--- a/curves/src/templates/twisted_edwards_extended/affine.rs
++++ b/curves/src/templates/twisted_edwards_extended/affine.rs
+@@ -93,11 +93,21 @@ impl<P: Parameters> AffineCurve for Affine<P> {
+     type ScalarField = P::ScalarField;
+ 
+     /// Initializes a new affine group element from the given coordinates.
+-    fn from_coordinates(coordinates: Self::Coordinates) -> Self {
++    fn from_coordinates(coordinates: Self::Coordinates) -> Option<Self> {
+         let (x, y) = coordinates;
+         let point = Self { x, y, t: x * y };
+-        assert!(point.is_on_curve());
+-        point
++        // Check that the point is on the curve, and in the correct subgroup.
++        match point.is_on_curve() && point.is_in_correct_subgroup_assuming_on_curve() {
++            true => Some(point),
++            false => None,
++        }
++    }
++
++    /// Initializes a new affine group element from the given coordinates.
++    /// Note: The resulting point is **not** enforced to be on the curve or in the correct subgroup.
++    fn from_coordinates_unchecked(coordinates: Self::Coordinates) -> Self {
++        let (x, y) = coordinates;
++        Self { x, y, t: x * y }
+     }
+ 
+     #[inline]
+diff --git a/curves/src/traits/group.rs b/curves/src/traits/group.rs
+index 1a936271e..da0a5c23e 100644
+--- a/curves/src/traits/group.rs
++++ b/curves/src/traits/group.rs
+@@ -147,7 +147,11 @@ pub trait AffineCurve:
+     type Coordinates;
+ 
+     /// Initializes a new affine group element from the given coordinates.
+-    fn from_coordinates(coordinates: Self::Coordinates) -> Self;
++    fn from_coordinates(coordinates: Self::Coordinates) -> Option<Self>;
++
++    /// Initializes a new affine group element from the given coordinates.
++    /// Note: The resulting point is **not** enforced to be on the curve or in the correct subgroup.
++    fn from_coordinates_unchecked(coordinates: Self::Coordinates) -> Self;
+ 
+     /// Returns the cofactor of the curve.
+     fn cofactor() -> &'static [u64];
+diff --git a/parameters/src/testnet3/resources/block.genesis b/parameters/src/testnet3/resources/block.genesis
+index 1273f3b00..5860b0c84 100644
+Binary files a/parameters/src/testnet3/resources/block.genesis and b/parameters/src/testnet3/resources/block.genesis differ
+diff --git a/parameters/src/testnet3/resources/fee.metadata b/parameters/src/testnet3/resources/fee.metadata
+index 04803fb0c..cb2e0805c 100644
+--- a/parameters/src/testnet3/resources/fee.metadata
++++ b/parameters/src/testnet3/resources/fee.metadata
+@@ -1,6 +1,6 @@
+ {
+-  "prover_checksum": "d58483f4e587da95be77cff5553db77da1e6e28c25e7f94939ea429428ef2c0d",
+-  "prover_size": 152086101,
+-  "verifier_checksum": "23db6a6802a3cca4a2f7e74c17a35b2976599135771766d22c8bb317e1f28900",
++  "prover_checksum": "c9a9d93172df16a01687f80b10e3b1c2207e32928a5ee1c9607cc1e7bb251722",
++  "prover_size": 152069277,
++  "verifier_checksum": "607ba71e6463a374f30e325b2b24280dcb11ef6f28db5e5b747767ad08108ce5",
+   "verifier_size": 440578
+ }
+\ No newline at end of file
+diff --git a/parameters/src/testnet3/resources/genesis.metadata b/parameters/src/testnet3/resources/genesis.metadata
+index 2ead673e8..2bb6b54be 100644
+--- a/parameters/src/testnet3/resources/genesis.metadata
++++ b/parameters/src/testnet3/resources/genesis.metadata
+@@ -1,6 +1,6 @@
+ {
+-  "prover_checksum": "855aae5ac251c885d80af815d08aaa632aaada37a4819d8b88028d4a48b9835c",
+-  "prover_size": 122679925,
+-  "verifier_checksum": "9bc009b8bc9c44713a6dcd1d0703168889be4b1e6ad60cf553e6f91cd66abd86",
++  "prover_checksum": "e7d7ceb0cfaa17094c32cb98bea0b63ba791d996b6b233cddf6746e6ca99823f",
++  "prover_size": 122678445,
++  "verifier_checksum": "a2e73501136bc6f9dcb525d03dfdebd0ecd461fda06945aa52061f57e88b7794",
+   "verifier_size": 440578
+ }
+\ No newline at end of file
+diff --git a/parameters/src/testnet3/resources/inclusion.metadata b/parameters/src/testnet3/resources/inclusion.metadata
+index 58d4c4df4..a3a3e8e26 100644
+--- a/parameters/src/testnet3/resources/inclusion.metadata
++++ b/parameters/src/testnet3/resources/inclusion.metadata
+@@ -1,6 +1,6 @@
+ {
+-  "prover_checksum": "6b0879cd6283ea8ce884e8b3a405c46ef84d688d8c75a512f5d818751b0c32b3",
+-  "prover_size": 307384853,
+-  "verifier_checksum": "9034f13ddbded8835cf35296f02a6cbf473bc6f1ecdc6b12d658df9b98cc5d75",
++  "prover_checksum": "4f596a9e8db807bcf1e8c3bd233ebf0c31fe8b1388fb856f2b67de424da06b5e",
++  "prover_size": 306923645,
++  "verifier_checksum": "fd25fcb5f0299955fde9139b812d594a7bf64f0508337ca95c91242629d0dba4",
+   "verifier_size": 440578
+ }
+\ No newline at end of file
+diff --git a/parameters/src/testnet3/resources/join.metadata b/parameters/src/testnet3/resources/join.metadata
+index 3201086a9..5fc243310 100644
+--- a/parameters/src/testnet3/resources/join.metadata
++++ b/parameters/src/testnet3/resources/join.metadata
+@@ -1,6 +1,6 @@
+ {
+-  "prover_checksum": "ba444ed1e281bd9262c5aa2d842eec58d3a3ff5bb0306bdff4f8dbbb01941a11",
+-  "prover_size": 207854717,
+-  "verifier_checksum": "ba60dee28e0a188ab6a1fe2411f27cec14a9fb3ac1ca460621296ad7884cbc30",
++  "prover_checksum": "c1c0470536cbf18db5013e55a6d2c9df25b93f59efc7999e828123f7ee86566a",
++  "prover_size": 207825429,
++  "verifier_checksum": "558ab4c23dc05f0d9e8b735634768f6cb2bb973a41f709138a2c8597b67bbd4e",
+   "verifier_size": 440578
+ }
+\ No newline at end of file
+diff --git a/parameters/src/testnet3/resources/mint.metadata b/parameters/src/testnet3/resources/mint.metadata
+index 07e65869e..bd919a1a7 100644
+--- a/parameters/src/testnet3/resources/mint.metadata
++++ b/parameters/src/testnet3/resources/mint.metadata
+@@ -1,6 +1,6 @@
+ {
+-  "prover_checksum": "8c585363f1bdfcfb0d97227ff706afbf2d8a6b736bdd6b3d5416b62f7f0968df",
+-  "prover_size": 122679925,
+-  "verifier_checksum": "7e864b92860ce8a030e1884e59de13229852c711de5329380634d29be62836b8",
++  "prover_checksum": "428c410959f87f0e2210bc611865f687f5177519d1d7107ac1ee56f0920adba0",
++  "prover_size": 122678445,
++  "verifier_checksum": "f2895092d555520aef951fc3a4708037fff57eae19d20fab8d468473f30d1aa1",
+   "verifier_size": 440578
+ }
+\ No newline at end of file
+diff --git a/parameters/src/testnet3/resources/split.metadata b/parameters/src/testnet3/resources/split.metadata
+index 18bb11f5a..60bb5945b 100644
+--- a/parameters/src/testnet3/resources/split.metadata
++++ b/parameters/src/testnet3/resources/split.metadata
+@@ -1,6 +1,6 @@
+ {
+-  "prover_checksum": "d20acd5f4269d67a71ccecad104aac3c8c5be935a10f401fe3ddd46935aa2ba8",
+-  "prover_size": 208283557,
+-  "verifier_checksum": "7be69b84e3cf848d89457ac3f5575b1a1b25c86126ad9efb42282e280e32c0d4",
++  "prover_checksum": "87398a13988a519ae0ed49bf1ad0ec64478dbcb8f4613057a8d4e0dd0a5432f9",
++  "prover_size": 208250629,
++  "verifier_checksum": "372fcc304981896a122c8b0d38576b73d336dc252d00f927fd013fc96375c3ed",
+   "verifier_size": 440578
+ }
+\ No newline at end of file
+diff --git a/parameters/src/testnet3/resources/transfer.metadata b/parameters/src/testnet3/resources/transfer.metadata
+index 09eedb3b1..47041e91d 100644
+--- a/parameters/src/testnet3/resources/transfer.metadata
++++ b/parameters/src/testnet3/resources/transfer.metadata
+@@ -1,6 +1,6 @@
+ {
+-  "prover_checksum": "91b72c450beb57576adfe358d79c912db5a17a9af415b64ea6b1cd6e7037993c",
+-  "prover_size": 209173061,
+-  "verifier_checksum": "876f444491696435a670ff9b52ff790ee4c26746926abe35ece107fd87fdd598",
++  "prover_checksum": "1b7a6fa223ba8980d7dd5e2b9c571606a7a350e987900e58b58cc529b0002c4f",
++  "prover_size": 209143013,
++  "verifier_checksum": "320deb81d78b9a324f01c1a7e6eaf7b932d0f701396635dd03697986300278a7",
+   "verifier_size": 440578
+ }
+\ No newline at end of file
+diff --git a/synthesizer/src/process/execute.rs b/synthesizer/src/process/execute.rs
+index dd68f27c7..22561798b 100644
+--- a/synthesizer/src/process/execute.rs
++++ b/synthesizer/src/process/execute.rs
+@@ -128,7 +128,7 @@ impl<N: Network> Process<N> {
+             }
+ 
+             // Compute the x- and y-coordinate of `tpk`.
+-            let (tpk_x, tpk_y) = transition.tpk().to_xy_coordinate();
++            let (tpk_x, tpk_y) = transition.tpk().to_xy_coordinates();
+ 
+             // [Inputs] Construct the verifier inputs to verify the proof.
+             let mut inputs = vec![N::Field::one(), *tpk_x, *tpk_y, **transition.tcm()];
+diff --git a/synthesizer/src/process/execute_fee.rs b/synthesizer/src/process/execute_fee.rs
+index f4b98e7fd..88b18f360 100644
+--- a/synthesizer/src/process/execute_fee.rs
++++ b/synthesizer/src/process/execute_fee.rs
+@@ -121,7 +121,7 @@ impl<N: Network> Process<N> {
+         Inclusion::verify_fee(fee)?;
+ 
+         // Compute the x- and y-coordinate of `tpk`.
+-        let (tpk_x, tpk_y) = fee.tpk().to_xy_coordinate();
++        let (tpk_x, tpk_y) = fee.tpk().to_xy_coordinates();
+ 
+         // Construct the public inputs to verify the proof.
+         let mut inputs = vec![N::Field::one(), *tpk_x, *tpk_y, **fee.tcm()];
+diff --git a/synthesizer/src/process/mod.rs b/synthesizer/src/process/mod.rs
+index 35d4632cc..4da50275d 100644
+--- a/synthesizer/src/process/mod.rs
++++ b/synthesizer/src/process/mod.rs
+@@ -479,7 +479,7 @@ mod tests {
+         assert!(result.is_err());
+         assert_eq!(
+             result.err().unwrap().to_string(),
+-            format!("'token.aleo/genesis' is not satisfied on the given inputs (26619 constraints).")
++            format!("'token.aleo/genesis' is not satisfied on the given inputs (26610 constraints).")
+         );
+     }
+ 
+diff --git a/synthesizer/src/process/stack/execute.rs b/synthesizer/src/process/stack/execute.rs
+index 9cbc6a052..683606a58 100644
+--- a/synthesizer/src/process/stack/execute.rs
++++ b/synthesizer/src/process/stack/execute.rs
+@@ -287,9 +287,9 @@ impl<N: Network> Stack<N> {
+                 // Compute the finalize inputs checksum.
+                 let finalize_checksum = A::hash_bhp1024(&circuit_finalize_input_bits);
+                 // Inject the finalize inputs checksum as `Mode::Public`.
+-                let circuit_checksum = circuit::Field::new(circuit::Mode::Public, finalize_checksum.eject_value());
++                let circuit_checksum = circuit::Field::<A>::new(circuit::Mode::Public, finalize_checksum.eject_value());
+                 // Enforce the injected checksum matches the original checksum.
+-                A::assert(circuit_checksum.is_equal(&finalize_checksum));
++                A::assert_eq(circuit_checksum, finalize_checksum);
+ 
+                 #[cfg(debug_assertions)]
+                 Self::log_circuit::<A, _>("Finalize");

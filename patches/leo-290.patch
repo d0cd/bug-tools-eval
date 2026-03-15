@@ -1,0 +1,379 @@
+diff --git a/leo/cli/commands/common/util.rs b/leo/cli/commands/common/util.rs
+index 1cec366099..7622ab7d29 100644
+--- a/leo/cli/commands/common/util.rs
++++ b/leo/cli/commands/common/util.rs
+@@ -14,10 +14,12 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
++use leo_errors::CliError;
+ use leo_package::{Package, ProgramData};
+ use leo_span::Symbol;
+ 
+ use indexmap::IndexSet;
++use snarkvm::prelude::{ConsensusVersion, Network, Program};
+ use std::path::PathBuf;
+ use walkdir::WalkDir;
+ 
+@@ -135,3 +137,80 @@ pub fn collect_aleo_paths(package: &Package) -> Vec<PathBuf> {
+         })
+         .collect()
+ }
++
++/// Default edition for local programs during local operations (run, execute, synthesize).
++///
++/// Local programs don't have an on-chain edition yet. We default to edition 1 to avoid
++/// snarkVM's V8+ check that rejects edition 0 programs without constructors. That check
++/// is only relevant for deployed programs, not local development.
++pub const LOCAL_PROGRAM_DEFAULT_EDITION: leo_package::Edition = 1;
++
++/// Prints a program's ID and source (local or network edition).
++pub fn print_program_source(id: &str, edition: Option<leo_package::Edition>) {
++    match (id, edition) {
++        ("credits.aleo", _) => println!("  - {id} (already included)"),
++        (_, Some(e)) => println!("  - {id} (edition: {e})"),
++        (_, None) => println!("  - {id} (local)"),
++    }
++}
++
++/// Checks if any programs violate edition/constructor requirements.
++///
++/// Programs at edition 0 without a constructor cannot be executed after ConsensusVersion::V8.
++/// This check should be performed before attempting execution to provide a clear error message.
++///
++/// # Arguments
++/// * `programs` - Slice of (program, edition) tuples to check
++/// * `consensus_version` - The current consensus version
++/// * `action` - Description of the action being attempted (e.g., "deploy", "execute", "upgrade")
++///
++/// # Returns
++/// `Ok(())` if all programs pass the check, or an error with a descriptive message if not.
++pub fn check_edition_constructor_requirements<N: Network>(
++    programs: &[(Program<N>, leo_package::Edition)],
++    consensus_version: ConsensusVersion,
++    action: &str,
++) -> Result<(), CliError> {
++    // Only check for V8+ consensus versions.
++    if consensus_version < ConsensusVersion::V8 {
++        return Ok(());
++    }
++
++    for (program, edition) in programs {
++        // Programs at edition 0 without a constructor cannot be executed after V8.
++        if *edition == 0 && !program.contains_constructor() {
++            let id = program.id();
++            // Skip credits.aleo as it's a special case.
++            if id.to_string() != "credits.aleo" {
++                return Err(CliError::custom(format!(
++                    "Cannot {action} with dependency '{id}' (edition 0)\n\n\
++                    Programs at edition 0 without a constructor cannot be executed under \
++                    consensus version V8 or later (current: V{}).\n\n\
++                    The program '{id}' must be upgraded on-chain before it can be used.",
++                    consensus_version as u8
++                )));
++            }
++        }
++    }
++
++    Ok(())
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use snarkvm::prelude::TestnetV0;
++    use std::str::FromStr;
++
++    #[test]
++    fn test_edition_constructor_error_message() {
++        // A program without a constructor at edition 0 should fail under V8+
++        let program = Program::<TestnetV0>::from_str(
++            "program old_program.aleo;\nfunction main:\n    input r0 as u32.public;\n    output r0 as u32.public;\n",
++        )
++        .unwrap();
++
++        let result = check_edition_constructor_requirements(&[(program, 0)], ConsensusVersion::V9, "deploy");
++        assert!(result.is_err());
++    }
++}
+diff --git a/leo/cli/commands/deploy.rs b/leo/cli/commands/deploy.rs
+index b15d835e37..c0e2c67d02 100644
+--- a/leo/cli/commands/deploy.rs
++++ b/leo/cli/commands/deploy.rs
+@@ -251,10 +251,18 @@ fn handle_deploy<N: Network>(
+     let programs_and_editions = remote
+         .into_iter()
+         .map(|task| {
+-            // Note: We default to edition 1 since snarkVM execute may produce spurious errors if the program does not have a constructor but uses edition 0.
+-            (task.program, task.edition.unwrap_or(1))
++            // Get the actual edition from the network if not specified.
++            let edition = match task.edition {
++                Some(e) => e,
++                None => leo_package::fetch_latest_edition(&task.id.to_string(), &endpoint, network)?,
++            };
++            Ok((task.program, edition))
+         })
+-        .collect::<Vec<_>>();
++        .collect::<Result<Vec<_>>>()?;
++
++    // Check for programs that violate edition/constructor requirements.
++    check_edition_constructor_requirements(&programs_and_editions, consensus_version, "deploy")?;
++
+     vm.process().write().add_programs_with_editions(&programs_and_editions)?;
+ 
+     // Remove version suffixes from the endpoint.
+diff --git a/leo/cli/commands/execute.rs b/leo/cli/commands/execute.rs
+index bf13475231..dc31d77bed 100644
+--- a/leo/cli/commands/execute.rs
++++ b/leo/cli/commands/execute.rs
+@@ -327,15 +327,8 @@ fn handle_execute<A: Aleo>(
+     let programs_and_editions = programs
+         .into_iter()
+         .map(|(program, edition)| {
+-            // Note: We default to edition 1 since snarkVM execute may produce spurious errors if the program does not have a constructor but uses edition 0.
+-            let edition = edition.unwrap_or(1);
+-            // Get the program ID.
+-            let id = program.id().to_string();
+-            // Print the program ID and edition.
+-            match id == "credits.aleo" {
+-                true => println!("  - {id} (already included)"),
+-                false => println!("  - {id} (edition: {edition})"),
+-            }
++            print_program_source(&program.id().to_string(), edition);
++            let edition = edition.unwrap_or(LOCAL_PROGRAM_DEFAULT_EDITION);
+             (program, edition)
+         })
+         .collect::<Vec<_>>();
+diff --git a/leo/cli/commands/run.rs b/leo/cli/commands/run.rs
+index e7f6c597ab..1ea0b2666f 100644
+--- a/leo/cli/commands/run.rs
++++ b/leo/cli/commands/run.rs
+@@ -251,15 +251,8 @@ fn handle_run<A: Aleo>(
+     let programs_and_editions = programs
+         .into_iter()
+         .map(|(program, edition)| {
+-            // Note: We default to edition 1 since snarkVM execute may produce spurious errors if the program does not have a constructor but uses edition 0.
+-            let edition = edition.unwrap_or(1);
+-            // Get the program ID.
+-            let id = program.id().to_string();
+-            // Print the program ID and edition.
+-            match id == "credits.aleo" {
+-                true => println!("  - {id} (already included)"),
+-                false => println!("  - {id} (edition: {edition})"),
+-            }
++            print_program_source(&program.id().to_string(), edition);
++            let edition = edition.unwrap_or(LOCAL_PROGRAM_DEFAULT_EDITION);
+             (program, edition)
+         })
+         .collect::<Vec<_>>();
+diff --git a/leo/cli/commands/synthesize.rs b/leo/cli/commands/synthesize.rs
+index 9c258955b4..0a90282f63 100644
+--- a/leo/cli/commands/synthesize.rs
++++ b/leo/cli/commands/synthesize.rs
+@@ -211,19 +211,8 @@ fn handle_synthesize<A: Aleo>(
+     let programs_and_editions = programs
+         .into_iter()
+         .map(|(program, edition)| {
+-            // Note: We default to edition 1 since snarkVM execute may produce spurious errors if the program does not have a constructor but uses edition 0.
+-            let is_default = edition.is_none();
+-            let edition = edition.unwrap_or(1);
+-            // Get the program ID.
+-            let id = program.id().to_string();
+-            // Print the program ID and edition.
+-            match id == "credits.aleo" {
+-                true => println!("  - {id} (already included)"),
+-                false => match is_default {
+-                    true => println!(" - {id} (defaulting to edition {edition})"),
+-                    false => println!("  - {id} (edition: {edition})"),
+-                },
+-            }
++            print_program_source(&program.id().to_string(), edition);
++            let edition = edition.unwrap_or(LOCAL_PROGRAM_DEFAULT_EDITION);
+             (program, edition)
+         })
+         .collect::<Vec<_>>();
+diff --git a/leo/cli/commands/upgrade.rs b/leo/cli/commands/upgrade.rs
+index 387c42f664..d30d890ee3 100644
+--- a/leo/cli/commands/upgrade.rs
++++ b/leo/cli/commands/upgrade.rs
+@@ -262,10 +262,15 @@ fn handle_upgrade<N: Network>(
+             let bytecode = Program::<N>::from_str(&bytecode)
+                 .map_err(|e| CliError::custom(format!("Failed to parse program: {e}")))?;
+             // Return the bytecode and edition.
+-            // Note: We default to edition 1 since snarkVM execute may produce spurious errors if the program does not have a constructor but uses edition 0.
+-            Ok((bytecode, program.edition.unwrap_or(1)))
++            // Program::fetch should always set the edition after a successful fetch.
++            let edition = program.edition.expect("Edition should be set after successful fetch");
++            Ok((bytecode, edition))
+         })
+         .collect::<Result<Vec<_>>>()?;
++
++    // Check for programs that violate edition/constructor requirements.
++    check_edition_constructor_requirements(&programs_and_editions, consensus_version, "upgrade")?;
++
+     vm.process().write().add_programs_with_editions(&programs_and_editions)?;
+ 
+     // Print the programs and their editions in the VM.
+diff --git a/leo/package/src/lib.rs b/leo/package/src/lib.rs
+index 6974ad272a..88046dcf90 100644
+--- a/leo/package/src/lib.rs
++++ b/leo/package/src/lib.rs
+@@ -103,6 +103,10 @@ pub const TESTS_DIRECTORY: &str = "tests";
+ /// Maximum allowed program size in bytes.
+ pub const MAX_PROGRAM_SIZE: usize = <snarkvm::prelude::TestnetV0 as snarkvm::prelude::Network>::MAX_PROGRAM_SIZE;
+ 
++/// The edition of a deployed program on the Aleo network.
++/// Edition 0 is the initial deployment, and increments with each upgrade.
++pub type Edition = u16;
++
+ fn symbol(name: &str) -> Result<Symbol> {
+     name.strip_suffix(".aleo").map(Symbol::intern).ok_or_else(|| PackageError::invalid_network_name(name).into())
+ }
+@@ -202,6 +206,21 @@ pub fn fetch_program_from_network(name: &str, endpoint: &str, network: NetworkNa
+     Ok(program)
+ }
+ 
++/// Fetch the latest edition of a program from the network.
++///
++/// Returns the actual latest edition number for the given program.
++/// This should be used instead of defaulting to arbitrary edition numbers.
++pub fn fetch_latest_edition(name: &str, endpoint: &str, network: NetworkName) -> Result<Edition, UtilError> {
++    // Strip the .aleo suffix if present for the URL.
++    let name_without_suffix = name.strip_suffix(".aleo").unwrap_or(name);
++
++    let url = format!("{endpoint}/{network}/program/{name_without_suffix}.aleo/latest_edition");
++    let contents = fetch_from_network(&url)?;
++    contents
++        .parse::<u16>()
++        .map_err(|e| UtilError::failed_to_retrieve_from_endpoint(url, format!("Failed to parse edition as u16: {e}")))
++}
++
+ // Verify that a fetched program is valid aleo instructions.
+ pub fn verify_valid_program(name: &str, program: &str) -> Result<(), UtilError> {
+     use snarkvm::prelude::{Program, TestnetV0};
+diff --git a/leo/package/src/program.rs b/leo/package/src/program.rs
+index 5ffe61e96d..a6c6d97a86 100644
+--- a/leo/package/src/program.rs
++++ b/leo/package/src/program.rs
+@@ -24,6 +24,26 @@ use snarkvm::prelude::{Program as SvmProgram, TestnetV0};
+ use indexmap::{IndexMap, IndexSet};
+ use std::path::Path;
+ 
++/// Find the latest cached edition for a program in the local registry.
++/// Returns None if no cached version exists.
++fn find_cached_edition(cache_directory: &Path, name: &str) -> Option<u16> {
++    let program_cache = cache_directory.join(name);
++    if !program_cache.exists() {
++        return None;
++    }
++
++    // List edition directories and find the highest one
++    std::fs::read_dir(&program_cache)
++        .ok()?
++        .filter_map(|entry| entry.ok())
++        .filter_map(|entry| {
++            let file_name = entry.file_name();
++            let name = file_name.to_str()?;
++            name.parse::<u16>().ok()
++        })
++        .max()
++}
++
+ /// Information about an Aleo program.
+ #[derive(Clone, Debug)]
+ pub struct Program {
+@@ -163,34 +183,23 @@ impl Program {
+         // It's not a local program; let's check the cache.
+         let cache_directory = home_path.join(format!("registry/{network}"));
+ 
+-        // If the edition is not specified, then query the network for the latest edition.
++        // If the edition is not specified, try to find a cached version first,
++        // then fall back to querying the network for the latest edition.
+         let edition = match edition {
+-            _ if name == Symbol::intern("credits") => Ok(0), // Credits program always has edition 0.
+-            Some(edition) => Ok(edition),
+-            None => {
+-                if name == Symbol::intern("credits") {
+-                    // credits.aleo is always edition 0 and fetching from the network won't work.
+-                    Ok(0)
+-                } else {
+-                    let url = format!("{endpoint}/{network}/program/{name}.aleo/latest_edition");
+-                    fetch_from_network(&url).and_then(|contents| {
+-                        contents.parse::<u16>().map_err(|e| {
+-                            UtilError::failed_to_retrieve_from_endpoint(
+-                                url,
+-                                format!("Failed to parse edition as u16: {e}"),
+-                            )
+-                        })
+-                    })
++            // Credits program always has edition 0.
++            _ if name == Symbol::intern("credits") => 0,
++            Some(edition) => edition,
++            None if !no_cache => {
++                // Check if we have a cached version - avoid network call if possible.
++                match find_cached_edition(&cache_directory, &name.to_string()) {
++                    Some(cached_edition) => cached_edition,
++                    None => crate::fetch_latest_edition(&name.to_string(), endpoint, network)?,
+                 }
+             }
++            // no_cache is set - user wants fresh data from network.
++            None => crate::fetch_latest_edition(&name.to_string(), endpoint, network)?,
+         };
+ 
+-        // If we failed to get the edition, default to 0.
+-        let edition = edition.unwrap_or_else(|err| {
+-            println!("Warning: Could not fetch edition for program `{name}`: {err}. Defaulting to edition 0.");
+-            0
+-        });
+-
+         // Define the full cache path for the program.
+         let cache_directory = cache_directory.join(format!("{name}/{edition}"));
+         let full_cache_path = cache_directory.join(format!("{name}.aleo"));
+diff --git a/tests/expectations/cli/network_dependency/STDOUT b/tests/expectations/cli/network_dependency/STDOUT
+index 810b131875..a433bc1c48 100644
+--- a/tests/expectations/cli/network_dependency/STDOUT
++++ b/tests/expectations/cli/network_dependency/STDOUT
+@@ -183,7 +183,7 @@ Attempting to determine the consensus version from the latest block height at ht
+ 
+ ➕Adding programs to the VM in the following order:
+   - test_program1.aleo (edition: 0)
+-  - test_program2.aleo (edition: 1)
++  - test_program2.aleo (local)
+ 
+ ⚙️ Executing test_program2.aleo/main...
+ 
+diff --git a/tests/expectations/cli/test_add/STDOUT b/tests/expectations/cli/test_add/STDOUT
+index deedc0b285..754c3286c9 100644
+--- a/tests/expectations/cli/test_add/STDOUT
++++ b/tests/expectations/cli/test_add/STDOUT
+@@ -46,7 +46,7 @@ Attempting to determine the consensus version from the latest block height at ht
+ 
+ ➕Adding programs to the VM in the following order:
+   - credits.aleo (already included)
+-  - some_sample_leo_program.aleo (edition: 1)
++  - some_sample_leo_program.aleo (local)
+ 
+ ⚙️ Executing some_sample_leo_program.aleo/main...
+ 
+@@ -105,7 +105,7 @@ Attempting to determine the consensus version from the latest block height at ht
+ 
+ ➕Adding programs to the VM in the following order:
+   - credits.aleo (already included)
+-  - some_sample_leo_program.aleo (edition: 1)
++  - some_sample_leo_program.aleo (local)
+ 
+ ⚙️ Executing some_sample_leo_program.aleo/main...
+ 
+diff --git a/tests/expectations/cli/test_command_shortcuts/STDOUT b/tests/expectations/cli/test_command_shortcuts/STDOUT
+index 5ae7901a04..bc06633e69 100644
+--- a/tests/expectations/cli/test_command_shortcuts/STDOUT
++++ b/tests/expectations/cli/test_command_shortcuts/STDOUT
+@@ -16,7 +16,7 @@
+ ⚠️ No valid private key specified, defaulting to 'APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH'.
+ 
+ ➕Adding programs to the VM in the following order:
+-  - test_shortcuts.aleo (edition: 1)
++  - test_shortcuts.aleo (local)
+ 
+ ➡️  Output
+ 

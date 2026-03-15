@@ -85,8 +85,10 @@ async def _eval_api_tool(
     run_state: RunState,
     checkpoint_path: Path,
     dry_run: bool,
+    fail_after: int = 5,
 ) -> None:
     """Evaluate all cases against one API tool, sequentially."""
+    consecutive_failures = 0
     for case in cases:
         existing = run_state.get(case.id, tool.name)
         if existing.status == CaseToolStatus.done:
@@ -108,6 +110,10 @@ async def _eval_api_tool(
             run_state.set(state)
             run_state.save(checkpoint_path)
             click.echo(f"[failed] {case.id} x {tool.name}: patch not found")
+            consecutive_failures += 1
+            if fail_after > 0 and consecutive_failures >= fail_after:
+                click.echo(f"[abort] {tool.name}: {fail_after} consecutive failures, aborting")
+                break
             continue
         click.echo(f"[start] {case.id} x {tool.name}")
         final_state = await asyncio.to_thread(
@@ -122,6 +128,14 @@ async def _eval_api_tool(
         run_state.set(final_state)
         run_state.save(checkpoint_path)
         click.echo(f"[{final_state.status}] {case.id} x {tool.name}")
+
+        if final_state.status == CaseToolStatus.failed:
+            consecutive_failures += 1
+            if fail_after > 0 and consecutive_failures >= fail_after:
+                click.echo(f"[abort] {tool.name}: {fail_after} consecutive failures, aborting")
+                break
+        else:
+            consecutive_failures = 0
 
         if tool.cooldown_seconds > 0 and not dry_run:
             await asyncio.sleep(tool.cooldown_seconds)
@@ -165,6 +179,20 @@ async def _eval_api_tool(
     help="How much context to send to the API",
 )
 @click.option("--dry-run", is_flag=True, default=False, help="Simulate run without calling APIs")
+@click.option(
+    "--limit",
+    default=0,
+    show_default=True,
+    type=int,
+    help="Max cases to process per tool (0 = no limit)",
+)
+@click.option(
+    "--fail-after",
+    default=5,
+    show_default=True,
+    type=int,
+    help="Abort tool after N consecutive failures (0 = no limit)",
+)
 def run_api_eval(
     config_path: str,
     cases_dir: str,
@@ -173,6 +201,8 @@ def run_api_eval(
     tools_filter: str | None,
     context_level: str,
     dry_run: bool,
+    limit: int,
+    fail_after: int,
 ) -> None:
     """Async orchestrator: run API-mode evaluation across all (case × tool) pairs."""
     config: EvalConfig = load_eval_config(Path(config_path))
@@ -188,6 +218,9 @@ def run_api_eval(
     if not cases:
         click.echo(f"No cases found in {cases_dir}")
         return
+
+    if limit > 0:
+        cases = cases[:limit]
 
     api_tools = config.api_tools
     if tools_filter:
@@ -211,6 +244,7 @@ def run_api_eval(
                     run_state,
                     checkpoint_path,
                     dry_run,
+                    fail_after,
                 )
                 for tool in api_tools
             ]

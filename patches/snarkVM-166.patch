@@ -1,0 +1,1435 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 74141cb28..7313692a3 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1637,6 +1637,32 @@ dependencies = [
+  "thiserror",
+ ]
+ 
++[[package]]
++name = "snarkvm-circuits"
++version = "0.7.5"
++dependencies = [
++ "anyhow",
++ "blake2",
++ "criterion",
++ "derivative",
++ "digest",
++ "itertools",
++ "num-bigint",
++ "num-integer",
++ "num-traits",
++ "once_cell",
++ "paste",
++ "rand",
++ "rand_chacha",
++ "rand_xorshift",
++ "snarkvm-algorithms",
++ "snarkvm-curves",
++ "snarkvm-fields",
++ "snarkvm-r1cs",
++ "snarkvm-utilities",
++ "thiserror",
++]
++
+ [[package]]
+ name = "snarkvm-curves"
+ version = "0.7.5"
+diff --git a/Cargo.toml b/Cargo.toml
+index 0011646e8..11a19d5d9 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -20,6 +20,7 @@ edition = "2018"
+ [workspace]
+ members = [
+   "algorithms",
++  "circuits",
+   "curves",
+   "derives", # excluded from [features], for internal use primarily
+   "dpc",
+diff --git a/circuits/Cargo.toml b/circuits/Cargo.toml
+new file mode 100644
+index 000000000..9b7a49ed5
+--- /dev/null
++++ b/circuits/Cargo.toml
+@@ -0,0 +1,110 @@
++[package]
++name = "snarkvm-circuits"
++version = "0.7.5"
++authors = [ "The Aleo Team <hello@aleo.org>" ]
++description = "Circuits for a decentralized virtual machine"
++homepage = "https://aleo.org"
++repository = "https://github.com/AleoHQ/snarkVM"
++keywords = [
++    "aleo",
++    "cryptography",
++    "blockchain",
++    "decentralized",
++    "zero-knowledge"
++]
++categories = [ "cryptography::cryptocurrencies", "operating-systems" ]
++include = [ "Cargo.toml", "src", "README.md", "LICENSE.md" ]
++license = "GPL-3.0"
++edition = "2018"
++
++[dependencies.snarkvm-algorithms]
++path = "../algorithms"
++version = "0.7.5"
++default-features = false
++
++[dependencies.snarkvm-curves]
++path = "../curves"
++version = "0.7.5"
++default-features = false
++
++[dependencies.snarkvm-fields]
++path = "../fields"
++version = "0.7.5"
++default-features = false
++
++[dependencies.snarkvm-r1cs]
++path = "../r1cs"
++version = "0.7.5"
++default-features = false
++
++[dependencies.snarkvm-utilities]
++path = "../utilities"
++version = "0.7.5"
++default-features = false
++
++[dependencies.anyhow]
++version = "1.0.43"
++
++[dependencies.derivative]
++version = "2"
++
++[dependencies.digest]
++version = "0.9"
++
++[dependencies.itertools]
++version = "0.10.1"
++
++[dependencies.num-bigint]
++version = "0.4.2"
++default-features = false
++optional = true
++
++[dependencies.num-integer]
++version = "0.1.44"
++default-features = false
++optional = true
++
++[dependencies.num-traits]
++version = "0.2"
++default-features = false
++optional = true
++
++[dependencies.once_cell]
++version = "1.8.0"
++
++[dependencies.thiserror]
++version = "1.0"
++
++[dev-dependencies.blake2]
++version = "0.9"
++
++[dev-dependencies.criterion]
++version = "0.3"
++
++[dev-dependencies.paste]
++version = "1.0"
++
++[dev-dependencies.rand]
++version = "0.8"
++
++[dev-dependencies.rand_xorshift]
++version = "0.3"
++default-features = false
++
++[dev-dependencies.rand_chacha]
++version = "0.3"
++default-features = false
++
++[features]
++default = [
++    "full",
++    "snarkvm-algorithms/default",
++    "snarkvm-curves/default",
++    "snarkvm-fields/default",
++    "snarkvm-r1cs/default",
++    "snarkvm-utilities/default",
++]
++full = [ "algorithms", "curves", "nonnative" ]
++algorithms = [ ]
++curves = [ ]
++nonnative = [ "num-bigint", "num-integer", "num-traits" ]
+diff --git a/circuits/src/boolean/mod.rs b/circuits/src/boolean/mod.rs
+new file mode 100644
+index 000000000..f4a83630a
+--- /dev/null
++++ b/circuits/src/boolean/mod.rs
+@@ -0,0 +1,25 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use crate::{traits::*, Environment, LinearCombination, Mode, Variable};
++
++#[derive(Clone)]
++pub enum Boolean<E: Environment> {
++    Constant(bool),
++    Variable(LinearCombination<E::Field>),
++}
++
++impl<E: Environment> BooleanTrait for Boolean<E> {}
+diff --git a/circuits/src/field/add.rs b/circuits/src/field/add.rs
+new file mode 100644
+index 000000000..fbec92f86
+--- /dev/null
++++ b/circuits/src/field/add.rs
+@@ -0,0 +1,197 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use super::*;
++
++impl<E: Environment> Add<Self> for Field<E> {
++    type Output = Self;
++
++    fn add(self, other: Self) -> Self::Output {
++        self + &other
++    }
++}
++
++impl<E: Environment> Add<&Self> for Field<E> {
++    type Output = Self;
++
++    fn add(self, other: &Self) -> Self::Output {
++        Self(self.0 + other.0.clone())
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::CircuitBuilder;
++
++    const ITERATIONS: usize = 1_000;
++
++    #[test]
++    fn test_add() {
++        let one = <CircuitBuilder as Environment>::Field::one();
++
++        // Constant variables
++        {
++            let mut expected_sum = one;
++            let mut candidate_sum = Field::<CircuitBuilder>::one();
++
++            let scope = CircuitBuilder::span("Constant");
++
++            for i in 0..ITERATIONS {
++                expected_sum = expected_sum + &one;
++                candidate_sum = candidate_sum + Field::one();
++                assert_eq!(expected_sum, candidate_sum.to_value());
++
++                assert_eq!(i + 1, scope.num_constants_in_scope());
++                assert_eq!(0, scope.num_public_in_scope());
++                assert_eq!(0, scope.num_private_in_scope());
++                assert_eq!(0, scope.num_constraints_in_scope());
++            }
++        }
++
++        // Public variables
++        {
++            let mut expected_sum = one;
++            let mut candidate_sum = Field::<CircuitBuilder>::one();
++
++            let scope = CircuitBuilder::span("Public");
++
++            for i in 0..ITERATIONS {
++                expected_sum = expected_sum + &one;
++                candidate_sum = candidate_sum + Field::new(Mode::Public, one);
++                assert_eq!(expected_sum, candidate_sum.to_value());
++
++                assert_eq!(0, scope.num_constants_in_scope());
++                assert_eq!(i + 1, scope.num_public_in_scope());
++                assert_eq!(0, scope.num_private_in_scope());
++                assert_eq!(0, scope.num_constraints_in_scope());
++            }
++        }
++
++        // Private variables
++        {
++            let mut expected_sum = one;
++            let mut candidate_sum = Field::<CircuitBuilder>::one();
++
++            let scope = CircuitBuilder::span("Private");
++
++            for i in 0..ITERATIONS {
++                expected_sum = expected_sum + &one;
++                candidate_sum = candidate_sum + Field::new(Mode::Private, one);
++                assert_eq!(expected_sum, candidate_sum.to_value());
++
++                assert_eq!(0, scope.num_constants_in_scope());
++                assert_eq!(0, scope.num_public_in_scope());
++                assert_eq!(i + 1, scope.num_private_in_scope());
++                assert_eq!(0, scope.num_constraints_in_scope());
++            }
++        }
++
++        println!("{:?}", CircuitBuilder::print_circuit());
++    }
++
++    #[test]
++    fn test_0_plus_0() {
++        let zero = <CircuitBuilder as Environment>::Field::zero();
++
++        let candidate = Field::<CircuitBuilder>::zero() + Field::zero();
++        assert_eq!(zero, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::zero() + &Field::zero();
++        assert_eq!(zero, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::new(Mode::Public, zero) + Field::new(Mode::Public, zero);
++        assert_eq!(zero, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::new(Mode::Public, zero) + Field::new(Mode::Private, zero);
++        assert_eq!(zero, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::new(Mode::Private, zero) + Field::new(Mode::Private, zero);
++        assert_eq!(zero, candidate.to_value());
++    }
++
++    #[test]
++    fn test_0_plus_1() {
++        let zero = <CircuitBuilder as Environment>::Field::zero();
++        let one = <CircuitBuilder as Environment>::Field::one();
++
++        let candidate = Field::<CircuitBuilder>::zero() + Field::one();
++        assert_eq!(one, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::zero() + &Field::one();
++        assert_eq!(one, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::one() + Field::zero();
++        assert_eq!(one, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::one() + &Field::zero();
++        assert_eq!(one, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::new(Mode::Public, one) + Field::new(Mode::Public, zero);
++        assert_eq!(one, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::new(Mode::Public, one) + Field::new(Mode::Private, zero);
++        assert_eq!(one, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::new(Mode::Private, one) + Field::new(Mode::Private, zero);
++        assert_eq!(one, candidate.to_value());
++    }
++
++    #[test]
++    fn test_1_plus_1() {
++        let one = <CircuitBuilder as Environment>::Field::one();
++        let two = one + one;
++
++        let candidate = Field::<CircuitBuilder>::one() + Field::one();
++        assert_eq!(two, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::one() + &Field::one();
++        assert_eq!(two, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::new(Mode::Public, one) + Field::new(Mode::Public, one);
++        assert_eq!(two, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::new(Mode::Private, one) + Field::new(Mode::Public, one);
++        assert_eq!(two, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::new(Mode::Private, one) + Field::new(Mode::Private, one);
++        assert_eq!(two, candidate.to_value());
++    }
++
++    #[test]
++    fn test_1_plus_2() {
++        let one = <CircuitBuilder as Environment>::Field::one();
++        let two = one + one;
++        let three = two + one;
++
++        let candidate_two = Field::<CircuitBuilder>::one() + Field::one();
++        let candidate = candidate_two + Field::one();
++        assert_eq!(three, candidate.to_value());
++
++        let candidate_two = Field::<CircuitBuilder>::one() + &Field::one();
++        let candidate = candidate_two + &Field::one();
++        assert_eq!(three, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::new(Mode::Public, one) + Field::new(Mode::Public, two);
++        assert_eq!(three, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::new(Mode::Private, one) + Field::new(Mode::Public, two);
++        assert_eq!(three, candidate.to_value());
++
++        let candidate = Field::<CircuitBuilder>::new(Mode::Private, one) + Field::new(Mode::Private, two);
++        assert_eq!(three, candidate.to_value());
++    }
++}
+diff --git a/circuits/src/field/equal.rs b/circuits/src/field/equal.rs
+new file mode 100644
+index 000000000..f0df83cb9
+--- /dev/null
++++ b/circuits/src/field/equal.rs
+@@ -0,0 +1,218 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use super::*;
++
++impl<E: Environment> Equal for Field<E> {
++    type Boolean = Boolean<E>;
++    type Output = Result<Self::Boolean>;
++
++    #[named]
++    fn eq(&self, other: &Self) -> Self::Output {
++        match (self, other) {
++            (Field::Constant(a), Field::Constant(b)) => Ok(Boolean::constant(a == b)),
++            (Field::Constant(a), Field::Variable(b, cb)) => {
++                // let element = b.(&mut cb.borrow_mut().ns(|| function_name!()), &a)?;
++                // Ok(Fp::from((element, cb.clone())))
++                unimplemented!()
++            }
++            (Field::Variable(a, cb), Field::Constant(b)) => {
++                // let element = a.(&mut cb.borrow_mut().ns(|| function_name!()), &b)?;
++                // Ok(Fp::from((element, cb.clone())))
++                unimplemented!()
++            }
++            (Field::Variable(a, cb), Field::Variable(b, _)) => {
++                // Allocate the _negation_ of the expected output boolean value as a witness.
++                let witness = Boolean::alloc_private(function_name!(), (a != b, cb.clone()))?;
++                let witness_variable = match witness.to_gadget_unsafe() {
++                    Some(gadget) => gadget.lc(<CB::CS as ConstraintSystem<F>>::one(), F::one()),
++                    None => return Err(FieldError::ConstantShouldBeVariable),
++                };
++                let witness_not_variable = match (&witness).not().to_gadget_unsafe() {
++                    Some(gadget) => gadget.lc(<CB::CS as ConstraintSystem<F>>::one(), F::one()),
++                    None => return Err(FieldError::ConstantShouldBeVariable),
++                };
++
++                // If the witness is `true`, allocate the _inverse_ of (a - b).
++                // Else, allocate one.
++                let multiplier = Field::alloc_private(
++                    function_name!(),
++                    (
++                        match witness.to_value()? {
++                            true => match (self.to_value()? - &other.to_value()?).inverse() {
++                                Some(value) => value,
++                                _ => return Err(FieldError::MissingValue),
++                            },
++                            false => Field::<F, CB>::one().to_value()?,
++                        },
++                        cb.clone(),
++                    ),
++                )?;
++                let multiplier_variable = match multiplier.to_gadget_unsafe() {
++                    Some(gadget) => gadget.variable,
++                    None => return Err(FieldError::ConstantShouldBeVariable),
++                };
++                //
++                // Equality Enforcement
++                // --------------------------------------------------------------
++                // Check 1:  (a - b) * multiplier = witness
++                // Check 2:  (a - b) * not(witness) = 0
++                //
++                //
++                // Case 1: a == b AND witness == 0 (completeness)
++                // --------------------------------------------------------------
++                // Check 1:  (a - b) * 1 = 0
++                //                 a - b = 0
++                // => As a == b, the witness is correct.
++                //
++                // Check 2:  (a - b) * not(0) = 0
++                //                      a - b = 0
++                // => As a == b, the witness is correct.
++                //
++                // Remark: While the multiplier = 1 here, letting multiplier = n,
++                //         for n as any field element, also holds.
++                //
++                //
++                // Case 2: a == b AND witness == 1 (soundness)
++                // --------------------------------------------------------------
++                // Check 1:  (a - b) * 1 = 1
++                //                 a - b = 1
++                // => As a == b, the witness is incorrect.
++                //
++                // Remark: While the multiplier = 1 here, letting multiplier = n,
++                //         for n as any field element, also holds.
++                //
++                //
++                // Case 3a: a != b AND witness == 0 AND multiplier = 0 (soundness)
++                // ----------------------------------------------------------------
++                // Check 1:  (a - b) * 0 = 0
++                //                     0 = 0
++                // => We must rely on Check 2 to enforce correctness.
++                //
++                // Check 2:  (a - b) * not(0) = 0
++                //                      a - b = 0
++                // => As a != b, the witness is incorrect.
++                //
++                //
++                // Case 3b: a != b AND witness == 0 AND multiplier = 1 (soundness)
++                // -----------------------------------------------------------------
++                // Check 1:  (a - b) * 1 = 0
++                //                 a - b = 0
++                // => As a != b, the witness is incorrect.
++                //
++                // Remark: While the multiplier = 1 here, letting multiplier = n,
++                //         for n as any field element (n != 0), also holds.
++                //
++                //
++                // Case 4a: a != b AND witness == 1 AND multiplier = n [!= (a - b)^(-1)] (soundness)
++                // ---------------------------------------------------------------------------------
++                // Check 1:  (a - b) * n = 1
++                // => As n != (a - b)^(-1), the witness is incorrect.
++                //
++                //
++                // Case 4b: a != b AND witness == 1 AND multiplier = (a - b)^(-1) (completeness)
++                // ---------------------------------------------------------------------------------
++                // Check 1:  (a - b) * (a - b)^(-1) = 1
++                //                                1 = 1
++                // => The witness is trivially correct.
++                //
++                // Check 2:  (a - b) * not(1) = 0
++                //                          0 = 0
++                // => The witness is trivially correct.
++                //
++                cb.borrow_mut().enforce(
++                    || function_name!(),
++                    |lc| (&a.variable - &b.variable) + lc,
++                    |lc| multiplier_variable + lc,
++                    |lc| witness_variable + lc,
++                );
++                cb.borrow_mut().enforce(
++                    || function_name!(),
++                    |lc| (&a.variable - &b.variable) + lc,
++                    |lc| witness_not_variable + lc,
++                    |lc| lc,
++                );
++                Ok(witness.not())
++            }
++        }
++    }
++}
++
++#[cfg(test)]
++mod constant {
++    use super::*;
++
++    #[test]
++    fn test_0_equals_0() -> anyhow::Result<()> {
++        let candidate = CandidateField::zero().eq(&CandidateField::zero())?;
++        assert!(candidate.to_value()?);
++
++        Ok(())
++    }
++
++    #[test]
++    fn test_1_equals_1() -> anyhow::Result<()> {
++        let candidate = CandidateField::one().eq(&CandidateField::one())?;
++        assert!(candidate.to_value()?);
++
++        Ok(())
++    }
++
++    #[test]
++    fn test_0_equals_1() -> anyhow::Result<()> {
++        let candidate = CandidateField::zero().eq(&CandidateField::one())?;
++        assert!(!candidate.to_value()?);
++
++        Ok(())
++    }
++
++    #[test]
++    fn test_1_equals_0() -> anyhow::Result<()> {
++        let candidate = CandidateField::one().eq(&CandidateField::zero())?;
++        assert!(!candidate.to_value()?);
++
++        Ok(())
++    }
++}
++
++#[cfg(test)]
++mod variable {
++    use super::*;
++
++    #[test]
++    #[named]
++    fn test_0_equals_0() -> anyhow::Result<()> {
++        let zero = Fr::zero();
++        let cb = TestCircuitBuilder(Rc::new(RefCell::new(crate::cs::TestConstraintSystem::<Fr>::new())));
++
++        let public = CandidateField::alloc_public(function_name!(), (zero, cb.clone()))?;
++        let private = CandidateField::alloc_private(function_name!(), (zero, cb.clone()))?;
++
++        let candidate = public.eq(&public)?;
++        assert!(candidate.to_value()?);
++
++        let candidate = public.eq(&private)?;
++        assert!(candidate.to_value()?);
++
++        let candidate = private.eq(&public)?;
++        assert!(candidate.to_value()?);
++
++        let candidate = private.eq(&private)?;
++        assert!(candidate.to_value()?);
++
++        Ok(())
++    }
++}
+diff --git a/circuits/src/field/mod.rs b/circuits/src/field/mod.rs
+new file mode 100644
+index 000000000..93ed08ebf
+--- /dev/null
++++ b/circuits/src/field/mod.rs
+@@ -0,0 +1,42 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++pub mod add;
++pub mod one;
++pub mod zero;
++
++use crate::{boolean::Boolean, traits::*, Environment, LinearCombination, Mode, Variable};
++// use snarkvm_fields::Field as F;
++use snarkvm_fields::{One as O, Zero as Z};
++
++use anyhow::Result;
++use std::ops::{Add, Div, Mul, Neg, Sub};
++
++pub struct Field<E: Environment>(LinearCombination<E::Field>);
++
++impl<E: Environment> Field<E> {
++    pub fn new(mode: Mode, value: E::Field) -> Self {
++        match mode {
++            Mode::Constant => Self(E::new_constant(value).into()),
++            Mode::Public => Self(E::new_public(value).into()),
++            Mode::Private => Self(E::new_private(value).into()),
++        }
++    }
++
++    pub fn to_value(&self) -> E::Field {
++        self.0.to_value()
++    }
++}
+diff --git a/circuits/src/field/one.rs b/circuits/src/field/one.rs
+new file mode 100644
+index 000000000..392821f35
+--- /dev/null
++++ b/circuits/src/field/one.rs
+@@ -0,0 +1,61 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use super::*;
++
++impl<E: Environment> One for Field<E> {
++    type Boolean = Boolean<E>;
++    type Output = Result<Self::Boolean>;
++
++    fn one() -> Self {
++        Field::new(Mode::Constant, E::Field::one())
++    }
++
++    fn is_one(&self) -> Self::Output {
++        unimplemented!()
++
++        // Ok(self.eq(&Self::one())?)
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::CircuitBuilder;
++
++    #[test]
++    fn test_one() {
++        let one = <CircuitBuilder as Environment>::Field::one();
++
++        let candidate = Field::<CircuitBuilder>::one();
++        assert_eq!(one, candidate.to_value());
++    }
++
++    // #[test]
++    // fn test_is_one() -> anyhow::Result<()> {
++    //     let candidate = CandidateField::one();
++    //
++    //     // Should equal 1
++    //     let candidate_boolean = candidate.is_one()?;
++    //     assert_eq!(true, candidate_boolean.to_value()?);
++    //
++    //     // Should not equal 0
++    //     let candidate_boolean = candidate.is_zero()?;
++    //     assert_eq!(false, candidate_boolean.to_value()?);
++    //
++    //     Ok(())
++    // }
++}
+diff --git a/circuits/src/field/zero.rs b/circuits/src/field/zero.rs
+new file mode 100644
+index 000000000..1fafb3941
+--- /dev/null
++++ b/circuits/src/field/zero.rs
+@@ -0,0 +1,60 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use super::*;
++
++impl<E: Environment> Zero for Field<E> {
++    type Boolean = Boolean<E>;
++    type Output = Result<Self::Boolean>;
++
++    fn zero() -> Self {
++        Field::new(Mode::Constant, E::Field::zero())
++    }
++
++    fn is_zero(&self) -> Self::Output {
++        unimplemented!()
++        // Ok(self.eq(&Self::zero())?)
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::CircuitBuilder;
++
++    #[test]
++    fn test_zero() {
++        let zero = <CircuitBuilder as Environment>::Field::zero();
++
++        let candidate = Field::<CircuitBuilder>::zero();
++        assert_eq!(zero, candidate.to_value());
++    }
++
++    // #[test]
++    // fn test_is_zero() -> anyhow::Result<()> {
++    //     let candidate = CandidateField::zero();
++    //
++    //     // Should equal 0
++    //     let candidate_boolean = candidate.is_zero()?;
++    //     assert_eq!(true, candidate_boolean.to_value()?);
++    //
++    //     // Should not equal 1
++    //     let candidate_boolean = candidate.is_one()?;
++    //     assert_eq!(false, candidate_boolean.to_value()?);
++    //
++    //     Ok(())
++    // }
++}
+diff --git a/circuits/src/lib.rs b/circuits/src/lib.rs
+new file mode 100644
+index 000000000..09764f311
+--- /dev/null
++++ b/circuits/src/lib.rs
+@@ -0,0 +1,537 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++pub mod boolean;
++pub mod field;
++pub mod traits;
++
++use snarkvm_curves::bls12_377::Fr;
++use snarkvm_fields::PrimeField;
++
++use once_cell::unsync::OnceCell;
++use std::{
++    cell::{Ref, RefCell},
++    rc::Rc,
++};
++
++pub trait Environment {
++    type Field: PrimeField + Copy;
++
++    fn span(name: &str) -> CircuitSpan<Self>;
++
++    // fn scoped<'a, EE, F>(name: &str, logic: F)
++    // where
++    //     EE: 'a + Environment,
++    //     F: FnOnce(CircuitScope<'a, EE>) -> ();
++
++    // fn scope<E, F>(name: &str, logic: F)
++    // where
++    //     E: Environment<Field = Fr>,
++    //     F: FnOnce(E) -> ();
++
++    fn one() -> Variable<Self::Field>;
++
++    fn new_constant(value: Self::Field) -> Variable<Self::Field>;
++    fn new_public(value: Self::Field) -> Variable<Self::Field>;
++    fn new_private(value: Self::Field) -> Variable<Self::Field>;
++
++    fn num_constants() -> usize;
++    fn num_public() -> usize;
++    fn num_private() -> usize;
++    fn num_constraints() -> usize;
++}
++
++thread_local! {
++    static CB: OnceCell<RefCell<CircuitBuilder>> = OnceCell::new();
++}
++
++pub type Scope = String;
++
++#[derive(Clone)]
++pub struct CircuitBuilder(CircuitSpan<CircuitBuilder>);
++
++impl CircuitBuilder {
++    fn cs() -> CircuitSpan<Self> {
++        CB.with(|cb| {
++            cb.get_or_init(|| {
++                let circuit = Rc::new(RefCell::new(Circuit::new()));
++                let builder = CircuitBuilder(CircuitSpan::<Self>::new(
++                    circuit,
++                    format!("ConstraintSystem::new"),
++                    None,
++                ));
++                RefCell::new(builder)
++            })
++            .borrow()
++            .0
++            .clone()
++        })
++    }
++
++    pub fn print_circuit() {
++        println!("{:?}", Self::cs().circuit.borrow());
++    }
++}
++
++impl Environment for CircuitBuilder {
++    type Field = Fr;
++
++    // fn span(name: &str) -> CircuitSpan<Self> {
++    //     CB.with(|cb| {
++    //         let builder = cb.get().unwrap().borrow().0.clone().scope(name);
++    //         (*cb.get().unwrap().borrow_mut()).0 = builder;
++    //     })
++    // }
++
++    fn span(name: &str) -> CircuitSpan<Self> {
++        CB.with(|cb| {
++            let span = cb.get().unwrap().borrow().0.clone().scope(name);
++            (*cb.get().unwrap().borrow_mut()).0 = span.clone();
++            span
++        })
++    }
++
++    // fn span(name: &str) -> CircuitSpan<Self> {
++    //     Self::cs().scope(name)
++    // }
++
++    // fn scope(name: &str) -> CircuitSpan<Self> {
++    //     // CB.with(|cb| {
++    //     //     let cb = cb.get_mut().unwrap();
++    //     //     let new_scope = cb.0.scope(name);
++    //     //     cb.0 = new_scope;
++    //     //     cb.0.clone()
++    //     // })
++    //
++    //     Self::cs().scope(name)
++    // }
++
++    // fn scope<E, F>(name: &str, logic: F)
++    // where
++    //     E: Environment<Field = Fr>,
++    //     F: FnOnce(E) -> (),
++    // {
++    //     CB.with(|cb| {
++    //         // let builder = cb.get().unwrap().borrow().0.clone();
++    //
++    //         let span = &cb.get().unwrap().borrow().0;
++    //         let circuit = span.circuit.clone();
++    //         let scope = span.scope.clone();
++    //
++    //         let span = CircuitSpan::<E>::new(circuit, scope, None);
++    //
++    //         logic(span.scope(name))
++    //     });
++    // }
++
++    fn one() -> Variable<Self::Field> {
++        Self::cs().one()
++    }
++
++    fn new_constant(value: Self::Field) -> Variable<Self::Field> {
++        Self::cs().new_constant(value)
++    }
++
++    fn new_public(value: Self::Field) -> Variable<Self::Field> {
++        Self::cs().new_public(value)
++    }
++
++    fn new_private(value: Self::Field) -> Variable<Self::Field> {
++        Self::cs().new_private(value)
++    }
++
++    fn num_constants() -> usize {
++        Self::cs().num_constants()
++    }
++
++    fn num_public() -> usize {
++        Self::cs().num_public()
++    }
++
++    fn num_private() -> usize {
++        Self::cs().num_private()
++    }
++
++    fn num_constraints() -> usize {
++        Self::cs().num_constraints()
++    }
++}
++
++// impl Drop for CircuitBuilder {
++//     /// Pops the scope.
++//     #[inline]
++//     fn drop(&mut self) {
++//         // CB.with(|cb| {
++//         //     if let Some(previous_scope) = &cb.get().unwrap().borrow().0 .2 {
++//         //         (*cb.get().unwrap().borrow_mut()).0 = (**previous_scope).clone();
++//         //     }
++//         // });
++//     }
++// }
++
++// impl Drop for CircuitBuilder {
++//     #[inline]
++//     fn drop(&mut self) {
++//         if let Some(scope) = &self.2 {
++//             *self = (**scope).clone();
++//         }
++//     }
++// }
++
++#[derive(Clone)]
++pub struct CircuitSpan<E: Environment + ?Sized> {
++    circuit: Rc<RefCell<Circuit<E::Field>>>,
++    scope: Scope,
++    previous: Option<Box<CircuitSpan<E>>>,
++}
++
++impl<E: Environment> CircuitSpan<E> {
++    fn new(circuit: Rc<RefCell<Circuit<E::Field>>>, scope: Scope, previous: Option<Box<CircuitSpan<E>>>) -> Self {
++        Self {
++            circuit,
++            scope,
++            previous,
++        }
++    }
++
++    fn scope(self, name: &str) -> Self {
++        Self {
++            circuit: self.circuit.clone(),
++            scope: format!("{}/{}", self.scope, name),
++            previous: Some(Box::new(self)),
++        }
++    }
++
++    fn one(&self) -> Variable<E::Field> {
++        self.circuit.borrow().one()
++    }
++
++    fn new_constant(&mut self, value: E::Field) -> Variable<E::Field> {
++        self.circuit.borrow_mut().new_constant(value, self.scope.clone())
++    }
++
++    fn new_public(&mut self, value: E::Field) -> Variable<E::Field> {
++        self.circuit.borrow_mut().new_public(value, self.scope.clone())
++    }
++
++    fn new_private(&mut self, value: E::Field) -> Variable<E::Field> {
++        self.circuit.borrow_mut().new_private(value, self.scope.clone())
++    }
++
++    fn num_constants(&self) -> usize {
++        self.circuit.borrow().num_constants()
++    }
++
++    fn num_public(&self) -> usize {
++        self.circuit.borrow().num_public()
++    }
++
++    fn num_private(&self) -> usize {
++        self.circuit.borrow().num_private()
++    }
++
++    fn num_constraints(&self) -> usize {
++        self.circuit.borrow().num_constraints()
++    }
++
++    fn num_constants_in_scope(&self) -> usize {
++        self.circuit.borrow().num_constants_in_scope(&self.scope)
++    }
++
++    fn num_public_in_scope(&self) -> usize {
++        self.circuit.borrow().num_public_in_scope(&self.scope)
++    }
++
++    fn num_private_in_scope(&self) -> usize {
++        self.circuit.borrow().num_private_in_scope(&self.scope)
++    }
++
++    fn num_constraints_in_scope(&self) -> usize {
++        self.circuit.borrow().num_constraints_in_scope(&self.scope)
++    }
++}
++
++// impl<E: Environment + ?Sized> Drop for CircuitSpan<E> {
++//     #[inline]
++//     fn drop(&mut self) {
++//         if let Some(span) = &self.previous {
++//             *self = (**span);
++//         }
++//     }
++// }
++
++pub enum Mode {
++    Constant,
++    Public,
++    Private,
++}
++
++pub type Index = u64;
++
++use std::ops::Add;
++
++use std::collections::{HashMap, HashSet};
++
++#[derive(Clone, Debug)]
++pub struct LinearCombination<F: PrimeField>(HashMap<Variable<F>, F>);
++
++impl<F: PrimeField> LinearCombination<F> {
++    fn to_value(&self) -> F {
++        let mut result = F::zero();
++
++        for (variable, coefficient) in self.0.iter() {
++            let value = match variable {
++                Variable::Constant(value) => value,
++                Variable::Public(_, value) => value,
++                Variable::Private(_, value) => value,
++            };
++
++            result += *value * coefficient;
++        }
++
++        result
++    }
++}
++
++impl<F: PrimeField> From<Variable<F>> for LinearCombination<F> {
++    fn from(variable: Variable<F>) -> Self {
++        Self([(variable, F::one())].iter().cloned().collect())
++    }
++}
++
++impl<F: PrimeField, const N: usize> From<[Variable<F>; N]> for LinearCombination<F> {
++    fn from(variables: [Variable<F>; N]) -> Self {
++        Self::from(&variables[..])
++    }
++}
++
++impl<F: PrimeField, const N: usize> From<&[Variable<F>; N]> for LinearCombination<F> {
++    fn from(variables: &[Variable<F>; N]) -> Self {
++        Self::from(&variables[..])
++    }
++}
++
++impl<F: PrimeField> From<Vec<Variable<F>>> for LinearCombination<F> {
++    fn from(variables: Vec<Variable<F>>) -> Self {
++        Self::from(variables.as_slice())
++    }
++}
++
++impl<F: PrimeField> From<&Vec<Variable<F>>> for LinearCombination<F> {
++    fn from(variables: &Vec<Variable<F>>) -> Self {
++        Self::from(variables.as_slice())
++    }
++}
++
++impl<F: PrimeField> From<&[Variable<F>]> for LinearCombination<F> {
++    fn from(variables: &[Variable<F>]) -> Self {
++        let mut combination = HashMap::with_capacity(variables.len());
++        for variable in variables {
++            match combination.get_mut(variable) {
++                Some(coefficient) => *coefficient += F::one(),
++                None => {
++                    combination.insert(*variable, F::one());
++                }
++            }
++        }
++        Self(combination)
++    }
++}
++
++impl<F: PrimeField> Add<LinearCombination<F>> for LinearCombination<F> {
++    type Output = Self;
++
++    fn add(self, other: Self) -> Self::Output {
++        let mut combination = self.0;
++        for (variable, other_coefficient) in other.0.iter() {
++            match combination.get_mut(variable) {
++                Some(coefficient) => *coefficient += *other_coefficient,
++                None => {
++                    combination.insert(*variable, *other_coefficient);
++                }
++            }
++        }
++        Self(combination)
++    }
++}
++
++#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
++pub enum Variable<F: PrimeField> {
++    Constant(F),
++    Public(Index, F),
++    Private(Index, F),
++}
++
++impl<F: PrimeField> Add<Self> for Variable<F> {
++    type Output = LinearCombination<F>;
++
++    fn add(self, other: Self) -> Self::Output {
++        match (self, other) {
++            (Self::Constant(a), Self::Constant(b)) => Self::Constant(a + b).into(),
++            (first, second) => LinearCombination::from([first, second]),
++        }
++    }
++}
++
++#[derive(Debug, Default)]
++pub struct CircuitCounter {
++    constants: HashMap<Scope, usize>,
++    public: HashMap<Scope, usize>,
++    private: HashMap<Scope, usize>,
++    constraints: HashMap<Scope, usize>,
++}
++
++impl CircuitCounter {
++    fn increment_constant(&mut self, scope: &Scope) {
++        match self.constants.get_mut(scope) {
++            Some(counter) => *counter += 1,
++            None => assert!(self.constants.insert(scope.clone(), 1).is_none()),
++        }
++    }
++
++    fn increment_public(&mut self, scope: &Scope) {
++        match self.public.get_mut(scope) {
++            Some(counter) => *counter += 1,
++            None => assert!(self.public.insert(scope.clone(), 1).is_none()),
++        }
++    }
++
++    fn increment_private(&mut self, scope: &Scope) {
++        match self.private.get_mut(scope) {
++            Some(counter) => *counter += 1,
++            None => assert!(self.private.insert(scope.clone(), 1).is_none()),
++        }
++    }
++
++    fn increment_constraints(&mut self, scope: &Scope) {
++        match self.constraints.get_mut(scope) {
++            Some(counter) => *counter += 1,
++            None => assert!(self.constraints.insert(scope.clone(), 1).is_none()),
++        }
++    }
++
++    fn num_constants_in_scope(&self, scope: &Scope) -> usize {
++        match self.constants.get(scope) {
++            Some(counter) => *counter,
++            None => 0,
++        }
++    }
++
++    fn num_public_in_scope(&self, scope: &Scope) -> usize {
++        match self.public.get(scope) {
++            Some(counter) => *counter,
++            None => 0,
++        }
++    }
++
++    fn num_private_in_scope(&self, scope: &Scope) -> usize {
++        match self.private.get(scope) {
++            Some(counter) => *counter,
++            None => 0,
++        }
++    }
++
++    fn num_constraints_in_scope(&self, scope: &Scope) -> usize {
++        match self.constraints.get(scope) {
++            Some(counter) => *counter,
++            None => 0,
++        }
++    }
++}
++
++#[derive(Debug)]
++pub struct Circuit<F: PrimeField> {
++    constants: Vec<Variable<F>>,
++    public: Vec<Variable<F>>,
++    private: Vec<Variable<F>>,
++    constraints: HashMap<(LinearCombination<F>, LinearCombination<F>, LinearCombination<F>), Scope>,
++    transcript: HashMap<Variable<F>, Scope>,
++    counter: CircuitCounter,
++}
++
++impl<F: PrimeField> Circuit<F> {
++    fn new() -> Self {
++        Self {
++            constants: Default::default(),
++            public: vec![Variable::Public(0u64, F::one())],
++            private: Default::default(),
++            constraints: Default::default(),
++            transcript: Default::default(),
++            counter: Default::default(),
++        }
++    }
++
++    /// Return the "one" input variable.
++    pub fn one(&self) -> Variable<F> {
++        self.public[0]
++    }
++
++    pub(crate) fn new_constant(&mut self, value: F, scope: Scope) -> Variable<F> {
++        let variable = Variable::Constant(value);
++        self.constants.push(variable);
++        self.counter.increment_constant(&scope);
++        self.transcript.insert(variable, scope);
++        variable
++    }
++
++    pub(crate) fn new_public(&mut self, value: F, scope: Scope) -> Variable<F> {
++        let variable = Variable::Public(self.public.len() as u64, value);
++        self.public.push(variable);
++        self.counter.increment_public(&scope);
++        self.transcript.insert(variable, scope);
++        variable
++    }
++
++    pub(crate) fn new_private(&mut self, value: F, scope: Scope) -> Variable<F> {
++        let variable = Variable::Private(self.private.len() as u64, value);
++        self.private.push(variable);
++        self.counter.increment_private(&scope);
++        self.transcript.insert(variable, scope);
++        variable
++    }
++
++    fn num_constants(&self) -> usize {
++        self.constants.len()
++    }
++
++    fn num_public(&self) -> usize {
++        self.public.len()
++    }
++
++    fn num_private(&self) -> usize {
++        self.private.len()
++    }
++
++    fn num_constraints(&self) -> usize {
++        self.constraints.len()
++    }
++
++    fn num_constants_in_scope(&self, scope: &Scope) -> usize {
++        self.counter.num_constants_in_scope(scope)
++    }
++
++    fn num_public_in_scope(&self, scope: &Scope) -> usize {
++        self.counter.num_public_in_scope(scope)
++    }
++
++    fn num_private_in_scope(&self, scope: &Scope) -> usize {
++        self.counter.num_private_in_scope(scope)
++    }
++
++    fn num_constraints_in_scope(&self, scope: &Scope) -> usize {
++        self.counter.num_constraints_in_scope(scope)
++    }
++}
+diff --git a/circuits/src/traits.rs b/circuits/src/traits.rs
+new file mode 100644
+index 000000000..7f107da66
+--- /dev/null
++++ b/circuits/src/traits.rs
+@@ -0,0 +1,53 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use std::ops::{Add, Div, Mul, Neg, Not, Sub};
++
++pub trait BooleanTrait {}
++// pub trait BooleanTrait: Sized + Clone + Not {}
++
++/// Representation of the zero value.
++pub trait Zero {
++    type Boolean: BooleanTrait;
++    type Output;
++
++    /// Returns a new zero constant.
++    fn zero() -> Self;
++
++    /// Returns `true` if `self` is zero.
++    fn is_zero(&self) -> Self::Output;
++}
++
++/// Representation of the one value.
++pub trait One {
++    type Boolean: BooleanTrait;
++    type Output;
++
++    /// Returns a new one constant.
++    fn one() -> Self;
++
++    /// Returns `true` if `self` is one.
++    fn is_one(&self) -> Self::Output;
++}
++
++/// Trait for equality comparisons.
++pub trait Equal<Rhs: ?Sized = Self> {
++    type Boolean: BooleanTrait;
++    type Output;
++
++    /// Returns `true` if `self` and `other` are equal.
++    fn eq(&self, other: &Rhs) -> Self::Output;
++}
+diff --git a/gadgets/src/algorithms/prf/tests.rs b/gadgets/src/algorithms/prf/tests.rs
+index e782b0b0e..bf2b890e1 100644
+--- a/gadgets/src/algorithms/prf/tests.rs
++++ b/gadgets/src/algorithms/prf/tests.rs
+@@ -193,6 +193,9 @@ mod poseidon {
+                 Ok(output)
+             })
+             .unwrap();
++
++        println!("alloc constraints: {}", cs.num_constraints());
++
+         let candidate_output_gadget = PoseidonPRFGadget::<Fr, 4, false>::check_evaluation_gadget(
+             &mut cs.ns(|| "evaluate"),
+             &seed_gadget,
+@@ -200,10 +203,14 @@ mod poseidon {
+         )
+         .unwrap();
+ 
++        println!("evaluation constraints: {}", cs.num_constraints());
++
+         candidate_output_gadget
+             .enforce_equal(&mut cs, &expected_output_gadget)
+             .unwrap();
+ 
++        println!("after checking equal constraints: {}", cs.num_constraints());
++
+         if !cs.is_satisfied() {
+             println!("which is unsatisfied: {:?}", cs.which_is_unsatisfied().unwrap());
+         }

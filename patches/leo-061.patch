@@ -1,0 +1,43 @@
+diff --git a/compiler/src/expression/expression.rs b/compiler/src/expression/expression.rs
+index 186fb0e0b8..49ace0ced9 100644
+--- a/compiler/src/expression/expression.rs
++++ b/compiler/src/expression/expression.rs
+@@ -138,7 +138,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+ 
+             // Boolean operations
+             Expression::Not(expression, span) => Ok(evaluate_not(
+-                self.enforce_expression(cs, file_scope, function_scope, expected_type, *expression)?,
++                self.enforce_operand(cs, file_scope, function_scope, expected_type, *expression, &span)?,
+                 span,
+             )?),
+             Expression::Or(left_right, span) => {
+diff --git a/compiler/tests/boolean/mod.rs b/compiler/tests/boolean/mod.rs
+index 8015cfd335..82eaeb8cf2 100644
+--- a/compiler/tests/boolean/mod.rs
++++ b/compiler/tests/boolean/mod.rs
+@@ -93,6 +93,14 @@ fn test_not_false() {
+     assert_satisfied(program);
+ }
+ 
++#[test]
++fn test_not_mutable() {
++    let bytes = include_bytes!("not_mutable.leo");
++    let program = parse_program(bytes).unwrap();
++
++    assert_satisfied(program);
++}
++
+ #[test]
+ fn test_not_u32() {
+     let bytes = include_bytes!("not_u32.leo");
+diff --git a/compiler/tests/boolean/not_mutable.leo b/compiler/tests/boolean/not_mutable.leo
+new file mode 100644
+index 0000000000..91a6e5ff37
+--- /dev/null
++++ b/compiler/tests/boolean/not_mutable.leo
+@@ -0,0 +1,4 @@
++function main () {
++    let mut b = false;
++    let a = !b;
++}
+\ No newline at end of file

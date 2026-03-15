@@ -1,0 +1,39 @@
+diff --git a/examples b/examples
+index e817c379b8..601a80730d 160000
+--- a/examples
++++ b/examples
+@@ -1 +1 @@
+-Subproject commit e817c379b8075a4a4f22c2bfc2b62463e7a3ee40
++Subproject commit 601a80730d180c370a91fb72a0af39c2e20645b1
+diff --git a/leo/package/src/package.rs b/leo/package/src/package.rs
+index 9f0a62327e..64623d21ff 100644
+--- a/leo/package/src/package.rs
++++ b/leo/package/src/package.rs
+@@ -430,11 +430,6 @@ fn main_template(name: &str) -> String {
+     format!(
+         r#"// The '{name}' program.
+ program {name}.aleo {{
+-    transition main(public a: u32, b: u32) -> u32 {{
+-        let c: u32 = a + b;
+-        return c;
+-    }}
+-    
+     // This is the constructor for the program.
+     // The constructor allows you to manage program upgrades.
+     // It is called when the program is deployed or upgraded.
+@@ -443,9 +438,14 @@ program {name}.aleo {{
+     //  - @admin(address="aleo1...")
+     //  - @checksum(mapping="credits.aleo/fixme", key="0field")
+     //  - @custom
+-    // For more information, please refer to the documentation: <TODO>.
++    // For more information, please refer to the documentation: `https://docs.leo-lang.org/guides/upgradability`
+     @noupgrade
+     async constructor() {{}}
++    
++    transition main(public a: u32, b: u32) -> u32 {{
++        let c: u32 = a + b;
++        return c;
++    }}
+ }}
+ "#
+     )

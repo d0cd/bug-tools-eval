@@ -14,15 +14,17 @@ from pydantic import ValidationError
 
 from bugeval.judge_models import JudgeScore
 from bugeval.models import TestCase
+from bugeval.pr_eval_models import default_scoring
 from bugeval.result_models import NormalizedResult
 from bugeval.run_pr_eval import load_cases
 
 
 def compute_catch_rate(scores: list[JudgeScore]) -> float:
-    """Fraction of cases scoring >= 2 (correct-id or better)."""
+    """Fraction of cases scoring >= catch_threshold (correct-id or better)."""
     if not scores:
         return 0.0
-    return sum(1 for s in scores if s.score >= 2) / len(scores)
+    scoring = default_scoring()
+    return sum(1 for s in scores if s.score >= scoring.catch_threshold) / len(scores)
 
 
 def compute_snr(scores: list[JudgeScore]) -> float:
@@ -38,9 +40,10 @@ def aggregate_scores(scores: list[JudgeScore]) -> dict[str, dict[str, Any]]:
     for s in scores:
         by_tool.setdefault(s.tool, []).append(s)
 
+    scoring = default_scoring()
     result = {}
     for tool, tool_scores in sorted(by_tool.items()):
-        dist = {i: sum(1 for s in tool_scores if s.score == i) for i in range(4)}
+        dist = {i: sum(1 for s in tool_scores if s.score == i) for i in scoring.scale}
         result[tool] = {
             "count": len(tool_scores),
             "catch_rate": compute_catch_rate(tool_scores),
@@ -54,8 +57,8 @@ def aggregate_scores(scores: list[JudgeScore]) -> dict[str, dict[str, Any]]:
 def generate_markdown(agg: dict[str, dict[str, Any]]) -> str:
     """Produce a markdown comparison table from aggregated scores."""
     lines = [
-        "| Tool | Cases | Catch Rate | Avg Score | Avg SNR |",
-        "|------|-------|-----------|-----------|---------|",
+        "| Tool | Cases | Detection Rate | Avg Score | Avg SNR |",
+        "|------|-------|--------------|-----------|---------|",
     ]
     for tool, metrics in agg.items():
         lines.append(
@@ -69,37 +72,26 @@ def generate_markdown(agg: dict[str, dict[str, Any]]) -> str:
 
 def generate_csv(agg: dict[str, dict[str, Any]], path: Path) -> None:
     """Write aggregated scores to CSV."""
+    scoring = default_scoring()
+    score_fields = [f"score_{i}" for i in scoring.scale]
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=[
-                "tool",
-                "count",
-                "catch_rate",
-                "avg_score",
-                "avg_snr",
-                "score_0",
-                "score_1",
-                "score_2",
-                "score_3",
-            ],
+            fieldnames=["tool", "count", "catch_rate", "avg_score", "avg_snr"] + score_fields,
         )
         writer.writeheader()
         for tool, m in agg.items():
             dist = m["score_dist"]
-            writer.writerow(
-                {
-                    "tool": tool,
-                    "count": m["count"],
-                    "catch_rate": round(m["catch_rate"], 4),
-                    "avg_score": round(m["avg_score"], 4),
-                    "avg_snr": round(m["avg_snr"], 4),
-                    "score_0": dist.get(0, 0),
-                    "score_1": dist.get(1, 0),
-                    "score_2": dist.get(2, 0),
-                    "score_3": dist.get(3, 0),
-                }
-            )
+            row: dict[str, Any] = {
+                "tool": tool,
+                "count": m["count"],
+                "catch_rate": round(m["catch_rate"], 4),
+                "avg_score": round(m["avg_score"], 4),
+                "avg_snr": round(m["avg_snr"], 4),
+            }
+            for i in scoring.scale:
+                row[f"score_{i}"] = dist.get(i, 0)
+            writer.writerow(row)
 
 
 def load_cases_lookup(cases_dir: Path) -> dict[str, TestCase]:
@@ -160,7 +152,8 @@ def compute_cost_per_tool(
     scores: list[JudgeScore],
     results: dict[tuple[str, str], NormalizedResult],
 ) -> dict[str, dict[str, float]]:
-    """Compute per-tool cost_per_review and cost_per_bug_caught."""
+    """Compute per-tool cost_per_review and cost_per_detection."""
+    scoring = default_scoring()
     by_tool: dict[str, list[JudgeScore]] = {}
     for s in scores:
         by_tool.setdefault(s.tool, []).append(s)
@@ -173,11 +166,11 @@ def compute_cost_per_tool(
             if (s.test_case_id, s.tool) in results
         )
         n = len(tool_scores)
-        bugs_caught = sum(1 for s in tool_scores if s.score >= 2)
+        detections = sum(1 for s in tool_scores if s.score >= scoring.catch_threshold)
         out[tool] = {
             "total_cost_usd": total_cost,
             "cost_per_review": total_cost / n if n > 0 else 0.0,
-            "cost_per_bug_caught": total_cost / bugs_caught if bugs_caught > 0 else 0.0,
+            "cost_per_detection": total_cost / detections if detections > 0 else 0.0,
         }
     return out
 
@@ -241,12 +234,14 @@ def generate_charts(agg: dict[str, dict[str, Any]], out_dir: Path) -> bool:
 
     tools = list(agg.keys())
 
+    scoring = default_scoring()
+
     # Catch rate bar chart
     catch_rates = [agg[t]["catch_rate"] for t in tools]
     fig, ax = plt.subplots()
     ax.bar(tools, catch_rates)
-    ax.set_ylabel("Catch Rate (score >= 2)")
-    ax.set_title("Bug Detection Rate by Tool")
+    ax.set_ylabel(f"Detection Rate (score >= {scoring.catch_threshold})")
+    ax.set_title("Detection Rate by Tool")
     ax.set_ylim(0, 1)
     plt.xticks(rotation=30, ha="right")
     plt.tight_layout()
@@ -254,18 +249,14 @@ def generate_charts(agg: dict[str, dict[str, Any]], out_dir: Path) -> bool:
     plt.close(fig)
 
     # Score distribution stacked bar
-    score_0 = [agg[t]["score_dist"].get(0, 0) for t in tools]
-    score_1 = [agg[t]["score_dist"].get(1, 0) for t in tools]
-    score_2 = [agg[t]["score_dist"].get(2, 0) for t in tools]
-    score_3 = [agg[t]["score_dist"].get(3, 0) for t in tools]
     fig, ax = plt.subplots()
     x = range(len(tools))
-    ax.bar(x, score_0, label="0 missed")
-    ax.bar(x, score_1, bottom=score_0, label="1 wrong-area")
-    bottom_2 = [a + b for a, b in zip(score_0, score_1)]
-    ax.bar(x, score_2, bottom=bottom_2, label="2 correct-id")
-    bottom_3 = [a + b for a, b in zip(bottom_2, score_2)]
-    ax.bar(x, score_3, bottom=bottom_3, label="3 correct+fix")
+    bottoms = [0] * len(tools)
+    for i in scoring.scale:
+        counts = [agg[t]["score_dist"].get(i, 0) for t in tools]
+        label = f"{i} {scoring.labels.get(i, str(i))}"
+        ax.bar(x, counts, bottom=bottoms, label=label)
+        bottoms = [b + c for b, c in zip(bottoms, counts)]
     ax.set_xticks(list(x))
     ax.set_xticklabels(tools, rotation=30, ha="right")
     ax.set_ylabel("Count")
@@ -276,6 +267,56 @@ def generate_charts(agg: dict[str, dict[str, Any]], out_dir: Path) -> bool:
     plt.close(fig)
 
     return True
+
+
+def generate_confidence_band_markdown(
+    scores: list[JudgeScore],
+    results: dict[tuple[str, str], NormalizedResult],
+) -> str:
+    """Produce a 'Score by Confidence Band' table.
+
+    Buckets cases by the max comment confidence into [0.5–0.7), [0.7–0.9), [0.9–1.0].
+    Cases with no confidence data are omitted.
+    Returns empty string if no confidence data is available.
+    """
+    bands: dict[str, list[JudgeScore]] = {
+        "[0.5-0.7)": [],
+        "[0.7-0.9)": [],
+        "[0.9-1.0]": [],
+    }
+
+    for s in scores:
+        r = results.get((s.test_case_id, s.tool))
+        if r is None:
+            continue
+        confidences = [c.confidence for c in r.comments if c.confidence is not None]
+        if not confidences:
+            continue
+        max_conf = max(confidences)
+        if max_conf < 0.7:
+            bands["[0.5-0.7)"].append(s)
+        elif max_conf < 0.9:
+            bands["[0.7-0.9)"].append(s)
+        else:
+            bands["[0.9-1.0]"].append(s)
+
+    if not any(bands.values()):
+        return ""
+
+    lines = [
+        "## Score by Confidence Band",
+        "",
+        "| Band | Cases | Catch Rate | Avg Score |",
+        "|------|-------|-----------|-----------|",
+    ]
+    for band, band_scores in bands.items():
+        if not band_scores:
+            lines.append(f"| {band} | 0 | — | — |")
+            continue
+        catch_rate = compute_catch_rate(band_scores)
+        avg_score = sum(s.score for s in band_scores) / len(band_scores)
+        lines.append(f"| {band} | {len(band_scores)} | {catch_rate:.1%} | {avg_score:.2f} |")
+    return "\n".join(lines)
 
 
 def generate_dx_markdown(results: dict[tuple[str, str], NormalizedResult]) -> str:
@@ -336,25 +377,38 @@ def run_analyze(run_dir: Path, cases_dir: Path, no_charts: bool = False) -> None
     if any(m["total_cost_usd"] > 0 for m in cost.values()):
         cost_lines = [
             "\n## Cost Metrics\n",
-            "| Tool | Total Cost | Per Review | Per Bug Caught |",
-            "|------|-----------|-----------|---------------|",
+            "| Tool | Total Cost | Per Review | Per Detection |",
+            "|------|-----------|-----------|--------------|",
         ]
         for tool, m in sorted(cost.items()):
             cost_lines.append(
                 f"| {tool} | ${m['total_cost_usd']:.4f} "
                 f"| ${m['cost_per_review']:.4f} "
-                f"| ${m['cost_per_bug_caught']:.4f} |"
+                f"| ${m['cost_per_detection']:.4f} |"
             )
         md_lines.append("\n".join(cost_lines))
 
     # Dimensional slices by TestCase fields
     if cases:
-        for dim in ("category", "difficulty", "severity", "pr_size", "language", "visibility"):
+        for dim in (
+            "category",
+            "difficulty",
+            "severity",
+            "pr_size",
+            "language",
+            "visibility",
+            "verified",
+        ):
             md_lines.append(generate_slice_markdown(scores, cases, dim))
 
     # Context-level slice
     if results:
         md_lines.append(generate_slice_markdown_context(scores, results))
+
+    # Confidence band analysis (only if any comment has confidence data)
+    conf_md = generate_confidence_band_markdown(scores, results)
+    if conf_md:
+        md_lines.append(conf_md)
 
     # DX assessment (only if any result has dx data)
     dx_md = generate_dx_markdown(results)

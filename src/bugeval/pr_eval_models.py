@@ -91,10 +91,10 @@ class ToolDef(BaseModel):
     name: str
     type: ToolType
     github_app: str | None = None
-    org: str | None = None
     cooldown_seconds: int = 30
     api_endpoint: str | None = None
     api_key_env: str | None = None
+    model: str | None = None
 
     @property
     def is_pr_tool(self) -> bool:
@@ -112,12 +112,75 @@ class ToolDef(BaseModel):
         return self.type == ToolType.agent
 
 
+class ScoringConfig(BaseModel):
+    """Scoring scale, labels, and catch threshold from config.yaml."""
+
+    scale: list[int] = Field(default_factory=lambda: [0, 1, 2, 3])
+    labels: dict[int, str] = Field(
+        default_factory=lambda: {
+            0: "missed",
+            1: "wrong-area",
+            2: "correct-id",
+            3: "correct-id-and-fix",
+        }
+    )
+    catch_threshold: int = 2
+
+
+def default_scoring() -> ScoringConfig:
+    """Return default ScoringConfig matching the 0–3 rubric."""
+    return ScoringConfig()
+
+
+class JudgingConfig(BaseModel):
+    """LLM judge parameters from config.yaml."""
+
+    llm_calls: int = 3
+    human_sample_rate: float = 0.25
+    calibration_threshold: float = 0.85
+    model: str = "claude-opus-4-6"
+
+
+def default_judging() -> JudgingConfig:
+    """Return default JudgingConfig."""
+    return JudgingConfig()
+
+
+class PricingConfig(BaseModel):
+    """Per-model token pricing (USD per million tokens)."""
+
+    rates: dict[str, tuple[float, float]] = Field(default_factory=dict)
+
+    def estimate_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
+        """Return estimated cost in USD given model and token counts."""
+        rate = self.rates.get(model, (0.0, 0.0))
+        return (input_tokens * rate[0] + output_tokens * rate[1]) / 1_000_000
+
+
+def default_pricing() -> PricingConfig:
+    """Return default PricingConfig matching config.yaml pricing section."""
+    return PricingConfig(
+        rates={
+            "claude-sonnet-4-6": (3.0, 15.0),
+            "claude-haiku-4-5": (0.80, 4.0),
+            "claude-opus-4-6": (15.0, 75.0),
+            "gemini-2.5-flash-lite": (0.0, 0.0),
+            "gemini-2.5-flash": (0.15, 0.60),
+            "gpt-4.1-mini": (0.40, 1.60),
+            "o4-mini": (1.10, 4.40),
+        }
+    )
+
+
 class EvalConfig(BaseModel):
     """Top-level evaluation configuration."""
 
     eval_org: str
     tools: list[ToolDef]
     repos: dict[str, str] = Field(default_factory=dict)
+    scoring: ScoringConfig = Field(default_factory=ScoringConfig)
+    judging: JudgingConfig = Field(default_factory=JudgingConfig)
+    pricing: PricingConfig = Field(default_factory=PricingConfig)
 
     @property
     def pr_tools(self) -> list[ToolDef]:
@@ -148,4 +211,20 @@ def load_eval_config(path: Path) -> EvalConfig:
 
     repos = data.get("repos") or {}
 
-    return EvalConfig(eval_org=eval_org, tools=tools, repos=repos)
+    raw_scoring = data.get("scoring")
+    scoring = ScoringConfig(**raw_scoring) if raw_scoring else ScoringConfig()
+
+    raw_judging = data.get("judging")
+    judging = JudgingConfig(**raw_judging) if raw_judging else JudgingConfig()
+
+    raw_pricing = data.get("pricing")
+    pricing = PricingConfig(rates=raw_pricing) if raw_pricing else PricingConfig()
+
+    return EvalConfig(
+        eval_org=eval_org,
+        tools=tools,
+        repos=repos,
+        scoring=scoring,
+        judging=judging,
+        pricing=pricing,
+    )

@@ -1,0 +1,527 @@
+diff --git a/compiler/compiler/src/test.rs b/compiler/compiler/src/test.rs
+index acc0e64e8c..ef50449b34 100644
+--- a/compiler/compiler/src/test.rs
++++ b/compiler/compiler/src/test.rs
+@@ -151,11 +151,11 @@ impl Emitter for BufferEmitter {
+         self.0.borrow_mut().push(LeoOrString::Leo(err));
+     }
+ 
+-    fn last_emited_err(&self) -> Option<LeoError> {
++    fn last_emitted_err_code(&self) -> Option<i32> {
+         let temp = &*self.0.borrow();
+         temp.last_entry().map(|entry| match entry {
+-            LeoOrString::Leo(err) => err.clone(),
+-            _ => unimplemented!(),
++            LeoOrString::Leo(err) => err.exit_code(),
++            _ => 0,
+         })
+     }
+ 
+diff --git a/compiler/passes/src/type_checker/check_expressions.rs b/compiler/passes/src/type_checker/check_expressions.rs
+index 1b6af6144c..1783d1ea59 100644
+--- a/compiler/passes/src/type_checker/check_expressions.rs
++++ b/compiler/passes/src/type_checker/check_expressions.rs
+@@ -58,7 +58,6 @@ impl<'a> TypeChecker<'a> {
+                     match type_ {
+                         IntegerType::I8 => {
+                             let int = if self.negate {
+-                                self.negate = false;
+                                 format!("-{str_content}")
+                             } else {
+                                 str_content.clone()
+@@ -71,7 +70,6 @@ impl<'a> TypeChecker<'a> {
+                         }
+                         IntegerType::I16 => {
+                             let int = if self.negate {
+-                                self.negate = false;
+                                 format!("-{str_content}")
+                             } else {
+                                 str_content.clone()
+@@ -84,7 +82,6 @@ impl<'a> TypeChecker<'a> {
+                         }
+                         IntegerType::I32 => {
+                             let int = if self.negate {
+-                                self.negate = false;
+                                 format!("-{str_content}")
+                             } else {
+                                 str_content.clone()
+@@ -97,7 +94,6 @@ impl<'a> TypeChecker<'a> {
+                         }
+                         IntegerType::I64 => {
+                             let int = if self.negate {
+-                                self.negate = false;
+                                 format!("-{str_content}")
+                             } else {
+                                 str_content.clone()
+@@ -110,7 +106,6 @@ impl<'a> TypeChecker<'a> {
+                         }
+                         IntegerType::I128 => {
+                             let int = if self.negate {
+-                                self.negate = false;
+                                 format!("-{str_content}")
+                             } else {
+                                 str_content.clone()
+@@ -121,7 +116,6 @@ impl<'a> TypeChecker<'a> {
+                                     .emit_err(TypeCheckerError::invalid_int_value(int, "i128", value.span()).into());
+                             }
+                         }
+-
+                         IntegerType::U8 if str_content.parse::<u8>().is_err() => self
+                             .handler
+                             .emit_err(TypeCheckerError::invalid_int_value(str_content, "u8", value.span()).into()),
+@@ -175,11 +169,21 @@ impl<'a> TypeChecker<'a> {
+ 
+                     // Allow `group` * `scalar` multiplication.
+                     match (t1.as_ref(), t2.as_ref()) {
+-                        (Some(Type::Group), Some(other)) | (Some(other), Some(Type::Group)) => {
++                        (Some(Type::Group), Some(other)) => {
++                            self.assert_type(Type::Group, expected, binary.left.span());
++                            self.assert_type(*other, Some(Type::Scalar), binary.span());
++                            Some(Type::Group)
++                        }
++                        (Some(other), Some(Type::Group)) => {
++                            self.assert_type(Type::Group, expected, binary.right.span());
+                             self.assert_type(*other, Some(Type::Scalar), binary.span());
+                             Some(Type::Group)
+                         }
+-                        _ => return_incorrect_type(t1, t2, expected),
++                        _ => {
++                            self.assert_type(t1.unwrap(), expected, binary.left.span());
++                            self.assert_type(t2.unwrap(), expected, binary.right.span());
++                            return_incorrect_type(t1, t2, expected)
++                        }
+                     }
+                 }
+                 BinaryOperation::Div => {
+@@ -230,23 +234,23 @@ impl<'a> TypeChecker<'a> {
+                     t1
+                 }
+                 BinaryOperation::Eq | BinaryOperation::Ne => {
+-                    self.assert_type(Type::Boolean, expected, binary.span());
+-
+                     let t1 = self.compare_expr_type(&binary.left, None, binary.left.span());
+                     let t2 = self.compare_expr_type(&binary.right, None, binary.right.span());
+ 
+-                    return_incorrect_type(t1, t2, expected)
++                    self.assert_eq_types(t1, t2, binary.span());
++
++                    Some(Type::Boolean)
+                 }
+                 BinaryOperation::Lt | BinaryOperation::Gt | BinaryOperation::Le | BinaryOperation::Ge => {
+-                    self.assert_type(Type::Boolean, expected, binary.span());
+-
+                     let t1 = self.compare_expr_type(&binary.left, None, binary.left.span());
+                     self.assert_field_scalar_int_type(t1, binary.left.span());
+ 
+                     let t2 = self.compare_expr_type(&binary.right, None, binary.right.span());
+                     self.assert_field_scalar_int_type(t2, binary.right.span());
+ 
+-                    return_incorrect_type(t1, t2, expected)
++                    self.assert_eq_types(t1, t2, binary.span());
++
++                    Some(Type::Boolean)
+                 }
+             },
+             Expression::Unary(unary) => match unary.op {
+@@ -255,7 +259,11 @@ impl<'a> TypeChecker<'a> {
+                     self.compare_expr_type(&unary.inner, expected, unary.inner.span())
+                 }
+                 UnaryOperation::Negate => {
+-                    match expected.as_ref() {
++                    let prior_negate_state = self.negate;
++                    self.negate = true;
++                    let type_ = self.compare_expr_type(&unary.inner, expected, unary.inner.span());
++                    self.negate = prior_negate_state;
++                    match type_.as_ref() {
+                         Some(
+                             Type::IntegerType(
+                                 IntegerType::I8
+@@ -266,13 +274,13 @@ impl<'a> TypeChecker<'a> {
+                             )
+                             | Type::Field
+                             | Type::Group,
+-                        ) => self.negate = !self.negate,
++                        ) => {}
+                         Some(t) => self
+                             .handler
+                             .emit_err(TypeCheckerError::type_is_not_negatable(t, unary.inner.span()).into()),
+                         _ => {}
+                     };
+-                    self.compare_expr_type(&unary.inner, expected, unary.inner.span())
++                    type_
+                 }
+             },
+             Expression::Ternary(ternary) => {
+diff --git a/compiler/passes/src/type_checker/checker.rs b/compiler/passes/src/type_checker/checker.rs
+index 976d43d7af..c72ad2695d 100644
+--- a/compiler/passes/src/type_checker/checker.rs
++++ b/compiler/passes/src/type_checker/checker.rs
+@@ -77,6 +77,19 @@ impl<'a> TypeChecker<'a> {
+         }
+     }
+ 
++    /// Emits an error if the two given types are not equal.
++    pub(crate) fn assert_eq_types(&self, t1: Option<Type>, t2: Option<Type>, span: Span) {
++        match (t1, t2) {
++            (Some(t1), Some(t2)) if t1 != t2 => self
++                .handler
++                .emit_err(TypeCheckerError::type_should_be(t1, t2, span).into()),
++            (Some(type_), None) | (None, Some(type_)) => self
++                .handler
++                .emit_err(TypeCheckerError::type_should_be("no type", type_, span).into()),
++            _ => {}
++        }
++    }
++
+     /// Returns the given type if it equals the expected type or the expected type is none.
+     pub(crate) fn assert_type(&self, type_: Type, expected: Option<Type>, span: Span) -> Type {
+         if let Some(expected) = expected {
+diff --git a/compiler/passes/src/type_checker/mod.rs b/compiler/passes/src/type_checker/mod.rs
+index 43d71a09f2..b16ea905b7 100644
+--- a/compiler/passes/src/type_checker/mod.rs
++++ b/compiler/passes/src/type_checker/mod.rs
+@@ -38,8 +38,6 @@ impl<'a> Pass<'a> for TypeChecker<'a> {
+     fn do_pass((ast, symbol_table, handler): Self::Input) -> Self::Output {
+         let mut visitor = VisitorDirector::new(TypeChecker::new(symbol_table, handler));
+         visitor.visit_program(ast.as_repr());
+-        // todo @gluax: awkward cause last error double prints...
+-        // but can't os exit or it causes tests to stop.
+         handler.last_err()?;
+ 
+         Ok(())
+diff --git a/docs/grammar/README.md b/docs/grammar/README.md
+new file mode 100644
+index 0000000000..fc72452f0b
+Binary files /dev/null and b/docs/grammar/README.md differ
+diff --git a/leo/errors/src/emitter/mod.rs b/leo/errors/src/emitter/mod.rs
+index 4be8c4300c..f08d959cbd 100644
+--- a/leo/errors/src/emitter/mod.rs
++++ b/leo/errors/src/emitter/mod.rs
+@@ -27,8 +27,8 @@ pub trait Emitter {
+     /// Emit the error `err`.
+     fn emit_err(&mut self, err: LeoError);
+ 
+-    /// Tracks last emmited error.
+-    fn last_emited_err(&self) -> Option<LeoError>;
++    /// Tracks last emitted error.
++    fn last_emitted_err_code(&self) -> Option<i32>;
+ 
+     /// Emit the warning.
+     fn emit_warning(&mut self, warning: LeoWarning);
+@@ -36,18 +36,18 @@ pub trait Emitter {
+ 
+ /// A trivial `Emitter` using the standard error.
+ pub struct StderrEmitter {
+-    /// The last emitted error.
+-    last_error: Option<LeoError>,
++    /// Exit code of the last emitted error.
++    last_error_code: Option<i32>,
+ }
+ 
+ impl Emitter for StderrEmitter {
+     fn emit_err(&mut self, err: LeoError) {
+-        self.last_error = Some(err.clone());
++        self.last_error_code = Some(err.exit_code());
+         eprintln!("{}", err);
+     }
+ 
+-    fn last_emited_err(&self) -> Option<LeoError> {
+-        self.last_error.clone()
++    fn last_emitted_err_code(&self) -> Option<i32> {
++        self.last_error_code
+     }
+ 
+     fn emit_warning(&mut self, warning: LeoWarning) {
+@@ -126,9 +126,9 @@ impl Emitter for BufferEmitter {
+         self.0.borrow_mut().push(err);
+     }
+ 
+-    fn last_emited_err(&self) -> Option<LeoError> {
++    fn last_emitted_err_code(&self) -> Option<i32> {
+         let temp = &*self.0.borrow();
+-        temp.last_entry().cloned()
++        temp.last_entry().map(|entry| entry.exit_code())
+     }
+ 
+     fn emit_warning(&mut self, warning: LeoWarning) {
+@@ -155,8 +155,8 @@ impl HandlerInner {
+     }
+ 
+     /// Gets the last emitted error's exit code.
+-    fn last_emited_err(&self) -> Option<LeoError> {
+-        self.emitter.last_emited_err()
++    fn last_emited_err_code(&self) -> Option<i32> {
++        self.emitter.last_emitted_err_code()
+     }
+ 
+     /// Emit the error `err`.
+@@ -175,7 +175,7 @@ pub struct Handler {
+ 
+ impl Default for Handler {
+     fn default() -> Self {
+-        Self::new(Box::new(StderrEmitter { last_error: None }))
++        Self::new(Box::new(StderrEmitter { last_error_code: None }))
+     }
+ }
+ 
+@@ -240,8 +240,8 @@ impl Handler {
+     /// Gets the last emitted error's exit code if it exists.
+     /// Then exits the program with it if it did exist.
+     pub fn last_err(&self) -> Result<(), LeoError> {
+-        if let Some(code) = self.inner.borrow().last_emited_err() {
+-            Err(code)
++        if let Some(code) = self.inner.borrow().last_emited_err_code() {
++            Err(LeoError::LastErrorCode(code))
+         } else {
+             Ok(())
+         }
+diff --git a/leo/errors/src/errors/mod.rs b/leo/errors/src/errors/mod.rs
+index 2e56a1e302..dea0cff8ab 100644
+--- a/leo/errors/src/errors/mod.rs
++++ b/leo/errors/src/errors/mod.rs
+@@ -70,6 +70,10 @@ pub enum LeoError {
+     /// Represents an Type Checker Error in a Leo Error.
+     #[error(transparent)]
+     TypeCheckerError(#[from] TypeCheckerError),
++    /// Purely for just exiting with the correct status code and
++    /// not re-displaying an error.
++    #[error("")]
++    LastErrorCode(i32),
+ }
+ 
+ impl LeoError {
+@@ -85,6 +89,7 @@ impl LeoError {
+             ParserError(error) => error.error_code(),
+             PackageError(error) => error.error_code(),
+             TypeCheckerError(error) => error.error_code(),
++            LastErrorCode(_) => unreachable!(),
+         }
+     }
+ 
+@@ -100,6 +105,7 @@ impl LeoError {
+             ParserError(error) => error.exit_code(),
+             PackageError(error) => error.exit_code(),
+             TypeCheckerError(error) => error.exit_code(),
++            LastErrorCode(code) => *code,
+         }
+     }
+ }
+diff --git a/tests/compiler/integers/i8/min.leo b/tests/compiler/integers/i8/min.leo
+index 1ffd0cf604..908119e438 100644
+--- a/tests/compiler/integers/i8/min.leo
++++ b/tests/compiler/integers/i8/min.leo
+@@ -6,5 +6,7 @@ input_file: ../inputs/dummy.in
+ 
+ function main(y: bool) -> bool {
+     const a: i8 = -128i8;
+-    return y == true;
++    let z: bool = a == -128i8;
++    
++    return z == true;
+ }
+diff --git a/tests/compiler/statements/compare_diff_types_fail.leo b/tests/compiler/statements/compare_diff_types_fail.leo
+new file mode 100644
+index 0000000000..9225b367b3
+--- /dev/null
++++ b/tests/compiler/statements/compare_diff_types_fail.leo
+@@ -0,0 +1,16 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file: inputs/i8.in
++*/
++
++function main(a: i8) -> bool {
++    let b: bool = a == 1u8;
++    let c: bool = a != 1u8;
++    let d: bool = a > 1u8;
++    let e: bool = a < 1u8;
++    let f: bool = a >= 1u8;
++    let g: bool = a <= 1u8;
++    let h: u32 = a * 1u8;
++    return b;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/statements/compare_invalid_negates_fail.leo b/tests/compiler/statements/compare_invalid_negates_fail.leo
+new file mode 100644
+index 0000000000..9074e8e517
+--- /dev/null
++++ b/tests/compiler/statements/compare_invalid_negates_fail.leo
+@@ -0,0 +1,16 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file: inputs/u8.in
++*/
++
++function main(a: u8) -> bool {
++    let b: bool = -a == -1u8;
++    let c: bool = -a > -1u8;
++    let d: bool = -a < -1u8;
++    let e: bool = -a >= -1u8;
++    let f: bool = -a <= -1u8;
++    let g: u8 = -a * -1u8;
++    let h: u8 = -a ** -1u8;
++    return b;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/statements/inputs/i8.in b/tests/compiler/statements/inputs/i8.in
+new file mode 100644
+index 0000000000..04f78a535e
+--- /dev/null
++++ b/tests/compiler/statements/inputs/i8.in
+@@ -0,0 +1,5 @@
++[main]
++a: i8 = 1i8;
++
++[registers]
++r0: bool = true;
+\ No newline at end of file
+diff --git a/tests/compiler/statements/inputs/u8.in b/tests/compiler/statements/inputs/u8.in
+new file mode 100644
+index 0000000000..1c4d9fede9
+--- /dev/null
++++ b/tests/compiler/statements/inputs/u8.in
+@@ -0,0 +1,5 @@
++[main]
++a: u8 = 1u8;
++
++[registers]
++r0: bool = true;
+\ No newline at end of file
+diff --git a/tests/expectations/compiler/compiler/function/duplicate_definition_fail.leo.out b/tests/expectations/compiler/compiler/function/duplicate_definition_fail.leo.out
+index 4a8184cba0..9bea67da61 100644
+--- a/tests/expectations/compiler/compiler/function/duplicate_definition_fail.leo.out
++++ b/tests/expectations/compiler/compiler/function/duplicate_definition_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [EAST0372014]: function `main` shadowed\n    --> compiler-test:3:1\n     |\n   3 | function main(y: bool) -> bool {\n   4 |     console.log(\"{}\", 1u8);\n   5 |     return y;\n   6 | }\n     | ^\nError [EAST0372014]: function `main` shadowed\n    --> compiler-test:3:1\n     |\n   3 | function main(y: bool) -> bool {\n   4 |     console.log(\"{}\", 1u8);\n   5 |     return y;\n   6 | }\n     | ^"
++  - "Error [EAST0372014]: function `main` shadowed\n    --> compiler-test:3:1\n     |\n   3 | function main(y: bool) -> bool {\n   4 |     console.log(\"{}\", 1u8);\n   5 |     return y;\n   6 | }\n     | ^\n"
+diff --git a/tests/expectations/compiler/compiler/function/duplicate_parameter_fail.leo.out b/tests/expectations/compiler/compiler/function/duplicate_parameter_fail.leo.out
+index 65d6ec0b7b..447c450612 100644
+--- a/tests/expectations/compiler/compiler/function/duplicate_parameter_fail.leo.out
++++ b/tests/expectations/compiler/compiler/function/duplicate_parameter_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [EAST0372015]: variable `a` shadowed\n    --> compiler-test:3:15\n     |\n   3 | function main(a: u32, a: u32) -> u32 {\n     |               ^\nError [EAST0372015]: variable `a` shadowed\n    --> compiler-test:3:15\n     |\n   3 | function main(a: u32, a: u32) -> u32 {\n     |               ^"
++  - "Error [EAST0372015]: variable `a` shadowed\n    --> compiler-test:3:15\n     |\n   3 | function main(a: u32, a: u32) -> u32 {\n     |               ^\n"
+diff --git a/tests/expectations/compiler/compiler/function/shadow_function_with_input_fail.leo.out b/tests/expectations/compiler/compiler/function/shadow_function_with_input_fail.leo.out
+index da95173122..09ea900657 100644
+--- a/tests/expectations/compiler/compiler/function/shadow_function_with_input_fail.leo.out
++++ b/tests/expectations/compiler/compiler/function/shadow_function_with_input_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [EAST0372014]: function `hi` shadowed\n    --> compiler-test:3:1\n     |\n   3 | function hi() -> u8 {\n   4 |     return 0u8;\n   5 | }\n     | ^\nError [EAST0372014]: function `hi` shadowed\n    --> compiler-test:3:1\n     |\n   3 | function hi() -> u8 {\n   4 |     return 0u8;\n   5 | }\n     | ^"
++  - "Error [EAST0372014]: function `hi` shadowed\n    --> compiler-test:3:1\n     |\n   3 | function hi() -> u8 {\n   4 |     return 0u8;\n   5 | }\n     | ^\n"
+diff --git a/tests/expectations/compiler/compiler/group/mult_by_group_fail.leo.out b/tests/expectations/compiler/compiler/group/mult_by_group_fail.leo.out
+index 1b32e30a32..bb55a5caca 100644
+--- a/tests/expectations/compiler/compiler/group/mult_by_group_fail.leo.out
++++ b/tests/expectations/compiler/compiler/group/mult_by_group_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372002]: Found type `group` but type `scalar` was expected\n    --> compiler-test:4:12\n     |\n   4 |     return (_, _)group * a;\n     |            ^^^^^^^^^^^^^^^\nError [ETYC0372002]: Found type `group` but type `scalar` was expected\n    --> compiler-test:4:12\n     |\n   4 |     return (_, _)group * a;\n     |            ^^^^^^^^^^^^^^^"
++  - "Error [ETYC0372002]: Found type `group` but type `scalar` was expected\n    --> compiler-test:4:12\n     |\n   4 |     return (_, _)group * a;\n     |            ^^^^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/compiler/integers/i128/pow_fail.leo.out b/tests/expectations/compiler/compiler/integers/i128/pow_fail.leo.out
+index ce77e835b6..5baaef8757 100644
+--- a/tests/expectations/compiler/compiler/integers/i128/pow_fail.leo.out
++++ b/tests/expectations/compiler/compiler/integers/i128/pow_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372009]: The second operand must be a unsigned int but got type `i128`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^\nError [ETYC0372009]: The second operand must be a unsigned int but got type `i128`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^"
++  - "Error [ETYC0372009]: The second operand must be a unsigned int but got type `i128`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^\n"
+diff --git a/tests/expectations/compiler/compiler/integers/i16/pow_fail.leo.out b/tests/expectations/compiler/compiler/integers/i16/pow_fail.leo.out
+index e26b4183de..2a7917482d 100644
+--- a/tests/expectations/compiler/compiler/integers/i16/pow_fail.leo.out
++++ b/tests/expectations/compiler/compiler/integers/i16/pow_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372009]: The second operand must be a unsigned int but got type `i16`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^\nError [ETYC0372009]: The second operand must be a unsigned int but got type `i16`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^"
++  - "Error [ETYC0372009]: The second operand must be a unsigned int but got type `i16`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^\n"
+diff --git a/tests/expectations/compiler/compiler/integers/i32/pow_fail.leo.out b/tests/expectations/compiler/compiler/integers/i32/pow_fail.leo.out
+index 6ab79e0078..281fb93887 100644
+--- a/tests/expectations/compiler/compiler/integers/i32/pow_fail.leo.out
++++ b/tests/expectations/compiler/compiler/integers/i32/pow_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372009]: The second operand must be a unsigned int but got type `i32`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^\nError [ETYC0372009]: The second operand must be a unsigned int but got type `i32`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^"
++  - "Error [ETYC0372009]: The second operand must be a unsigned int but got type `i32`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^\n"
+diff --git a/tests/expectations/compiler/compiler/integers/i64/pow_fail.leo.out b/tests/expectations/compiler/compiler/integers/i64/pow_fail.leo.out
+index 33f5f70ebb..63850b4f07 100644
+--- a/tests/expectations/compiler/compiler/integers/i64/pow_fail.leo.out
++++ b/tests/expectations/compiler/compiler/integers/i64/pow_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372009]: The second operand must be a unsigned int but got type `i64`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^\nError [ETYC0372009]: The second operand must be a unsigned int but got type `i64`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^"
++  - "Error [ETYC0372009]: The second operand must be a unsigned int but got type `i64`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^\n"
+diff --git a/tests/expectations/compiler/compiler/integers/i8/min.leo.out b/tests/expectations/compiler/compiler/integers/i8/min.leo.out
+index a7522c55e7..5cee5b3e34 100644
+--- a/tests/expectations/compiler/compiler/integers/i8/min.leo.out
++++ b/tests/expectations/compiler/compiler/integers/i8/min.leo.out
+@@ -3,6 +3,6 @@ namespace: Compile
+ expectation: Pass
+ outputs:
+   - output:
+-      - initial_input_ast: 43adaa31f572639c8ac2fc8547f0f3792c051b0c20e1806a11c549431afa749a
+-    initial_ast: b2f87cded036964dbfdedee647b26b7e6e9f600da79e28d97e0bb37989d626dd
+-    symbol_table: 98cceb8df5e7a49587ca9cd0c728a7ae7d31f69b41541d3f2463315c75d825eb
++      - initial_input_ast: a21868246c36e4325607d5efb14d1f8b85fac3cca07e97a27849863fe3c0ca1e
++    initial_ast: 6fba3601e8a6a4cb317fcc0e8eee97d31d2be8ac384e0ae6a3600a08b08650cd
++    symbol_table: 35d1e1f443565f02abe479bd9778bdf8a25ec934b5777b6419cf5d6557f0b2e3
+diff --git a/tests/expectations/compiler/compiler/integers/i8/pow_fail.leo.out b/tests/expectations/compiler/compiler/integers/i8/pow_fail.leo.out
+index 2ebf9503b5..55ad5300ba 100644
+--- a/tests/expectations/compiler/compiler/integers/i8/pow_fail.leo.out
++++ b/tests/expectations/compiler/compiler/integers/i8/pow_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372009]: The second operand must be a unsigned int but got type `i8`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^\nError [ETYC0372009]: The second operand must be a unsigned int but got type `i8`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^"
++  - "Error [ETYC0372009]: The second operand must be a unsigned int but got type `i8`\n    --> compiler-test:4:17\n     |\n   4 |     return a ** b == c;\n     |                 ^\n"
+diff --git a/tests/expectations/compiler/compiler/statements/compare_diff_types_fail.leo.out b/tests/expectations/compiler/compiler/statements/compare_diff_types_fail.leo.out
+new file mode 100644
+index 0000000000..a3376fe4ec
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/statements/compare_diff_types_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [ETYC0372002]: Found type `i8` but type `u8` was expected\n    --> compiler-test:4:19\n     |\n   4 |     let b: bool = a == 1u8;\n     |                   ^^^^^^^^\nError [ETYC0372002]: Found type `i8` but type `u8` was expected\n    --> compiler-test:5:19\n     |\n   5 |     let c: bool = a != 1u8;\n     |                   ^^^^^^^^\nError [ETYC0372002]: Found type `i8` but type `u8` was expected\n    --> compiler-test:6:19\n     |\n   6 |     let d: bool = a > 1u8;\n     |                   ^^^^^^^\nError [ETYC0372002]: Found type `i8` but type `u8` was expected\n    --> compiler-test:7:19\n     |\n   7 |     let e: bool = a < 1u8;\n     |                   ^^^^^^^\nError [ETYC0372002]: Found type `i8` but type `u8` was expected\n    --> compiler-test:8:19\n     |\n   8 |     let f: bool = a >= 1u8;\n     |                   ^^^^^^^^\nError [ETYC0372002]: Found type `i8` but type `u8` was expected\n    --> compiler-test:9:19\n     |\n   9 |     let g: bool = a <= 1u8;\n     |                   ^^^^^^^^\nError [ETYC0372002]: Found type `i8` but type `u32` was expected\n    --> compiler-test:10:18\n     |\n  10 |     let h: u32 = a * 1u8;\n     |                  ^\nError [ETYC0372002]: Found type `u8` but type `u32` was expected\n    --> compiler-test:10:22\n     |\n  10 |     let h: u32 = a * 1u8;\n     |                      ^^^\n"
+diff --git a/tests/expectations/compiler/compiler/statements/compare_invalid_negates_fail.leo.out b/tests/expectations/compiler/compiler/statements/compare_invalid_negates_fail.leo.out
+new file mode 100644
+index 0000000000..5545fdd4b8
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/statements/compare_invalid_negates_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:4:20\n     |\n   4 |     let b: bool = -a == -1u8;\n     |                    ^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:4:26\n     |\n   4 |     let b: bool = -a == -1u8;\n     |                          ^^^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:5:20\n     |\n   5 |     let c: bool = -a > -1u8;\n     |                    ^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:5:25\n     |\n   5 |     let c: bool = -a > -1u8;\n     |                         ^^^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:6:20\n     |\n   6 |     let d: bool = -a < -1u8;\n     |                    ^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:6:25\n     |\n   6 |     let d: bool = -a < -1u8;\n     |                         ^^^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:7:20\n     |\n   7 |     let e: bool = -a >= -1u8;\n     |                    ^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:7:26\n     |\n   7 |     let e: bool = -a >= -1u8;\n     |                          ^^^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:8:20\n     |\n   8 |     let f: bool = -a <= -1u8;\n     |                    ^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:8:26\n     |\n   8 |     let f: bool = -a <= -1u8;\n     |                          ^^^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:9:18\n     |\n   9 |     let g: u8 = -a * -1u8;\n     |                  ^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:9:23\n     |\n   9 |     let g: u8 = -a * -1u8;\n     |                       ^^^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:10:18\n     |\n  10 |     let h: u8 = -a ** -1u8;\n     |                  ^\nError [ETYC0372005]: The type `u8` is not negatable\n    --> compiler-test:10:24\n     |\n  10 |     let h: u8 = -a ** -1u8;\n     |                        ^^^\n"
+diff --git a/tests/expectations/compiler/compiler/statements/duplicate_variable.leo.out b/tests/expectations/compiler/compiler/statements/duplicate_variable.leo.out
+index f72840a998..0c48507e1d 100644
+--- a/tests/expectations/compiler/compiler/statements/duplicate_variable.leo.out
++++ b/tests/expectations/compiler/compiler/statements/duplicate_variable.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [EAST0372015]: variable `x` shadowed\n    --> compiler-test:4:2\n     |\n   4 | \tlet x: u8 = 1u8;\n     |  ^^^^^^^^^^^^^^^\nError [EAST0372015]: variable `x` shadowed\n    --> compiler-test:4:2\n     |\n   4 | \tlet x: u8 = 1u8;\n     |  ^^^^^^^^^^^^^^^"
++  - "Error [EAST0372015]: variable `x` shadowed\n    --> compiler-test:4:2\n     |\n   4 | \tlet x: u8 = 1u8;\n     |  ^^^^^^^^^^^^^^^\n"

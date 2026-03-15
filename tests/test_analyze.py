@@ -238,7 +238,7 @@ def test_compute_cost_per_tool() -> None:
     cost = compute_cost_per_tool(scores, results)
     assert cost["greptile"]["total_cost_usd"] == pytest.approx(0.15)
     assert cost["greptile"]["cost_per_review"] == pytest.approx(0.075)
-    assert cost["greptile"]["cost_per_bug_caught"] == pytest.approx(0.15)
+    assert cost["greptile"]["cost_per_detection"] == pytest.approx(0.15)
 
 
 def test_slice_scores_by_visibility() -> None:
@@ -336,3 +336,100 @@ def test_generate_slice_markdown() -> None:
     assert "easy" in md
     assert "hard" in md
     assert "greptile" in md
+
+
+def test_generate_confidence_band_markdown_basic() -> None:
+    from bugeval.analyze import generate_confidence_band_markdown
+    from bugeval.result_models import Comment, NormalizedResult
+
+    scores = _make_scores(
+        [
+            ("c1", "anthropic-api", 2, 0.5),
+            ("c2", "anthropic-api", 0, 0.0),
+            ("c3", "anthropic-api", 3, 1.0),
+        ]
+    )
+    results: dict = {
+        ("c1", "anthropic-api"): NormalizedResult(
+            test_case_id="c1",
+            tool="anthropic-api",
+            comments=[Comment(body="b", confidence=0.6)],
+        ),
+        ("c2", "anthropic-api"): NormalizedResult(
+            test_case_id="c2",
+            tool="anthropic-api",
+            comments=[Comment(body="b", confidence=0.8)],
+        ),
+        ("c3", "anthropic-api"): NormalizedResult(
+            test_case_id="c3",
+            tool="anthropic-api",
+            comments=[Comment(body="b", confidence=0.95)],
+        ),
+    }
+    md = generate_confidence_band_markdown(scores, results)
+    assert "Confidence Band" in md
+    assert "0.5" in md or "[0.5" in md
+
+
+def test_slice_scores_by_verified() -> None:
+    from bugeval.analyze import slice_scores
+
+    scores = _make_scores(
+        [
+            ("c1", "greptile", 2, 0.5),
+            ("c2", "greptile", 0, 0.0),
+        ]
+    )
+    cases = {
+        "c1": TestCase(
+            id="c1",
+            repo="org/repo",
+            base_commit="abc",
+            head_commit="def",
+            fix_commit="ghi",
+            category=Category("logic"),
+            difficulty=Difficulty("medium"),
+            severity=Severity("high"),
+            language="rust",
+            pr_size=PRSize("small"),
+            description="test",
+            expected_findings=[ExpectedFinding(file="a.rs", line=1, summary="bug")],
+            verified=True,
+        ),
+        "c2": TestCase(
+            id="c2",
+            repo="org/repo",
+            base_commit="abc",
+            head_commit="def",
+            fix_commit="ghi",
+            category=Category("logic"),
+            difficulty=Difficulty("medium"),
+            severity=Severity("high"),
+            language="rust",
+            pr_size=PRSize("small"),
+            description="test",
+            expected_findings=[ExpectedFinding(file="a.rs", line=1, summary="bug")],
+            verified=False,
+        ),
+    }
+    groups = slice_scores(scores, cases, "verified")
+    assert set(groups.keys()) == {"True", "False"}
+    assert len(groups["True"]) == 1
+    assert len(groups["False"]) == 1
+
+
+def test_generate_confidence_band_markdown_empty_when_no_confidence() -> None:
+    """When no comments have confidence data, returns empty string."""
+    from bugeval.analyze import generate_confidence_band_markdown
+    from bugeval.result_models import Comment, NormalizedResult
+
+    scores = _make_scores([("c1", "greptile", 2, 0.5)])
+    results: dict = {
+        ("c1", "greptile"): NormalizedResult(
+            test_case_id="c1",
+            tool="greptile",
+            comments=[Comment(body="no confidence here")],
+        ),
+    }
+    md = generate_confidence_band_markdown(scores, results)
+    assert md == ""

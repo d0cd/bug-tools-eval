@@ -1,0 +1,1156 @@
+diff --git a/compiler/parser/src/parser/expression.rs b/compiler/parser/src/parser/expression.rs
+index fce644b3bb..a69528532f 100644
+--- a/compiler/parser/src/parser/expression.rs
++++ b/compiler/parser/src/parser/expression.rs
+@@ -17,7 +17,6 @@
+ use super::*;
+ 
+ use leo_errors::{ParserError, Result};
+-use leo_span::sym;
+ 
+ const INT_TYPES: &[Token] = &[
+     Token::I8,
+@@ -317,7 +316,6 @@ impl ParserContext<'_> {
+                 let ident = Identifier { name, span };
+                 Expression::Identifier(ident)
+             }
+-            Token::Input => Expression::Identifier(Identifier { name: sym::input, span }),
+             t if crate::type_::TYPE_TOKENS.contains(&t) => Expression::Identifier(Identifier {
+                 name: t.keyword_to_symbol().unwrap(),
+                 span,
+diff --git a/compiler/parser/src/parser/file.rs b/compiler/parser/src/parser/file.rs
+index a64e526b5e..f40976bc57 100644
+--- a/compiler/parser/src/parser/file.rs
++++ b/compiler/parser/src/parser/file.rs
+@@ -85,14 +85,9 @@ impl ParserContext<'_> {
+     /// Returns a [`FunctionInput`] AST node if the next tokens represent a function parameter.
+     pub fn parse_function_parameter(&mut self) -> Result<FunctionInput> {
+         let mode = self.parse_function_parameter_mode()?;
+-        let mutable = self.eat(&Token::Mut).then(|| self.prev_token.clone());
+ 
+         let name = self.expect_ident()?;
+ 
+-        if let Some(mutable) = &mutable {
+-            self.emit_err(ParserError::mut_function_input(mutable.span + name.span));
+-        }
+-
+         self.expect(&Token::Colon)?;
+         let type_ = self.parse_type()?.0;
+         Ok(FunctionInput::Variable(FunctionInputVariable::new(
+diff --git a/compiler/parser/src/parser/statement.rs b/compiler/parser/src/parser/statement.rs
+index b464bf21e2..3c954832fb 100644
+--- a/compiler/parser/src/parser/statement.rs
++++ b/compiler/parser/src/parser/statement.rs
+@@ -219,11 +219,7 @@ impl ParserContext<'_> {
+ 
+     /// Returns a [`VariableName`] AST node if the next tokens represent a variable name with
+     /// valid keywords.
+-    pub fn parse_variable_name(&mut self, decl_ty: Declare, span: Span) -> Result<VariableName> {
+-        if self.eat(&Token::Mut) {
+-            self.emit_err(ParserError::let_mut_statement(self.prev_token.span + span));
+-        }
+-
++    pub fn parse_variable_name(&mut self, decl_ty: Declare, _span: Span) -> Result<VariableName> {
+         let name = self.expect_ident()?;
+         Ok(VariableName {
+             span: name.span,
+diff --git a/compiler/parser/src/tokenizer/lexer.rs b/compiler/parser/src/tokenizer/lexer.rs
+index da372b9636..619609a0d1 100644
+--- a/compiler/parser/src/tokenizer/lexer.rs
++++ b/compiler/parser/src/tokenizer/lexer.rs
+@@ -420,13 +420,10 @@ impl Token {
+                     "i128" => Token::I128,
+                     "if" => Token::If,
+                     "in" => Token::In,
+-                    "input" => Token::Input,
+                     "let" => Token::Let,
+-                    "mut" => Token::Mut,
+                     "public" => Token::Public,
+                     "return" => Token::Return,
+                     "true" => Token::True,
+-                    "type" => Token::Type,
+                     "u8" => Token::U8,
+                     "u16" => Token::U16,
+                     "u32" => Token::U32,
+diff --git a/compiler/parser/src/tokenizer/token.rs b/compiler/parser/src/tokenizer/token.rs
+index 5a0d58aff6..1ae0b660f3 100644
+--- a/compiler/parser/src/tokenizer/token.rs
++++ b/compiler/parser/src/tokenizer/token.rs
+@@ -109,9 +109,6 @@ pub enum Token {
+     Address,
+     Char,
+ 
+-    // primary expresion
+-    Input,
+-
+     // Regular Keywords
+     Console,
+     /// Const variable and a const function.
+@@ -124,11 +121,9 @@ pub enum Token {
+     If,
+     In,
+     Let,
+-    Mut,
+     /// For public inputs.
+     Public,
+     Return,
+-    Type,
+ 
+     // Meta Tokens
+     Eof,
+@@ -154,13 +149,10 @@ pub const KEYWORD_TOKENS: &[Token] = &[
+     Token::I128,
+     Token::If,
+     Token::In,
+-    Token::Input,
+     Token::Let,
+-    Token::Mut,
+     Token::Public,
+     Token::Return,
+     Token::True,
+-    Token::Type,
+     Token::U8,
+     Token::U16,
+     Token::U32,
+@@ -196,13 +188,10 @@ impl Token {
+             Token::I128 => sym::i128,
+             Token::If => sym::If,
+             Token::In => sym::In,
+-            Token::Input => sym::input,
+             Token::Let => sym::Let,
+-            Token::Mut => sym::Mut,
+             Token::Public => sym::Public,
+             Token::Return => sym::Return,
+             Token::True => sym::True,
+-            Token::Type => sym::Type,
+             Token::U8 => sym::u8,
+             Token::U16 => sym::u16,
+             Token::U32 => sym::u32,
+@@ -280,8 +269,6 @@ impl fmt::Display for Token {
+             Address => write!(f, "address"),
+             Char => write!(f, "char"),
+ 
+-            Input => write!(f, "input"),
+-
+             Console => write!(f, "console"),
+             Const => write!(f, "const"),
+             Constant => write!(f, "constant"),
+@@ -291,10 +278,8 @@ impl fmt::Display for Token {
+             If => write!(f, "if"),
+             In => write!(f, "in"),
+             Let => write!(f, "let"),
+-            Mut => write!(f, "mut"),
+             Public => write!(f, "public"),
+             Return => write!(f, "return"),
+-            Type => write!(f, "type"),
+             Eof => write!(f, "<eof>"),
+         }
+     }
+diff --git a/leo/errors/src/errors/parser/parser_errors.rs b/leo/errors/src/errors/parser/parser_errors.rs
+index bd7bae6151..f826d53091 100644
+--- a/leo/errors/src/errors/parser/parser_errors.rs
++++ b/leo/errors/src/errors/parser/parser_errors.rs
+@@ -136,22 +136,6 @@ create_messages!(
+         help: None,
+     }
+ 
+-    /// For when the parser encountered a deprecated `mut` argument in a function.
+-    @formatted
+-    mut_function_input {
+-        args: (),
+-        msg: "function func(mut a: u32) { ... } is deprecated. Passed variables are mutable by default.",
+-        help: None,
+-    }
+-
+-    /// For when the parser encountered a deprecated `mut` argument in a let statement.
+-    @formatted
+-    let_mut_statement {
+-        args: (),
+-        msg: "let mut = ... is deprecated. `let` keyword implies mutabality by default.",
+-        help: None,
+-    }
+-
+     /// For when the parser encountered a deprecated `test function`.
+     @formatted
+     test_function {
+diff --git a/tests/expectations/compiler/compiler/char/invalid_char.leo.out b/tests/expectations/compiler/compiler/char/invalid_char.leo.out
+index 1f6e688849..143eb49cb3 100644
+--- a/tests/expectations/compiler/compiler/char/invalid_char.leo.out
++++ b/tests/expectations/compiler/compiler/char/invalid_char.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370026]: Expected a closed char but found `'`."
++  - "Error [EPAR0370024]: Expected a closed char but found `'`."
+diff --git a/tests/expectations/parser/parser/expression/binary/eq_fail.leo.out b/tests/expectations/parser/parser/expression/binary/eq_fail.leo.out
+index ba9df4ea97..24690c1d60 100644
+--- a/tests/expectations/parser/parser/expression/binary/eq_fail.leo.out
++++ b/tests/expectations/parser/parser/expression/binary/eq_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: ParseExpression
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 1.\n    --> test:1:1\n     |\n   1 | 1 == 2 == 3\n     | ^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 1.\n    --> test:1:1\n     |\n   1 | 1 == 2 == 3\n     | ^"
+diff --git a/tests/expectations/parser/parser/expression/binary/ne_fail.leo.out b/tests/expectations/parser/parser/expression/binary/ne_fail.leo.out
+index bbb63e997d..009a402a83 100644
+--- a/tests/expectations/parser/parser/expression/binary/ne_fail.leo.out
++++ b/tests/expectations/parser/parser/expression/binary/ne_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: ParseExpression
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 1.\n    --> test:1:1\n     |\n   1 | 1 != 2 != 3\n     | ^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 1.\n    --> test:1:1\n     |\n   1 | 1 != 2 != 3\n     | ^"
+diff --git a/tests/expectations/parser/parser/expression/literal/char_fail.leo.out b/tests/expectations/parser/parser/expression/literal/char_fail.leo.out
+index 2f17e3ad5f..c89f7d3099 100644
+--- a/tests/expectations/parser/parser/expression/literal/char_fail.leo.out
++++ b/tests/expectations/parser/parser/expression/literal/char_fail.leo.out
+@@ -2,50 +2,50 @@
+ namespace: Token
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
+-  - "Error [EPAR0370030]: Could not lex the following content: `\\`."
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
+-  - "Error [EPAR0370030]: Could not lex the following content: `\\n`."
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `'`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `'`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `9A`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `7g`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `80`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `c1`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `c2`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `DF`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `C0`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `e0`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `9f`."
+-  - "Error [EPAR0370026]: Expected a closed char but found `a`."
+-  - "Error [EPAR0370024]: Expected a valid escape character but found `a`."
+-  - "Error [EPAR0370024]: Expected a valid escape character but found `z`."
+-  - "Error [EPAR0370024]: Expected a valid escape character but found `A`."
+-  - "Error [EPAR0370024]: Expected a valid escape character but found `Z`."
+-  - "Error [EPAR0370024]: Expected a valid escape character but found `1`."
+-  - "Error [EPAR0370024]: Expected a valid escape character but found `9`."
+-  - "Error [EPAR0370024]: Expected a valid escape character but found `*`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `'`."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `'`."
+-  - "Error [EPAR0370026]: Expected a closed char but found `\t`."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `z`."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `1`."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `}`."
+-  - "Error [EPAR0370026]: Expected a closed char but found `🦀`."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `1`."
+-  - "Error [EPAR0370026]: Expected a closed char but found `🦀`."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `6`."
+-  - "Error [EPAR0370033]: There was no closing `}` after a escaped unicode `af🦀'`."
+-  - "Error [EPAR0370033]: There was no closing `}` after a escaped unicode `2764z'`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `276g`."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `9`."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `0`."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `0`."
+-  - "Error [EPAR0370035]: The escaped unicode char `110000` is greater than 0x10FFFF."
+-  - "Error [EPAR0370034]: The escaped unicode char `1234567890` is not within valid length of [1, 6]."
+-  - "Error [EPAR0370026]: Expected a closed char but found `򻮻`."
+-  - "Error [EPAR0370026]: Expected a closed char but found `😭`."
+-  - "Error [EPAR0370044]: Unicode bidi override code point encountered."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
++  - "Error [EPAR0370028]: Could not lex the following content: `\\`."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
++  - "Error [EPAR0370028]: Could not lex the following content: `\\n`."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `'`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `'`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `9A`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `7g`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `80`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `c1`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `c2`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `DF`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `C0`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `e0`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `9f`."
++  - "Error [EPAR0370024]: Expected a closed char but found `a`."
++  - "Error [EPAR0370022]: Expected a valid escape character but found `a`."
++  - "Error [EPAR0370022]: Expected a valid escape character but found `z`."
++  - "Error [EPAR0370022]: Expected a valid escape character but found `A`."
++  - "Error [EPAR0370022]: Expected a valid escape character but found `Z`."
++  - "Error [EPAR0370022]: Expected a valid escape character but found `1`."
++  - "Error [EPAR0370022]: Expected a valid escape character but found `9`."
++  - "Error [EPAR0370022]: Expected a valid escape character but found `*`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `'`."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `'`."
++  - "Error [EPAR0370024]: Expected a closed char but found `\t`."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `z`."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `1`."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `}`."
++  - "Error [EPAR0370024]: Expected a closed char but found `🦀`."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `1`."
++  - "Error [EPAR0370024]: Expected a closed char but found `🦀`."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `6`."
++  - "Error [EPAR0370031]: There was no closing `}` after a escaped unicode `af🦀'`."
++  - "Error [EPAR0370031]: There was no closing `}` after a escaped unicode `2764z'`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `276g`."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `9`."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `0`."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `0`."
++  - "Error [EPAR0370033]: The escaped unicode char `110000` is greater than 0x10FFFF."
++  - "Error [EPAR0370032]: The escaped unicode char `1234567890` is not within valid length of [1, 6]."
++  - "Error [EPAR0370024]: Expected a closed char but found `򻮻`."
++  - "Error [EPAR0370024]: Expected a closed char but found `😭`."
++  - "Error [EPAR0370042]: Unicode bidi override code point encountered."
+diff --git a/tests/expectations/parser/parser/expression/literal/comment_fail.leo.out b/tests/expectations/parser/parser/expression/literal/comment_fail.leo.out
+index 7507dd35ed..ce888b5df2 100644
+--- a/tests/expectations/parser/parser/expression/literal/comment_fail.leo.out
++++ b/tests/expectations/parser/parser/expression/literal/comment_fail.leo.out
+@@ -2,14 +2,14 @@
+ namespace: ParseExpression
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370028]: Empty block comment."
+-  - "Error [EPAR0370029]: Block comment does not close with content: `/* test`."
++  - "Error [EPAR0370026]: Empty block comment."
++  - "Error [EPAR0370027]: Block comment does not close with content: `/* test`."
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '/'\n    --> test:1:1\n     |\n   1 | / /\n     | ^"
+-  - "Error [EPAR0370029]: Block comment does not close with content: `/*/`."
++  - "Error [EPAR0370027]: Block comment does not close with content: `/*/`."
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '*'\n    --> test:1:1\n     |\n   1 | */\n     | ^"
+-  - "Error [EPAR0370030]: Could not lex the following content: `🦀**/`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `🦀*/`."
+-  - "Error [EPAR0370029]: Block comment does not close with content: `/*🦀/`."
+-  - "Error [EPAR0370029]: Block comment does not close with content: `/**🦀`."
+-  - "Error [EPAR0370029]: Block comment does not close with content: `/*🦀`."
+-  - "Error [EPAR0370029]: Block comment does not close with content: `/*/*`."
++  - "Error [EPAR0370028]: Could not lex the following content: `🦀**/`."
++  - "Error [EPAR0370028]: Could not lex the following content: `🦀*/`."
++  - "Error [EPAR0370027]: Block comment does not close with content: `/*🦀/`."
++  - "Error [EPAR0370027]: Block comment does not close with content: `/**🦀`."
++  - "Error [EPAR0370027]: Block comment does not close with content: `/*🦀`."
++  - "Error [EPAR0370027]: Block comment does not close with content: `/*/*`."
+diff --git a/tests/expectations/parser/parser/expression/literal/group_fail.leo.out b/tests/expectations/parser/parser/expression/literal/group_fail.leo.out
+index 9475bfe15e..100c723c94 100644
+--- a/tests/expectations/parser/parser/expression/literal/group_fail.leo.out
++++ b/tests/expectations/parser/parser/expression/literal/group_fail.leo.out
+@@ -3,14 +3,14 @@ namespace: ParseExpression
+ expectation: Fail
+ outputs:
+   - "Error [EPAR0370005]: expected A valid expression. -- got 'A tuple expression.'\n    --> test:1:1\n     |\n   1 | ()group\n     | ^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 123.\n    --> test:1:2\n     |\n   1 | (123)group\n     |  ^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 123.\n    --> test:1:2\n     |\n   1 | (123)group\n     |  ^^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got ','\n    --> test:1:2\n     |\n   1 | (,)group\n     |  ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '+'\n    --> test:1:2\n     |\n   1 | (+, -,)group\n     |  ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got ','\n    --> test:1:2\n     |\n   1 | (,+, -)group\n     |  ^"
+   - "Error [EPAR0370005]: expected A valid expression. -- got 'A tuple expression.'\n    --> test:1:1\n     |\n   1 | (x,y)group\n     | ^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 123.\n    --> test:1:2\n     |\n   1 | (123,456u8)group\n     |  ^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 123.\n    --> test:1:2\n     |\n   1 | (123,456field)group\n     |  ^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 123.\n    --> test:1:2\n     |\n   1 | (123,456u8)group\n     |  ^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 123.\n    --> test:1:2\n     |\n   1 | (123,456field)group\n     |  ^^^"
+   - "Error [EPAR0370004]: Unexpected white space between terms (123,456) and group\n    --> test:1:11\n     |\n   1 | (123, 456) group\n     |           ^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 123.\n    --> test:1:2\n     |\n   1 | (123, )group\n     |  ^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 123.\n    --> test:1:2\n     |\n   1 | (123, 456, 789)group\n     |  ^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 123.\n    --> test:1:2\n     |\n   1 | (123, 456)bool\n     |  ^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 123.\n    --> test:1:2\n     |\n   1 | (123, )group\n     |  ^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 123.\n    --> test:1:2\n     |\n   1 | (123, 456, 789)group\n     |  ^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 123.\n    --> test:1:2\n     |\n   1 | (123, 456)bool\n     |  ^^^"
+diff --git a/tests/expectations/parser/parser/expression/literal/int_fail.leo.out b/tests/expectations/parser/parser/expression/literal/int_fail.leo.out
+index de9048e19e..13132f9d50 100644
+--- a/tests/expectations/parser/parser/expression/literal/int_fail.leo.out
++++ b/tests/expectations/parser/parser/expression/literal/int_fail.leo.out
+@@ -2,6 +2,6 @@
+ namespace: Token
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370036]: A hex number `0x..` was provided but hex is not allowed."
+-  - "Error [EPAR0370036]: A hex number `0x..` was provided but hex is not allowed."
+-  - "Error [EPAR0370036]: A hex number `0x..` was provided but hex is not allowed."
++  - "Error [EPAR0370034]: A hex number `0x..` was provided but hex is not allowed."
++  - "Error [EPAR0370034]: A hex number `0x..` was provided but hex is not allowed."
++  - "Error [EPAR0370034]: A hex number `0x..` was provided but hex is not allowed."
+diff --git a/tests/expectations/parser/parser/expression/literal/int_parse/field_fail.leo.out b/tests/expectations/parser/parser/expression/literal/int_parse/field_fail.leo.out
+index b08d4ec497..7c32369ff6 100644
+--- a/tests/expectations/parser/parser/expression/literal/int_parse/field_fail.leo.out
++++ b/tests/expectations/parser/parser/expression/literal/int_parse/field_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: ParseExpression
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370036]: A hex number `0x..` was provided but hex is not allowed."
++  - "Error [EPAR0370034]: A hex number `0x..` was provided but hex is not allowed."
+diff --git a/tests/expectations/parser/parser/expression/literal/int_parse/implicit.leo.out b/tests/expectations/parser/parser/expression/literal/int_parse/implicit.leo.out
+index 7235888979..512b57e2ed 100644
+--- a/tests/expectations/parser/parser/expression/literal/int_parse/implicit.leo.out
++++ b/tests/expectations/parser/parser/expression/literal/int_parse/implicit.leo.out
+@@ -2,108 +2,108 @@
+ namespace: ParseExpression
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 123.\n    --> test:1:1\n     |\n   1 | 123\n     | ^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 123.\n    --> test:1:1\n     |\n   1 | 123\n     | ^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 456.\n    --> test:1:1\n     |\n   1 | 456\n     | ^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 87377802873778028737780287377802873778028737780287377802873778028737780287377802.\n    --> test:1:1\n     |\n   1 | 87377802873778028737780287377802873778028737780287377802873778028737780287377802\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 8737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802.\n    --> test:1:1\n     |\n   1 | 8737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 340130024.\n    --> test:1:1\n     |\n   1 | 340130024\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 158951116.\n    --> test:1:1\n     |\n   1 | 158951116\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 155529659.\n    --> test:1:1\n     |\n   1 | 155529659\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 642023166.\n    --> test:1:1\n     |\n   1 | 642023166\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 228481736.\n    --> test:1:1\n     |\n   1 | 228481736\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 469712960.\n    --> test:1:1\n     |\n   1 | 469712960\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 929437719.\n    --> test:1:1\n     |\n   1 | 929437719\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 721072814.\n    --> test:1:1\n     |\n   1 | 721072814\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 363254789.\n    --> test:1:1\n     |\n   1 | 363254789\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 906732565.\n    --> test:1:1\n     |\n   1 | 906732565\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 288246391.\n    --> test:1:1\n     |\n   1 | 288246391\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 724940549.\n    --> test:1:1\n     |\n   1 | 724940549\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 487101620.\n    --> test:1:1\n     |\n   1 | 487101620\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 261373583.\n    --> test:1:1\n     |\n   1 | 261373583\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 891163927.\n    --> test:1:1\n     |\n   1 | 891163927\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 743967544.\n    --> test:1:1\n     |\n   1 | 743967544\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 8372586.\n    --> test:1:1\n     |\n   1 | 8372586\n     | ^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 461793278.\n    --> test:1:1\n     |\n   1 | 461793278\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 806307045.\n    --> test:1:1\n     |\n   1 | 806307045\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 122764546.\n    --> test:1:1\n     |\n   1 | 122764546\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 356336181.\n    --> test:1:1\n     |\n   1 | 356336181\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 158370903.\n    --> test:1:1\n     |\n   1 | 158370903\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 774460877.\n    --> test:1:1\n     |\n   1 | 774460877\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 557174131.\n    --> test:1:1\n     |\n   1 | 557174131\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 492401267.\n    --> test:1:1\n     |\n   1 | 492401267\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 893445620.\n    --> test:1:1\n     |\n   1 | 893445620\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 957757048.\n    --> test:1:1\n     |\n   1 | 957757048\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 721540649.\n    --> test:1:1\n     |\n   1 | 721540649\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 390746493.\n    --> test:1:1\n     |\n   1 | 390746493\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 211251725.\n    --> test:1:1\n     |\n   1 | 211251725\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 938266114.\n    --> test:1:1\n     |\n   1 | 938266114\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 156985870.\n    --> test:1:1\n     |\n   1 | 156985870\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 703831126.\n    --> test:1:1\n     |\n   1 | 703831126\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 729964155.\n    --> test:1:1\n     |\n   1 | 729964155\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 988151305.\n    --> test:1:1\n     |\n   1 | 988151305\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 320872435.\n    --> test:1:1\n     |\n   1 | 320872435\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 719287167.\n    --> test:1:1\n     |\n   1 | 719287167\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 152289486.\n    --> test:1:1\n     |\n   1 | 152289486\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 740067975.\n    --> test:1:1\n     |\n   1 | 740067975\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 728627816.\n    --> test:1:1\n     |\n   1 | 728627816\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 385008978.\n    --> test:1:1\n     |\n   1 | 385008978\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 553967635.\n    --> test:1:1\n     |\n   1 | 553967635\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 71980713.\n    --> test:1:1\n     |\n   1 | 71980713\n     | ^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 519444716.\n    --> test:1:1\n     |\n   1 | 519444716\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 116499965.\n    --> test:1:1\n     |\n   1 | 116499965\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 717422268.\n    --> test:1:1\n     |\n   1 | 717422268\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 18966279.\n    --> test:1:1\n     |\n   1 | 18966279\n     | ^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 22458638.\n    --> test:1:1\n     |\n   1 | 22458638\n     | ^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 857282620.\n    --> test:1:1\n     |\n   1 | 857282620\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 920675898.\n    --> test:1:1\n     |\n   1 | 920675898\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 762235516.\n    --> test:1:1\n     |\n   1 | 762235516\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 469018377.\n    --> test:1:1\n     |\n   1 | 469018377\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 199986521.\n    --> test:1:1\n     |\n   1 | 199986521\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 536679358.\n    --> test:1:1\n     |\n   1 | 536679358\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 591399452.\n    --> test:1:1\n     |\n   1 | 591399452\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 83083158.\n    --> test:1:1\n     |\n   1 | 83083158\n     | ^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 599449051.\n    --> test:1:1\n     |\n   1 | 599449051\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 445442318.\n    --> test:1:1\n     |\n   1 | 445442318\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 585486590.\n    --> test:1:1\n     |\n   1 | 585486590\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 209278800.\n    --> test:1:1\n     |\n   1 | 209278800\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 873568117.\n    --> test:1:1\n     |\n   1 | 873568117\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 664470940.\n    --> test:1:1\n     |\n   1 | 664470940\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 465262783.\n    --> test:1:1\n     |\n   1 | 465262783\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 605652874.\n    --> test:1:1\n     |\n   1 | 605652874\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 376803940.\n    --> test:1:1\n     |\n   1 | 376803940\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 965247040.\n    --> test:1:1\n     |\n   1 | 965247040\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 598474509.\n    --> test:1:1\n     |\n   1 | 598474509\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 845119918.\n    --> test:1:1\n     |\n   1 | 845119918\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 648159133.\n    --> test:1:1\n     |\n   1 | 648159133\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 669051032.\n    --> test:1:1\n     |\n   1 | 669051032\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 800600261.\n    --> test:1:1\n     |\n   1 | 800600261\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 434689764.\n    --> test:1:1\n     |\n   1 | 434689764\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 520060080.\n    --> test:1:1\n     |\n   1 | 520060080\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 804659385.\n    --> test:1:1\n     |\n   1 | 804659385\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 537828058.\n    --> test:1:1\n     |\n   1 | 537828058\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 716600292.\n    --> test:1:1\n     |\n   1 | 716600292\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 387020273.\n    --> test:1:1\n     |\n   1 | 387020273\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 199375617.\n    --> test:1:1\n     |\n   1 | 199375617\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 680337189.\n    --> test:1:1\n     |\n   1 | 680337189\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 818479931.\n    --> test:1:1\n     |\n   1 | 818479931\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 893693281.\n    --> test:1:1\n     |\n   1 | 893693281\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 87377802.\n    --> test:1:1\n     |\n   1 | 87377802\n     | ^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 84699261.\n    --> test:1:1\n     |\n   1 | 84699261\n     | ^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 292826090.\n    --> test:1:1\n     |\n   1 | 292826090\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 569171405.\n    --> test:1:1\n     |\n   1 | 569171405\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 387436237.\n    --> test:1:1\n     |\n   1 | 387436237\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 150682190.\n    --> test:1:1\n     |\n   1 | 150682190\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 888770419.\n    --> test:1:1\n     |\n   1 | 888770419\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 824696431.\n    --> test:1:1\n     |\n   1 | 824696431\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 765659803.\n    --> test:1:1\n     |\n   1 | 765659803\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 270163693.\n    --> test:1:1\n     |\n   1 | 270163693\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 427940240.\n    --> test:1:1\n     |\n   1 | 427940240\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 504997332.\n    --> test:1:1\n     |\n   1 | 504997332\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 337808338.\n    --> test:1:1\n     |\n   1 | 337808338\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 907200008.\n    --> test:1:1\n     |\n   1 | 907200008\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 757177889.\n    --> test:1:1\n     |\n   1 | 757177889\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 696697188.\n    --> test:1:1\n     |\n   1 | 696697188\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 41376051.\n    --> test:1:1\n     |\n   1 | 41376051\n     | ^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 496293518.\n    --> test:1:1\n     |\n   1 | 496293518\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 251218820.\n    --> test:1:1\n     |\n   1 | 251218820\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 123.\n    --> test:1:1\n     |\n   1 | 123\n     | ^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 123.\n    --> test:1:1\n     |\n   1 | 123\n     | ^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 456.\n    --> test:1:1\n     |\n   1 | 456\n     | ^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 87377802873778028737780287377802873778028737780287377802873778028737780287377802.\n    --> test:1:1\n     |\n   1 | 87377802873778028737780287377802873778028737780287377802873778028737780287377802\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 8737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802.\n    --> test:1:1\n     |\n   1 | 8737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802873778028737780287377802\n     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 340130024.\n    --> test:1:1\n     |\n   1 | 340130024\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 158951116.\n    --> test:1:1\n     |\n   1 | 158951116\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 155529659.\n    --> test:1:1\n     |\n   1 | 155529659\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 642023166.\n    --> test:1:1\n     |\n   1 | 642023166\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 228481736.\n    --> test:1:1\n     |\n   1 | 228481736\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 469712960.\n    --> test:1:1\n     |\n   1 | 469712960\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 929437719.\n    --> test:1:1\n     |\n   1 | 929437719\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 721072814.\n    --> test:1:1\n     |\n   1 | 721072814\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 363254789.\n    --> test:1:1\n     |\n   1 | 363254789\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 906732565.\n    --> test:1:1\n     |\n   1 | 906732565\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 288246391.\n    --> test:1:1\n     |\n   1 | 288246391\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 724940549.\n    --> test:1:1\n     |\n   1 | 724940549\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 487101620.\n    --> test:1:1\n     |\n   1 | 487101620\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 261373583.\n    --> test:1:1\n     |\n   1 | 261373583\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 891163927.\n    --> test:1:1\n     |\n   1 | 891163927\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 743967544.\n    --> test:1:1\n     |\n   1 | 743967544\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 8372586.\n    --> test:1:1\n     |\n   1 | 8372586\n     | ^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 461793278.\n    --> test:1:1\n     |\n   1 | 461793278\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 806307045.\n    --> test:1:1\n     |\n   1 | 806307045\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 122764546.\n    --> test:1:1\n     |\n   1 | 122764546\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 356336181.\n    --> test:1:1\n     |\n   1 | 356336181\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 158370903.\n    --> test:1:1\n     |\n   1 | 158370903\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 774460877.\n    --> test:1:1\n     |\n   1 | 774460877\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 557174131.\n    --> test:1:1\n     |\n   1 | 557174131\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 492401267.\n    --> test:1:1\n     |\n   1 | 492401267\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 893445620.\n    --> test:1:1\n     |\n   1 | 893445620\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 957757048.\n    --> test:1:1\n     |\n   1 | 957757048\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 721540649.\n    --> test:1:1\n     |\n   1 | 721540649\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 390746493.\n    --> test:1:1\n     |\n   1 | 390746493\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 211251725.\n    --> test:1:1\n     |\n   1 | 211251725\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 938266114.\n    --> test:1:1\n     |\n   1 | 938266114\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 156985870.\n    --> test:1:1\n     |\n   1 | 156985870\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 703831126.\n    --> test:1:1\n     |\n   1 | 703831126\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 729964155.\n    --> test:1:1\n     |\n   1 | 729964155\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 988151305.\n    --> test:1:1\n     |\n   1 | 988151305\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 320872435.\n    --> test:1:1\n     |\n   1 | 320872435\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 719287167.\n    --> test:1:1\n     |\n   1 | 719287167\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 152289486.\n    --> test:1:1\n     |\n   1 | 152289486\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 740067975.\n    --> test:1:1\n     |\n   1 | 740067975\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 728627816.\n    --> test:1:1\n     |\n   1 | 728627816\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 385008978.\n    --> test:1:1\n     |\n   1 | 385008978\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 553967635.\n    --> test:1:1\n     |\n   1 | 553967635\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 71980713.\n    --> test:1:1\n     |\n   1 | 71980713\n     | ^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 519444716.\n    --> test:1:1\n     |\n   1 | 519444716\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 116499965.\n    --> test:1:1\n     |\n   1 | 116499965\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 717422268.\n    --> test:1:1\n     |\n   1 | 717422268\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 18966279.\n    --> test:1:1\n     |\n   1 | 18966279\n     | ^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 22458638.\n    --> test:1:1\n     |\n   1 | 22458638\n     | ^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 857282620.\n    --> test:1:1\n     |\n   1 | 857282620\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 920675898.\n    --> test:1:1\n     |\n   1 | 920675898\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 762235516.\n    --> test:1:1\n     |\n   1 | 762235516\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 469018377.\n    --> test:1:1\n     |\n   1 | 469018377\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 199986521.\n    --> test:1:1\n     |\n   1 | 199986521\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 536679358.\n    --> test:1:1\n     |\n   1 | 536679358\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 591399452.\n    --> test:1:1\n     |\n   1 | 591399452\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 83083158.\n    --> test:1:1\n     |\n   1 | 83083158\n     | ^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 599449051.\n    --> test:1:1\n     |\n   1 | 599449051\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 445442318.\n    --> test:1:1\n     |\n   1 | 445442318\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 585486590.\n    --> test:1:1\n     |\n   1 | 585486590\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 209278800.\n    --> test:1:1\n     |\n   1 | 209278800\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 873568117.\n    --> test:1:1\n     |\n   1 | 873568117\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 664470940.\n    --> test:1:1\n     |\n   1 | 664470940\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 465262783.\n    --> test:1:1\n     |\n   1 | 465262783\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 605652874.\n    --> test:1:1\n     |\n   1 | 605652874\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 376803940.\n    --> test:1:1\n     |\n   1 | 376803940\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 965247040.\n    --> test:1:1\n     |\n   1 | 965247040\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 598474509.\n    --> test:1:1\n     |\n   1 | 598474509\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 845119918.\n    --> test:1:1\n     |\n   1 | 845119918\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 648159133.\n    --> test:1:1\n     |\n   1 | 648159133\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 669051032.\n    --> test:1:1\n     |\n   1 | 669051032\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 800600261.\n    --> test:1:1\n     |\n   1 | 800600261\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 434689764.\n    --> test:1:1\n     |\n   1 | 434689764\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 520060080.\n    --> test:1:1\n     |\n   1 | 520060080\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 804659385.\n    --> test:1:1\n     |\n   1 | 804659385\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 537828058.\n    --> test:1:1\n     |\n   1 | 537828058\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 716600292.\n    --> test:1:1\n     |\n   1 | 716600292\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 387020273.\n    --> test:1:1\n     |\n   1 | 387020273\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 199375617.\n    --> test:1:1\n     |\n   1 | 199375617\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 680337189.\n    --> test:1:1\n     |\n   1 | 680337189\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 818479931.\n    --> test:1:1\n     |\n   1 | 818479931\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 893693281.\n    --> test:1:1\n     |\n   1 | 893693281\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 87377802.\n    --> test:1:1\n     |\n   1 | 87377802\n     | ^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 84699261.\n    --> test:1:1\n     |\n   1 | 84699261\n     | ^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 292826090.\n    --> test:1:1\n     |\n   1 | 292826090\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 569171405.\n    --> test:1:1\n     |\n   1 | 569171405\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 387436237.\n    --> test:1:1\n     |\n   1 | 387436237\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 150682190.\n    --> test:1:1\n     |\n   1 | 150682190\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 888770419.\n    --> test:1:1\n     |\n   1 | 888770419\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 824696431.\n    --> test:1:1\n     |\n   1 | 824696431\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 765659803.\n    --> test:1:1\n     |\n   1 | 765659803\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 270163693.\n    --> test:1:1\n     |\n   1 | 270163693\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 427940240.\n    --> test:1:1\n     |\n   1 | 427940240\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 504997332.\n    --> test:1:1\n     |\n   1 | 504997332\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 337808338.\n    --> test:1:1\n     |\n   1 | 337808338\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 907200008.\n    --> test:1:1\n     |\n   1 | 907200008\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 757177889.\n    --> test:1:1\n     |\n   1 | 757177889\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 696697188.\n    --> test:1:1\n     |\n   1 | 696697188\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 41376051.\n    --> test:1:1\n     |\n   1 | 41376051\n     | ^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 496293518.\n    --> test:1:1\n     |\n   1 | 496293518\n     | ^^^^^^^^^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 251218820.\n    --> test:1:1\n     |\n   1 | 251218820\n     | ^^^^^^^^^"
+diff --git a/tests/expectations/parser/parser/expression/literal/string_fail.leo.out b/tests/expectations/parser/parser/expression/literal/string_fail.leo.out
+index f3378d3e83..71ef80e5fc 100644
+--- a/tests/expectations/parser/parser/expression/literal/string_fail.leo.out
++++ b/tests/expectations/parser/parser/expression/literal/string_fail.leo.out
+@@ -2,17 +2,17 @@
+ namespace: Token
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370025]: Expected a closed string but found `Hello world!`."
+-  - "Error [EPAR0370025]: Expected a closed string but found `\"`."
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
+-  - "Error [EPAR0370024]: Expected a valid escape character but found `l`."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `a`."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `\"`."
+-  - "Error [EPAR0370031]: Expected a valid hex character but found `FF`."
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `}`."
+-  - "Error [EPAR0370038]: There was no opening `{` after starting an escaped unicode `6`."
+-  - "Error [EPAR0370033]: There was no closing `}` after a escaped unicode `af🦀\"`."
+-  - "Error [EPAR0370025]: Expected a closed string but found `\"`."
+-  - "Error [EPAR0370025]: Expected a closed string but found `⭇😍;`."
+-  - "Error [EPAR0370044]: Unicode bidi override code point encountered."
++  - "Error [EPAR0370023]: Expected a closed string but found `Hello world!`."
++  - "Error [EPAR0370023]: Expected a closed string but found `\"`."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
++  - "Error [EPAR0370022]: Expected a valid escape character but found `l`."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `a`."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `\"`."
++  - "Error [EPAR0370029]: Expected a valid hex character but found `FF`."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `}`."
++  - "Error [EPAR0370036]: There was no opening `{` after starting an escaped unicode `6`."
++  - "Error [EPAR0370031]: There was no closing `}` after a escaped unicode `af🦀\"`."
++  - "Error [EPAR0370023]: Expected a closed string but found `\"`."
++  - "Error [EPAR0370023]: Expected a closed string but found `⭇😍;`."
++  - "Error [EPAR0370042]: Unicode bidi override code point encountered."
+diff --git a/tests/expectations/parser/parser/expression/token_format.leo.out b/tests/expectations/parser/parser/expression/token_format.leo.out
+index 9d66a72ae5..94bc4f2dd0 100644
+--- a/tests/expectations/parser/parser/expression/token_format.leo.out
++++ b/tests/expectations/parser/parser/expression/token_format.leo.out
+@@ -2,15 +2,15 @@
+ namespace: ParseExpression
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `@test`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `@test`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '&&'\n    --> test:1:1\n     |\n   1 | &&\n     | ^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '||'\n    --> test:1:1\n     |\n   1 | ||\n     | ^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '=='\n    --> test:1:1\n     |\n   1 | ==\n     | ^^"
+@@ -46,22 +46,22 @@ outputs:
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '?'\n    --> test:1:1\n     |\n   1 | ?\n     | ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '->'\n    --> test:1:1\n     |\n   1 | ->\n     | ^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '_'\n    --> test:1:1\n     |\n   1 | _\n     | ^"
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'console'\n    --> test:1:1\n     |\n   1 | console\n     | ^^^^^^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'const'\n    --> test:1:1\n     |\n   1 | const\n     | ^^^^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'else'\n    --> test:1:1\n     |\n   1 | else\n     | ^^^^"
+@@ -70,7 +70,5 @@ outputs:
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'if'\n    --> test:1:1\n     |\n   1 | if\n     | ^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'in'\n    --> test:1:1\n     |\n   1 | in\n     | ^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'let'\n    --> test:1:1\n     |\n   1 | let\n     | ^^^"
+-  - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'mut'\n    --> test:1:1\n     |\n   1 | mut\n     | ^^^"
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'return'\n    --> test:1:1\n     |\n   1 | return\n     | ^^^^^^"
+-  - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'type'\n    --> test:1:1\n     |\n   1 | type\n     | ^^^^"
+diff --git a/tests/expectations/parser/parser/functions/annotated_arg_not_ident.leo.out b/tests/expectations/parser/parser/functions/annotated_arg_not_ident.leo.out
+index 090eba8942..219625ac5b 100644
+--- a/tests/expectations/parser/parser/functions/annotated_arg_not_ident.leo.out
++++ b/tests/expectations/parser/parser/functions/annotated_arg_not_ident.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370030]: Could not lex the following content: `@foo(?, bar, ?)\nfunction x() {\n    return ();\n}\n\n@bar(123) // ints not vali\nfunction x() {\n    return ();\n}\n\n\n@context // recovery witness\nfunction x() {\n    return ();\n}\n`."
++  - "Error [EPAR0370028]: Could not lex the following content: `@foo(?, bar, ?)\nfunction x() {\n    return ();\n}\n\n@bar(123) // ints not vali\nfunction x() {\n    return ();\n}\n\n\n@context // recovery witness\nfunction x() {\n    return ();\n}\n`."
+diff --git a/tests/expectations/parser/parser/functions/annotated_context_fail.leo.out b/tests/expectations/parser/parser/functions/annotated_context_fail.leo.out
+index 96ece07b38..7372d97c87 100644
+--- a/tests/expectations/parser/parser/functions/annotated_context_fail.leo.out
++++ b/tests/expectations/parser/parser/functions/annotated_context_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370030]: Could not lex the following content: `@context\nfunction f() {\n    return ();\n}\n\n@context // recovery witness\nfunction g() {\n    return ();\n}\n`."
++  - "Error [EPAR0370028]: Could not lex the following content: `@context\nfunction f() {\n    return ();\n}\n\n@context // recovery witness\nfunction g() {\n    return ();\n}\n`."
+diff --git a/tests/expectations/parser/parser/functions/const_input_kw_fail.leo.out b/tests/expectations/parser/parser/functions/const_input_kw_fail.leo.out
+deleted file mode 100644
+index d0d34e7510..0000000000
+--- a/tests/expectations/parser/parser/functions/const_input_kw_fail.leo.out
++++ /dev/null
+@@ -1,5 +0,0 @@
+----
+-namespace: Parse
+-expectation: Fail
+-outputs:
+-  - "Error [EPAR0370009]: unexpected string: expected 'ident', got 'input'\n    --> test:3:18\n     |\n   3 | function x(const input) {\n     |                  ^^^^^"
+diff --git a/tests/expectations/parser/parser/functions/escape_fail.leo.out b/tests/expectations/parser/parser/functions/escape_fail.leo.out
+index 9fe177028c..59a1ceac77 100644
+--- a/tests/expectations/parser/parser/functions/escape_fail.leo.out
++++ b/tests/expectations/parser/parser/functions/escape_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370030]: Could not lex the following content: `\\`."
++  - "Error [EPAR0370028]: Could not lex the following content: `\\`."
+diff --git a/tests/expectations/parser/parser/functions/mut_input_fail.leo.out b/tests/expectations/parser/parser/functions/mut_input_fail.leo.out
+index 5714154f71..3f657a07e7 100644
+--- a/tests/expectations/parser/parser/functions/mut_input_fail.leo.out
++++ b/tests/expectations/parser/parser/functions/mut_input_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370013]: function func(mut a: u32) { ... } is deprecated. Passed variables are mutable by default.\n    --> test:3:12\n     |\n   3 | function f(mut a: u8) {}\n     |            ^^^^^\nError [EPAR0370005]: expected -> -- got '{'\n    --> test:3:23\n     |\n   3 | function f(mut a: u8) {}\n     |                       ^"
++  - "Error [EPAR0370005]: expected : -- got 'a'\n    --> test:3:16\n     |\n   3 | function f(mut a: u8) {}\n     |                ^"
+diff --git a/tests/expectations/parser/parser/functions/public_const_param_fail.leo.out b/tests/expectations/parser/parser/functions/public_const_param_fail.leo.out
+index 2a9735278c..4b8eed0e9e 100644
+--- a/tests/expectations/parser/parser/functions/public_const_param_fail.leo.out
++++ b/tests/expectations/parser/parser/functions/public_const_param_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370042]: A parameter cannot be both public and const.\n    --> test:3:20\n     |\n   3 | function x(x: u32, public const y: i32) {\n     |                    ^^^^^^^^^^^^"
++  - "Error [EPAR0370040]: A parameter cannot be both public and const.\n    --> test:3:20\n     |\n   3 | function x(x: u32, public const y: i32) {\n     |                    ^^^^^^^^^^^^"
+diff --git a/tests/expectations/parser/parser/functions/test_keyword_fail.leo.out b/tests/expectations/parser/parser/functions/test_keyword_fail.leo.out
+index 22e16133ed..e32ec52ec0 100644
+--- a/tests/expectations/parser/parser/functions/test_keyword_fail.leo.out
++++ b/tests/expectations/parser/parser/functions/test_keyword_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370015]: \"test function...\" is deprecated. Did you mean @test annotation?\n    --> test:3:1\n     |\n   3 | test main() {}\n     | ^^^^"
++  - "Error [EPAR0370013]: \"test function...\" is deprecated. Did you mean @test annotation?\n    --> test:3:1\n     |\n   3 | test main() {}\n     | ^^^^"
+diff --git a/tests/expectations/parser/parser/inputs/input_public_constant_fail.leo.out b/tests/expectations/parser/parser/inputs/input_public_constant_fail.leo.out
+index a1a24549d6..ce7cea986e 100644
+--- a/tests/expectations/parser/parser/inputs/input_public_constant_fail.leo.out
++++ b/tests/expectations/parser/parser/inputs/input_public_constant_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Input
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370042]: A parameter cannot be both public and const.\n    --> test:4:1\n     |\n   4 | public constant a: bool  = true;\n     | ^^^^^^^^^^^^^^^"
++  - "Error [EPAR0370040]: A parameter cannot be both public and const.\n    --> test:4:1\n     |\n   4 | public constant a: bool  = true;\n     | ^^^^^^^^^^^^^^^"
+diff --git a/tests/expectations/parser/parser/program/backslash_eof.leo.out b/tests/expectations/parser/parser/program/backslash_eof.leo.out
+index 9fe177028c..59a1ceac77 100644
+--- a/tests/expectations/parser/parser/program/backslash_eof.leo.out
++++ b/tests/expectations/parser/parser/program/backslash_eof.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370030]: Could not lex the following content: `\\`."
++  - "Error [EPAR0370028]: Could not lex the following content: `\\`."
+diff --git a/tests/expectations/parser/parser/program/bidi_comment_2_fail.leo.out b/tests/expectations/parser/parser/program/bidi_comment_2_fail.leo.out
+index 7a30e47e4a..43e43fea7c 100644
+--- a/tests/expectations/parser/parser/program/bidi_comment_2_fail.leo.out
++++ b/tests/expectations/parser/parser/program/bidi_comment_2_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370044]: Unicode bidi override code point encountered."
++  - "Error [EPAR0370042]: Unicode bidi override code point encountered."
+diff --git a/tests/expectations/parser/parser/program/bidi_comment_fail.leo.out b/tests/expectations/parser/parser/program/bidi_comment_fail.leo.out
+index 7a30e47e4a..43e43fea7c 100644
+--- a/tests/expectations/parser/parser/program/bidi_comment_fail.leo.out
++++ b/tests/expectations/parser/parser/program/bidi_comment_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370044]: Unicode bidi override code point encountered."
++  - "Error [EPAR0370042]: Unicode bidi override code point encountered."
+diff --git a/tests/expectations/parser/parser/program/dollar_eof.leo.out b/tests/expectations/parser/parser/program/dollar_eof.leo.out
+index 1d418a4b25..fca13ec1c2 100644
+--- a/tests/expectations/parser/parser/program/dollar_eof.leo.out
++++ b/tests/expectations/parser/parser/program/dollar_eof.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370030]: Could not lex the following content: `$`."
++  - "Error [EPAR0370028]: Could not lex the following content: `$`."
+diff --git a/tests/expectations/parser/parser/program/escape_u8_eof.leo.out b/tests/expectations/parser/parser/program/escape_u8_eof.leo.out
+index 2973be8cc8..0848e02369 100644
+--- a/tests/expectations/parser/parser/program/escape_u8_eof.leo.out
++++ b/tests/expectations/parser/parser/program/escape_u8_eof.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370030]: Could not lex the following content: `\\1u8`."
++  - "Error [EPAR0370028]: Could not lex the following content: `\\1u8`."
+diff --git a/tests/expectations/parser/parser/program/hex_eof.leo.out b/tests/expectations/parser/parser/program/hex_eof.leo.out
+index f8cd3c63e8..2f139ed7c1 100644
+--- a/tests/expectations/parser/parser/program/hex_eof.leo.out
++++ b/tests/expectations/parser/parser/program/hex_eof.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370036]: A hex number `0x..` was provided but hex is not allowed."
++  - "Error [EPAR0370034]: A hex number `0x..` was provided but hex is not allowed."
+diff --git a/tests/expectations/parser/parser/program/pipe_eof.leo.out b/tests/expectations/parser/parser/program/pipe_eof.leo.out
+index 5c1018440c..fb661e441a 100644
+--- a/tests/expectations/parser/parser/program/pipe_eof.leo.out
++++ b/tests/expectations/parser/parser/program/pipe_eof.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
+diff --git a/tests/expectations/parser/parser/program/q_eof.leo.out b/tests/expectations/parser/parser/program/q_eof.leo.out
+index 185a49721f..c03ef62046 100644
+--- a/tests/expectations/parser/parser/program/q_eof.leo.out
++++ b/tests/expectations/parser/parser/program/q_eof.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370025]: Expected a closed string but found ``."
++  - "Error [EPAR0370023]: Expected a closed string but found ``."
+diff --git a/tests/expectations/parser/parser/program/sq_eof.leo.out b/tests/expectations/parser/parser/program/sq_eof.leo.out
+index 5c1018440c..fb661e441a 100644
+--- a/tests/expectations/parser/parser/program/sq_eof.leo.out
++++ b/tests/expectations/parser/parser/program/sq_eof.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
+diff --git a/tests/expectations/parser/parser/program/tilde_eof.leo.out b/tests/expectations/parser/parser/program/tilde_eof.leo.out
+index 02b455d02b..0bb6387226 100644
+--- a/tests/expectations/parser/parser/program/tilde_eof.leo.out
++++ b/tests/expectations/parser/parser/program/tilde_eof.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370030]: Could not lex the following content: `~`."
++  - "Error [EPAR0370028]: Could not lex the following content: `~`."
+diff --git a/tests/expectations/parser/parser/program/unclosed_unicode_eof_fail.leo.out b/tests/expectations/parser/parser/program/unclosed_unicode_eof_fail.leo.out
+index 5c1018440c..fb661e441a 100644
+--- a/tests/expectations/parser/parser/program/unclosed_unicode_eof_fail.leo.out
++++ b/tests/expectations/parser/parser/program/unclosed_unicode_eof_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
+diff --git a/tests/expectations/parser/parser/statement/assign_fail.leo.out b/tests/expectations/parser/parser/statement/assign_fail.leo.out
+index f41b61429d..03d733c0d4 100644
+--- a/tests/expectations/parser/parser/statement/assign_fail.leo.out
++++ b/tests/expectations/parser/parser/statement/assign_fail.leo.out
+@@ -3,7 +3,7 @@ namespace: ParseStatement
+ expectation: Fail
+ outputs:
+   - "Error [EPAR0370005]: expected ; -- got ':'\n    --> test:1:2\n     |\n   1 | x::y = y;\n     |  ^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 5.\n    --> test:1:1\n     |\n   1 | 5 = y;\n     | ^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 5.\n    --> test:1:1\n     |\n   1 | 5 = y;\n     | ^"
+   - "Error [EPAR0370011]: invalid assignment target\n    --> test:1:1\n     |\n   1 | x + x = y;\n     | ^^^^^"
+   - "Error [EPAR0370011]: invalid assignment target\n    --> test:1:1\n     |\n   1 | -x = y;\n     | ^^"
+   - "Error [EPAR0370011]: invalid assignment target\n    --> test:1:1\n     |\n   1 | !x = y;\n     | ^^"
+@@ -15,4 +15,4 @@ outputs:
+   - "Error [EPAR0370005]: expected ; -- got '{'\n    --> test:1:3\n     |\n   1 | x {x: y, y: z} = y;\n     |   ^"
+   - "Error [EPAR0370011]: invalid assignment target\n    --> test:1:1\n     |\n   1 | x() = y;\n     | ^^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'int or ident', got 'y'\n    --> test:1:3\n     |\n   1 | x.y() = y;\n     |   ^"
+-  - "Error [EPAR0370030]: Could not lex the following content: `🦀 = y;`."
++  - "Error [EPAR0370028]: Could not lex the following content: `🦀 = y;`."
+diff --git a/tests/expectations/parser/parser/statement/console_fail.leo.out b/tests/expectations/parser/parser/statement/console_fail.leo.out
+index af7d33fe51..65e8563336 100644
+--- a/tests/expectations/parser/parser/statement/console_fail.leo.out
++++ b/tests/expectations/parser/parser/statement/console_fail.leo.out
+@@ -2,6 +2,6 @@
+ namespace: ParseStatement
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370044]: Unicode bidi override code point encountered."
++  - "Error [EPAR0370042]: Unicode bidi override code point encountered."
+   - "Error [EPAR0370009]: unexpected string: expected 'formatted string', got '1'\n    --> test:1:13\n     |\n   1 | console.log(1);\n     |             ^"
+   - "Error [EPAR0370007]: unexpected identifier: expected 'assert', 'error', 'log' -- got 'test'\n    --> test:1:9\n     |\n   1 | console.test();\n     |         ^^^^"
+diff --git a/tests/expectations/parser/parser/statement/definition_fail.leo.out b/tests/expectations/parser/parser/statement/definition_fail.leo.out
+index 48074c2ff5..4334a325bf 100644
+--- a/tests/expectations/parser/parser/statement/definition_fail.leo.out
++++ b/tests/expectations/parser/parser/statement/definition_fail.leo.out
+@@ -2,26 +2,26 @@
+ namespace: ParseStatement
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | let mut x = expr;\n     | ^^^^^^^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:11\n     |\n   1 | let mut x = expr;\n     |           ^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | let mut x = ();\n     | ^^^^^^^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:11\n     |\n   1 | let mut x = ();\n     |           ^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | let mut x = x+y;\n     | ^^^^^^^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:11\n     |\n   1 | let mut x = x+y;\n     |           ^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | let mut x = (x,y);\n     | ^^^^^^^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:11\n     |\n   1 | let mut x = (x,y);\n     |           ^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | let mut x = x();\n     | ^^^^^^^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:11\n     |\n   1 | let mut x = x();\n     |           ^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | const mut x = expr;\n     | ^^^^^^^^^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:13\n     |\n   1 | const mut x = expr;\n     |             ^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | const mut x = ();\n     | ^^^^^^^^^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:13\n     |\n   1 | const mut x = ();\n     |             ^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | const mut x = x+y;\n     | ^^^^^^^^^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:13\n     |\n   1 | const mut x = x+y;\n     |             ^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | const mut x = (x,y);\n     | ^^^^^^^^^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:13\n     |\n   1 | const mut x = (x,y);\n     |             ^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | const mut x = x();\n     | ^^^^^^^^^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:13\n     |\n   1 | const mut x = x();\n     |             ^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | let mut x: u32 = expr;\n     | ^^^^^^^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | let mut x: u32 = ();\n     | ^^^^^^^\nError [EPAR0370005]: expected A valid expression. -- got 'A tuple expression.'\n    --> test:1:18\n     |\n   1 | let mut x: u32 = ();\n     |                  ^^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | let mut x: u32 = x+y;\n     | ^^^^^^^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | let mut x: u32 = (x,y);\n     | ^^^^^^^\nError [EPAR0370005]: expected A valid expression. -- got 'A tuple expression.'\n    --> test:1:18\n     |\n   1 | let mut x: u32 = (x,y);\n     |                  ^^^^^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | let mut x: u32 = x();\n     | ^^^^^^^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | const mut x: u32 = expr;\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | const mut x: u32 = ();\n     | ^^^^^^^^^\nError [EPAR0370005]: expected A valid expression. -- got 'A tuple expression.'\n    --> test:1:20\n     |\n   1 | const mut x: u32 = ();\n     |                    ^^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | const mut x: u32 = x+y;\n     | ^^^^^^^^^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | const mut x: u32 = (x,y);\n     | ^^^^^^^^^\nError [EPAR0370005]: expected A valid expression. -- got 'A tuple expression.'\n    --> test:1:20\n     |\n   1 | const mut x: u32 = (x,y);\n     |                    ^^^^^"
+-  - "Error [EPAR0370014]: let mut = ... is deprecated. `let` keyword implies mutabality by default.\n    --> test:1:1\n     |\n   1 | const mut x: u32 = x();\n     | ^^^^^^^^^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:9\n     |\n   1 | let mut x = expr;\n     |         ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:9\n     |\n   1 | let mut x = ();\n     |         ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:9\n     |\n   1 | let mut x = x+y;\n     |         ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:9\n     |\n   1 | let mut x = (x,y);\n     |         ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:9\n     |\n   1 | let mut x = x();\n     |         ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:11\n     |\n   1 | const mut x = expr;\n     |           ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:11\n     |\n   1 | const mut x = ();\n     |           ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:11\n     |\n   1 | const mut x = x+y;\n     |           ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:11\n     |\n   1 | const mut x = (x,y);\n     |           ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:11\n     |\n   1 | const mut x = x();\n     |           ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:9\n     |\n   1 | let mut x: u32 = expr;\n     |         ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:9\n     |\n   1 | let mut x: u32 = ();\n     |         ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:9\n     |\n   1 | let mut x: u32 = x+y;\n     |         ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:9\n     |\n   1 | let mut x: u32 = (x,y);\n     |         ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:9\n     |\n   1 | let mut x: u32 = x();\n     |         ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:11\n     |\n   1 | const mut x: u32 = expr;\n     |           ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:11\n     |\n   1 | const mut x: u32 = ();\n     |           ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:11\n     |\n   1 | const mut x: u32 = x+y;\n     |           ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:11\n     |\n   1 | const mut x: u32 = (x,y);\n     |           ^"
++  - "Error [EPAR0370005]: expected : -- got 'x'\n    --> test:1:11\n     |\n   1 | const mut x: u32 = x();\n     |           ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'ident', got ','\n    --> test:1:10\n     |\n   1 | let (x,y,,) = ();\n     |          ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'ident', got ','\n    --> test:1:6\n     |\n   1 | let (,x,y) = ();\n     |      ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'ident', got ','\n    --> test:1:8\n     |\n   1 | let (x,,y) = ();\n     |        ^"
+@@ -43,6 +43,6 @@ outputs:
+   - "Error [EPAR0370005]: expected 'i8', 'i16', 'i32', 'i64', 'i128', 'u8', 'u16', 'u32', 'u64', 'u128', 'field', 'group', 'address', 'bool', 'char' -- got '['\n    --> test:1:8\n     |\n   1 | let x: [u8;\n     |        ^"
+   - "Error [EPAR0370005]: expected 'i8', 'i16', 'i32', 'i64', 'i128', 'u8', 'u16', 'u32', 'u64', 'u128', 'field', 'group', 'address', 'bool', 'char' -- got '['\n    --> test:1:8\n     |\n   1 | let x: [u8; 1u8] = [1,\n     |        ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got ']'\n    --> test:1:15\n     |\n   1 | let dbg: u8 = ];\n     |               ^"
+-  - "Error [EPAR0370030]: Could not lex the following content: `🦀: u8 = 0;`."
+-  - "Error [EPAR0370039]: do not put parens around single variable names\n    --> test:1:6\n     |\n   1 | let (x) = ...;\n     |      ^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:9\n     |\n   1 | let (x) = ...;\n     |         ^"
+-  - "Error [EPAR0370039]: do not put parens around single variable names\n    --> test:1:6\n     |\n   1 | let (x,) = ...;\n     |      ^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:10\n     |\n   1 | let (x,) = ...;\n     |          ^"
++  - "Error [EPAR0370028]: Could not lex the following content: `🦀: u8 = 0;`."
++  - "Error [EPAR0370037]: do not put parens around single variable names\n    --> test:1:6\n     |\n   1 | let (x) = ...;\n     |      ^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:9\n     |\n   1 | let (x) = ...;\n     |         ^"
++  - "Error [EPAR0370037]: do not put parens around single variable names\n    --> test:1:6\n     |\n   1 | let (x,) = ...;\n     |      ^\nError [EPAR0370005]: expected : -- got '='\n    --> test:1:10\n     |\n   1 | let (x,) = ...;\n     |          ^"
+diff --git a/tests/expectations/parser/parser/statement/expression_fail.leo.out b/tests/expectations/parser/parser/statement/expression_fail.leo.out
+index e6d0ae895d..86bd39e2ac 100644
+--- a/tests/expectations/parser/parser/statement/expression_fail.leo.out
++++ b/tests/expectations/parser/parser/statement/expression_fail.leo.out
+@@ -4,7 +4,7 @@ expectation: Fail
+ outputs:
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got ']'\n    --> test:1:2\n     |\n   1 | (];\n     |  ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '['\n    --> test:1:1\n     |\n   1 | [);\n     | ^"
+-  - "Error [EPAR0370030]: Could not lex the following content: `\\y;`."
+-  - "Error [EPAR0370041]: Found the char `;`, but expected `|`"
++  - "Error [EPAR0370028]: Could not lex the following content: `\\y;`."
++  - "Error [EPAR0370039]: Found the char `;`, but expected `|`"
+   - "Error [EPAR0370005]: expected ; -- got '['\n    --> test:1:2\n     |\n   1 | x[};\n     |  ^"
+   - "Error [EPAR0370005]: expected ) -- got ']'\n    --> test:1:6\n     |\n   1 | (x, y];\n     |      ^"
+diff --git a/tests/expectations/parser/parser/statement/hex_int_fail.leo.out b/tests/expectations/parser/parser/statement/hex_int_fail.leo.out
+index dde7d447e2..0c852a4aca 100644
+--- a/tests/expectations/parser/parser/statement/hex_int_fail.leo.out
++++ b/tests/expectations/parser/parser/statement/hex_int_fail.leo.out
+@@ -2,6 +2,6 @@
+ namespace: ParseStatement
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370036]: A hex number `0x..` was provided but hex is not allowed."
+-  - "Error [EPAR0370036]: A hex number `0x..` was provided but hex is not allowed."
+-  - "Error [EPAR0370036]: A hex number `0x..` was provided but hex is not allowed."
++  - "Error [EPAR0370034]: A hex number `0x..` was provided but hex is not allowed."
++  - "Error [EPAR0370034]: A hex number `0x..` was provided but hex is not allowed."
++  - "Error [EPAR0370034]: A hex number `0x..` was provided but hex is not allowed."
+diff --git a/tests/expectations/parser/parser/statement/return_fail.leo.out b/tests/expectations/parser/parser/statement/return_fail.leo.out
+index 945e961690..d3f65e3412 100644
+--- a/tests/expectations/parser/parser/statement/return_fail.leo.out
++++ b/tests/expectations/parser/parser/statement/return_fail.leo.out
+@@ -3,5 +3,5 @@ namespace: ParseStatement
+ expectation: Fail
+ outputs:
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '<eof>'\n    --> test:1:1\n     |\n   1 | return\n     | ^^^^^^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 5.\n    --> test:1:8\n     |\n   1 | return 5\n     |        ^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 5.\n    --> test:1:8\n     |\n   1 | return 5\n     |        ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'if'\n    --> test:2:1\n     |\n   2 | if x {}\n     | ^^"
+diff --git a/tests/expectations/parser/parser/unreachable/define.leo.out b/tests/expectations/parser/parser/unreachable/define.leo.out
+index 3c3046ebcc..724fb54225 100644
+--- a/tests/expectations/parser/parser/unreachable/define.leo.out
++++ b/tests/expectations/parser/parser/unreachable/define.leo.out
+@@ -41,10 +41,10 @@ outputs:
+   - "Error [EPAR0370005]: expected ; -- got 'x'\n    --> test:1:5\n     |\n   1 | u32 x = 10u8;\n     |     ^"
+   - "Error [EPAR0370005]: expected ; -- got 'x'\n    --> test:1:5\n     |\n   1 | u64 x = 10u8;\n     |     ^"
+   - "Error [EPAR0370005]: expected ; -- got 'x'\n    --> test:1:6\n     |\n   1 | u128 x = 10u8;\n     |      ^"
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
+   - "Error [EPAR0370005]: expected ; -- got '='\n    --> test:1:10\n     |\n   1 | return x = 10u8;\n     |          ^"
+   - "Error [EPAR0370005]: expected ; -- got 'x'\n    --> test:1:6\n     |\n   1 | self x = 10u8;\n     |      ^"
+   - "Error [EPAR0370005]: expected ; -- got 'x'\n    --> test:1:6\n     |\n   1 | Self x = 10u8;\n     |      ^"
+   - "Error [EPAR0370005]: expected ; -- got 'x'\n    --> test:1:6\n     |\n   1 | true x = 10u8;\n     |      ^"
+   - "Error [EPAR0370005]: expected ; -- got 'x'\n    --> test:1:7\n     |\n   1 | false x = 10u8;\n     |       ^"
+-  - "Error [EPAR0370032]: Could not parse the implicit value: 0.\n    --> test:1:1\n     |\n   1 | 0 x = 10u8;\n     | ^"
++  - "Error [EPAR0370030]: Could not parse the implicit value: 0.\n    --> test:1:1\n     |\n   1 | 0 x = 10u8;\n     | ^"
+diff --git a/tests/expectations/parser/parser/unreachable/eat_ident.leo.out b/tests/expectations/parser/parser/unreachable/eat_ident.leo.out
+index 5c1018440c..fb661e441a 100644
+--- a/tests/expectations/parser/parser/unreachable/eat_ident.leo.out
++++ b/tests/expectations/parser/parser/unreachable/eat_ident.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
+diff --git a/tests/expectations/parser/parser/unreachable/eat_int.leo.out b/tests/expectations/parser/parser/unreachable/eat_int.leo.out
+index 881cd8dfbe..b955c5e126 100644
+--- a/tests/expectations/parser/parser/unreachable/eat_int.leo.out
++++ b/tests/expectations/parser/parser/unreachable/eat_int.leo.out
+@@ -48,7 +48,7 @@ outputs:
+   - "Error [EPAR0370009]: unexpected string: expected 'int or ident', got '0'\n    --> test:1:3\n     |\n   1 | x.0_u32\n     |   ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'int or ident', got '0'\n    --> test:1:3\n     |\n   1 | x.0_u64\n     |   ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'int or ident', got '0'\n    --> test:1:3\n     |\n   1 | x.0_u128\n     |   ^"
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
+   - "Error [EPAR0370009]: unexpected string: expected 'int or ident', got '0'\n    --> test:1:3\n     |\n   1 | x.0_return\n     |   ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'int or ident', got '0'\n    --> test:1:3\n     |\n   1 | x.0_self\n     |   ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'int or ident', got '0'\n    --> test:1:3\n     |\n   1 | x.0_Self\n     |   ^"
+diff --git a/tests/expectations/parser/parser/unreachable/equality_and_order_expression.leo.out b/tests/expectations/parser/parser/unreachable/equality_and_order_expression.leo.out
+index 2fb078335f..a47e13e917 100644
+--- a/tests/expectations/parser/parser/unreachable/equality_and_order_expression.leo.out
++++ b/tests/expectations/parser/parser/unreachable/equality_and_order_expression.leo.out
+@@ -47,7 +47,7 @@ outputs:
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'if'\n    --> test:1:1\n     |\n   1 | if 10 u32 {}\n     | ^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'if'\n    --> test:1:1\n     |\n   1 | if 10 u64 {}\n     | ^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'if'\n    --> test:1:1\n     |\n   1 | if 10 u128 {}\n     | ^^"
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'if'\n    --> test:1:1\n     |\n   1 | if 10 return {}\n     | ^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'if'\n    --> test:1:1\n     |\n   1 | if 10 self {}\n     | ^^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got 'if'\n    --> test:1:1\n     |\n   1 | if 10 Self {}\n     | ^^"
+diff --git a/tests/expectations/parser/parser/unreachable/expect_ident.leo.out b/tests/expectations/parser/parser/unreachable/expect_ident.leo.out
+index 8041c9b1fd..671ce0d77f 100644
+--- a/tests/expectations/parser/parser/unreachable/expect_ident.leo.out
++++ b/tests/expectations/parser/parser/unreachable/expect_ident.leo.out
+@@ -47,7 +47,7 @@ outputs:
+   - "Error [EPAR0370005]: expected ; -- got ':'\n    --> test:1:2\n     |\n   1 | x::u32\n     |  ^"
+   - "Error [EPAR0370005]: expected ; -- got ':'\n    --> test:1:2\n     |\n   1 | x::u64\n     |  ^"
+   - "Error [EPAR0370005]: expected ; -- got ':'\n    --> test:1:2\n     |\n   1 | x::u128\n     |  ^"
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
+   - "Error [EPAR0370005]: expected ; -- got ':'\n    --> test:1:2\n     |\n   1 | x::return\n     |  ^"
+   - "Error [EPAR0370005]: expected ; -- got ':'\n    --> test:1:2\n     |\n   1 | x::self\n     |  ^"
+   - "Error [EPAR0370005]: expected ; -- got ':'\n    --> test:1:2\n     |\n   1 | x::Self\n     |  ^"
+diff --git a/tests/expectations/parser/parser/unreachable/math_op_fail.leo.out b/tests/expectations/parser/parser/unreachable/math_op_fail.leo.out
+index 43623c7643..8cd010cca0 100644
+--- a/tests/expectations/parser/parser/unreachable/math_op_fail.leo.out
++++ b/tests/expectations/parser/parser/unreachable/math_op_fail.leo.out
+@@ -33,7 +33,7 @@ outputs:
+   - "Error [EPAR0370005]: expected : -- got '='\n    --> test:1:7\n     |\n   1 | let x = a u32 b;\n     |       ^"
+   - "Error [EPAR0370005]: expected : -- got '='\n    --> test:1:7\n     |\n   1 | let x = a u64 b;\n     |       ^"
+   - "Error [EPAR0370005]: expected : -- got '='\n    --> test:1:7\n     |\n   1 | let x = a u128 b;\n     |       ^"
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
+   - "Error [EPAR0370005]: expected : -- got '='\n    --> test:1:7\n     |\n   1 | let x = a return b;\n     |       ^"
+   - "Error [EPAR0370005]: expected : -- got '='\n    --> test:1:7\n     |\n   1 | let x = a self b;\n     |       ^"
+   - "Error [EPAR0370005]: expected : -- got '='\n    --> test:1:7\n     |\n   1 | let x = a Self b;\n     |       ^"
+@@ -56,4 +56,4 @@ outputs:
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '='\n    --> test:1:4\n     |\n   1 | x>==b;\n     |    ^"
+   - "Error [EPAR0370009]: unexpected string: expected 'expression', got '='\n    --> test:1:4\n     |\n   1 | x<==b;\n     |    ^"
+   - "Error [EPAR0370005]: expected ; -- got '..'\n    --> test:1:2\n     |\n   1 | x..=b;\n     |  ^^"
+-  - "Error [EPAR0370023]: Expected more characters to lex but found none."
++  - "Error [EPAR0370021]: Expected more characters to lex but found none."
+diff --git a/tests/parser/expression/token_format.leo b/tests/parser/expression/token_format.leo
+index c0c8bc4eef..a114ea9773 100644
+--- a/tests/parser/expression/token_format.leo
++++ b/tests/parser/expression/token_format.leo
+@@ -139,10 +139,6 @@ in
+ 
+ let
+ 
+-mut
+-
+ &
+ 
+ return
+-
+-type
+diff --git a/tests/parser/functions/const_input_kw_fail.leo b/tests/parser/functions/const_input_kw_fail.leo
+deleted file mode 100644
+index ac4b998021..0000000000
+--- a/tests/parser/functions/const_input_kw_fail.leo
++++ /dev/null
+@@ -1,12 +0,0 @@
+-/*
+-namespace: Parse
+-expectation: Fail
+-*/
+-
+-function x(const input) {
+-    return ();
+-}
+-
+-function y(constant input) {
+-    return ();
+-}
+\ No newline at end of file

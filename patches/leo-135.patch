@@ -1,0 +1,67 @@
+diff --git a/compiler/src/expression/relational/eq.rs b/compiler/src/expression/relational/eq.rs
+index 3fea711e53..7cd39de84f 100644
+--- a/compiler/src/expression/relational/eq.rs
++++ b/compiler/src/expression/relational/eq.rs
+@@ -57,6 +57,11 @@ pub fn evaluate_eq<'a, F: PrimeField, G: GroupType<F>, CS: ConstraintSystem<F>>(
+         }
+         (ConstrainedValue::Array(arr_1), ConstrainedValue::Array(arr_2)) => {
+             let mut current = ConstrainedValue::Boolean(Boolean::constant(true));
++
++            if arr_1.len() != arr_2.len() {
++                return Err(CompilerError::array_sizes_must_match_in_eq(arr_1.len(), arr_2.len(), span).into());
++            }
++
+             for (i, (left, right)) in arr_1.into_iter().zip(arr_2.into_iter()).enumerate() {
+                 let next = evaluate_eq(&mut cs.ns(|| format!("array[{}]", i)), left, right, span)?;
+ 
+diff --git a/errors/src/compiler/compiler_errors.rs b/errors/src/compiler/compiler_errors.rs
+index c66358a068..ede090dcdf 100644
+--- a/errors/src/compiler/compiler_errors.rs
++++ b/errors/src/compiler/compiler_errors.rs
+@@ -163,7 +163,7 @@ create_errors!(
+         help: None,
+     }
+ 
+-    /// For when the operation has no implmentation on the type of variable received.
++    /// For when the operation has no implementation on the type of variable received.
+     @formatted
+     incompatible_types {
+         args: (operation: impl Display),
+@@ -841,4 +841,11 @@ create_errors!(
+         msg: "len() can only be called on an array value".to_string(),
+         help: None,
+     }
++
++    @formatted
++    array_sizes_must_match_in_eq {
++        args: (lhs: impl Display, rhs: impl Display),
++        msg: format!("array sizes must match for comparison; left: {}, right: {}", lhs, rhs),
++        help: None,
++    }
+ );
+diff --git a/tests/compiler/array_without_size/compare_fail.leo b/tests/compiler/array_without_size/compare_fail.leo
+new file mode 100644
+index 0000000000..2aa1ce8360
+--- /dev/null
++++ b/tests/compiler/array_without_size/compare_fail.leo
+@@ -0,0 +1,9 @@
++/*
++namespace: Compile
++expectation: Fail
++*/
++
++function main() {
++    let x: [u8; _] = [1u8,2];
++    let z: bool = x == [1u8,2,3]; // array size mismatch
++}
+diff --git a/tests/expectations/compiler/compiler/array_without_size/compare_fail.leo.out b/tests/expectations/compiler/compiler/array_without_size/compare_fail.leo.out
+new file mode 100644
+index 0000000000..f3e1a96589
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/array_without_size/compare_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [ECMP0376093]: array sizes must match for comparison; left: 2, right: 3\n    --> compiler-test:5:19\n     |\n   5 |     let z: bool = x == [1u8,2,3]; // array size mismatch\n     |                   ^^^^^^^^^^^^^^"

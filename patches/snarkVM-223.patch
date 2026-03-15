@@ -1,0 +1,780 @@
+diff --git a/dpc/src/circuits/mod.rs b/dpc/src/circuits/mod.rs
+index 35cc65e65..fca0696f6 100644
+--- a/dpc/src/circuits/mod.rs
++++ b/dpc/src/circuits/mod.rs
+@@ -23,14 +23,5 @@ pub(crate) use inner_private_variables::*;
+ pub(crate) mod inner_public_variables;
+ pub(crate) use inner_public_variables::*;
+ 
+-pub mod outer_circuit;
+-pub use outer_circuit::*;
+-
+-pub(crate) mod outer_private_variables;
+-pub(crate) use outer_private_variables::*;
+-
+-pub(crate) mod outer_public_variables;
+-pub(crate) use outer_public_variables::*;
+-
+ #[cfg(test)]
+ mod tests;
+diff --git a/dpc/src/circuits/outer_circuit.rs b/dpc/src/circuits/outer_circuit.rs
+deleted file mode 100644
+index 58efa49d3..000000000
+--- a/dpc/src/circuits/outer_circuit.rs
++++ /dev/null
+@@ -1,297 +0,0 @@
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the snarkVM library.
+-
+-// The snarkVM library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkVM library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+-
+-use crate::{Execution, Network, OuterPrivateVariables, OuterPublicVariables};
+-use snarkvm_algorithms::traits::{MerkleParameters, SNARK};
+-use snarkvm_fields::ToConstraintField;
+-use snarkvm_gadgets::{
+-    algorithms::merkle_tree::MerklePathGadget,
+-    traits::{
+-        algorithms::{CRHGadget, SNARKVerifierGadget},
+-        alloc::AllocGadget,
+-        eq::EqGadget,
+-    },
+-    MergeGadget,
+-    ToBitsLEGadget,
+-    ToBytesGadget,
+-    ToMinimalBitsGadget,
+-    UInt8,
+-};
+-use snarkvm_r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+-use snarkvm_utilities::ToBytes;
+-
+-#[derive(Derivative)]
+-#[derivative(Clone(bound = "N: Network"))]
+-pub struct OuterCircuit<N: Network> {
+-    public: OuterPublicVariables<N>,
+-    private: OuterPrivateVariables<N>,
+-}
+-
+-impl<N: Network> OuterCircuit<N> {
+-    pub fn blank(
+-        inner_verifying_key: <N::InnerSNARK as SNARK>::VerifyingKey,
+-        inner_proof: N::InnerProof,
+-        execution: Execution<N>,
+-    ) -> Self {
+-        Self {
+-            public: OuterPublicVariables::blank(),
+-            private: OuterPrivateVariables::blank(inner_verifying_key, inner_proof, execution),
+-        }
+-    }
+-
+-    pub fn new(public: OuterPublicVariables<N>, private: OuterPrivateVariables<N>) -> Self {
+-        Self { public, private }
+-    }
+-}
+-
+-impl<N: Network> ConstraintSynthesizer<N::OuterScalarField> for OuterCircuit<N> {
+-    fn generate_constraints<CS: ConstraintSystem<N::OuterScalarField>>(
+-        &self,
+-        cs: &mut CS,
+-    ) -> Result<(), SynthesisError> {
+-        execute_outer_circuit::<N, CS>(cs, &self.public, &self.private)
+-    }
+-}
+-
+-pub fn execute_outer_circuit<N: Network, CS: ConstraintSystem<N::OuterScalarField>>(
+-    cs: &mut CS,
+-    public: &OuterPublicVariables<N>,
+-    private: &OuterPrivateVariables<N>,
+-) -> Result<(), SynthesisError> {
+-    // ************************************************************************
+-    // Declare public parameters.
+-    // ************************************************************************
+-
+-    let function_id_crh =
+-        N::FunctionIDCRHGadget::alloc_constant(&mut cs.ns(|| "Declare function_id_crh_parameters"), || {
+-            Ok(N::function_id_crh().clone())
+-        })?;
+-
+-    let program_functions_tree_crh =
+-        N::ProgramIDCRHGadget::alloc_constant(&mut cs.ns(|| "Declare program_functions_tree_crh_parameters"), || {
+-            Ok(N::program_id_parameters().crh().clone())
+-        })?;
+-
+-    let inner_circuit_id_crh =
+-        N::InnerCircuitIDCRHGadget::alloc_constant(&mut cs.ns(|| "Declare inner_circuit_id_crh_parameters"), || {
+-            Ok(N::inner_circuit_id_crh().clone())
+-        })?;
+-
+-    // ************************************************************************
+-    // Construct the inner circuit input.
+-    // ************************************************************************
+-
+-    // Declare inner circuit public variables as inner circuit field elements
+-
+-    let ledger_root_fe_inner_snark =
+-        alloc_inner_snark_input_field_element::<N, _, _>(cs, &public.ledger_root(), "ledger root inner snark")?;
+-
+-    let local_transitions_root_fe_inner_snark = alloc_inner_snark_input_field_element::<N, _, _>(
+-        cs,
+-        &public.local_transitions_root(),
+-        "local transitions root inner snark",
+-    )?;
+-
+-    let program_id_bytes = UInt8::alloc_vec(
+-        &mut cs.ns(|| "Given Program ID bytes"),
+-        &private.execution.program_id.to_bytes_le()?[..],
+-    )?;
+-    let program_id_fe =
+-        N::InnerSNARKGadget::input_gadget_from_bytes(cs.ns(|| "Given Program ID fe"), &program_id_bytes)?;
+-
+-    let value_balance_fe = alloc_inner_snark_input_field_element::<N, _, _>(
+-        cs,
+-        &public.value_balance().to_bytes_le()?[..],
+-        "value balance",
+-    )?;
+-
+-    let transition_id_fe_inner_snark =
+-        alloc_inner_snark_input_field_element::<N, _, _>(cs, &public.transition_id(), "transition ID inner snark")?;
+-    let transition_id_fe_program_snark =
+-        alloc_program_snark_field_element::<N, _, _>(cs, &public.transition_id(), "transition ID program snark")?;
+-    {
+-        // Construct inner snark input as bits
+-        let transition_id_input_inner_snark_bits =
+-            transition_id_fe_inner_snark.to_bits_le(cs.ns(|| "transition ID inner snark to bits"))?;
+-        let transition_id_input_program_snark_bits =
+-            transition_id_fe_program_snark.to_bits_le(cs.ns(|| "transition ID program snark to bits"))?;
+-        transition_id_input_inner_snark_bits.enforce_equal(
+-            cs.ns(|| "transition ID equality"),
+-            &transition_id_input_program_snark_bits,
+-        )?;
+-    }
+-
+-    let inner_snark_input =
+-        <N::InnerSNARKGadget as SNARKVerifierGadget<_>>::InputGadget::merge_many(cs.ns(|| "inner_snark_input"), &[
+-            ledger_root_fe_inner_snark,
+-            local_transitions_root_fe_inner_snark,
+-            program_id_fe,
+-            value_balance_fe,
+-            transition_id_fe_inner_snark,
+-        ])?;
+-
+-    // ************************************************************************
+-    // Verify the inner circuit proof.
+-    // ************************************************************************
+-
+-    let inner_verifying_key = <N::InnerSNARKGadget as SNARKVerifierGadget<_>>::VerificationKeyGadget::alloc(
+-        &mut cs.ns(|| "Allocate inner circuit verifying key"),
+-        || Ok(&private.inner_verifying_key),
+-    )?;
+-
+-    let inner_snark_proof = <N::InnerSNARKGadget as SNARKVerifierGadget<_>>::ProofGadget::alloc(
+-        &mut cs.ns(|| "Allocate inner circuit proof"),
+-        || Ok(&*private.inner_proof),
+-    )?;
+-
+-    N::InnerSNARKGadget::check_verify(
+-        &mut cs.ns(|| "Check that the inner circuit proof is satisfied"),
+-        &inner_verifying_key,
+-        &inner_snark_input,
+-        &inner_snark_proof,
+-    )?;
+-
+-    // ************************************************************************
+-    // Verify each circuit exist in declared program and verify their proofs.
+-    // ************************************************************************
+-    {
+-        let cs = &mut cs.ns(|| "Check execution for program");
+-
+-        let program_circuit_verifying_key =
+-            <N::ProgramSNARKGadget as SNARKVerifierGadget<_>>::VerificationKeyGadget::alloc(
+-                &mut cs.ns(|| "Allocate program circuit verifying key"),
+-                || Ok(&private.execution.verifying_key),
+-            )?;
+-
+-        // Check that the program ID is derived correctly.
+-        {
+-            // Verify that the claimed circuit ID is a valid Merkle path in the program circuits tree.
+-            let program_circuit_verifying_key_bits = program_circuit_verifying_key
+-                .to_minimal_bits(cs.ns(|| "alloc_program_circuit_verifying_key_field_elements"))?;
+-
+-            let claimed_circuit_id = function_id_crh.check_evaluation_gadget_on_bits(
+-                &mut cs.ns(|| "Compute circuit ID"),
+-                program_circuit_verifying_key_bits,
+-            )?;
+-
+-            let program_path_gadget = MerklePathGadget::<_, N::ProgramIDCRHGadget, _>::alloc(
+-                &mut cs.ns(|| "Declare program path for circuit"),
+-                || Ok(&private.execution.program_path),
+-            )?;
+-
+-            let claimed_program_id = program_path_gadget.calculate_root(
+-                &mut cs.ns(|| "calculate_program_id"),
+-                &program_functions_tree_crh,
+-                claimed_circuit_id,
+-            )?;
+-
+-            let claimed_program_id_bytes =
+-                claimed_program_id.to_bytes_strict(&mut cs.ns(|| "claimed program id to bytes"))?;
+-
+-            claimed_program_id_bytes.enforce_equal(
+-                &mut cs.ns(|| "Check that declared and computed program IDs are equal"),
+-                &program_id_bytes,
+-            )?;
+-        }
+-
+-        // Verify the proof.
+-
+-        let position_fe = <N::ProgramSNARKGadget as SNARKVerifierGadget<_>>::InputGadget::alloc_constant(
+-            &mut cs.ns(|| "Allocate position"),
+-            || Ok(vec![N::InnerScalarField::from(0u128)]),
+-        )?;
+-        let program_input = position_fe.merge(cs.ns(|| "Allocate program input"), &transition_id_fe_program_snark)?;
+-
+-        let program_circuit_proof = <N::ProgramSNARKGadget as SNARKVerifierGadget<_>>::ProofGadget::alloc(
+-            &mut cs.ns(|| "Allocate program circuit proof"),
+-            || Ok(&*private.execution.program_proof),
+-        )?;
+-
+-        N::ProgramSNARKGadget::check_verify(
+-            &mut cs.ns(|| "Check that the program proof is satisfied"),
+-            &program_circuit_verifying_key,
+-            &program_input,
+-            &program_circuit_proof,
+-        )?;
+-    }
+-
+-    // ********************************************************************
+-
+-    // ********************************************************************
+-    // Check that the inner circuit ID is derived correctly.
+-    // ********************************************************************
+-
+-    let inner_verifying_key_bits =
+-        inner_verifying_key.to_minimal_bits(&mut cs.ns(|| "Convert inner snark vk to bits"))?;
+-
+-    let given_inner_circuit_id =
+-        <N::InnerCircuitIDCRHGadget as CRHGadget<_, N::OuterScalarField>>::OutputGadget::alloc_input(
+-            &mut cs.ns(|| "Inner circuit ID"),
+-            || Ok(public.inner_circuit_id()),
+-        )?;
+-
+-    let candidate_inner_circuit_id = inner_circuit_id_crh
+-        .check_evaluation_gadget_on_bits(&mut cs.ns(|| "Compute inner circuit ID"), inner_verifying_key_bits)?;
+-
+-    candidate_inner_circuit_id.enforce_equal(
+-        &mut cs.ns(|| "Check that declared and computed inner circuit IDs are equal"),
+-        &given_inner_circuit_id,
+-    )?;
+-
+-    Ok(())
+-}
+-
+-fn alloc_inner_snark_input_field_element<
+-    N: Network,
+-    V: ToConstraintField<N::InnerScalarField> + ?Sized,
+-    CS: ConstraintSystem<N::OuterScalarField>,
+->(
+-    cs: &mut CS,
+-    var: &V,
+-    name: &str,
+-) -> Result<<N::InnerSNARKGadget as SNARKVerifierGadget<N::InnerSNARK>>::InputGadget, SynthesisError> {
+-    let field_elements = var.to_field_elements().map_err(|_| SynthesisError::AssignmentMissing)?;
+-    // allocate the field elements one by one
+-    let mut input_gadgets = Vec::with_capacity(field_elements.len());
+-    for (j, field_element) in field_elements.iter().enumerate() {
+-        input_gadgets.push(
+-            <N::InnerSNARKGadget as SNARKVerifierGadget<_>>::InputGadget::alloc_input(
+-                cs.ns(|| format!("alloc_input_field_element_{}_{}", name, j)),
+-                || Ok(vec![*field_element]),
+-            )?,
+-        )
+-    }
+-    <N::InnerSNARKGadget as SNARKVerifierGadget<N::InnerSNARK>>::InputGadget::merge_many(
+-        cs.ns(|| format!("alloc_input_field_element_{}_merge", name)),
+-        &input_gadgets,
+-    )
+-}
+-
+-fn alloc_program_snark_field_element<
+-    N: Network,
+-    V: ToConstraintField<N::InnerScalarField>,
+-    CS: ConstraintSystem<N::OuterScalarField>,
+->(
+-    cs: &mut CS,
+-    var: &V,
+-    name: &str,
+-) -> Result<<N::ProgramSNARKGadget as SNARKVerifierGadget<N::ProgramSNARK>>::InputGadget, SynthesisError> {
+-    let field_elements = var.to_field_elements().map_err(|_| SynthesisError::AssignmentMissing)?;
+-    <N::ProgramSNARKGadget as SNARKVerifierGadget<_>>::InputGadget::alloc(
+-        cs.ns(|| format!("alloc_field_element_{}", name)),
+-        || Ok(field_elements),
+-    )
+-}
+diff --git a/dpc/src/circuits/outer_private_variables.rs b/dpc/src/circuits/outer_private_variables.rs
+deleted file mode 100644
+index 5368e70d3..000000000
+--- a/dpc/src/circuits/outer_private_variables.rs
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the snarkVM library.
+-
+-// The snarkVM library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkVM library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+-
+-use crate::{Execution, Network};
+-use snarkvm_algorithms::traits::SNARK;
+-
+-#[derive(Derivative)]
+-#[derivative(Clone(bound = "N: Network"))]
+-pub struct OuterPrivateVariables<N: Network> {
+-    pub(super) inner_verifying_key: <N::InnerSNARK as SNARK>::VerifyingKey,
+-    pub(super) inner_proof: N::InnerProof,
+-    pub(super) execution: Execution<N>,
+-}
+-
+-impl<N: Network> OuterPrivateVariables<N> {
+-    pub(crate) fn blank(
+-        inner_verifying_key: <N::InnerSNARK as SNARK>::VerifyingKey,
+-        inner_proof: N::InnerProof,
+-        execution: Execution<N>,
+-    ) -> Self {
+-        Self {
+-            inner_verifying_key,
+-            inner_proof,
+-            execution,
+-        }
+-    }
+-
+-    pub(crate) fn new(
+-        inner_verifying_key: <N::InnerSNARK as SNARK>::VerifyingKey,
+-        inner_proof: N::InnerProof,
+-        execution: Execution<N>,
+-    ) -> Self {
+-        Self {
+-            inner_verifying_key,
+-            inner_proof,
+-            execution,
+-        }
+-    }
+-}
+diff --git a/dpc/src/circuits/outer_public_variables.rs b/dpc/src/circuits/outer_public_variables.rs
+deleted file mode 100644
+index 45ce4f4cd..000000000
+--- a/dpc/src/circuits/outer_public_variables.rs
++++ /dev/null
+@@ -1,104 +0,0 @@
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the snarkVM library.
+-
+-// The snarkVM library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkVM library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+-
+-use crate::{AleoAmount, InnerPublicVariables, Network};
+-use snarkvm_fields::{ConstraintFieldError, ToConstraintField};
+-use snarkvm_utilities::ToBits;
+-
+-use anyhow::Result;
+-
+-#[derive(Clone, Debug)]
+-pub struct OuterPublicVariables<N: Network> {
+-    inner_public_variables: InnerPublicVariables<N>,
+-    inner_circuit_id: N::InnerCircuitID,
+-}
+-
+-impl<N: Network> OuterPublicVariables<N> {
+-    pub(crate) fn blank() -> Self {
+-        // These inner circuit public variables are allocated as private variables in the outer circuit,
+-        // as they are not included in the transaction broadcast to the ledger.
+-        let mut inner_public_variables = InnerPublicVariables::blank();
+-        inner_public_variables.program_id = None;
+-
+-        Self {
+-            inner_public_variables,
+-            inner_circuit_id: N::InnerCircuitID::default(),
+-        }
+-    }
+-
+-    pub(crate) fn new(inner_public_variables: InnerPublicVariables<N>, inner_circuit_id: &N::InnerCircuitID) -> Self {
+-        // These inner circuit public variables are allocated as private variables in the outer circuit,
+-        // as they are not included in the transaction broadcast to the ledger.
+-        let mut inner_public_variables: InnerPublicVariables<N> = inner_public_variables;
+-        inner_public_variables.program_id = None;
+-
+-        Self {
+-            inner_public_variables,
+-            inner_circuit_id: *inner_circuit_id,
+-        }
+-    }
+-
+-    /// Returns the transition ID.
+-    pub(crate) fn transition_id(&self) -> N::TransitionID {
+-        self.inner_public_variables.transition_id()
+-    }
+-
+-    /// Returns the value balance of the transition.
+-    pub(crate) fn value_balance(&self) -> AleoAmount {
+-        self.inner_public_variables.value_balance()
+-    }
+-
+-    /// Returns the ledger root.
+-    pub(crate) fn ledger_root(&self) -> N::LedgerRoot {
+-        self.inner_public_variables.ledger_root()
+-    }
+-
+-    pub(crate) fn local_transitions_root(&self) -> N::TransactionID {
+-        self.inner_public_variables.local_transitions_root()
+-    }
+-
+-    pub(crate) fn inner_circuit_id(&self) -> N::InnerCircuitID {
+-        self.inner_circuit_id
+-    }
+-}
+-
+-impl<N: Network> ToConstraintField<N::OuterScalarField> for OuterPublicVariables<N> {
+-    fn to_field_elements(&self) -> Result<Vec<N::OuterScalarField>, ConstraintFieldError> {
+-        // In the outer circuit, these two variables must be allocated as witness,
+-        // as they are not included in the transaction.
+-        debug_assert!(self.inner_public_variables.program_id.is_none());
+-
+-        let mut v = Vec::new();
+-
+-        // Convert inner circuit public variables into `OuterField` field elements.
+-        //
+-        // We allocate the inner circuit public variables using BooleanInput,
+-        // which allocates nonnative field elements into a circuit, and
+-        // apply the follow a rule:
+-        //
+-        // Alloc the original inputs as bits, then pack them into the new field, in little-endian format.
+-        for inner_snark_fe in &self.inner_public_variables.to_field_elements()? {
+-            v.extend_from_slice(&ToConstraintField::<N::OuterScalarField>::to_field_elements(
+-                inner_snark_fe.to_bits_le().as_slice(),
+-            )?);
+-        }
+-
+-        // Then allocate the inner circuit ID.
+-        v.extend_from_slice(&self.inner_circuit_id.to_field_elements()?);
+-
+-        Ok(v)
+-    }
+-}
+diff --git a/dpc/src/network/testnet1.rs b/dpc/src/network/testnet1.rs
+index 076490ddf..6f65774f8 100644
+--- a/dpc/src/network/testnet1.rs
++++ b/dpc/src/network/testnet1.rs
+@@ -23,7 +23,6 @@ use crate::{
+     Ciphertext,
+     InnerPublicVariables,
+     Network,
+-    OuterPublicVariables,
+     PoSWScheme,
+     Program,
+     ProgramPublicVariables,
+@@ -54,9 +53,8 @@ use snarkvm_gadgets::{
+         encryption::ECIESPoseidonEncryptionGadget,
+         prf::PoseidonPRFGadget,
+         signature::AleoSignatureSchemeGadget,
+-        snark::Groth16VerifierGadget,
+     },
+-    curves::{bls12_377::PairingGadget, edwards_bls12::EdwardsBls12Gadget, edwards_bw6::EdwardsBW6Gadget},
++    curves::{edwards_bls12::EdwardsBls12Gadget, edwards_bw6::EdwardsBW6Gadget},
+ };
+ use snarkvm_marlin::{
+     constraints::snark::MarlinSNARK,
+@@ -105,7 +103,6 @@ impl Network for Testnet1 {
+ 
+     const HEADER_PROOF_PREFIX: u32 = hrp4!("hzkp");
+     const INNER_PROOF_PREFIX: u32 = hrp4!("izkp");
+-    const OUTER_PROOF_PREFIX: u32 = hrp4!("ozkp");
+     const PROGRAM_PROOF_PREFIX: u32 = hrp4!("pzkp");
+     const RECORD_CIPHERTEXT_PREFIX: u32 = hrp4!("recd");
+     const RECORD_VIEW_KEY_PREFIX: u32 = hrp4!("rcvk");
+@@ -115,7 +112,6 @@ impl Network for Testnet1 {
+     const HEADER_SIZE_IN_BYTES: usize = 903;
+     const HEADER_PROOF_SIZE_IN_BYTES: usize = 771;
+     const INNER_PROOF_SIZE_IN_BYTES: usize = 193;
+-    const OUTER_PROOF_SIZE_IN_BYTES: usize = 289;
+     const PROGRAM_PROOF_SIZE_IN_BYTES: usize = 193;
+     const RECORD_SIZE_IN_BYTES: usize = 280;
+     const RECORD_CIPHERTEXT_SIZE_IN_BYTES: usize = 288;
+@@ -150,14 +146,9 @@ impl Network for Testnet1 {
+     type ProgramScalarField = <Self::ProgramCurveParameters as ModelParameters>::ScalarField;
+ 
+     type InnerSNARK = Groth16<Self::InnerCurve, InnerPublicVariables<Testnet1>>;
+-    type InnerSNARKGadget = Groth16VerifierGadget<Self::InnerCurve, PairingGadget>;
+     type InnerProof = AleoObject<<Self::InnerSNARK as SNARK>::Proof, { Self::INNER_PROOF_PREFIX }, { Self::INNER_PROOF_SIZE_IN_BYTES }>;
+ 
+-    type OuterSNARK = Groth16<Self::OuterCurve, OuterPublicVariables<Testnet1>>;
+-    type OuterProof = AleoObject<<Self::OuterSNARK as SNARK>::Proof, { Self::OUTER_PROOF_PREFIX }, { Self::OUTER_PROOF_SIZE_IN_BYTES }>;
+-
+     type ProgramSNARK = Groth16<Self::InnerCurve, ProgramPublicVariables<Self>>;
+-    type ProgramSNARKGadget = Groth16VerifierGadget<Self::InnerCurve, PairingGadget>;
+     type ProgramProvingKey = <Self::ProgramSNARK as SNARK>::ProvingKey;
+     type ProgramVerifyingKey = <Self::ProgramSNARK as SNARK>::VerifyingKey;
+     type ProgramProof = AleoObject<<Self::ProgramSNARK as SNARK>::Proof, { Self::PROGRAM_PROOF_PREFIX }, { Self::PROGRAM_PROOF_SIZE_IN_BYTES }>;
+@@ -256,9 +247,6 @@ impl Network for Testnet1 {
+     dpc_snark_setup!{Testnet1, inner_proving_key, InnerSNARK, ProvingKey, InnerProvingKeyBytes, "inner proving key"}
+     dpc_snark_setup!{Testnet1, inner_verifying_key, InnerSNARK, VerifyingKey, InnerVerifyingKeyBytes, "inner verifying key"}
+ 
+-    dpc_snark_setup!{Testnet1, outer_proving_key, OuterSNARK, ProvingKey, OuterProvingKeyBytes, "outer proving key"}
+-    dpc_snark_setup!{Testnet1, outer_verifying_key, OuterSNARK, VerifyingKey, OuterVerifyingKeyBytes, "outer verifying key"}
+-
+     dpc_snark_setup!{Testnet1, noop_circuit_proving_key, ProgramSNARK, ProvingKey, NoopProvingKeyBytes, "noop circuit proving key"}
+     dpc_snark_setup!{Testnet1, noop_circuit_verifying_key, ProgramSNARK, VerifyingKey, NoopVerifyingKeyBytes, "noop circuit verifying key"}
+ 
+@@ -340,16 +328,6 @@ mod tests {
+         );
+     }
+ 
+-    #[test]
+-    fn test_outer_circuit_sanity_check() {
+-        // Verify the outer circuit verifying key matches the one derived from the outer circuit proving key.
+-        assert_eq!(
+-            Testnet1::outer_verifying_key(),
+-            &Testnet1::outer_proving_key().vk,
+-            "The outer circuit verifying key does not correspond to the outer circuit proving key"
+-        );
+-    }
+-
+     #[test]
+     fn test_posw_tree_sanity_check() {
+         // Verify the PoSW tree depth matches the declared depth.
+diff --git a/dpc/src/network/testnet2.rs b/dpc/src/network/testnet2.rs
+index 15833a080..d2b2b80de 100644
+--- a/dpc/src/network/testnet2.rs
++++ b/dpc/src/network/testnet2.rs
+@@ -23,7 +23,6 @@ use crate::{
+     Ciphertext,
+     InnerPublicVariables,
+     Network,
+-    OuterPublicVariables,
+     PoSWScheme,
+     Program,
+     ProgramPublicVariables,
+@@ -55,19 +54,18 @@ use snarkvm_gadgets::{
+         encryption::ECIESPoseidonEncryptionGadget,
+         prf::PoseidonPRFGadget,
+         signature::AleoSignatureSchemeGadget,
+-        snark::Groth16VerifierGadget,
+     },
+-    curves::{bls12_377::PairingGadget, edwards_bls12::EdwardsBls12Gadget, edwards_bw6::EdwardsBW6Gadget},
++    curves::{edwards_bls12::EdwardsBls12Gadget, edwards_bw6::EdwardsBW6Gadget},
+ };
+ use snarkvm_marlin::{
+-    constraints::{snark::MarlinSNARK, verifier::MarlinVerificationGadget},
++    constraints::snark::MarlinSNARK,
+     marlin::{MarlinPoswMode, MarlinTestnet2Mode},
+     FiatShamirAlgebraicSpongeRng,
+     FiatShamirChaChaRng,
+     PoseidonSponge,
+ };
+ use snarkvm_parameters::{testnet2::*, Genesis};
+-use snarkvm_polycommit::sonic_pc::{sonic_kzg10::SonicKZG10Gadget, SonicKZG10};
++use snarkvm_polycommit::sonic_pc::SonicKZG10;
+ use snarkvm_utilities::{FromBytes, ToMinimalBits};
+ 
+ use once_cell::sync::OnceCell;
+@@ -126,7 +124,6 @@ impl Network for Testnet2 {
+ 
+     const HEADER_PROOF_PREFIX: u32 = hrp4!("hzkp");
+     const INNER_PROOF_PREFIX: u32 = hrp4!("izkp");
+-    const OUTER_PROOF_PREFIX: u32 = hrp4!("ozkp");
+     const PROGRAM_PROOF_PREFIX: u32 = hrp4!("pzkp");
+     const RECORD_CIPHERTEXT_PREFIX: u32 = hrp4!("recd");
+     const RECORD_VIEW_KEY_PREFIX: u32 = hrp4!("rcvk");
+@@ -136,7 +133,6 @@ impl Network for Testnet2 {
+     const HEADER_SIZE_IN_BYTES: usize = 903;
+     const HEADER_PROOF_SIZE_IN_BYTES: usize = 771;
+     const INNER_PROOF_SIZE_IN_BYTES: usize = 193;
+-    const OUTER_PROOF_SIZE_IN_BYTES: usize = 289;
+     const PROGRAM_PROOF_SIZE_IN_BYTES: usize = 916;
+     const RECORD_SIZE_IN_BYTES: usize = 280;
+     const RECORD_CIPHERTEXT_SIZE_IN_BYTES: usize = 288;
+@@ -171,14 +167,9 @@ impl Network for Testnet2 {
+     type ProgramScalarField = <Self::ProgramCurveParameters as ModelParameters>::ScalarField;
+ 
+     type InnerSNARK = Groth16<Self::InnerCurve, InnerPublicVariables<Testnet2>>;
+-    type InnerSNARKGadget = Groth16VerifierGadget<Self::InnerCurve, PairingGadget>;
+     type InnerProof = AleoObject<<Self::InnerSNARK as SNARK>::Proof, { Self::INNER_PROOF_PREFIX }, { Self::INNER_PROOF_SIZE_IN_BYTES }>;
+ 
+-    type OuterSNARK = Groth16<Self::OuterCurve, OuterPublicVariables<Testnet2>>;
+-    type OuterProof = AleoObject<<Self::OuterSNARK as SNARK>::Proof, { Self::OUTER_PROOF_PREFIX }, { Self::OUTER_PROOF_SIZE_IN_BYTES }>;
+-
+     type ProgramSNARK = MarlinSNARK<Self::InnerScalarField, Self::OuterScalarField, SonicKZG10<Self::InnerCurve>, FiatShamirAlgebraicSpongeRng<Self::InnerScalarField, Self::OuterScalarField, PoseidonSponge<Self::OuterScalarField, 6, 1>>, MarlinTestnet2Mode, ProgramPublicVariables<Self>>;
+-    type ProgramSNARKGadget = MarlinVerificationGadget<Self::InnerScalarField, Self::OuterScalarField, SonicKZG10<Self::InnerCurve>, SonicKZG10Gadget<Self::InnerCurve, Self::OuterCurve, PairingGadget>, MarlinTestnet2Mode>;
+     type ProgramProvingKey = <Self::ProgramSNARK as SNARK>::ProvingKey;
+     type ProgramVerifyingKey = <Self::ProgramSNARK as SNARK>::VerifyingKey;
+     type ProgramProof = AleoObject<<Self::ProgramSNARK as SNARK>::Proof, { Self::PROGRAM_PROOF_PREFIX }, { Self::PROGRAM_PROOF_SIZE_IN_BYTES }>;
+@@ -277,9 +268,6 @@ impl Network for Testnet2 {
+     dpc_snark_setup!{Testnet2, inner_proving_key, InnerSNARK, ProvingKey, InnerProvingKeyBytes, "inner circuit proving key"}
+     dpc_snark_setup!{Testnet2, inner_verifying_key, InnerSNARK, VerifyingKey, InnerVerifyingKeyBytes, "inner circuit verifying key"}
+ 
+-    dpc_snark_setup!{Testnet2, outer_proving_key, OuterSNARK, ProvingKey, OuterProvingKeyBytes, "outer circuit proving key"}
+-    dpc_snark_setup!{Testnet2, outer_verifying_key, OuterSNARK, VerifyingKey, OuterVerifyingKeyBytes, "outer circuit verifying key"}
+-
+     dpc_snark_setup!{Testnet2, noop_circuit_proving_key, ProgramSNARK, ProvingKey, NoopProvingKeyBytes, "noop circuit proving key"}
+     dpc_snark_setup!{Testnet2, noop_circuit_verifying_key, ProgramSNARK, VerifyingKey, NoopVerifyingKeyBytes, "noop circuit verifying key"}
+ 
+@@ -365,16 +353,6 @@ mod tests {
+         );
+     }
+ 
+-    #[test]
+-    fn test_outer_circuit_sanity_check() {
+-        // Verify the outer circuit verifying key matches the one derived from the outer circuit proving key.
+-        assert_eq!(
+-            Testnet2::outer_verifying_key(),
+-            &Testnet2::outer_proving_key().vk,
+-            "The outer circuit verifying key does not correspond to the outer circuit proving key"
+-        );
+-    }
+-
+     #[test]
+     fn test_posw_tree_sanity_check() {
+         // Verify the PoSW tree depth matches the declared depth.
+diff --git a/dpc/src/traits/network.rs b/dpc/src/traits/network.rs
+index a679cb944..6c6d1587f 100644
+--- a/dpc/src/traits/network.rs
++++ b/dpc/src/traits/network.rs
+@@ -14,15 +14,7 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{
+-    Block,
+-    Ciphertext,
+-    InnerPublicVariables,
+-    OuterPublicVariables,
+-    PoSWScheme,
+-    Program,
+-    ProgramPublicVariables,
+-};
++use crate::{Block, Ciphertext, InnerPublicVariables, PoSWScheme, Program, ProgramPublicVariables};
+ use snarkvm_algorithms::{crypto_hash::PoseidonDefaultParametersField, merkle_tree::MerklePath, prelude::*};
+ use snarkvm_curves::{AffineCurve, PairingEngine, ProjectiveCurve, TwistedEdwardsParameters};
+ use snarkvm_fields::{Field, PrimeField, ToConstraintField};
+@@ -31,7 +23,6 @@ use snarkvm_gadgets::{
+     FpGadget,
+     GroupGadget,
+     MaskedCRHGadget,
+-    SNARKVerifierGadget,
+ };
+ use snarkvm_utilities::{
+     fmt::{Debug, Display},
+@@ -125,7 +116,6 @@ pub trait Network: 'static + Copy + Clone + Debug + Default + PartialEq + Eq + S
+ 
+     const HEADER_PROOF_PREFIX: u32;
+     const INNER_PROOF_PREFIX: u32;
+-    const OUTER_PROOF_PREFIX: u32;
+     const PROGRAM_PROOF_PREFIX: u32;
+     const RECORD_CIPHERTEXT_PREFIX: u32;
+     const RECORD_VIEW_KEY_PREFIX: u32;
+@@ -135,7 +125,6 @@ pub trait Network: 'static + Copy + Clone + Debug + Default + PartialEq + Eq + S
+     const HEADER_SIZE_IN_BYTES: usize;
+     const HEADER_PROOF_SIZE_IN_BYTES: usize;
+     const INNER_PROOF_SIZE_IN_BYTES: usize;
+-    const OUTER_PROOF_SIZE_IN_BYTES: usize;
+     const PROGRAM_PROOF_SIZE_IN_BYTES: usize;
+     const RECORD_SIZE_IN_BYTES: usize;
+     const RECORD_CIPHERTEXT_SIZE_IN_BYTES: usize;
+@@ -178,16 +167,10 @@ pub trait Network: 'static + Copy + Clone + Debug + Default + PartialEq + Eq + S
+ 
+     /// SNARK for inner circuit proof generation.
+     type InnerSNARK: SNARK<ScalarField = Self::InnerScalarField, BaseField = Self::OuterScalarField, VerifierInput = InnerPublicVariables<Self>>;
+-    type InnerSNARKGadget: SNARKVerifierGadget<Self::InnerSNARK>;
+     type InnerProof: Bech32Object<<Self::InnerSNARK as SNARK>::Proof>;
+ 
+-    /// SNARK for proof-verification checks.
+-    type OuterSNARK: SNARK<ScalarField = Self::OuterScalarField, BaseField = Self::OuterBaseField, VerifierInput = OuterPublicVariables<Self>>;
+-    type OuterProof: Bech32Object<<Self::OuterSNARK as SNARK>::Proof>;
+-
+     /// SNARK for Aleo program functions.
+     type ProgramSNARK: SNARK<ScalarField = Self::InnerScalarField, BaseField = Self::OuterScalarField, VerifierInput = ProgramPublicVariables<Self>, ProvingKey = Self::ProgramProvingKey, VerifyingKey = Self::ProgramVerifyingKey, UniversalSetupConfig = usize>;
+-    type ProgramSNARKGadget: SNARKVerifierGadget<Self::ProgramSNARK>;
+     type ProgramProvingKey: Clone + ToBytes + FromBytes + Send + Sync;
+     type ProgramVerifyingKey: ToConstraintField<Self::OuterScalarField> + Clone + PartialEq + Eq + ToBytes + FromBytes + Serialize + DeserializeOwned + ToMinimalBits + Send + Sync;
+     type ProgramProof: Bech32Object<<Self::ProgramSNARK as SNARK>::Proof>;
+@@ -318,9 +301,6 @@ pub trait Network: 'static + Copy + Clone + Debug + Default + PartialEq + Eq + S
+     fn noop_circuit_proving_key() -> &'static <Self::ProgramSNARK as SNARK>::ProvingKey;
+     fn noop_circuit_verifying_key() -> &'static <Self::ProgramSNARK as SNARK>::VerifyingKey;
+ 
+-    fn outer_proving_key() -> &'static <Self::OuterSNARK as SNARK>::ProvingKey;
+-    fn outer_verifying_key() -> &'static <Self::OuterSNARK as SNARK>::VerifyingKey;
+-
+     fn posw_proving_key() -> &'static <Self::PoSWSNARK as SNARK>::ProvingKey;
+     fn posw_verifying_key() -> &'static <Self::PoSWSNARK as SNARK>::VerifyingKey;
+     fn posw() -> &'static Self::PoSW;
+diff --git a/parameters/README.md b/parameters/README.md
+index c3c38816a..89c52848a 100644
+--- a/parameters/README.md
++++ b/parameters/README.md
+@@ -64,13 +64,9 @@ The Schnorr signature parameters used to authorize delegation of transaction gen
+ 
+ The Groth16 proving key and verifying key for the InnerSNARK.
+ 
+-### Outer SNARK
+-
+-The Groth16 proving key and verifying key for the OuterSNARK.
+-
+ ### Noop Program SNARK
+ 
+-The GM17 proving key and verifying key for the Noop Program SNARK.
++The Marlin proving key and verifying key for the Noop Program SNARK.
+ 
+ ### POSW SNARK
+ 
+diff --git a/parameters/examples/setup.rs b/parameters/examples/setup.rs
+index ca290e876..452edfd27 100644
+--- a/parameters/examples/setup.rs
++++ b/parameters/examples/setup.rs
+@@ -15,19 +15,7 @@
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use snarkvm_algorithms::{crh::sha256::sha256, CRH, SNARK, SRS};
+-use snarkvm_dpc::{
+-    Execution,
+-    Function,
+-    InnerCircuit,
+-    Network,
+-    Noop,
+-    NoopPrivateVariables,
+-    OuterCircuit,
+-    PoSWScheme,
+-    ProgramPrivateVariables,
+-    ProgramPublicVariables,
+-    SynthesizedCircuit,
+-};
++use snarkvm_dpc::{InnerCircuit, Network, PoSWScheme, SynthesizedCircuit};
+ use snarkvm_marlin::{ahp::AHPForR1CS, marlin::MarlinTestnet1Mode};
+ use snarkvm_utilities::{FromBytes, ToBytes, ToMinimalBits};
+ 

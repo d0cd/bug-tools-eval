@@ -1,0 +1,256 @@
+diff --git a/.integration/tests/dpc_testnet1.rs b/.integration/tests/dpc_testnet1.rs
+index 3138193ff..e7da24ec2 100644
+--- a/.integration/tests/dpc_testnet1.rs
++++ b/.integration/tests/dpc_testnet1.rs
+@@ -26,7 +26,7 @@ use time::OffsetDateTime;
+ #[test]
+ fn test_testnet1_inner_circuit_id_sanity_check() {
+     let expected_inner_circuit_id =
+-        "ic18ge7tu7kp5ygqz6xhqnghrlv6c0gcqx5q8qmemmr2k35elepp6j7fjl8awfhfls90q9zf2yr3drqzsfsz6q".to_string();
++        "ic1pwdn5qg6x27efevduvnp2eh2enzsfjnaw07nzng99ks8efw8ml27qnsrsj0n64mfqjr70e9tpz8qqpyazpc".to_string();
+     let candidate_inner_circuit_id = <Testnet1 as Network>::inner_circuit_id().to_string();
+     assert_eq!(expected_inner_circuit_id, candidate_inner_circuit_id);
+ }
+diff --git a/.integration/tests/dpc_testnet2.rs b/.integration/tests/dpc_testnet2.rs
+index f69064295..bc704a92c 100644
+--- a/.integration/tests/dpc_testnet2.rs
++++ b/.integration/tests/dpc_testnet2.rs
+@@ -26,7 +26,7 @@ use time::OffsetDateTime;
+ #[test]
+ fn test_testnet2_inner_circuit_id_sanity_check() {
+     let expected_inner_circuit_id =
+-        "ic1kepgpw9r73cn2ctd2eyesqcqy0ltmwthl3uygfnutw8t38wgcldh4f3l97fy68c5a0nr9eutp8tsqwl58ph".to_string();
++        "ic1r92vwhfv3sj7s5xsc3uyg5wxktty2l28e7ltmyxw84xykuv9v7fjtdt72ha0z9jc2jjgnnt9ud8sz5ysx3w".to_string();
+     let candidate_inner_circuit_id = <Testnet2 as Network>::inner_circuit_id().to_string();
+     assert_eq!(expected_inner_circuit_id, candidate_inner_circuit_id);
+ }
+diff --git a/dpc/src/circuits/tests.rs b/dpc/src/circuits/tests.rs
+index 562f2d427..7a2aa8fb3 100644
+--- a/dpc/src/circuits/tests.rs
++++ b/dpc/src/circuits/tests.rs
+@@ -72,6 +72,7 @@ fn dpc_execute_circuits_test<N: Network>(expected_inner_num_constraints: usize)
+     inner_circuit.generate_constraints(&mut inner_cs.ns(|| "Inner circuit")).unwrap();
+ 
+     let candidate_inner_num_constraints = inner_cs.num_constraints();
++    let (num_non_zero_a, num_non_zero_b, num_non_zero_c) = inner_cs.num_non_zero();
+ 
+     if !inner_cs.is_satisfied() {
+         println!("=========================================================");
+@@ -85,6 +86,12 @@ fn dpc_execute_circuits_test<N: Network>(expected_inner_num_constraints: usize)
+     assert_eq!(expected_inner_num_constraints, candidate_inner_num_constraints);
+     println!("=========================================================");
+ 
++    println!("=========================================================");
++    println!("Inner circuit num non_zero_a: {}", num_non_zero_a);
++    println!("Inner circuit num non_zero_b: {}", num_non_zero_b);
++    println!("Inner circuit num non_zero_c: {}", num_non_zero_c);
++    println!("=========================================================");
++
+     assert!(inner_cs.is_satisfied());
+ 
+     //////////////////////////////////////////////////////////////////////////
+diff --git a/gadgets/src/fields/fp.rs b/gadgets/src/fields/fp.rs
+index acd48cf00..c1062a991 100644
+--- a/gadgets/src/fields/fp.rs
++++ b/gadgets/src/fields/fp.rs
+@@ -31,6 +31,7 @@ use snarkvm_r1cs::{
+ use snarkvm_utilities::{
+     bititerator::{BitIteratorBE, BitIteratorLE},
+     to_bytes_le,
++    BigInteger,
+     ToBytes,
+ };
+ 
+@@ -654,11 +655,32 @@ impl<F: PrimeField> ThreeBitCondNegLookupGadget<F> for AllocatedFp<F> {
+             + b[0].lc(one, c[1] - c[0])
+             + b[1].lc(one, c[2] - c[0])
+             + (c[0], one);
++
++        // Conditional negation:
++        // We want to set the result to be a conditional negation of y_lc as follows:
++        // if b[2] == 0, result := y_lc
++        // if b[2] == 1, result := -y_lc
++        //
++        // We write this as follows:
++        // result = (b[2] - 1/2) * (-2 * y_lc);
++        //
++        // This works because
++        // * b[2] == 0 -> result = -1/2 * -2 * y_lc =  y_lc
++        // * b[2] == 1 -> result =  1/2 * -2 * y_lc = -y_lc
++        // We take this approach because it reduces the number of non-zero entries in
++        // the constraint, which makes it more efficient for Marlin.
++
++        // Compute 1/2 `(p+1)/2` as `1/2`.
++        // This is cheaper than `P::BaseField::one().double().inverse()`
++        let mut two_inv = F::Parameters::MODULUS;
++        two_inv.add_nocarry(&1u64.into());
++        two_inv.div2();
++        let neg_two_inv = -F::from_repr(two_inv).unwrap();
+         cs.enforce(
+             || "Enforce lookup",
+-            |_| y_lc.clone() + y_lc.clone(),
+-            |lc| lc + b[2].lc(one, F::one()),
+-            |_| -result.get_variable() + y_lc.clone(),
++            |_| b[2].lc(one, F::one()) + &LinearCombination::from((neg_two_inv, one)),
++            |_| -(y_lc.clone() + y_lc.clone()),
++            |lc| result.get_variable() + lc,
+         );
+ 
+         Ok(result)
+diff --git a/parameters/src/testnet1/resources/block.genesis b/parameters/src/testnet1/resources/block.genesis
+index 431f11e8f..fdec91f60 100644
+Binary files a/parameters/src/testnet1/resources/block.genesis and b/parameters/src/testnet1/resources/block.genesis differ
+diff --git a/parameters/src/testnet1/resources/inner.metadata b/parameters/src/testnet1/resources/inner.metadata
+index 408651ad0..675b66243 100644
+--- a/parameters/src/testnet1/resources/inner.metadata
++++ b/parameters/src/testnet1/resources/inner.metadata
+@@ -1,7 +1,7 @@
+ {
+-  "circuit_id": "3a33e5f3d60d08800b46b8268b8fecd61e8c00d401c1bcef6355a34cff210ea5e4cbe7eb9374fe05780a24a8838b4601",
+-  "proving_checksum": "53331812aaa3e7bd7747da38b00284885285e3ab81bf2b25039047e49b0eee3c",
++  "circuit_id": "0b9b3a011a32bd94e58de3261566eaccc504ca7d73fd314d052da07ca5c7dfd5e04e03849f3d57690487e7e4ab088e00",
++  "proving_checksum": "29f2d5525b8fbd03ceae3b634b5411b580b67698283f2fbd22d3b702a1122a88",
+   "proving_size": 154895861,
+-  "verifying_checksum": "8eb58ca46e9310dd8f08bef2d1815fb36449f7a55d57303bee74aebb22b43224",
++  "verifying_checksum": "35eb5bbdf118ae58ac12d69331c5c92f22a0d413d52d66493e95b2aad39da3c5",
+   "verifying_size": 1359
+ }
+\ No newline at end of file
+diff --git a/parameters/src/testnet1/resources/inner.verifying b/parameters/src/testnet1/resources/inner.verifying
+index e94b2b253..9b076b5f2 100644
+Binary files a/parameters/src/testnet1/resources/inner.verifying and b/parameters/src/testnet1/resources/inner.verifying differ
+diff --git a/parameters/src/testnet1/resources/noop.metadata b/parameters/src/testnet1/resources/noop.metadata
+index 9169f6750..b368228a8 100644
+--- a/parameters/src/testnet1/resources/noop.metadata
++++ b/parameters/src/testnet1/resources/noop.metadata
+@@ -1,7 +1,7 @@
+ {
+-  "circuit_id": "9b476bb88dffb0e2ba8aa6fa4fca848ac429d10b50b25f6bb1af9ef2549eafc984aed82749f402337114179dfc7da300",
+-  "proving_checksum": "5267a59c675ac8ce8a441b78fe93bb7978b616aa90d873d2528dc0b985c0600f",
++  "circuit_id": "8525f9cd215c8a769082432c8f48af66e1b7329cc6711665c556ee59d26f72ed32afb3d5d255d527ad799365706ba700",
++  "proving_checksum": "f4c325ecf53a07412b41e2c07c4084f229f3620b4548c257409999481a80ca1d",
+   "proving_size": 174365,
+-  "verifying_checksum": "e433769625334f169bbd2255fe0ccaf472dbe8584b364b6356be21991b1a86dd",
++  "verifying_checksum": "b18f93be0d82a190789306a24d7a1e90df946fea16546fdf48725d7f7b13dec1",
+   "verifying_size": 971
+ }
+\ No newline at end of file
+diff --git a/parameters/src/testnet1/resources/noop.proving b/parameters/src/testnet1/resources/noop.proving
+index dc898b86e..663ea4832 100644
+Binary files a/parameters/src/testnet1/resources/noop.proving and b/parameters/src/testnet1/resources/noop.proving differ
+diff --git a/parameters/src/testnet1/resources/noop.verifying b/parameters/src/testnet1/resources/noop.verifying
+index 00a29c051..8849e82df 100644
+Binary files a/parameters/src/testnet1/resources/noop.verifying and b/parameters/src/testnet1/resources/noop.verifying differ
+diff --git a/parameters/src/testnet1/resources/posw.metadata b/parameters/src/testnet1/resources/posw.metadata
+index 2087f04ae..2d1a7d519 100644
+--- a/parameters/src/testnet1/resources/posw.metadata
++++ b/parameters/src/testnet1/resources/posw.metadata
+@@ -1,6 +1,6 @@
+ {
+-  "proving_checksum": "e10889c38487196f2d0ba95445def6fad5edec63e41391c0ae0e50bb7bc85074",
++  "proving_checksum": "3d96ac1ef4e14c74fc20149fe92224e0f2de2d378a4176f948e8b7bbc91b4f51",
+   "proving_size": 72229137,
+-  "verifying_checksum": "021371e651c497ebbccca56abff874f41e88f0bdb13b190868e09801f05274c1",
++  "verifying_checksum": "bee3b0b1e67d36d4130391304454c71a25b1417acb06933fb9d8af530194d4a8",
+   "verifying_size": 380589
+ }
+\ No newline at end of file
+diff --git a/parameters/src/testnet1/resources/posw.verifying b/parameters/src/testnet1/resources/posw.verifying
+index 59106ae57..ffd9384be 100644
+Binary files a/parameters/src/testnet1/resources/posw.verifying and b/parameters/src/testnet1/resources/posw.verifying differ
+diff --git a/parameters/src/testnet2/resources/block.genesis b/parameters/src/testnet2/resources/block.genesis
+index 50bf49f5c..3cb313343 100644
+Binary files a/parameters/src/testnet2/resources/block.genesis and b/parameters/src/testnet2/resources/block.genesis differ
+diff --git a/parameters/src/testnet2/resources/inner.metadata b/parameters/src/testnet2/resources/inner.metadata
+index b4b312470..1807b3661 100644
+--- a/parameters/src/testnet2/resources/inner.metadata
++++ b/parameters/src/testnet2/resources/inner.metadata
+@@ -1,7 +1,7 @@
+ {
+-  "circuit_id": "b64280b8a3f47135616d564998030023febdb977fc7844267c5b8eb89dc8c7db7aa63f2f924d1f14ebe632e78b09d700",
+-  "proving_checksum": "71de0edddcd5d281e9aa0a72a58c316001723181c3501033f6353d83236d9553",
++  "circuit_id": "1954c75d2c8c25e850d0c4784451c6b2d6457d47cfbebd90ce3d4c4b7185679325b57e55faf1165854a489cd65e34f01",
++  "proving_checksum": "42022c50ed946ca61c1f1e3c82f1cec451cd8b5dab69b52e3b5310358068d74d",
+   "proving_size": 154895861,
+-  "verifying_checksum": "51283e5ace263f05047f7ec003689c950443340c28018458b675e33279c0a130",
++  "verifying_checksum": "14a249ebecb359de019c97f85613e75e1a32ded7393a08763c3141ccaff52ef4",
+   "verifying_size": 1359
+ }
+\ No newline at end of file
+diff --git a/parameters/src/testnet2/resources/inner.verifying b/parameters/src/testnet2/resources/inner.verifying
+index 68a5d82c1..09478fc97 100644
+Binary files a/parameters/src/testnet2/resources/inner.verifying and b/parameters/src/testnet2/resources/inner.verifying differ
+diff --git a/parameters/src/testnet2/resources/noop.metadata b/parameters/src/testnet2/resources/noop.metadata
+index fd54e8db8..1615ac431 100644
+--- a/parameters/src/testnet2/resources/noop.metadata
++++ b/parameters/src/testnet2/resources/noop.metadata
+@@ -1,7 +1,7 @@
+ {
+-  "circuit_id": "0aec7893ba2e3d92e5ea0d7bc4ebc61e64c3592c9192b9ab565817edc91b80f9ca92ddf4f85bf74f519c74a96888a800",
+-  "proving_checksum": "3141f74a09a27f971115bd8caca6a23f3a7b48226e33477066363ec29505b3ce",
++  "circuit_id": "69eae3be409bc51651197b5f987520ce4ffcff1ae88914c415b77acb4480061d7afff2871564265dacdd2c511a0b5b00",
++  "proving_checksum": "6c116ac139c410ea30dac5e9b399ca9b7d4fc3a184695cf63b16ea7707f60d74",
+   "proving_size": 1061182,
+-  "verifying_checksum": "0b26959830098e42d4c6d6e17c7f815080b93f609e9a9b86396ea83c3bafa10c",
++  "verifying_checksum": "ae1f78648f62ce4470edbef0e812cae11557babdaa8970120a03b7728aed9431",
+   "verifying_size": 500547
+ }
+\ No newline at end of file
+diff --git a/parameters/src/testnet2/resources/noop.proving b/parameters/src/testnet2/resources/noop.proving
+index b4a89a2d9..13fb96a95 100644
+Binary files a/parameters/src/testnet2/resources/noop.proving and b/parameters/src/testnet2/resources/noop.proving differ
+diff --git a/parameters/src/testnet2/resources/noop.verifying b/parameters/src/testnet2/resources/noop.verifying
+index 5954df510..aef0614f5 100644
+Binary files a/parameters/src/testnet2/resources/noop.verifying and b/parameters/src/testnet2/resources/noop.verifying differ
+diff --git a/parameters/src/testnet2/resources/posw.metadata b/parameters/src/testnet2/resources/posw.metadata
+index 592cae88e..92695c715 100644
+--- a/parameters/src/testnet2/resources/posw.metadata
++++ b/parameters/src/testnet2/resources/posw.metadata
+@@ -1,6 +1,6 @@
+ {
+-  "proving_checksum": "253e99d1508bb12aa42da88d68f456f25fec3dd265eb4ec437dd9cd4f3792811",
++  "proving_checksum": "168a2defc9f8a5885467fdd1b4cb4d4849422aa43f73cda99b38929394292b2e",
+   "proving_size": 72229137,
+-  "verifying_checksum": "d77723f60cc4a64654161a93a34d5eb27f6bb60c5adccdfd5dc1fbdbf61ffdcc",
++  "verifying_checksum": "0af0500597dda8619b89d5e0d465952f72e1ca8a7163a5a6ca3e6b2cb2c3ce76",
+   "verifying_size": 380589
+ }
+\ No newline at end of file
+diff --git a/parameters/src/testnet2/resources/posw.verifying b/parameters/src/testnet2/resources/posw.verifying
+index 37dbaff34..a9b0e7261 100644
+Binary files a/parameters/src/testnet2/resources/posw.verifying and b/parameters/src/testnet2/resources/posw.verifying differ
+diff --git a/parameters/src/testnet2/resources/universal.metadata b/parameters/src/testnet2/resources/universal.metadata
+index 7f90c82be..620d956e7 100644
+--- a/parameters/src/testnet2/resources/universal.metadata
++++ b/parameters/src/testnet2/resources/universal.metadata
+@@ -1,4 +1,4 @@
+ {
+-  "srs_checksum": "e0160bc8c7be388d8697fd7a5bb6fe3d5e01881c6af48cc59788af26f5226a92",
++  "srs_checksum": "595d9ce60c292f6e0da07becdc259a97e98df8d40f4a13c1bdebc0ce5daace82",
+   "srs_size": 2491461456
+ }
+\ No newline at end of file
+diff --git a/r1cs/src/test_constraint_system.rs b/r1cs/src/test_constraint_system.rs
+index 4e1ddd87b..6b79c0398 100644
+--- a/r1cs/src/test_constraint_system.rs
++++ b/r1cs/src/test_constraint_system.rs
+@@ -247,6 +247,19 @@ impl<F: Field> TestConstraintSystem<F> {
+         self.which_is_unsatisfied().is_none()
+     }
+ 
++    #[inline]
++    pub fn num_non_zero(&self) -> (usize, usize, usize) {
++        let mut non_zero_a = 0;
++        let mut non_zero_b = 0;
++        let mut non_zero_c = 0;
++        for TestConstraint { a, b, c, .. } in self.constraints.iter() {
++            non_zero_a += a.len();
++            non_zero_b += b.len();
++            non_zero_c += c.len();
++        }
++        (non_zero_a, non_zero_b, non_zero_c)
++    }
++
+     #[inline]
+     pub fn num_constraints(&self) -> usize {
+         self.constraints.len()

@@ -1,0 +1,3946 @@
+diff --git a/compiler/tests/address/mod.rs b/compiler/tests/address/mod.rs
+index 3d892a5fb7..eb93b660f9 100644
+--- a/compiler/tests/address/mod.rs
++++ b/compiler/tests/address/mod.rs
+@@ -22,72 +22,72 @@ static TEST_ADDRESS_2: &str = "aleo18qgam03qe483tdrcc3fkqwpp38ehff4a2xma6lu7hams
+ 
+ #[test]
+ fn test_valid() {
+-    let bytes = include_bytes!("valid.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("valid.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program)
+ }
+ 
+ #[test]
+ fn test_invalid_prefix() {
+-    let bytes = include_bytes!("invalid_prefix.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("invalid_prefix.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_invalid_length() {
+-    let bytes = include_bytes!("invalid_length.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("invalid_length.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_empty() {
+-    let bytes = include_bytes!("empty.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("empty.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_implicit_valid() {
+-    let bytes = include_bytes!("implicit_valid.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("implicit_valid.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_implicit_invalid() {
+-    let bytes = include_bytes!("implicit_invalid.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("implicit_invalid.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _output = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_console_assert_pass() {
+-    let bytes = include_bytes!("console_assert_pass.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("console_assert_pass.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_console_assert_fail() {
+-    let bytes = include_bytes!("console_assert_fail.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("console_assert_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _output = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_ternary() {
+-    let bytes = include_bytes!("ternary.leo");
+-    let mut program = parse_program(bytes).unwrap();
++    let program_string = include_str!("ternary.leo");
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![
+         ("s", Some(InputValue::Boolean(true))),
+@@ -98,7 +98,7 @@ fn test_ternary() {
+ 
+     assert_satisfied(program);
+ 
+-    let mut program = parse_program(bytes).unwrap();
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![
+         ("s", Some(InputValue::Boolean(false))),
+@@ -112,8 +112,8 @@ fn test_ternary() {
+ 
+ #[test]
+ fn test_equal() {
+-    let bytes = include_bytes!("equal.leo");
+-    let mut program = parse_program(bytes).unwrap();
++    let program_string = include_str!("equal.leo");
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![
+         ("a", Some(InputValue::Address(TEST_ADDRESS_1.to_string()))),
+@@ -125,7 +125,7 @@ fn test_equal() {
+ 
+     assert_satisfied(program);
+ 
+-    let mut program = parse_program(bytes).unwrap();
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![
+         ("a", Some(InputValue::Address(TEST_ADDRESS_1.to_string()))),
+diff --git a/compiler/tests/array/mod.rs b/compiler/tests/array/mod.rs
+index 59610476e5..6d4684ad18 100644
+--- a/compiler/tests/array/mod.rs
++++ b/compiler/tests/array/mod.rs
+@@ -41,17 +41,17 @@ pub fn output_zeros(program: EdwardsTestCompiler) {
+ 
+ #[test]
+ fn test_registers() {
+-    let program_bytes = include_bytes!("registers.leo");
+-    let ones_input_bytes = include_bytes!("input/registers_ones.in");
+-    let zeros_input_bytes = include_bytes!("input/registers_zeros.in");
++    let program_string = include_str!("registers.leo");
++    let ones_input_string = include_str!("input/registers_ones.in");
++    let zeros_input_string = include_str!("input/registers_zeros.in");
+ 
+     // test ones input register => ones output register
+-    let program = parse_program_with_input(program_bytes, ones_input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, ones_input_string).unwrap();
+ 
+     output_ones(program);
+ 
+     // test zeros input register => zeros output register
+-    let program = parse_program_with_input(program_bytes, zeros_input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, zeros_input_string).unwrap();
+ 
+     output_zeros(program);
+ }
+@@ -60,171 +60,171 @@ fn test_registers() {
+ 
+ #[test]
+ fn test_inline() {
+-    let program_bytes = include_bytes!("inline.leo");
+-    let input_bytes = include_bytes!("input/three_ones.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("inline.leo");
++    let input_string = include_str!("input/three_ones.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_inline_fail() {
+-    let program_bytes = include_bytes!("inline.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("inline.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_initializer() {
+-    let program_bytes = include_bytes!("initializer.leo");
+-    let input_bytes = include_bytes!("input/three_ones.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("initializer.leo");
++    let input_string = include_str!("input/three_ones.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_initializer_fail() {
+-    let program_bytes = include_bytes!("initializer_fail.leo");
+-    let input_bytes = include_bytes!("input/three_ones.in");
+-    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++    let program_string = include_str!("initializer_fail.leo");
++    let input_string = include_str!("input/three_ones.in");
++    let syntax_error = parse_program_with_input(program_string, input_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_initializer_input() {
+-    let program_bytes = include_bytes!("initializer_input.leo");
+-    let input_bytes = include_bytes!("input/six_zeros.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("initializer_input.leo");
++    let input_string = include_str!("input/six_zeros.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_initializer_input_fail() {
+-    let program_bytes = include_bytes!("initializer_input.leo");
+-    let input_bytes = include_bytes!("input/initializer_fail.in");
+-    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++    let program_string = include_str!("initializer_input.leo");
++    let input_string = include_str!("input/initializer_fail.in");
++    let syntax_error = parse_program_with_input(program_string, input_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_input_nested_3x2() {
+-    let program_bytes = include_bytes!("input_nested_3x2.leo");
+-    let input_bytes = include_bytes!("input/input_nested_3x2.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("input_nested_3x2.leo");
++    let input_string = include_str!("input/input_nested_3x2.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_input_nested_3x2_fail() {
+-    let program_bytes = include_bytes!("input_nested_3x2_fail.leo");
+-    let input_bytes = include_bytes!("input/input_nested_3x2_fail.in");
+-    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++    let program_string = include_str!("input_nested_3x2_fail.leo");
++    let input_string = include_str!("input/input_nested_3x2_fail.in");
++    let syntax_error = parse_program_with_input(program_string, input_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_input_tuple_3x2() {
+-    let program_bytes = include_bytes!("input_tuple_3x2.leo");
+-    let input_bytes = include_bytes!("input/input_tuple_3x2.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("input_tuple_3x2.leo");
++    let input_string = include_str!("input/input_tuple_3x2.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_input_tuple_3x2_fail() {
+-    let program_bytes = include_bytes!("input_tuple_3x2_fail.leo");
+-    let input_bytes = include_bytes!("input/input_tuple_3x2_fail.in");
+-    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++    let program_string = include_str!("input_tuple_3x2_fail.leo");
++    let input_string = include_str!("input/input_tuple_3x2_fail.in");
++    let syntax_error = parse_program_with_input(program_string, input_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_multi_fail_initializer() {
+-    let program_bytes = include_bytes!("multi_fail_initializer.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("multi_fail_initializer.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_multi_inline_fail() {
+-    let program_bytes = include_bytes!("multi_fail_inline.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("multi_fail_inline.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_multi_initializer() {
+-    let program_bytes = include_bytes!("multi_initializer.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("multi_initializer.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_multi_initializer_fail() {
+-    let program_bytes = include_bytes!("multi_initializer_fail.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("multi_initializer_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_nested_3x2_value() {
+-    let program_bytes = include_bytes!("nested_3x2_value.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("nested_3x2_value.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_nested_3x2_value_fail() {
+-    let program_bytes = include_bytes!("nested_3x2_value_fail.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("nested_3x2_value_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_tuple_3x2_value() {
+-    let program_bytes = include_bytes!("tuple_3x2_value.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("tuple_3x2_value.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_tuple_3x2_value_fail() {
+-    let program_bytes = include_bytes!("tuple_3x2_value_fail.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("tuple_3x2_value_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_spread() {
+-    let program_bytes = include_bytes!("spread.leo");
+-    let input_bytes = include_bytes!("input/three_ones.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("spread.leo");
++    let input_string = include_str!("input/three_ones.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_slice() {
+-    let program_bytes = include_bytes!("slice.leo");
+-    let input_bytes = include_bytes!("input/three_ones.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("slice.leo");
++    let input_string = include_str!("input/three_ones.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+@@ -233,136 +233,136 @@ fn test_slice() {
+ 
+ #[test]
+ fn test_type_fail() {
+-    let program_bytes = include_bytes!("type_fail.leo");
+-    let syntax_error = parse_program(program_bytes).is_err();
++    let program_string = include_str!("type_fail.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_type_nested_value_nested_3x2() {
+-    let program_bytes = include_bytes!("type_nested_value_nested_3x2.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_nested_value_nested_3x2.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_type_nested_value_nested_3x2_fail() {
+-    let program_bytes = include_bytes!("type_nested_value_nested_3x2_fail.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_nested_value_nested_3x2_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_type_nested_value_nested_4x3x2() {
+-    let program_bytes = include_bytes!("type_nested_value_nested_4x3x2.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_nested_value_nested_4x3x2.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_type_nested_value_nested_4x3x2_fail() {
+-    let program_bytes = include_bytes!("type_nested_value_nested_4x3x2_fail.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_nested_value_nested_4x3x2_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_type_nested_value_tuple_3x2() {
+-    let program_bytes = include_bytes!("type_nested_value_tuple_3x2.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_nested_value_tuple_3x2.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_type_nested_value_tuple_3x2_fail() {
+-    let program_bytes = include_bytes!("type_nested_value_tuple_3x2_fail.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_nested_value_tuple_3x2_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_type_nested_value_tuple_4x3x2() {
+-    let program_bytes = include_bytes!("type_nested_value_tuple_4x3x2.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_nested_value_tuple_4x3x2.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_type_nested_value_tuple_4x3x2_fail() {
+-    let program_bytes = include_bytes!("type_nested_value_tuple_4x3x2_fail.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_nested_value_tuple_4x3x2_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_type_tuple_value_nested_3x2() {
+-    let program_bytes = include_bytes!("type_tuple_value_nested_3x2.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_tuple_value_nested_3x2.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_type_tuple_value_nested_3x2_fail() {
+-    let program_bytes = include_bytes!("type_tuple_value_nested_3x2_fail.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_tuple_value_nested_3x2_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_type_tuple_value_nested_4x3x2() {
+-    let program_bytes = include_bytes!("type_tuple_value_nested_4x3x2.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_tuple_value_nested_4x3x2.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_type_tuple_value_nested_4x3x2_fail() {
+-    let program_bytes = include_bytes!("type_tuple_value_nested_4x3x2_fail.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_tuple_value_nested_4x3x2_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_type_tuple_value_tuple_3x2() {
+-    let program_bytes = include_bytes!("type_tuple_value_tuple_3x2.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_tuple_value_tuple_3x2.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_type_tuple_value_tuple_3x2_fail() {
+-    let program_bytes = include_bytes!("type_tuple_value_tuple_3x2_fail.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_tuple_value_tuple_3x2_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_type_tuple_value_tuple_4x3x2() {
+-    let program_bytes = include_bytes!("type_tuple_value_tuple_4x3x2.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_tuple_value_tuple_4x3x2.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_type_tuple_value_tuple_4x3x2_fail() {
+-    let program_bytes = include_bytes!("type_tuple_value_tuple_4x3x2_fail.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("type_tuple_value_tuple_4x3x2_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+@@ -371,72 +371,72 @@ fn test_type_tuple_value_tuple_4x3x2_fail() {
+ 
+ #[test]
+ fn test_input_type_nested_value_nested_3x2() {
+-    let program_bytes = include_bytes!("type_input_3x2.leo");
+-    let input_bytes = include_bytes!("input/type_nested_value_nested_3x2.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("type_input_3x2.leo");
++    let input_string = include_str!("input/type_nested_value_nested_3x2.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_input_type_nested_value_nested_3x2_fail() {
+-    let program_bytes = include_bytes!("type_input_3x2.leo");
+-    let input_bytes = include_bytes!("input/type_nested_value_nested_3x2_fail.in");
+-    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++    let program_string = include_str!("type_input_3x2.leo");
++    let input_string = include_str!("input/type_nested_value_nested_3x2_fail.in");
++    let syntax_error = parse_program_with_input(program_string, input_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_input_type_nested_value_nested_4x3x2() {
+-    let program_bytes = include_bytes!("type_input_4x3x2.leo");
+-    let input_bytes = include_bytes!("input/type_nested_value_nested_4x3x2.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("type_input_4x3x2.leo");
++    let input_string = include_str!("input/type_nested_value_nested_4x3x2.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_input_type_nested_value_nested_4x3x2_fail() {
+-    let program_bytes = include_bytes!("type_input_4x3x2.leo");
+-    let input_bytes = include_bytes!("input/type_nested_value_nested_4x3x2_fail.in");
+-    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++    let program_string = include_str!("type_input_4x3x2.leo");
++    let input_string = include_str!("input/type_nested_value_nested_4x3x2_fail.in");
++    let syntax_error = parse_program_with_input(program_string, input_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_input_type_nested_value_tuple_3x2() {
+-    let program_bytes = include_bytes!("type_input_3x2.leo");
+-    let input_bytes = include_bytes!("input/type_nested_value_tuple_3x2.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("type_input_3x2.leo");
++    let input_string = include_str!("input/type_nested_value_tuple_3x2.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_input_type_nested_value_tuple_3x2_fail() {
+-    let program_bytes = include_bytes!("type_input_3x2.leo");
+-    let input_bytes = include_bytes!("input/type_nested_value_tuple_3x2_fail.in");
+-    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++    let program_string = include_str!("type_input_3x2.leo");
++    let input_string = include_str!("input/type_nested_value_tuple_3x2_fail.in");
++    let syntax_error = parse_program_with_input(program_string, input_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_input_type_nested_value_tuple_4x3x2() {
+-    let program_bytes = include_bytes!("type_input_4x3x2.leo");
+-    let input_bytes = include_bytes!("input/type_nested_value_tuple_4x3x2.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("type_input_4x3x2.leo");
++    let input_string = include_str!("input/type_nested_value_tuple_4x3x2.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program)
+ }
+ 
+ #[test]
+ fn test_input_type_nested_value_tuple_4x3x2_fail() {
+-    let program_bytes = include_bytes!("type_input_4x3x2.leo");
+-    let input_bytes = include_bytes!("input/type_nested_value_tuple_4x3x2_fail.in");
+-    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++    let program_string = include_str!("type_input_4x3x2.leo");
++    let input_string = include_str!("input/type_nested_value_tuple_4x3x2_fail.in");
++    let syntax_error = parse_program_with_input(program_string, input_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+@@ -445,72 +445,72 @@ fn test_input_type_nested_value_tuple_4x3x2_fail() {
+ 
+ #[test]
+ fn test_input_type_tuple_value_nested_3x2() {
+-    let program_bytes = include_bytes!("type_input_3x2.leo");
+-    let input_bytes = include_bytes!("input/type_tuple_value_nested_3x2.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("type_input_3x2.leo");
++    let input_string = include_str!("input/type_tuple_value_nested_3x2.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_input_type_tuple_value_nested_3x2_fail() {
+-    let program_bytes = include_bytes!("type_input_3x2.leo");
+-    let input_bytes = include_bytes!("input/type_tuple_value_nested_3x2_fail.in");
+-    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++    let program_string = include_str!("type_input_3x2.leo");
++    let input_string = include_str!("input/type_tuple_value_nested_3x2_fail.in");
++    let syntax_error = parse_program_with_input(program_string, input_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_input_type_tuple_value_nested_4x3x2() {
+-    let program_bytes = include_bytes!("type_input_4x3x2.leo");
+-    let input_bytes = include_bytes!("input/type_tuple_value_nested_4x3x2.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("type_input_4x3x2.leo");
++    let input_string = include_str!("input/type_tuple_value_nested_4x3x2.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_input_type_tuple_value_nested_4x3x2_fail() {
+-    let program_bytes = include_bytes!("type_input_4x3x2.leo");
+-    let input_bytes = include_bytes!("input/type_tuple_value_nested_4x3x2_fail.in");
+-    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++    let program_string = include_str!("type_input_4x3x2.leo");
++    let input_string = include_str!("input/type_tuple_value_nested_4x3x2_fail.in");
++    let syntax_error = parse_program_with_input(program_string, input_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_input_type_tuple_value_tuple_3x2() {
+-    let program_bytes = include_bytes!("type_input_3x2.leo");
+-    let input_bytes = include_bytes!("input/type_tuple_value_tuple_3x2.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("type_input_3x2.leo");
++    let input_string = include_str!("input/type_tuple_value_tuple_3x2.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_input_type_tuple_value_tuple_3x2_fail() {
+-    let program_bytes = include_bytes!("type_input_3x2.leo");
+-    let input_bytes = include_bytes!("input/type_tuple_value_tuple_3x2_fail.in");
+-    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++    let program_string = include_str!("type_input_3x2.leo");
++    let input_string = include_str!("input/type_tuple_value_tuple_3x2_fail.in");
++    let syntax_error = parse_program_with_input(program_string, input_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_input_type_tuple_value_tuple_4x3x2() {
+-    let program_bytes = include_bytes!("type_input_4x3x2.leo");
+-    let input_bytes = include_bytes!("input/type_tuple_value_tuple_4x3x2.in");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program_string = include_str!("type_input_4x3x2.leo");
++    let input_string = include_str!("input/type_tuple_value_tuple_4x3x2.in");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_input_type_tuple_value_tuple_4x3x2_fail() {
+-    let program_bytes = include_bytes!("type_input_4x3x2.leo");
+-    let input_bytes = include_bytes!("input/type_tuple_value_tuple_4x3x2_fail.in");
+-    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++    let program_string = include_str!("type_input_4x3x2.leo");
++    let input_string = include_str!("input/type_tuple_value_tuple_4x3x2_fail.in");
++    let syntax_error = parse_program_with_input(program_string, input_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+diff --git a/compiler/tests/boolean/mod.rs b/compiler/tests/boolean/mod.rs
+index 82eaeb8cf2..02d5dad962 100644
+--- a/compiler/tests/boolean/mod.rs
++++ b/compiler/tests/boolean/mod.rs
+@@ -40,37 +40,37 @@ pub fn output_false(program: EdwardsTestCompiler) {
+ 
+ #[test]
+ fn test_input_pass() {
+-    let program_bytes = include_bytes!("assert_eq_input.leo");
+-    let input_bytes = include_bytes!("input/true_true.in");
++    let program_string = include_str!("assert_eq_input.leo");
++    let input_string = include_str!("input/true_true.in");
+ 
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_input_fail() {
+-    let program_bytes = include_bytes!("assert_eq_input.leo");
+-    let input_bytes = include_bytes!("input/true_false.in");
++    let program_string = include_str!("assert_eq_input.leo");
++    let input_string = include_str!("input/true_false.in");
+ 
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_registers() {
+-    let program_bytes = include_bytes!("output_register.leo");
+-    let true_input_bytes = include_bytes!("input/registers_true.in");
+-    let false_input_bytes = include_bytes!("input/registers_false.in");
++    let program_string = include_str!("output_register.leo");
++    let true_input_string = include_str!("input/registers_true.in");
++    let false_input_string = include_str!("input/registers_false.in");
+ 
+     // test true input register => true output register
+-    let program = parse_program_with_input(program_bytes, true_input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, true_input_string).unwrap();
+ 
+     output_true(program);
+ 
+     // test false input register => false output register
+-    let program = parse_program_with_input(program_bytes, false_input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, false_input_string).unwrap();
+ 
+     output_false(program);
+ }
+@@ -79,32 +79,32 @@ fn test_registers() {
+ 
+ #[test]
+ fn test_not_true() {
+-    let bytes = include_bytes!("not_true.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("not_true.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_not_false() {
+-    let bytes = include_bytes!("not_false.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("not_false.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_not_mutable() {
+-    let bytes = include_bytes!("not_mutable.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("not_mutable.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_not_u32() {
+-    let bytes = include_bytes!("not_u32.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("not_u32.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+@@ -113,32 +113,32 @@ fn test_not_u32() {
+ 
+ #[test]
+ fn test_true_or_true() {
+-    let bytes = include_bytes!("true_or_true.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("true_or_true.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_true_or_false() {
+-    let bytes = include_bytes!("true_or_false.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("true_or_false.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_false_or_false() {
+-    let bytes = include_bytes!("false_or_false.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("false_or_false.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_true_or_u32() {
+-    let bytes = include_bytes!("true_or_u32.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("true_or_u32.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+@@ -147,32 +147,32 @@ fn test_true_or_u32() {
+ 
+ #[test]
+ fn test_true_and_true() {
+-    let bytes = include_bytes!("true_and_true.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("true_and_true.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_true_and_false() {
+-    let bytes = include_bytes!("true_and_false.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("true_and_false.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_false_and_false() {
+-    let bytes = include_bytes!("false_and_false.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("false_and_false.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_true_and_u32() {
+-    let bytes = include_bytes!("true_and_u32.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("true_and_u32.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+@@ -181,8 +181,8 @@ fn test_true_and_u32() {
+ 
+ #[test]
+ fn test_all() {
+-    let bytes = include_bytes!("all.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("all.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+diff --git a/compiler/tests/circuits/member_static_function_invalid.leo b/compiler/tests/circuits/member_static_function_invalid.leo
+index 513d78b67d..09fec386d9 100644
+--- a/compiler/tests/circuits/member_static_function_invalid.leo
++++ b/compiler/tests/circuits/member_static_function_invalid.leo
+@@ -5,5 +5,5 @@ circuit Foo {
+ }
+ 
+ function main() {
+-    let err = Foo::echo(1u32); // Correct, echo is a static function and must be accessed using `::`
++    let err = Foo.echo(1u32); // Invalid, echo is a static function and must be accessed using `::`
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/circuits/mod.rs b/compiler/tests/circuits/mod.rs
+index 848d7a01c7..d3d31dc144 100644
+--- a/compiler/tests/circuits/mod.rs
++++ b/compiler/tests/circuits/mod.rs
+@@ -20,24 +20,24 @@ use crate::{assert_satisfied, expect_compiler_error, expect_type_inference_error
+ 
+ #[test]
+ fn test_inline() {
+-    let bytes = include_bytes!("inline.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("inline.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_inline_fail() {
+-    let bytes = include_bytes!("inline_fail.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("inline_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_inline_undefined() {
+-    let bytes = include_bytes!("inline_undefined.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("inline_undefined.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+@@ -46,88 +46,88 @@ fn test_inline_undefined() {
+ 
+ #[test]
+ fn test_member_variable() {
+-    let bytes = include_bytes!("member_variable.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("member_variable.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_member_variable_fail() {
+-    let bytes = include_bytes!("member_variable_fail.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("member_variable_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_member_variable_and_function() {
+-    let bytes = include_bytes!("member_variable_and_function.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("member_variable_and_function.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_member_function() {
+-    let bytes = include_bytes!("member_function.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("member_function.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_member_function_fail() {
+-    let bytes = include_bytes!("member_function_fail.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("member_function_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_member_function_invalid() {
+-    let bytes = include_bytes!("member_function_invalid.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("member_function_invalid.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_member_function_nested() {
+-    let bytes = include_bytes!("member_function_nested.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("member_function_nested.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_member_static_function() {
+-    let bytes = include_bytes!("member_static_function.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("member_static_function.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_member_static_function_nested() {
+-    let bytes = include_bytes!("member_static_function_nested.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("member_static_function_nested.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_member_static_function_invalid() {
+-    let bytes = include_bytes!("member_static_function_invalid.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("member_static_function_invalid.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+-    assert_satisfied(program)
++    expect_type_inference_error(error)
+ }
+ 
+ #[test]
+ fn test_member_static_function_undefined() {
+-    let bytes = include_bytes!("member_static_function_undefined.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("member_static_function_undefined.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error)
+ }
+@@ -136,64 +136,64 @@ fn test_member_static_function_undefined() {
+ 
+ #[test]
+ fn test_mutate_function_fail() {
+-    let bytes = include_bytes!("mut_function_fail.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("mut_function_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_mutate_self_variable() {
+-    let bytes = include_bytes!("mut_self_variable.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("mut_self_variable.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_mutate_self_variable_fail() {
+-    let bytes = include_bytes!("mut_self_variable_fail.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("mut_self_variable_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_mutate_self_function_fail() {
+-    let bytes = include_bytes!("mut_self_function_fail.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("mut_self_function_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_mutate_self_static_function_fail() {
+-    let bytes = include_bytes!("mut_self_static_function_fail.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("mut_self_static_function_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_mutate_static_function_fail() {
+-    let bytes = include_bytes!("mut_static_function_fail.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("mut_static_function_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_mutate_variable() {
+-    let bytes = include_bytes!("mut_variable.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("mut_variable.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_mutate_variable_fail() {
+-    let bytes = include_bytes!("mut_variable_fail.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("mut_variable_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+@@ -202,32 +202,32 @@ fn test_mutate_variable_fail() {
+ 
+ #[test]
+ fn test_self_fail() {
+-    let bytes = include_bytes!("self_fail.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("self_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_self_member_pass() {
+-    let bytes = include_bytes!("self_member.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("self_member.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_self_member_invalid() {
+-    let bytes = include_bytes!("self_member_invalid.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("self_member_invalid.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_self_member_undefined() {
+-    let bytes = include_bytes!("self_member_undefined.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("self_member_undefined.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+@@ -236,16 +236,16 @@ fn test_self_member_undefined() {
+ 
+ #[test]
+ fn test_pedersen_mock() {
+-    let bytes = include_bytes!("pedersen_mock.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("pedersen_mock.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_define_circuit_inside_circuit_function() {
+-    let bytes = include_bytes!("define_circuit_inside_circuit_function.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("define_circuit_inside_circuit_function.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+diff --git a/compiler/tests/console/mod.rs b/compiler/tests/console/mod.rs
+index ba7c48aae9..15b7c309a9 100644
+--- a/compiler/tests/console/mod.rs
++++ b/compiler/tests/console/mod.rs
+@@ -19,63 +19,63 @@ use leo_ast::InputValue;
+ 
+ #[test]
+ fn test_log() {
+-    let bytes = include_bytes!("log.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("log.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_log_fail() {
+-    let bytes = include_bytes!("log_fail.leo");
++    let program_string = include_str!("log_fail.leo");
+ 
+-    assert!(parse_program(bytes).is_err());
++    assert!(parse_program(program_string).is_err());
+ }
+ 
+ #[test]
+ fn test_log_parameter() {
+-    let bytes = include_bytes!("log_parameter.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("log_parameter.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_log_parameter_many() {
+-    let bytes = include_bytes!("log_parameter_many.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("log_parameter_many.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_log_parameter_fail_unknown() {
+-    let bytes = include_bytes!("log_parameter_fail_unknown.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("log_parameter_fail_unknown.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_log_parameter_fail_empty() {
+-    let bytes = include_bytes!("log_parameter_fail_empty.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("log_parameter_fail_empty.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_log_parameter_fail_none() {
+-    let bytes = include_bytes!("log_parameter_fail_empty.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("log_parameter_fail_empty.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_log_input() {
+-    let bytes = include_bytes!("log_input.leo");
+-    let mut program = parse_program(bytes).unwrap();
++    let program_string = include_str!("log_input.leo");
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![("a", Some(InputValue::Boolean(true)))]);
+ 
+@@ -88,8 +88,8 @@ fn test_log_input() {
+ 
+ #[test]
+ fn test_debug() {
+-    let bytes = include_bytes!("debug.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("debug.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+@@ -98,8 +98,8 @@ fn test_debug() {
+ 
+ #[test]
+ fn test_error() {
+-    let bytes = include_bytes!("error.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("error.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+@@ -108,8 +108,8 @@ fn test_error() {
+ 
+ #[test]
+ fn test_assert() {
+-    let bytes = include_bytes!("assert.leo");
+-    let mut program = parse_program(bytes).unwrap();
++    let program_string = include_str!("assert.leo");
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![("a", Some(InputValue::Boolean(true)))]);
+ 
+@@ -117,7 +117,7 @@ fn test_assert() {
+ 
+     assert_satisfied(program);
+ 
+-    let mut program = parse_program(bytes).unwrap();
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![("a", Some(InputValue::Boolean(false)))]);
+ 
+@@ -128,15 +128,15 @@ fn test_assert() {
+ 
+ #[test]
+ fn test_conditional_assert() {
+-    let bytes = include_bytes!("conditional_assert.leo");
+-    let mut program = parse_program(bytes).unwrap();
++    let program_string = include_str!("conditional_assert.leo");
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![("a", Some(InputValue::Boolean(true)))]);
+     program.set_main_input(main_input);
+ 
+     assert_satisfied(program);
+ 
+-    let mut program = parse_program(bytes).unwrap();
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![("a", Some(InputValue::Boolean(false)))]);
+ 
+diff --git a/compiler/tests/core/mod.rs b/compiler/tests/core/mod.rs
+index 20943b7c36..11ad5f71df 100644
+--- a/compiler/tests/core/mod.rs
++++ b/compiler/tests/core/mod.rs
+@@ -20,40 +20,40 @@ use crate::{assert_satisfied, expect_symbol_table_error, parse_program};
+ 
+ #[test]
+ fn test_core_circuit_invalid() {
+-    let program_bytes = include_bytes!("core_package_invalid.leo");
+-    let program = parse_program(program_bytes).err().unwrap();
++    let program_string = include_str!("core_package_invalid.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+-    expect_symbol_table_error(program);
++    expect_symbol_table_error(error);
+ }
+ 
+ #[test]
+ fn test_core_circuit_star_fail() {
+-    let program_bytes = include_bytes!("core_circuit_star_fail.leo");
+-    let error = parse_program(program_bytes).err().unwrap();
++    let program_string = include_str!("core_circuit_star_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_symbol_table_error(error);
+ }
+ 
+ #[test]
+ fn test_core_package_invalid() {
+-    let program_bytes = include_bytes!("core_package_invalid.leo");
+-    let error = parse_program(program_bytes).err().unwrap();
++    let program_string = include_str!("core_package_invalid.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_symbol_table_error(error);
+ }
+ 
+ #[test]
+ fn test_core_unstable_package_invalid() {
+-    let program_bytes = include_bytes!("core_unstable_package_invalid.leo");
+-    let error = parse_program(program_bytes).err().unwrap();
++    let program_string = include_str!("core_unstable_package_invalid.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_symbol_table_error(error);
+ }
+ 
+ #[test]
+ fn test_unstable_blake2s_sanity() {
+-    let program_bytes = include_bytes!("unstable_blake2s.leo");
+-    let program = parse_program(program_bytes).unwrap();
++    let program_string = include_str!("unstable_blake2s.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+diff --git a/compiler/tests/core/packages/unstable/blake2s/mod.rs b/compiler/tests/core/packages/unstable/blake2s/mod.rs
+index 2b308db42e..7bef75b1c4 100644
+--- a/compiler/tests/core/packages/unstable/blake2s/mod.rs
++++ b/compiler/tests/core/packages/unstable/blake2s/mod.rs
+@@ -32,33 +32,32 @@ use snarkos_models::algorithms::PRF;
+ 
+ #[test]
+ fn test_arguments_length_fail() {
+-    let program_bytes = include_bytes!("arguments_length_fail.leo");
+-    let error = parse_program(program_bytes).err().unwrap();
++    let program_string = include_str!("arguments_length_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_arguments_type_fail() {
+-    let program_bytes = include_bytes!("arguments_type_fail.leo");
+-    let error = parse_program(program_bytes).err().unwrap();
++    let program_string = include_str!("arguments_type_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_blake2s_input() {
+-    let input_bytes = include_bytes!("inputs/valid_input.in");
+-    let program_bytes = include_bytes!("blake2s_input.leo");
+-    let expected_bytes = include_bytes!("outputs/valid_output.out");
++    let input_string = include_str!("inputs/valid_input.in");
++    let program_string = include_str!("blake2s_input.leo");
++    let expected_string = include_str!("outputs/valid_output.out");
+ 
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+-    let expected = std::str::from_utf8(expected_bytes).unwrap();
+     let actual_bytes = get_output(program);
+-    let actual = std::str::from_utf8(actual_bytes.bytes().as_slice()).unwrap();
++    let actual_string = std::str::from_utf8(actual_bytes.bytes().as_slice()).unwrap();
+ 
+-    assert_eq!(expected, actual)
++    assert_eq!(expected_string, actual_string)
+ }
+ 
+ #[test]
+@@ -81,7 +80,7 @@ fn test_blake2s_random() {
+ 
+     // The `blake2s_random.leo` program will compute a blake2s hash digest and compare it against
+     // the expected value
+-    let bytes = include_bytes!("blake2s_random.leo");
++    let bytes = include_str!("blake2s_random.leo");
+     let mut program = parse_program(bytes).unwrap();
+ 
+     let main_input = generate_main_input(vec![
+diff --git a/compiler/tests/definition/mod.rs b/compiler/tests/definition/mod.rs
+index 7b38d695fc..75dff4e557 100644
+--- a/compiler/tests/definition/mod.rs
++++ b/compiler/tests/definition/mod.rs
+@@ -18,9 +18,9 @@ use crate::{assert_satisfied, import::set_local_dir, parse_program};
+ 
+ #[test]
+ fn test_out_of_order() {
+-    let program_bytes = include_bytes!("out_of_order.leo");
++    let program_string = include_str!("out_of_order.leo");
+ 
+-    let program = parse_program(program_bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+@@ -30,9 +30,9 @@ fn test_out_of_order() {
+ fn test_out_of_order_with_import() {
+     set_local_dir();
+ 
+-    let program_bytes = include_bytes!("out_of_order_with_import.leo");
++    let program_string = include_str!("out_of_order_with_import.leo");
+ 
+-    let program = parse_program(program_bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+diff --git a/compiler/tests/field/mod.rs b/compiler/tests/field/mod.rs
+index 0cb5e4198c..fa57001223 100644
+--- a/compiler/tests/field/mod.rs
++++ b/compiler/tests/field/mod.rs
+@@ -52,8 +52,8 @@ fn test_negate() {
+         let a_string = field_to_decimal_string(a);
+         let b_string = field_to_decimal_string(b);
+ 
+-        let bytes = include_bytes!("negate.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("negate.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Field(a_string))),
+@@ -81,8 +81,8 @@ fn test_add() {
+         let b_string = field_to_decimal_string(b);
+         let c_string = field_to_decimal_string(c);
+ 
+-        let bytes = include_bytes!("add.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("add.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Field(a_string))),
+@@ -111,8 +111,8 @@ fn test_sub() {
+         let b_string = field_to_decimal_string(b);
+         let c_string = field_to_decimal_string(c);
+ 
+-        let bytes = include_bytes!("sub.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("sub.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Field(a_string))),
+@@ -140,8 +140,8 @@ fn test_div() {
+         let b_string = field_to_decimal_string(b);
+         let c_string = field_to_decimal_string(c);
+ 
+-        let bytes = include_bytes!("div.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("div.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Field(a_string))),
+@@ -169,8 +169,8 @@ fn test_mul() {
+         let b_string = field_to_decimal_string(b);
+         let c_string = field_to_decimal_string(c);
+ 
+-        let bytes = include_bytes!("mul.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("mul.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Field(a_string))),
+@@ -197,8 +197,8 @@ fn test_eq() {
+ 
+         // test equal
+ 
+-        let bytes = include_bytes!("eq.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("eq.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Field(a_string.clone()))),
+@@ -214,7 +214,7 @@ fn test_eq() {
+ 
+         let c = a.eq(&b);
+ 
+-        let mut program = parse_program(bytes).unwrap();
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Field(a_string))),
+@@ -237,8 +237,8 @@ fn test_console_assert_pass() {
+ 
+         let a_string = field_to_decimal_string(a);
+ 
+-        let bytes = include_bytes!("console_assert.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("console_assert.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Field(a_string.clone()))),
+@@ -266,8 +266,8 @@ fn test_console_assert_fail() {
+         let a_string = field_to_decimal_string(a);
+         let b_string = field_to_decimal_string(b);
+ 
+-        let bytes = include_bytes!("console_assert.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("console_assert.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Field(a_string))),
+@@ -290,8 +290,8 @@ fn test_ternary() {
+     let a_string = field_to_decimal_string(a);
+     let b_string = field_to_decimal_string(b);
+ 
+-    let bytes = include_bytes!("ternary.leo");
+-    let mut program = parse_program(bytes).unwrap();
++    let program_string = include_str!("ternary.leo");
++    let mut program = parse_program(program_string).unwrap();
+ 
+     // true -> field a
+     let main_input = generate_main_input(vec![
+@@ -305,7 +305,7 @@ fn test_ternary() {
+ 
+     assert_satisfied(program);
+ 
+-    let mut program = parse_program(bytes).unwrap();
++    let mut program = parse_program(program_string).unwrap();
+ 
+     // false -> field b
+     let main_input = generate_main_input(vec![
+@@ -322,24 +322,24 @@ fn test_ternary() {
+ 
+ //
+ // pub fn output_one(program: EdwardsTestCompiler) {
+-//     let expected = include_bytes!("output_/register_one.out");
++//     let expected = include_str!("output_/register_one.out");
+ //     let actual = get_output(program);
+ //
+-//     assert_eq!(expected, actual.bytes().as_slice());
++//     assert_eq!(expected, actual.program_string().as_slice());
+ // }
+ //
+ // pub fn output_zero(program: EdwardsTestCompiler) {
+-//     let expected = include_bytes!("output_/register_zero.out");
++//     let expected = include_str!("output_/register_zero.out");
+ //     let actual = get_output(program);
+ //
+-//     assert_eq!(expected, actual.bytes().as_slice());
++//     assert_eq!(expected, actual.program_string().as_slice());
+ // }
+ //
+ // #[test]
+ // fn test_registers() {
+-//     let program_bytes = include_bytes!("output_register.leo");
+-//     let one_input_bytes = include_bytes!("input/register_one.in");
+-//     let zero_input_bytes = include_bytes!("input/register_zero.in");
++//     let program_bytes = include_str!("output_register.leo");
++//     let one_input_bytes = include_str!("input/register_one.in");
++//     let zero_input_bytes = include_str!("input/register_zero.in");
+ //
+ //     // test 1field input register => 1field output register
+ //     let program = parse_program_with_input(program_bytes, one_input_bytes).unwrap();
+diff --git a/compiler/tests/function/mod.rs b/compiler/tests/function/mod.rs
+index 90346098e9..652964fafb 100644
+--- a/compiler/tests/function/mod.rs
++++ b/compiler/tests/function/mod.rs
+@@ -26,101 +26,99 @@ use leo_compiler::errors::{CompilerError, ExpressionError, FunctionError, Statem
+ 
+ #[test]
+ fn test_empty() {
+-    let bytes = include_bytes!("empty.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("empty.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_iteration() {
+-    let bytes = include_bytes!("iteration.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("iteration.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_iteration_repeated() {
+-    let bytes = include_bytes!("iteration_repeated.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("iteration_repeated.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_newlines() {
+-    let input_bytes = include_bytes!("input/newlines.in");
+-    let program_bytes = include_bytes!("newlines.leo");
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let input_string = include_str!("input/newlines.in");
++    let program_string = include_str!("newlines.leo");
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+-    let expected_bytes = include_bytes!("output/newlines.out");
+-    let expected = std::str::from_utf8(expected_bytes).unwrap();
++    let expected_string = include_str!("output/newlines.out");
+     let actual_bytes = get_output(program);
+-    let actual = std::str::from_utf8(actual_bytes.bytes().as_slice()).unwrap();
++    let actual_string = std::str::from_utf8(actual_bytes.bytes().as_slice()).unwrap();
+ 
+-    assert_eq!(expected, actual);
++    assert_eq!(expected_string, actual_string);
+ }
+ 
+ #[test]
+ fn test_multiple_returns() {
+-    let bytes = include_bytes!("multiple_returns.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("multiple_returns.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_multiple_returns_fail() {
+-    let bytes = include_bytes!("multiple_returns_fail.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("multiple_returns_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_multiple_returns_fail_conditional() {
+-    let bytes = include_bytes!("multiple_returns_fail_conditional.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("multiple_returns_fail_conditional.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_multiple_returns_main() {
+-    let program_bytes = include_bytes!("multiple_returns_main.leo");
+-    let input_bytes = include_bytes!("input/registers.in");
++    let program_string = include_str!("multiple_returns_main.leo");
++    let input_string = include_str!("input/registers.in");
+ 
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+-    let expected_bytes = include_bytes!("output/registers.out");
+-    let expected = std::str::from_utf8(expected_bytes).unwrap();
++    let expected_string = include_str!("output/registers.out");
+     let actual_bytes = get_output(program);
+-    let actual = std::str::from_utf8(actual_bytes.bytes().as_slice()).unwrap();
++    let actual_string = std::str::from_utf8(actual_bytes.bytes().as_slice()).unwrap();
+ 
+-    assert_eq!(expected, actual);
++    assert_eq!(expected_string, actual_string);
+ }
+ 
+ #[test]
+ fn test_repeated_function_call() {
+-    let bytes = include_bytes!("repeated.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("repeated.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_return() {
+-    let bytes = include_bytes!("return.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("return.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_scope_fail() {
+-    let bytes = include_bytes!("scope_fail.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("scope_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     match expect_compiler_error(program) {
+         CompilerError::FunctionError(FunctionError::StatementError(StatementError::ExpressionError(
+@@ -135,24 +133,24 @@ fn test_scope_fail() {
+ 
+ #[test]
+ fn test_undefined() {
+-    let bytes = include_bytes!("undefined.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("undefined.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_value_unchanged() {
+-    let bytes = include_bytes!("value_unchanged.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("value_unchanged.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_array_input() {
+-    let bytes = include_bytes!("array_input.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("array_input.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error)
+ }
+@@ -161,32 +159,32 @@ fn test_array_input() {
+ 
+ #[test]
+ fn test_return_array_nested_fail() {
+-    let bytes = include_bytes!("return_array_nested_fail.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("return_array_nested_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_return_array_nested_pass() {
+-    let bytes = include_bytes!("return_array_nested_pass.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("return_array_nested_pass.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_return_array_tuple_fail() {
+-    let bytes = include_bytes!("return_array_tuple_fail.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("return_array_tuple_fail.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let _err = expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_return_array_tuple_pass() {
+-    let bytes = include_bytes!("return_array_tuple_pass.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("return_array_tuple_pass.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+@@ -195,16 +193,16 @@ fn test_return_array_tuple_pass() {
+ 
+ #[test]
+ fn test_return_tuple() {
+-    let bytes = include_bytes!("return_tuple.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("return_tuple.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_return_tuple_conditional() {
+-    let bytes = include_bytes!("return_tuple_conditional.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("return_tuple_conditional.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+diff --git a/compiler/tests/group/mod.rs b/compiler/tests/group/mod.rs
+index c560afdc57..ca383a33e3 100644
+--- a/compiler/tests/group/mod.rs
++++ b/compiler/tests/group/mod.rs
+@@ -15,8 +15,13 @@
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use crate::{
+-    assert_satisfied, expect_compiler_error, expect_synthesis_error, field::field_to_decimal_string,
+-    generate_main_input, parse_program, parse_program_with_input,
++    assert_satisfied,
++    expect_compiler_error,
++    expect_synthesis_error,
++    field::field_to_decimal_string,
++    generate_main_input,
++    parse_program,
++    parse_program_with_input,
+ };
+ use leo_ast::{GroupCoordinate, GroupTuple, GroupValue, InputValue, Span};
+ 
+@@ -47,124 +52,124 @@ pub fn group_element_to_input_value(g: EdwardsAffine) -> GroupValue {
+ 
+ #[test]
+ fn test_one() {
+-    let bytes = include_bytes!("one.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("one.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_zero() {
+-    let bytes = include_bytes!("zero.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("zero.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_point() {
+-    let bytes = include_bytes!("point.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("point.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_x_sign_high() {
+-    let bytes = include_bytes!("x_sign_high.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("x_sign_high.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_x_sign_low() {
+-    let bytes = include_bytes!("x_sign_low.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("x_sign_low.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_x_sign_inferred() {
+-    let bytes = include_bytes!("x_sign_inferred.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("x_sign_inferred.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_y_sign_high() {
+-    let bytes = include_bytes!("y_sign_high.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("y_sign_high.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_y_sign_low() {
+-    let bytes = include_bytes!("y_sign_low.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("y_sign_low.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_y_sign_inferred() {
+-    let bytes = include_bytes!("y_sign_inferred.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("y_sign_inferred.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_both_sign_high() {
+-    let bytes = include_bytes!("both_sign_high.leo");
++    let program_string = include_str!("both_sign_high.leo");
+ 
+-    let program = parse_program(bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_both_sign_low() {
+-    let bytes = include_bytes!("both_sign_low.leo");
++    let program_string = include_str!("both_sign_low.leo");
+ 
+-    let program = parse_program(bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_both_sign_inferred() {
+-    let bytes = include_bytes!("both_sign_inferred.leo");
++    let program_string = include_str!("both_sign_inferred.leo");
+ 
+-    let program = parse_program(bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_point_input() {
+-    let program_bytes = include_bytes!("point_input.leo");
+-    let input_bytes = include_bytes!("input/point.in");
++    let program_string = include_str!("point_input.leo");
++    let input_bytes = include_str!("input/point.in");
+ 
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, input_bytes).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_input() {
+-    let program_bytes = include_bytes!("input.leo");
+-    let input_bytes_pass = include_bytes!("input/valid.in");
+-    let input_bytes_fail = include_bytes!("input/invalid.in");
++    let program_string = include_str!("input.leo");
++    let input_string_pass = include_str!("input/valid.in");
++    let input_string_fail = include_str!("input/invalid.in");
+ 
+-    let program = parse_program_with_input(program_bytes, input_bytes_pass).unwrap();
++    let program = parse_program_with_input(program_string, input_string_pass).unwrap();
+ 
+     assert_satisfied(program);
+ 
+-    let program = parse_program_with_input(program_bytes, input_bytes_fail).unwrap();
++    let program = parse_program_with_input(program_string, input_string_fail).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+@@ -182,8 +187,8 @@ fn test_negate() {
+         let a_element = group_element_to_input_value(a);
+         let b_element = group_element_to_input_value(b);
+ 
+-        let bytes = include_bytes!("negate.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("negate.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Group(a_element))),
+@@ -210,8 +215,8 @@ fn test_add() {
+         let b_element = group_element_to_input_value(b);
+         let c_element = group_element_to_input_value(c);
+ 
+-        let bytes = include_bytes!("add.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("add.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Group(a_element))),
+@@ -239,8 +244,8 @@ fn test_sub() {
+         let b_element = group_element_to_input_value(b);
+         let c_element = group_element_to_input_value(c);
+ 
+-        let bytes = include_bytes!("sub.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("sub.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Group(a_element))),
+@@ -262,8 +267,8 @@ fn test_console_assert_pass() {
+ 
+         let a_element = group_element_to_input_value(a);
+ 
+-        let bytes = include_bytes!("assert_eq.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("assert_eq.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Group(a_element.clone()))),
+@@ -291,8 +296,8 @@ fn test_console_assert_fail() {
+         let a_element = group_element_to_input_value(a);
+         let b_element = group_element_to_input_value(b);
+ 
+-        let bytes = include_bytes!("assert_eq.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("assert_eq.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Group(a_element))),
+@@ -318,8 +323,8 @@ fn test_eq() {
+ 
+         // test equal
+ 
+-        let bytes = include_bytes!("eq.leo");
+-        let mut program = parse_program(bytes).unwrap();
++        let program_string = include_str!("eq.leo");
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Group(a_element.clone()))),
+@@ -335,7 +340,7 @@ fn test_eq() {
+ 
+         let c = a.eq(&b);
+ 
+-        let mut program = parse_program(bytes).unwrap();
++        let mut program = parse_program(program_string).unwrap();
+ 
+         let main_input = generate_main_input(vec![
+             ("a", Some(InputValue::Group(a_element))),
+@@ -359,8 +364,8 @@ fn test_ternary() {
+     let a_element = group_element_to_input_value(a);
+     let b_element = group_element_to_input_value(b);
+ 
+-    let bytes = include_bytes!("ternary.leo");
+-    let mut program = parse_program(bytes).unwrap();
++    let program_string = include_str!("ternary.leo");
++    let mut program = parse_program(program_string).unwrap();
+ 
+     // true -> field a
+     let main_input = generate_main_input(vec![
+@@ -374,7 +379,7 @@ fn test_ternary() {
+ 
+     assert_satisfied(program);
+ 
+-    let mut program = parse_program(bytes).unwrap();
++    let mut program = parse_program(program_string).unwrap();
+ 
+     // false -> field b
+     let main_input = generate_main_input(vec![
+diff --git a/compiler/tests/import/mod.rs b/compiler/tests/import/mod.rs
+index d4bd578c0b..2218046389 100644
+--- a/compiler/tests/import/mod.rs
++++ b/compiler/tests/import/mod.rs
+@@ -34,8 +34,8 @@ pub fn set_local_dir() {
+ fn test_basic() {
+     set_local_dir();
+ 
+-    let bytes = include_bytes!("basic.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("basic.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+@@ -45,8 +45,8 @@ fn test_basic() {
+ fn test_multiple() {
+     set_local_dir();
+ 
+-    let bytes = include_bytes!("multiple.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("multiple.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+@@ -56,8 +56,8 @@ fn test_multiple() {
+ fn test_star() {
+     set_local_dir();
+ 
+-    let bytes = include_bytes!("star.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("star.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+@@ -67,8 +67,8 @@ fn test_star() {
+ fn test_star_fail() {
+     set_local_dir();
+ 
+-    let bytes = include_bytes!("star_fail.leo");
+-    assert!(parse_program(bytes).is_err());
++    let program_string = include_str!("star_fail.leo");
++    assert!(parse_program(program_string).is_err());
+ }
+ 
+ #[test]
+@@ -76,8 +76,8 @@ fn test_star_fail() {
+ fn test_alias() {
+     set_local_dir();
+ 
+-    let bytes = include_bytes!("alias.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("alias.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+@@ -88,8 +88,8 @@ fn test_alias() {
+ fn test_names_pass() {
+     set_local_dir();
+ 
+-    let bytes = include_bytes!("names.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("names.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+@@ -99,8 +99,8 @@ fn test_names_pass() {
+ fn test_names_fail_1() {
+     set_local_dir();
+ 
+-    let bytes = include_bytes!("names_dash_a.leo");
+-    assert!(parse_program(bytes).is_err());
++    let program_string = include_str!("names_dash_a.leo");
++    assert!(parse_program(program_string).is_err());
+ }
+ 
+ #[test]
+@@ -108,8 +108,8 @@ fn test_names_fail_1() {
+ fn test_names_fail_2() {
+     set_local_dir();
+ 
+-    let bytes = include_bytes!("names_a_dash.leo");
+-    assert!(parse_program(bytes).is_err());
++    let program_string = include_str!("names_a_dash.leo");
++    assert!(parse_program(program_string).is_err());
+ }
+ 
+ #[test]
+@@ -117,8 +117,8 @@ fn test_names_fail_2() {
+ fn test_names_fail_3() {
+     set_local_dir();
+ 
+-    let bytes = include_bytes!("names_underscore.leo");
+-    assert!(parse_program(bytes).is_err());
++    let program_string = include_str!("names_underscore.leo");
++    assert!(parse_program(program_string).is_err());
+ }
+ 
+ #[test]
+@@ -126,8 +126,8 @@ fn test_names_fail_3() {
+ fn test_names_fail_4() {
+     set_local_dir();
+ 
+-    let bytes = include_bytes!("names_dollar.leo");
+-    assert!(parse_program(bytes).is_err());
++    let program_string = include_str!("names_dollar.leo");
++    assert!(parse_program(program_string).is_err());
+ }
+ 
+ // more complex tests
+@@ -136,8 +136,8 @@ fn test_names_fail_4() {
+ fn test_many_import() {
+     set_local_dir();
+ 
+-    let bytes = include_bytes!("many_import.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("many_import.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+@@ -147,8 +147,8 @@ fn test_many_import() {
+ fn test_many_import_star() {
+     set_local_dir();
+ 
+-    let bytes = include_bytes!("many_import_star.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("many_import_star.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+diff --git a/compiler/tests/input_files/program_input/mod.rs b/compiler/tests/input_files/program_input/mod.rs
+index 830e3b8651..befe97057e 100644
+--- a/compiler/tests/input_files/program_input/mod.rs
++++ b/compiler/tests/input_files/program_input/mod.rs
+@@ -26,40 +26,40 @@ fn expect_fail(program: EdwardsTestCompiler) {
+ 
+ #[test]
+ fn test_input_pass() {
+-    let program_bytes = include_bytes!("main.leo");
+-    let input_bytes = include_bytes!("input/main.in");
++    let program_string = include_str!("main.leo");
++    let input_string = include_str!("input/main.in");
+ 
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_input_fail_name() {
+-    let program_bytes = include_bytes!("main.leo");
+-    let input_bytes = include_bytes!("input/main_fail_name.in");
++    let program_string = include_str!("main.leo");
++    let input_string = include_str!("input/main_fail_name.in");
+ 
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     expect_fail(program);
+ }
+ 
+ #[test]
+ fn test_input_fail_type() {
+-    let program_bytes = include_bytes!("main.leo");
+-    let input_bytes = include_bytes!("input/main_fail_type.in");
++    let program_string = include_str!("main.leo");
++    let input_string = include_str!("input/main_fail_type.in");
+ 
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     expect_fail(program);
+ }
+ 
+ #[test]
+ fn test_input_multiple() {
+-    let program_bytes = include_bytes!("main_multiple.leo");
+-    let input_bytes = include_bytes!("input/main_multiple.in");
++    let program_string = include_str!("main_multiple.leo");
++    let input_string = include_str!("input/main_multiple.in");
+ 
+-    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++    let program = parse_program_with_input(program_string, input_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+diff --git a/compiler/tests/input_files/program_input_and_program_state/mod.rs b/compiler/tests/input_files/program_input_and_program_state/mod.rs
+index c80bd98b7b..26f2fead35 100644
+--- a/compiler/tests/input_files/program_input_and_program_state/mod.rs
++++ b/compiler/tests/input_files/program_input_and_program_state/mod.rs
+@@ -18,27 +18,27 @@ use crate::{assert_satisfied, parse_input_and_state, parse_program_with_input_an
+ 
+ #[test]
+ fn test_basic() {
+-    let input_bytes = include_bytes!("input/basic.in");
+-    let state_bytes = include_bytes!("input/basic.state");
++    let input_string = include_str!("input/basic.in");
++    let state_string = include_str!("input/basic.state");
+ 
+-    parse_input_and_state(input_bytes, state_bytes).unwrap();
++    parse_input_and_state(input_string, state_string).unwrap();
+ }
+ 
+ #[test]
+ fn test_full() {
+-    let input_bytes = include_bytes!("input/token_withdraw.in");
+-    let state_bytes = include_bytes!("input/token_withdraw.state");
++    let input_string = include_str!("input/token_withdraw.in");
++    let state_string = include_str!("input/token_withdraw.state");
+ 
+-    parse_input_and_state(input_bytes, state_bytes).unwrap();
++    parse_input_and_state(input_string, state_string).unwrap();
+ }
+ 
+ #[test]
+ fn test_access() {
+-    let program_bytes = include_bytes!("access.leo");
+-    let input_bytes = include_bytes!("input/token_withdraw.in");
+-    let state_bytes = include_bytes!("input/token_withdraw.state");
++    let program_string = include_str!("access.leo");
++    let input_string = include_str!("input/token_withdraw.in");
++    let state_string = include_str!("input/token_withdraw.state");
+ 
+-    let program = parse_program_with_input_and_state(program_bytes, input_bytes, state_bytes).unwrap();
++    let program = parse_program_with_input_and_state(program_string, input_string, state_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+diff --git a/compiler/tests/input_files/program_state/mod.rs b/compiler/tests/input_files/program_state/mod.rs
+index d3e46194b1..ac775270b1 100644
+--- a/compiler/tests/input_files/program_state/mod.rs
++++ b/compiler/tests/input_files/program_state/mod.rs
+@@ -18,61 +18,61 @@ use crate::{assert_satisfied, parse_program_with_state, parse_state};
+ 
+ #[test]
+ fn test_basic() {
+-    let bytes = include_bytes!("input/basic.state");
++    let state_string = include_str!("input/basic.state");
+ 
+-    parse_state(bytes).unwrap();
++    parse_state(state_string).unwrap();
+ }
+ 
+ #[test]
+ fn test_token_withdraw() {
+-    let bytes = include_bytes!("input/token_withdraw.state");
++    let state_string = include_str!("input/token_withdraw.state");
+ 
+-    parse_state(bytes).unwrap();
++    parse_state(state_string).unwrap();
+ }
+ 
+ #[test]
+ fn test_access_state() {
+-    let program_bytes = include_bytes!("access_state.leo");
+-    let state_bytes = include_bytes!("input/token_withdraw.state");
++    let program_string = include_str!("access_state.leo");
++    let state_string = include_str!("input/token_withdraw.state");
+ 
+-    let program = parse_program_with_state(program_bytes, state_bytes).unwrap();
++    let program = parse_program_with_state(program_string, state_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_access_all() {
+-    let program_bytes = include_bytes!("access_all.leo");
+-    let state_bytes = include_bytes!("input/token_withdraw.state");
++    let program_string = include_str!("access_all.leo");
++    let state_string = include_str!("input/token_withdraw.state");
+ 
+-    let program = parse_program_with_state(program_bytes, state_bytes).unwrap();
++    let program = parse_program_with_state(program_string, state_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_visibility_fail() {
+-    let state_bytes = include_bytes!("input/visibility_fail.state");
++    let state_string = include_str!("input/visibility_fail.state");
+ 
+-    let is_err = parse_state(state_bytes).is_err();
++    let is_err = parse_state(state_string).is_err();
+ 
+     assert!(is_err);
+ }
+ 
+ #[test]
+ fn test_section_undefined() {
+-    let state_bytes = include_bytes!("input/section_undefined.state");
++    let state_string = include_str!("input/section_undefined.state");
+ 
+-    let is_err = parse_state(state_bytes).is_err();
++    let is_err = parse_state(state_string).is_err();
+ 
+     assert!(is_err);
+ }
+ 
+ #[test]
+ fn test_section_invalid() {
+-    let state_bytes = include_bytes!("input/section_invalid.state");
++    let state_string = include_str!("input/section_invalid.state");
+ 
+-    let is_err = parse_state(state_bytes).is_err();
++    let is_err = parse_state(state_string).is_err();
+ 
+     assert!(is_err);
+ }
+diff --git a/compiler/tests/integers/int_macro.rs b/compiler/tests/integers/int_macro.rs
+index cdcd3e7f3d..9346ced2d8 100644
+--- a/compiler/tests/integers/int_macro.rs
++++ b/compiler/tests/integers/int_macro.rs
+@@ -28,8 +28,8 @@ macro_rules! test_int {
+                         None => continue,
+                     };
+ 
+-                    let bytes = include_bytes!("negate.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("negate.leo");
++                    let mut program = parse_program(program_string).unwrap();
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+                         ("b", Some(InputValue::Integer($integer_type, b.to_string()))),
+@@ -42,15 +42,15 @@ macro_rules! test_int {
+             }
+ 
+             fn test_negate_min_fail() {
+-                let bytes = include_bytes!("negate_min.leo");
+-                let program = parse_program(bytes).unwrap();
++                let program_string = include_str!("negate_min.leo");
++                let program = parse_program(program_string).unwrap();
+ 
+                 expect_computation_error(program);
+             }
+ 
+             fn test_negate_zero() {
+-                let bytes = include_bytes!("negate_zero.leo");
+-                let program = parse_program(bytes).unwrap();
++                let program_string = include_str!("negate_zero.leo");
++                let program = parse_program(program_string).unwrap();
+ 
+                 assert_satisfied(program);
+             }
+@@ -58,29 +58,29 @@ macro_rules! test_int {
+ 
+         impl IntegerTester for $name {
+             fn test_min() {
+-                let bytes = include_bytes!("min.leo");
+-                let program = parse_program(bytes).unwrap();
++                let program_string = include_str!("min.leo");
++                let program = parse_program(program_string).unwrap();
+ 
+                 assert_satisfied(program);
+             }
+ 
+             fn test_min_fail() {
+-                let bytes = include_bytes!("min_fail.leo");
+-                let program = parse_program(bytes).unwrap();
++                let program_string = include_str!("min_fail.leo");
++                let program = parse_program(program_string).unwrap();
+ 
+                 expect_parsing_error(program);
+             }
+ 
+             fn test_max() {
+-                let bytes = include_bytes!("max.leo");
+-                let program = parse_program(bytes).unwrap();
++                let program_string = include_str!("max.leo");
++                let program = parse_program(program_string).unwrap();
+ 
+                 assert_satisfied(program);
+             }
+ 
+             fn test_max_fail() {
+-                let bytes = include_bytes!("max_fail.leo");
+-                let program = parse_program(bytes).unwrap();
++                let program_string = include_str!("max_fail.leo");
++                let program = parse_program(program_string).unwrap();
+ 
+                 expect_parsing_error(program);
+             }
+@@ -95,8 +95,8 @@ macro_rules! test_int {
+                         None => continue,
+                     };
+ 
+-                    let bytes = include_bytes!("add.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("add.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -124,8 +124,8 @@ macro_rules! test_int {
+                         None => continue,
+                     };
+ 
+-                    let bytes = include_bytes!("sub.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("sub.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -149,8 +149,8 @@ macro_rules! test_int {
+                         None => continue,
+                     };
+ 
+-                    let bytes = include_bytes!("mul.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("mul.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -176,8 +176,8 @@ macro_rules! test_int {
+                         continue;
+                     }
+ 
+-                    let bytes = include_bytes!("div.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("div.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     // expect an error when dividing by zero
+                     if b == 0 {
+@@ -220,8 +220,8 @@ macro_rules! test_int {
+                         None => continue,
+                     };
+ 
+-                    let bytes = include_bytes!("pow.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("pow.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -242,8 +242,8 @@ macro_rules! test_int {
+ 
+                     // test equal
+ 
+-                    let bytes = include_bytes!("eq.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("eq.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -259,7 +259,7 @@ macro_rules! test_int {
+ 
+                     let c = a.eq(&b);
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -280,8 +280,8 @@ macro_rules! test_int {
+ 
+                     // test a != a == false
+ 
+-                    let bytes = include_bytes!("ne.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("ne.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -297,7 +297,7 @@ macro_rules! test_int {
+ 
+                     let c = a.ne(&b);
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -318,8 +318,8 @@ macro_rules! test_int {
+ 
+                     // test equal
+ 
+-                    let bytes = include_bytes!("ge.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("ge.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -335,7 +335,7 @@ macro_rules! test_int {
+ 
+                     let c = a.ge(&b);
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -356,8 +356,8 @@ macro_rules! test_int {
+ 
+                     // test equal
+ 
+-                    let bytes = include_bytes!("gt.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("gt.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -373,7 +373,7 @@ macro_rules! test_int {
+ 
+                     let c = a.gt(&b);
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -394,8 +394,8 @@ macro_rules! test_int {
+ 
+                     // test equal
+ 
+-                    let bytes = include_bytes!("le.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("le.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -411,7 +411,7 @@ macro_rules! test_int {
+ 
+                     let c = a.le(&b);
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -432,8 +432,8 @@ macro_rules! test_int {
+ 
+                     // test equal
+ 
+-                    let bytes = include_bytes!("lt.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("lt.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -449,7 +449,7 @@ macro_rules! test_int {
+ 
+                     let c = a.lt(&b);
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -468,8 +468,8 @@ macro_rules! test_int {
+                     let a: $type_ = rand::random();
+ 
+                     // test equal
+-                    let bytes = include_bytes!("console_assert.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("console_assert.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -487,7 +487,7 @@ macro_rules! test_int {
+                         continue;
+                     }
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -504,8 +504,8 @@ macro_rules! test_int {
+                 let a: $type_ = rand::random();
+                 let b: $type_ = rand::random();
+ 
+-                let bytes = include_bytes!("ternary.leo");
+-                let mut program = parse_program(bytes).unwrap();
++                let program_string = include_str!("ternary.leo");
++                let mut program = parse_program(program_string).unwrap();
+ 
+                 // true -> field 1
+                 let main_input = generate_main_input(vec![
+@@ -520,7 +520,7 @@ macro_rules! test_int {
+                 assert_satisfied(program);
+ 
+                 // false -> field 2
+-                let mut program = parse_program(bytes).unwrap();
++                let mut program = parse_program(program_string).unwrap();
+ 
+                 let main_input = generate_main_input(vec![
+                     ("s", Some(InputValue::Boolean(false))),
+diff --git a/compiler/tests/integers/uint_macro.rs b/compiler/tests/integers/uint_macro.rs
+index c85b6a68c4..e220a82be7 100644
+--- a/compiler/tests/integers/uint_macro.rs
++++ b/compiler/tests/integers/uint_macro.rs
+@@ -20,29 +20,29 @@ macro_rules! test_uint {
+ 
+         impl IntegerTester for $name {
+             fn test_min() {
+-                let bytes = include_bytes!("min.leo");
+-                let program = parse_program(bytes).unwrap();
++                let program_string = include_str!("min.leo");
++                let program = parse_program(program_string).unwrap();
+ 
+                 assert_satisfied(program);
+             }
+ 
+             fn test_min_fail() {
+-                let bytes = include_bytes!("min_fail.leo");
+-                let program = parse_program(bytes).unwrap();
++                let program_string = include_str!("min_fail.leo");
++                let program = parse_program(program_string).unwrap();
+ 
+                 expect_parsing_error(program);
+             }
+ 
+             fn test_max() {
+-                let bytes = include_bytes!("max.leo");
+-                let program = parse_program(bytes).unwrap();
++                let program_string = include_str!("max.leo");
++                let program = parse_program(program_string).unwrap();
+ 
+                 assert_satisfied(program);
+             }
+ 
+             fn test_max_fail() {
+-                let bytes = include_bytes!("max_fail.leo");
+-                let program = parse_program(bytes).unwrap();
++                let program_string = include_str!("max_fail.leo");
++                let program = parse_program(program_string).unwrap();
+ 
+                 expect_parsing_error(program);
+             }
+@@ -57,8 +57,8 @@ macro_rules! test_uint {
+                         None => continue,
+                     };
+ 
+-                    let bytes = include_bytes!("add.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("add.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -82,8 +82,8 @@ macro_rules! test_uint {
+                         None => continue,
+                     };
+ 
+-                    let bytes = include_bytes!("sub.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("sub.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -107,8 +107,8 @@ macro_rules! test_uint {
+                         None => continue,
+                     };
+ 
+-                    let bytes = include_bytes!("mul.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("mul.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -132,8 +132,8 @@ macro_rules! test_uint {
+                         None => continue,
+                     };
+ 
+-                    let bytes = include_bytes!("div.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("div.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -158,8 +158,8 @@ macro_rules! test_uint {
+                         None => continue,
+                     };
+ 
+-                    let bytes = include_bytes!("pow.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("pow.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -180,8 +180,8 @@ macro_rules! test_uint {
+ 
+                     // test equal
+ 
+-                    let bytes = include_bytes!("eq.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("eq.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -197,7 +197,7 @@ macro_rules! test_uint {
+ 
+                     let c = a.eq(&b);
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -218,8 +218,8 @@ macro_rules! test_uint {
+ 
+                     // test a != a == false
+ 
+-                    let bytes = include_bytes!("ne.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("ne.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -235,7 +235,7 @@ macro_rules! test_uint {
+ 
+                     let c = a.ne(&b);
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -256,8 +256,8 @@ macro_rules! test_uint {
+ 
+                     // test equal
+ 
+-                    let bytes = include_bytes!("ge.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("ge.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -273,7 +273,7 @@ macro_rules! test_uint {
+ 
+                     let c = a.ge(&b);
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -294,8 +294,8 @@ macro_rules! test_uint {
+ 
+                     // test equal
+ 
+-                    let bytes = include_bytes!("gt.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("gt.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -311,7 +311,7 @@ macro_rules! test_uint {
+ 
+                     let c = a.gt(&b);
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -332,8 +332,8 @@ macro_rules! test_uint {
+ 
+                     // test equal
+ 
+-                    let bytes = include_bytes!("le.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("le.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -349,7 +349,7 @@ macro_rules! test_uint {
+ 
+                     let c = a.le(&b);
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -370,8 +370,8 @@ macro_rules! test_uint {
+ 
+                     // test equal
+ 
+-                    let bytes = include_bytes!("lt.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("lt.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -387,7 +387,7 @@ macro_rules! test_uint {
+ 
+                     let c = a.lt(&b);
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -406,8 +406,8 @@ macro_rules! test_uint {
+                     let a: $type_ = rand::random();
+ 
+                     // test equal
+-                    let bytes = include_bytes!("console_assert.leo");
+-                    let mut program = parse_program(bytes).unwrap();
++                    let program_string = include_str!("console_assert.leo");
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -425,7 +425,7 @@ macro_rules! test_uint {
+                         continue;
+                     }
+ 
+-                    let mut program = parse_program(bytes).unwrap();
++                    let mut program = parse_program(program_string).unwrap();
+ 
+                     let main_input = generate_main_input(vec![
+                         ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
+@@ -442,8 +442,8 @@ macro_rules! test_uint {
+                 let a: $type_ = rand::random();
+                 let b: $type_ = rand::random();
+ 
+-                let bytes = include_bytes!("ternary.leo");
+-                let mut program = parse_program(bytes).unwrap();
++                let program_string = include_str!("ternary.leo");
++                let mut program = parse_program(program_string).unwrap();
+ 
+                 // true -> field 1
+                 let main_input = generate_main_input(vec![
+@@ -458,7 +458,7 @@ macro_rules! test_uint {
+                 assert_satisfied(program);
+ 
+                 // false -> field 2
+-                let mut program = parse_program(bytes).unwrap();
++                let mut program = parse_program(program_string).unwrap();
+ 
+                 let main_input = generate_main_input(vec![
+                     ("s", Some(InputValue::Boolean(false))),
+diff --git a/compiler/tests/mod.rs b/compiler/tests/mod.rs
+index a18efa9428..434a19ff16 100644
+--- a/compiler/tests/mod.rs
++++ b/compiler/tests/mod.rs
+@@ -64,94 +64,79 @@ fn new_compiler() -> EdwardsTestCompiler {
+     EdwardsTestCompiler::new(program_name, path, output_dir)
+ }
+ 
+-pub(crate) fn parse_program(bytes: &[u8]) -> Result<EdwardsTestCompiler, CompilerError> {
++pub(crate) fn parse_program(program_string: &str) -> Result<EdwardsTestCompiler, CompilerError> {
+     let mut compiler = new_compiler();
+-    let program_string = String::from_utf8_lossy(bytes);
+ 
+-    compiler.parse_program_from_string(&program_string)?;
++    compiler.parse_program_from_string(program_string)?;
+ 
+     Ok(compiler)
+ }
+ 
+-pub(crate) fn parse_input(bytes: &[u8]) -> Result<EdwardsTestCompiler, CompilerError> {
++pub(crate) fn parse_input(input_string: &str) -> Result<EdwardsTestCompiler, CompilerError> {
+     let mut compiler = new_compiler();
+-    let input_string = String::from_utf8_lossy(bytes);
+     let path = PathBuf::new();
+ 
+-    compiler.parse_input(&input_string, &path, EMPTY_FILE, &path)?;
++    compiler.parse_input(input_string, &path, EMPTY_FILE, &path)?;
+ 
+     Ok(compiler)
+ }
+ 
+-pub(crate) fn parse_state(bytes: &[u8]) -> Result<EdwardsTestCompiler, CompilerError> {
++pub(crate) fn parse_state(state_string: &str) -> Result<EdwardsTestCompiler, CompilerError> {
+     let mut compiler = new_compiler();
+-    let state_string = String::from_utf8_lossy(bytes);
+     let path = PathBuf::new();
+ 
+-    compiler.parse_input(EMPTY_FILE, &path, &state_string, &path)?;
++    compiler.parse_input(EMPTY_FILE, &path, state_string, &path)?;
+ 
+     Ok(compiler)
+ }
+ 
+ pub(crate) fn parse_input_and_state(
+-    input_bytes: &[u8],
+-    state_bytes: &[u8],
++    input_string: &str,
++    state_string: &str,
+ ) -> Result<EdwardsTestCompiler, CompilerError> {
+     let mut compiler = new_compiler();
+-    let input_string = String::from_utf8_lossy(input_bytes);
+-    let state_string = String::from_utf8_lossy(state_bytes);
+     let path = PathBuf::new();
+ 
+-    compiler.parse_input(&input_string, &path, &state_string, &path)?;
++    compiler.parse_input(input_string, &path, state_string, &path)?;
+ 
+     Ok(compiler)
+ }
+ 
+ pub fn parse_program_with_input(
+-    program_bytes: &[u8],
+-    input_bytes: &[u8],
++    program_string: &str,
++    input_string: &str,
+ ) -> Result<EdwardsTestCompiler, CompilerError> {
+     let mut compiler = new_compiler();
+-
+-    let program_string = String::from_utf8_lossy(program_bytes);
+-    let input_string = String::from_utf8_lossy(input_bytes);
+     let path = PathBuf::new();
+ 
+-    compiler.parse_input(&input_string, &path, EMPTY_FILE, &path)?;
+-    compiler.parse_program_from_string(&program_string)?;
++    compiler.parse_input(input_string, &path, EMPTY_FILE, &path)?;
++    compiler.parse_program_from_string(program_string)?;
+ 
+     Ok(compiler)
+ }
+ 
+ pub fn parse_program_with_state(
+-    program_bytes: &[u8],
+-    state_bytes: &[u8],
++    program_string: &str,
++    state_string: &str,
+ ) -> Result<EdwardsTestCompiler, CompilerError> {
+     let mut compiler = new_compiler();
+-
+-    let program_string = String::from_utf8_lossy(program_bytes);
+-    let state_string = String::from_utf8_lossy(state_bytes);
+     let path = PathBuf::new();
+ 
+-    compiler.parse_input(EMPTY_FILE, &path, &state_string, &path)?;
+-    compiler.parse_program_from_string(&program_string)?;
++    compiler.parse_input(EMPTY_FILE, &path, state_string, &path)?;
++    compiler.parse_program_from_string(program_string)?;
+ 
+     Ok(compiler)
+ }
+ 
+ pub fn parse_program_with_input_and_state(
+-    program_bytes: &[u8],
+-    input_bytes: &[u8],
+-    state_bytes: &[u8],
++    program_string: &str,
++    input_string: &str,
++    state_string: &str,
+ ) -> Result<EdwardsTestCompiler, CompilerError> {
+     let mut compiler = new_compiler();
+-
+-    let program_string = String::from_utf8_lossy(program_bytes);
+-    let input_string = String::from_utf8_lossy(input_bytes);
+-    let state_string = String::from_utf8_lossy(state_bytes);
+     let path = PathBuf::new();
+ 
+-    compiler.parse_input(&input_string, &path, &state_string, &path)?;
++    compiler.parse_input(input_string, &path, state_string, &path)?;
+     compiler.parse_program_from_string(&program_string)?;
+ 
+     Ok(compiler)
+diff --git a/compiler/tests/mutability/mod.rs b/compiler/tests/mutability/mod.rs
+index 8016bb5412..4c2ab869e5 100644
+--- a/compiler/tests/mutability/mod.rs
++++ b/compiler/tests/mutability/mod.rs
+@@ -19,104 +19,104 @@ use leo_ast::InputValue;
+ 
+ #[test]
+ fn test_let() {
+-    let bytes = include_bytes!("let.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("let.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_let_mut() {
+-    let bytes = include_bytes!("let_mut.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("let_mut.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_let_mut_nested() {
+-    let bytes = include_bytes!("let_mut_nested.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("let_mut_nested.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_const_fail() {
+-    let bytes = include_bytes!("const.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("const.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_const_mut_fail() {
+-    let bytes = include_bytes!("const_mut.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("const_mut.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_array() {
+-    let bytes = include_bytes!("array.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("array.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_array_mut() {
+-    let bytes = include_bytes!("array_mut.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("array_mut.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_circuit() {
+-    let bytes = include_bytes!("circuit.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("circuit.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     expect_compiler_error(program);
+ }
+ 
+ #[test]
+ fn test_circuit_mut() {
+-    let bytes = include_bytes!("circuit_mut.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("circuit_mut.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_circuit_variable_mut() {
+-    let bytes = include_bytes!("circuit_variable_mut.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("circuit_variable_mut.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_circuit_function_mut() {
+-    let bytes = include_bytes!("circuit_function_mut.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("circuit_function_mut.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_circuit_static_function_mut() {
+-    let bytes = include_bytes!("circuit_static_function_mut.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("circuit_static_function_mut.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+ 
+ #[test]
+ fn test_function_input() {
+-    let bytes = include_bytes!("function_input.leo");
+-    let mut program = parse_program(bytes).unwrap();
++    let program_string = include_str!("function_input.leo");
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![("a", Some(InputValue::Boolean(true)))]);
+ 
+@@ -127,8 +127,8 @@ fn test_function_input() {
+ 
+ #[test]
+ fn test_function_input_mut() {
+-    let bytes = include_bytes!("function_input_mut.leo");
+-    let mut program = parse_program(bytes).unwrap();
++    let program_string = include_str!("function_input_mut.leo");
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![("a", Some(InputValue::Boolean(true)))]);
+ 
+diff --git a/compiler/tests/statements/conditional/mod.rs b/compiler/tests/statements/conditional/mod.rs
+index 3c243c9804..84d03eb71b 100644
+--- a/compiler/tests/statements/conditional/mod.rs
++++ b/compiler/tests/statements/conditional/mod.rs
+@@ -28,8 +28,8 @@ use leo_ast::InputValue;
+ 
+ #[test]
+ fn test_assert() {
+-    let bytes = include_bytes!("assert.leo");
+-    let mut program_1_pass = parse_program(bytes).unwrap();
++    let program_string = include_str!("assert.leo");
++    let mut program_1_pass = parse_program(program_string).unwrap();
+     let mut program_0_pass = program_1_pass.clone();
+     let mut program_2_fail = program_1_pass.clone();
+ 
+@@ -60,8 +60,8 @@ fn test_assert() {
+ 
+ #[test]
+ fn test_mutate() {
+-    let bytes = include_bytes!("mutate.leo");
+-    let mut program_1_pass = parse_program(bytes).unwrap();
++    let program_string = include_str!("mutate.leo");
++    let mut program_1_pass = parse_program(program_string).unwrap();
+     let mut program_0_pass = program_1_pass.clone();
+ 
+     // Check that an input value of 1 satisfies the constraint system
+@@ -83,8 +83,8 @@ fn test_mutate() {
+ 
+ #[test]
+ fn test_for_loop() {
+-    let bytes = include_bytes!("for_loop.leo");
+-    let mut program_true_6 = parse_program(bytes).unwrap();
++    let program_string = include_str!("for_loop.leo");
++    let mut program_true_6 = parse_program(program_string).unwrap();
+     let mut program_false_0 = program_true_6.clone();
+ 
+     // Check that an input value of true satisfies the constraint system
+@@ -106,8 +106,8 @@ fn test_for_loop() {
+ 
+ #[test]
+ fn test_chain() {
+-    let bytes = include_bytes!("chain.leo");
+-    let mut program_1_1 = parse_program(bytes).unwrap();
++    let program_string = include_str!("chain.leo");
++    let mut program_1_1 = parse_program(program_string).unwrap();
+     let mut program_2_2 = program_1_1.clone();
+     let mut program_4_3 = program_1_1.clone();
+ 
+@@ -147,8 +147,8 @@ fn test_chain() {
+ 
+ #[test]
+ fn test_nested() {
+-    let bytes = include_bytes!("nested.leo");
+-    let mut program_true_true_3 = parse_program(bytes).unwrap();
++    let program_string = include_str!("nested.leo");
++    let mut program_true_true_3 = parse_program(program_string).unwrap();
+     let mut program_true_false_1 = program_true_true_3.clone();
+     let mut program_false_false_0 = program_true_true_3.clone();
+ 
+@@ -205,19 +205,19 @@ fn output_zero(program: EdwardsTestCompiler) {
+ 
+ #[test]
+ fn test_multiple_returns() {
+-    let program_bytes = include_bytes!("multiple_returns.leo");
++    let program_string = include_str!("multiple_returns.leo");
+ 
+     // Check that an input value of 1 writes 1 to the output registers
+ 
+-    let registers_one_bytes = include_bytes!("input/registers_one.in");
+-    let program = parse_program_with_input(program_bytes, registers_one_bytes).unwrap();
++    let registers_one_string = include_str!("input/registers_one.in");
++    let program = parse_program_with_input(program_string, registers_one_string).unwrap();
+ 
+     output_one(program);
+ 
+     // Check that an input value of 0 writes 0 to the output registers
+ 
+-    let registers_zero_bytes = include_bytes!("input/registers_zero.in");
+-    let program = parse_program_with_input(program_bytes, registers_zero_bytes).unwrap();
++    let registers_zero_string = include_str!("input/registers_zero.in");
++    let program = parse_program_with_input(program_string, registers_zero_string).unwrap();
+ 
+     output_zero(program);
+ }
+diff --git a/compiler/tests/statements/mod.rs b/compiler/tests/statements/mod.rs
+index 4680bee86d..b06386769c 100644
+--- a/compiler/tests/statements/mod.rs
++++ b/compiler/tests/statements/mod.rs
+@@ -23,8 +23,8 @@ pub mod conditional;
+ 
+ #[test]
+ fn test_ternary_basic() {
+-    let bytes = include_bytes!("ternary_basic.leo");
+-    let mut program = parse_program(bytes).unwrap();
++    let program_string = include_str!("ternary_basic.leo");
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![
+         ("a", Some(InputValue::Boolean(true))),
+@@ -35,7 +35,7 @@ fn test_ternary_basic() {
+ 
+     assert_satisfied(program);
+ 
+-    let mut program = parse_program(bytes).unwrap();
++    let mut program = parse_program(program_string).unwrap();
+ 
+     let main_input = generate_main_input(vec![
+         ("a", Some(InputValue::Boolean(false))),
+@@ -51,16 +51,16 @@ fn test_ternary_basic() {
+ 
+ #[test]
+ fn test_iteration_basic() {
+-    let bytes = include_bytes!("iteration_basic.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("iteration_basic.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_num_returns_fail() {
+-    let bytes = include_bytes!("num_returns_fail.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("num_returns_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     expect_type_inference_error(error);
+ }
+diff --git a/compiler/tests/syntax/identifiers/mod.rs b/compiler/tests/syntax/identifiers/mod.rs
+index c1d6fb7f86..1adf8697d9 100644
+--- a/compiler/tests/syntax/identifiers/mod.rs
++++ b/compiler/tests/syntax/identifiers/mod.rs
+@@ -18,80 +18,80 @@ use crate::parse_program;
+ 
+ #[test]
+ fn test_address_name_fail() {
+-    let bytes = include_bytes!("address_fail.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("address_fail.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_console_name_fail() {
+-    let bytes = include_bytes!("console_fail.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("console_fail.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_field_name_fail() {
+-    let bytes = include_bytes!("field_fail.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("field_fail.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_group_name_fail() {
+-    let bytes = include_bytes!("group_fail.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("group_fail.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_i8_name_fail() {
+-    let bytes = include_bytes!("i8_fail.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("i8_fail.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_input_name_fail() {
+-    let bytes = include_bytes!("input_fail.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("input_fail.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_self_type_name_fail() {
+-    let bytes = include_bytes!("self_type_fail.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("self_type_fail.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_self_keyword_name_fail() {
+-    let bytes = include_bytes!("self_keyword_fail.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("self_keyword_fail.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_true_name_fail() {
+-    let bytes = include_bytes!("true_fail.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("true_fail.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+ 
+ #[test]
+ fn test_u8_name_fail() {
+-    let bytes = include_bytes!("u8_fail.leo");
+-    let syntax_error = parse_program(bytes).is_err();
++    let program_string = include_str!("u8_fail.leo");
++    let syntax_error = parse_program(program_string).is_err();
+ 
+     assert!(syntax_error);
+ }
+diff --git a/compiler/tests/syntax/mod.rs b/compiler/tests/syntax/mod.rs
+index 017d01a707..1bb6493d4b 100644
+--- a/compiler/tests/syntax/mod.rs
++++ b/compiler/tests/syntax/mod.rs
+@@ -25,8 +25,8 @@ pub mod identifiers;
+ #[test]
+ #[ignore]
+ fn test_semicolon() {
+-    let bytes = include_bytes!("semicolon.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("semicolon.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     match error {
+         CompilerError::ParserError(ParserError::SyntaxError(_)) => {}
+@@ -36,8 +36,8 @@ fn test_semicolon() {
+ 
+ #[test]
+ fn test_undefined() {
+-    let bytes = include_bytes!("undefined.leo");
+-    let program = parse_program(bytes).unwrap();
++    let program_string = include_str!("undefined.leo");
++    let program = parse_program(program_string).unwrap();
+ 
+     let error = expect_compiler_error(program);
+ 
+@@ -63,10 +63,9 @@ fn test_undefined() {
+ }
+ 
+ #[test]
+-#[ignore]
+ fn input_syntax_error() {
+-    let bytes = include_bytes!("input_semicolon.leo");
+-    let error = parse_input(bytes).err().unwrap();
++    let input_string = include_str!("input_semicolon.leo");
++    let error = parse_input(input_string).err().unwrap();
+ 
+     // Expect an input parser error.
+     match error {
+@@ -77,8 +76,8 @@ fn input_syntax_error() {
+ 
+ #[test]
+ fn test_compare_mismatched_types() {
+-    let bytes = include_bytes!("compare_mismatched_types.leo");
+-    let error = parse_program(bytes).err().unwrap();
++    let program_string = include_str!("compare_mismatched_types.leo");
++    let error = parse_program(program_string).err().unwrap();
+ 
+     // Expect a type inference error.
+     match error {
+diff --git a/compiler/tests/tuples/mod.rs b/compiler/tests/tuples/mod.rs
+index 9c52764c5f..5ed5cd357f 100644
+--- a/compiler/tests/tuples/mod.rs
++++ b/compiler/tests/tuples/mod.rs
+@@ -18,105 +18,105 @@ use crate::{assert_satisfied, parse_program};
+ 
+ #[test]
+ fn test_tuple_basic() {
+-    let program_bytes = include_bytes!("basic.leo");
++    let program_string = include_str!("basic.leo");
+ 
+-    let program = parse_program(program_bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_tuple_access() {
+-    let program_bytes = include_bytes!("access.leo");
++    let program_string = include_str!("access.leo");
+ 
+-    let program = parse_program(program_bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_tuple_typed() {
+-    let program_bytes = include_bytes!("typed.leo");
++    let program_string = include_str!("typed.leo");
+ 
+-    let program = parse_program(program_bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_multiple() {
+-    let program_bytes = include_bytes!("multiple.leo");
++    let program_string = include_str!("multiple.leo");
+ 
+-    let program = parse_program(program_bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_multiple_typed() {
+-    let program_bytes = include_bytes!("multiple_typed.leo");
++    let program_string = include_str!("multiple_typed.leo");
+ 
+-    let program = parse_program(program_bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_function() {
+-    let program_bytes = include_bytes!("function.leo");
++    let program_string = include_str!("function.leo");
+ 
+-    let program = parse_program(program_bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_function_typed() {
+-    let program_bytes = include_bytes!("function_typed.leo");
++    let program_string = include_str!("function_typed.leo");
+ 
+-    let program = parse_program(program_bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_function_multiple() {
+-    let progam_bytes = include_bytes!("function_multiple.leo");
++    let progam_string = include_str!("function_multiple.leo");
+ 
+-    let program = parse_program(progam_bytes).unwrap();
++    let program = parse_program(progam_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_nested() {
+-    let program_bytes = include_bytes!("nested.leo");
++    let program_string = include_str!("nested.leo");
+ 
+-    let program = parse_program(program_bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_nested_access() {
+-    let program_bytes = include_bytes!("nested_access.leo");
++    let program_string = include_str!("nested_access.leo");
+ 
+-    let program = parse_program(program_bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+ fn test_nested_typed() {
+-    let program_bytes = include_bytes!("nested_typed.leo");
++    let program_string = include_str!("nested_typed.leo");
+ 
+-    let program = parse_program(program_bytes).unwrap();
++    let program = parse_program(program_string).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ // #[test]
+ // fn test_input() {
+-//     let input_bytes = include_bytes!("inputs/input.in");
+-//     let program_bytes = include_bytes!("")
++//     let input_string = include_str!("inputs/input.in");
++//     let program_string = include_str!("")
+ // }
+diff --git a/symbol-table/tests/mod.rs b/symbol-table/tests/mod.rs
+index fb8a5ee290..21c7710cb6 100644
+--- a/symbol-table/tests/mod.rs
++++ b/symbol-table/tests/mod.rs
+@@ -34,15 +34,12 @@ impl TestSymbolTable {
+     ///
+     /// Returns a Leo syntax tree given a Leo program.
+     ///
+-    pub fn new(bytes: &[u8]) -> Self {
+-        // Get file string from bytes.
+-        let file_string = String::from_utf8_lossy(bytes);
+-
++    pub fn new(program_string: &str) -> Self {
+         // Get test file path.
+         let file_path = PathBuf::from(TEST_PROGRAM_PATH);
+ 
+         // Get parser syntax tree.
+-        let grammar = Grammar::new(&file_path, &*file_string).unwrap();
++        let grammar = Grammar::new(&file_path, program_string).unwrap();
+ 
+         // Get Leo syntax tree.
+         let ast = Ast::new(TEST_PROGRAM_PATH, &grammar);
+diff --git a/symbol-table/tests/symbol_table/mod.rs b/symbol-table/tests/symbol_table/mod.rs
+index 4d40891377..e5b820d4a4 100644
+--- a/symbol-table/tests/symbol_table/mod.rs
++++ b/symbol-table/tests/symbol_table/mod.rs
+@@ -25,8 +25,8 @@ use crate::TestSymbolTable;
+ ///
+ #[test]
+ fn test_duplicate_circuit() {
+-    let program_bytes = include_bytes!("duplicate_circuit.leo");
+-    let resolver = TestSymbolTable::new(program_bytes);
++    let program_string = include_str!("duplicate_circuit.leo");
++    let resolver = TestSymbolTable::new(program_string);
+ 
+     resolver.expect_pass_one_error();
+ }
+@@ -40,8 +40,8 @@ fn test_duplicate_circuit() {
+ ///
+ #[test]
+ fn test_duplicate_function() {
+-    let program_bytes = include_bytes!("duplicate_function.leo");
+-    let resolver = TestSymbolTable::new(program_bytes);
++    let program_string = include_str!("duplicate_function.leo");
++    let resolver = TestSymbolTable::new(program_string);
+ 
+     resolver.expect_pass_one_error();
+ }
+@@ -54,8 +54,8 @@ fn test_duplicate_function() {
+ ///
+ #[test]
+ fn test_self_not_available() {
+-    let program_bytes = include_bytes!("self_not_available.leo");
+-    let resolver = TestSymbolTable::new(program_bytes);
++    let program_string = include_str!("self_not_available.leo");
++    let resolver = TestSymbolTable::new(program_string);
+ 
+     resolver.expect_pass_two_error();
+ }
+@@ -68,8 +68,8 @@ fn test_self_not_available() {
+ ///
+ #[test]
+ fn test_undefined_circuit() {
+-    let program_bytes = include_bytes!("undefined_circuit.leo");
+-    let resolver = TestSymbolTable::new(program_bytes);
++    let program_string = include_str!("undefined_circuit.leo");
++    let resolver = TestSymbolTable::new(program_string);
+ 
+     resolver.expect_pass_two_error();
+ }
+diff --git a/type-inference/tests/arrays/mod.rs b/type-inference/tests/arrays/mod.rs
+index 72ab79478e..6877b90b76 100644
+--- a/type-inference/tests/arrays/mod.rs
++++ b/type-inference/tests/arrays/mod.rs
+@@ -18,27 +18,27 @@ use crate::TestTypeInference;
+ 
+ #[test]
+ fn test_empty_array() {
+-    let bytes = include_bytes!("empty_array.leo");
++    let program_string = include_str!("empty_array.leo");
+ 
+-    let check = TestTypeInference::new(bytes);
++    let check = TestTypeInference::new(program_string);
+ 
+     check.expect_error();
+ }
+ 
+ #[test]
+ fn test_invalid_array_access() {
+-    let bytes = include_bytes!("invalid_array_access.leo");
++    let program_string = include_str!("invalid_array_access.leo");
+ 
+-    let check = TestTypeInference::new(bytes);
++    let check = TestTypeInference::new(program_string);
+ 
+     check.expect_error();
+ }
+ 
+ #[test]
+ fn test_invalid_spread() {
+-    let bytes = include_bytes!("invalid_spread.leo");
++    let program_string = include_str!("invalid_spread.leo");
+ 
+-    let check = TestTypeInference::new(bytes);
++    let check = TestTypeInference::new(program_string);
+ 
+     check.expect_error();
+ }
+diff --git a/type-inference/tests/circuits/mod.rs b/type-inference/tests/circuits/mod.rs
+index 8b8d585bd6..e05837c4d0 100644
+--- a/type-inference/tests/circuits/mod.rs
++++ b/type-inference/tests/circuits/mod.rs
+@@ -18,8 +18,8 @@ use crate::TestTypeInference;
+ 
+ #[test]
+ fn test_invalid_circuit() {
+-    let bytes = include_bytes!("invalid_circuit.leo");
+-    let check = TestTypeInference::new(bytes);
++    let program_string = include_str!("invalid_circuit.leo");
++    let check = TestTypeInference::new(program_string);
+ 
+     check.expect_error();
+ }
+diff --git a/type-inference/tests/functions/mod.rs b/type-inference/tests/functions/mod.rs
+index 20e873cbaf..c353cad388 100644
+--- a/type-inference/tests/functions/mod.rs
++++ b/type-inference/tests/functions/mod.rs
+@@ -18,8 +18,8 @@ use crate::TestTypeInference;
+ 
+ #[test]
+ fn test_invalid_function() {
+-    let bytes = include_bytes!("invalid_function.leo");
+-    let check = TestTypeInference::new(bytes);
++    let program_string = include_str!("invalid_function.leo");
++    let check = TestTypeInference::new(program_string);
+ 
+     check.expect_error();
+ }
+diff --git a/type-inference/tests/mod.rs b/type-inference/tests/mod.rs
+index e72bb9f005..40924eabfe 100644
+--- a/type-inference/tests/mod.rs
++++ b/type-inference/tests/mod.rs
+@@ -38,15 +38,12 @@ pub struct TestTypeInference {
+ }
+ 
+ impl TestTypeInference {
+-    pub fn new(bytes: &[u8]) -> Self {
+-        // Get file string from bytes.
+-        let file_string = String::from_utf8_lossy(bytes);
+-
++    pub fn new(program_string: &str) -> Self {
+         // Get test file path.
+         let file_path = PathBuf::from(TEST_PROGRAM_PATH);
+ 
+         // Get parser syntax tree.
+-        let ast = Grammar::new(&file_path, &*file_string).unwrap();
++        let ast = Grammar::new(&file_path, program_string).unwrap();
+ 
+         // Get typed syntax tree.
+         let typed = Ast::new(TEST_PROGRAM_NAME, &ast);
+@@ -76,9 +73,9 @@ impl TestTypeInference {
+ 
+ #[test]
+ fn test_new() {
+-    let bytes = include_bytes!("empty.leo");
++    let program_string = include_str!("empty.leo");
+ 
+-    let type_inference = TestTypeInference::new(bytes);
++    let type_inference = TestTypeInference::new(program_string);
+ 
+     type_inference.check()
+ }
+diff --git a/type-inference/tests/tuples/mod.rs b/type-inference/tests/tuples/mod.rs
+index cc0549cffe..9667e11971 100644
+--- a/type-inference/tests/tuples/mod.rs
++++ b/type-inference/tests/tuples/mod.rs
+@@ -18,8 +18,8 @@ use crate::TestTypeInference;
+ 
+ #[test]
+ fn test_invalid_tuple_access() {
+-    let bytes = include_bytes!("invalid_tuple_access.leo");
+-    let check = TestTypeInference::new(bytes);
++    let program_string = include_str!("invalid_tuple_access.leo");
++    let check = TestTypeInference::new(program_string);
+ 
+     check.expect_error();
+ }
+diff --git a/type-inference/tests/variables/mod.rs b/type-inference/tests/variables/mod.rs
+index 9e7b3dd1ea..1cadaa5e68 100644
+--- a/type-inference/tests/variables/mod.rs
++++ b/type-inference/tests/variables/mod.rs
+@@ -18,32 +18,32 @@ use crate::TestTypeInference;
+ 
+ #[test]
+ fn test_duplicate_variable() {
+-    let bytes = include_bytes!("duplicate_variable.leo");
+-    let check = TestTypeInference::new(bytes);
++    let program_string = include_str!("duplicate_variable.leo");
++    let check = TestTypeInference::new(program_string);
+ 
+     check.expect_error();
+ }
+ 
+ #[test]
+ fn test_duplicate_variable_multi() {
+-    let bytes = include_bytes!("duplicate_variable_multi.leo");
+-    let check = TestTypeInference::new(bytes);
++    let program_string = include_str!("duplicate_variable_multi.leo");
++    let check = TestTypeInference::new(program_string);
+ 
+     check.expect_error();
+ }
+ 
+ #[test]
+ fn test_not_enough_values() {
+-    let bytes = include_bytes!("not_enough_values.leo");
+-    let check = TestTypeInference::new(bytes);
++    let program_string = include_str!("not_enough_values.leo");
++    let check = TestTypeInference::new(program_string);
+ 
+     check.expect_error();
+ }
+ 
+ #[test]
+ fn test_too_many_values() {
+-    let bytes = include_bytes!("too_many_values.leo");
+-    let check = TestTypeInference::new(bytes);
++    let program_string = include_str!("too_many_values.leo");
++    let check = TestTypeInference::new(program_string);
+ 
+     check.expect_error();
+ }

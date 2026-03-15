@@ -1,0 +1,1396 @@
+diff --git a/.integration/tests/dpc_testnet1.rs b/.integration/tests/dpc_testnet1.rs
+index b176afa15..b99b87d80 100644
+--- a/.integration/tests/dpc_testnet1.rs
++++ b/.integration/tests/dpc_testnet1.rs
+@@ -119,7 +119,7 @@ fn test_testnet1_dpc_execute_constraints() {
+     let local_data = authorization.to_local_data(&mut rng).unwrap();
+ 
+     // Execute the programs.
+-    let mut executions = Vec::with_capacity(Testnet1::NUM_TOTAL_RECORDS);
++    let mut executions = Vec::with_capacity(Testnet1::NUM_INPUT_RECORDS);
+     for (i, executable) in state.executables().iter().enumerate() {
+         executions.push(executable.execute(i as u8, &local_data).unwrap());
+     }
+@@ -162,9 +162,11 @@ fn test_testnet1_dpc_execute_constraints() {
+         signatures,
+         output_records.clone(),
+         encrypted_record_randomizers,
++        state.executables(),
+         program_randomness.clone(),
+         local_data.leaf_randomizers().clone(),
+-    );
++    )
++    .unwrap();
+ 
+     // Check that the core check constraint system was satisfied.
+     let mut inner_circuit_cs = TestConstraintSystem::<Fr>::new();
+diff --git a/.integration/tests/dpc_testnet2.rs b/.integration/tests/dpc_testnet2.rs
+index 0625599b4..ce4bc4252 100644
+--- a/.integration/tests/dpc_testnet2.rs
++++ b/.integration/tests/dpc_testnet2.rs
+@@ -119,7 +119,7 @@ fn test_testnet2_dpc_execute_constraints() {
+     let local_data = authorization.to_local_data(&mut rng).unwrap();
+ 
+     // Execute the programs.
+-    let mut executions = Vec::with_capacity(Testnet2::NUM_TOTAL_RECORDS);
++    let mut executions = Vec::with_capacity(Testnet2::NUM_INPUT_RECORDS);
+     for (i, executable) in state.executables().iter().enumerate() {
+         executions.push(executable.execute(i as u8, &local_data).unwrap());
+     }
+@@ -162,9 +162,11 @@ fn test_testnet2_dpc_execute_constraints() {
+         signatures,
+         output_records.clone(),
+         encrypted_record_randomizers,
++        state.executables(),
+         program_randomness.clone(),
+         local_data.leaf_randomizers().clone(),
+-    );
++    )
++    .unwrap();
+ 
+     // Check that the core check constraint system was satisfied.
+     let mut inner_circuit_cs = TestConstraintSystem::<Fr>::new();
+diff --git a/dpc/src/circuits/inner_circuit.rs b/dpc/src/circuits/inner_circuit.rs
+index a55aebece..eb24d5ae0 100644
+--- a/dpc/src/circuits/inner_circuit.rs
++++ b/dpc/src/circuits/inner_circuit.rs
+@@ -26,6 +26,8 @@ use snarkvm_gadgets::{
+         eq::{ConditionalEqGadget, EqGadget},
+         integers::{add::Add, integer::Integer, sub::Sub},
+     },
++    ComparatorGadget,
++    EvaluateLtGadget,
+     ToConstraintFieldGadget,
+ };
+ use snarkvm_r1cs::{errors::SynthesisError, ConstraintSynthesizer, ConstraintSystem};
+@@ -664,49 +666,148 @@ impl<N: Network> ConstraintSynthesizer<N::InnerScalarField> for InnerCircuit<N>
+         {
+             let commitment_cs = &mut cs.ns(|| "Check that program commitment is well-formed");
+ 
+-            // Check that the input program ID either matches the output program ID or noop program ID,
+-            // for each (input, output) record pair.
+-            for (
+-                index,
+-                (
+-                    ((input_program_id_field_elements, input_is_dummy), output_program_id_field_elements),
+-                    output_is_dummy,
+-                ),
+-            ) in old_program_ids_gadgets
++            // Keep a counter to tally and increment the inputs.
++            let mut inputs_counter = UInt8::constant(0);
++
++            // Keep a counter to tally and increment the outputs.
++            let mut outputs_counter = UInt8::constant(0);
++
++            for (index, (program_id, execution_type)) in private
++                .program_ids
+                 .iter()
+-                .zip_eq(input_is_dummy_gadgets.iter())
+-                .zip_eq(new_program_ids_gadgets.iter())
+-                .zip_eq(output_is_dummy_gadgets.iter())
+-                .take(N::NUM_INPUT_RECORDS)
++                .zip_eq(private.execution_types.iter())
++                .take(N::NUM_EXECUTABLES)
+                 .enumerate()
+             {
+-                // Because we already enforce the program ID is a noop program ID, if the record is a dummy,
+-                //  we only need to check for the case where the record is not a dummy now.
++                // Declare the program ID as bytes.
++                let executable_program_id_bytes = UInt8::alloc_vec(
++                    &mut commitment_cs.ns(|| format!("executable_program_id {}", index)),
++                    &program_id.to_bytes_le()?,
++                )?;
++                let executable_program_id_field_elements = executable_program_id_bytes
++                    .to_constraint_field(&mut commitment_cs.ns(|| "convert executable program ID to field elements"))?;
++
++                // Declare the required number of inputs for this execution type.
++                let number_of_inputs = &UInt8::alloc_vec(
++                    &mut commitment_cs.ns(|| format!("number_of_inputs for executable {}", index)),
++                    &[execution_type.input_count()],
++                )?[0];
++
++                // Declare the input start and end index.
++                let input_start_index = &inputs_counter;
++                let input_end_index = inputs_counter
++                    .add(
++                        &mut commitment_cs.ns(|| format!("input_end_index for executable {}", index)),
++                        &number_of_inputs,
++                    )
++                    .map_err(|_| SynthesisError::Unsatisfiable)?;
++
++                for (i, (input_program_id_field_elements, input_is_dummy)) in old_program_ids_gadgets
++                    .iter()
++                    .zip_eq(input_is_dummy_gadgets.iter())
++                    .take(N::NUM_INPUT_RECORDS)
++                    .enumerate()
++                {
++                    let input_index = UInt8::constant(i as u8);
+ 
+-                input_program_id_field_elements.conditional_enforce_equal(
+-                    &mut commitment_cs
+-                        .ns(|| format!("Check input program ID matches output, if not dummy - {}", index)),
+-                    output_program_id_field_elements,
+-                    &input_is_dummy.not(),
+-                )?;
++                    let is_in_start_range = input_index.greater_than_or_equal(
++                        &mut commitment_cs.ns(|| format!("greater than or equal for input {}", i)),
++                        &input_start_index,
++                    )?;
++                    let is_in_end_range = input_index.less_than(
++                        &mut commitment_cs.ns(|| format!("less than for input {}", i)),
++                        &input_end_index,
++                    )?;
++                    let requires_check = Boolean::and(
++                        &mut commitment_cs.ns(|| format!("requires check for input {}", i)),
++                        &is_in_start_range,
++                        &is_in_end_range,
++                    )?;
+ 
+-                output_program_id_field_elements.conditional_enforce_equal(
+-                    &mut commitment_cs
+-                        .ns(|| format!("Check output program ID matches input, if not dummy - {}", index)),
+-                    input_program_id_field_elements,
+-                    &output_is_dummy.not(),
+-                )?;
++                    input_program_id_field_elements.conditional_enforce_equal(
++                        &mut commitment_cs.ns(|| format!("Check input program ID, if not dummy - {}", i)),
++                        &executable_program_id_field_elements,
++                        &requires_check,
++                    )?;
++                }
++
++                inputs_counter = input_end_index;
++
++                // Declare the required number of outputs for this execution type.
++                let number_of_outputs = &UInt8::alloc_vec(
++                    &mut commitment_cs.ns(|| format!("number_of_outputs for executable {}", index)),
++                    &[execution_type.output_count()],
++                )?[0];
++
++                // Declare the output start and end index.
++                let output_start_index = &outputs_counter;
++                let output_end_index = outputs_counter
++                    .add(
++                        &mut commitment_cs.ns(|| format!("input_end_index for executable {}", index)),
++                        &number_of_outputs,
++                    )
++                    .map_err(|_| SynthesisError::Unsatisfiable)?;
++
++                for (j, (output_program_id_field_elements, output_is_dummy)) in new_program_ids_gadgets
++                    .iter()
++                    .zip_eq(output_is_dummy_gadgets.iter())
++                    .take(N::NUM_OUTPUT_RECORDS)
++                    .enumerate()
++                {
++                    let output_index = UInt8::constant(j as u8);
++
++                    let is_in_start_range = output_index.greater_than_or_equal(
++                        &mut commitment_cs.ns(|| format!("greater than or equal for output {}", j)),
++                        &output_start_index,
++                    )?;
++                    let is_in_end_range = output_index.less_than(
++                        &mut commitment_cs.ns(|| format!("less than for output {}", j)),
++                        &output_end_index,
++                    )?;
++                    let requires_check = Boolean::and(
++                        &mut commitment_cs.ns(|| format!("requires check for output {}", j)),
++                        &is_in_start_range,
++                        &is_in_end_range,
++                    )?;
++
++                    output_program_id_field_elements.conditional_enforce_equal(
++                        &mut commitment_cs.ns(|| format!("Check output program ID, if not dummy - {}", j)),
++                        &executable_program_id_field_elements,
++                        &requires_check,
++                    )?;
++                }
++
++                outputs_counter = output_end_index;
+             }
+ 
++            let number_of_input_records = UInt8::constant(N::NUM_INPUT_RECORDS as u8);
++            let is_inputs_size_correct = inputs_counter.less_than_or_equal(
++                &mut commitment_cs.ns(|| "Check number of inputs is less than or equal to input records size"),
++                &number_of_input_records,
++            )?;
++            is_inputs_size_correct.enforce_equal(
++                &mut commitment_cs.ns(|| "Enforce number of inputs is less than or equal to input records size"),
++                &Boolean::constant(true),
++            )?;
++
++            let number_of_output_records = UInt8::constant(N::NUM_OUTPUT_RECORDS as u8);
++            let is_outputs_size_correct = outputs_counter.less_than_or_equal(
++                &mut commitment_cs.ns(|| "Check number of outputs is less than or equal to output records size"),
++                &number_of_output_records,
++            )?;
++            is_outputs_size_correct.enforce_equal(
++                &mut commitment_cs.ns(|| "Enforce number of outputs is less than or equal to output records size"),
++                &Boolean::constant(true),
++            )?;
++
+             // *******************************************************************
+ 
++            // Check that the program commitment is computed correctly.
++
+             let mut input = Vec::new();
+             for id_gadget in old_program_ids_bytes_gadgets.iter().take(N::NUM_INPUT_RECORDS) {
+                 input.extend_from_slice(id_gadget);
+             }
+-            for id_gadget in new_program_ids_bytes_gadgets.iter().take(N::NUM_OUTPUT_RECORDS) {
+-                input.extend_from_slice(id_gadget);
+-            }
+ 
+             let given_commitment_randomness =
+                 <N::ProgramCommitmentGadget as CommitmentGadget<_, N::InnerScalarField>>::RandomnessGadget::alloc(
+diff --git a/dpc/src/circuits/inner_private_variables.rs b/dpc/src/circuits/inner_private_variables.rs
+index 689cd2425..e0508d330 100644
+--- a/dpc/src/circuits/inner_private_variables.rs
++++ b/dpc/src/circuits/inner_private_variables.rs
+@@ -14,12 +14,14 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{Network, Record};
++use crate::{Executable, ExecutionType, Network, Record};
+ use snarkvm_algorithms::{
+     merkle_tree::MerklePath,
+     traits::{CommitmentScheme, EncryptionScheme},
+ };
+ 
++use anyhow::Result;
++
+ #[derive(Derivative)]
+ #[derivative(Clone(bound = "N: Network"))]
+ pub struct InnerPrivateVariables<N: Network> {
+@@ -31,6 +33,9 @@ pub struct InnerPrivateVariables<N: Network> {
+     pub(super) output_records: Vec<Record<N>>,
+     // Encryption of output records.
+     pub(super) encrypted_record_randomizers: Vec<<N::AccountEncryptionScheme as EncryptionScheme>::Randomness>,
++    // Executables.
++    pub(super) program_ids: Vec<N::ProgramID>,
++    pub(super) execution_types: Vec<ExecutionType>,
+     // Commitment to programs and local data.
+     pub(super) program_randomness: <N::ProgramCommitmentScheme as CommitmentScheme>::Randomness,
+     pub(super) local_data_leaf_randomizers: Vec<<N::LocalDataCommitmentScheme as CommitmentScheme>::Randomness>,
+@@ -47,6 +52,8 @@ impl<N: Network> InnerPrivateVariables<N> {
+                 <N::AccountEncryptionScheme as EncryptionScheme>::Randomness::default();
+                 N::NUM_OUTPUT_RECORDS
+             ],
++            program_ids: vec![N::noop_program_id(); N::NUM_EXECUTABLES],
++            execution_types: vec![ExecutionType::Noop; N::NUM_EXECUTABLES],
+             program_randomness: <N::ProgramCommitmentScheme as CommitmentScheme>::Randomness::default(),
+             local_data_leaf_randomizers: vec![
+                 <N::LocalDataCommitmentScheme as CommitmentScheme>::Randomness::default();
+@@ -61,24 +68,37 @@ impl<N: Network> InnerPrivateVariables<N> {
+         signatures: Vec<N::AccountSignature>,
+         output_records: Vec<Record<N>>,
+         encrypted_record_randomizers: Vec<<N::AccountEncryptionScheme as EncryptionScheme>::Randomness>,
++        executables: &Vec<Executable<N>>,
+         program_randomness: <N::ProgramCommitmentScheme as CommitmentScheme>::Randomness,
+         local_data_leaf_randomizers: Vec<<N::LocalDataCommitmentScheme as CommitmentScheme>::Randomness>,
+-    ) -> Self {
++    ) -> Result<Self> {
+         assert_eq!(N::NUM_INPUT_RECORDS, input_records.len());
+         assert_eq!(N::NUM_INPUT_RECORDS, input_witnesses.len());
+         assert_eq!(N::NUM_INPUT_RECORDS, signatures.len());
+         assert_eq!(N::NUM_OUTPUT_RECORDS, output_records.len());
+         assert_eq!(N::NUM_OUTPUT_RECORDS, encrypted_record_randomizers.len());
++        assert_eq!(N::NUM_EXECUTABLES, executables.len());
+         assert_eq!(N::NUM_TOTAL_RECORDS, local_data_leaf_randomizers.len());
+ 
+-        Self {
++        // Prepare the executable program IDs.
++        let program_ids = executables.iter().map(|e| e.program_id()).collect::<Vec<_>>();
++
++        // Prepare the execution types.
++        let execution_types = executables
++            .iter()
++            .map(|e| Ok(e.execution_type()?))
++            .collect::<Result<Vec<_>>>()?;
++
++        Ok(Self {
+             input_records,
+             input_witnesses,
+             signatures,
+             output_records,
+             encrypted_record_randomizers,
++            program_ids,
++            execution_types,
+             program_randomness,
+             local_data_leaf_randomizers,
+-        }
++        })
+     }
+ }
+diff --git a/dpc/src/circuits/outer_circuit.rs b/dpc/src/circuits/outer_circuit.rs
+index 2b042d82c..618dcef50 100644
+--- a/dpc/src/circuits/outer_circuit.rs
++++ b/dpc/src/circuits/outer_circuit.rs
+@@ -233,14 +233,9 @@ pub fn execute_outer_circuit<N: Network, CS: ConstraintSystem<N::OuterScalarFiel
+     // Verify each circuit exist in declared program and verify their proofs.
+     // ************************************************************************
+ 
+-    let mut program_ids_bytes = Vec::with_capacity(N::NUM_TOTAL_RECORDS);
+-    for (index, input) in private.program_proofs.iter().enumerate().take(N::NUM_TOTAL_RECORDS) {
+-        let cs = &mut cs.ns(|| format!("Check program for record {}", index));
+-
+-        let program_circuit_proof = <N::ProgramSNARKGadget as SNARKVerifierGadget<_>>::ProofGadget::alloc(
+-            &mut cs.ns(|| "Allocate program circuit proof"),
+-            || Ok(&input.proof),
+-        )?;
++    let mut program_ids_bytes = Vec::with_capacity(N::NUM_EXECUTABLES);
++    for (index, input) in private.program_proofs.iter().enumerate().take(N::NUM_EXECUTABLES) {
++        let cs = &mut cs.ns(|| format!("Check execution for program {}", index));
+ 
+         let program_circuit_verifying_key =
+             <N::ProgramSNARKGadget as SNARKVerifierGadget<_>>::VerificationKeyGadget::alloc(
+@@ -248,30 +243,35 @@ pub fn execute_outer_circuit<N: Network, CS: ConstraintSystem<N::OuterScalarFiel
+                 || Ok(&input.verifying_key),
+             )?;
+ 
+-        let program_circuit_verifying_key_bits = program_circuit_verifying_key
+-            .to_minimal_bits(cs.ns(|| "alloc_program_circuit_verifying_key_field_elements"))?;
++        // Verify that the claimed circuit ID is a valid Merkle path in the program circuit tree.
++        {
++            let program_circuit_verifying_key_bits = program_circuit_verifying_key
++                .to_minimal_bits(cs.ns(|| "alloc_program_circuit_verifying_key_field_elements"))?;
+ 
+-        let claimed_circuit_id = program_circuit_id_crh
+-            .check_evaluation_gadget_on_bits(&mut cs.ns(|| "Compute circuit ID"), program_circuit_verifying_key_bits)?;
++            let claimed_circuit_id = program_circuit_id_crh.check_evaluation_gadget_on_bits(
++                &mut cs.ns(|| "Compute circuit ID"),
++                program_circuit_verifying_key_bits,
++            )?;
+ 
+-        let claimed_circuit_id_bytes =
+-            claimed_circuit_id.to_bytes(&mut cs.ns(|| "Convert death circuit ID to bytes"))?;
++            let claimed_circuit_id_bytes =
++                claimed_circuit_id.to_bytes(&mut cs.ns(|| "Convert death circuit ID to bytes"))?;
+ 
+-        let program_path_gadget = MerklePathGadget::<_, N::ProgramCircuitIDTreeCRHGadget, _>::alloc(
+-            &mut cs.ns(|| "Declare program path for circuit"),
+-            || Ok(&input.program_path),
+-        )?;
++            let program_path_gadget = MerklePathGadget::<_, N::ProgramCircuitIDTreeCRHGadget, _>::alloc(
++                &mut cs.ns(|| "Declare program path for circuit"),
++                || Ok(&input.program_path),
++            )?;
+ 
+-        let claimed_program_id = program_path_gadget.calculate_root(
+-            &mut cs.ns(|| "calculate_program_id"),
+-            &program_circuit_id_tree_crh,
+-            claimed_circuit_id_bytes,
+-        )?;
++            let claimed_program_id = program_path_gadget.calculate_root(
++                &mut cs.ns(|| "calculate_program_id"),
++                &program_circuit_id_tree_crh,
++                claimed_circuit_id_bytes,
++            )?;
+ 
+-        let claimed_program_id_bytes =
+-            claimed_program_id.to_bytes(&mut cs.ns(|| "Convert program ID root to bytes"))?;
++            let claimed_program_id_bytes =
++                claimed_program_id.to_bytes(&mut cs.ns(|| "Convert program ID root to bytes"))?;
+ 
+-        program_ids_bytes.extend_from_slice(&claimed_program_id_bytes);
++            program_ids_bytes.extend_from_slice(&claimed_program_id_bytes);
++        }
+ 
+         let position_fe = <N::ProgramSNARKGadget as SNARKVerifierGadget<_>>::InputGadget::alloc_constant(
+             &mut cs.ns(|| "Allocate position"),
+@@ -279,6 +279,11 @@ pub fn execute_outer_circuit<N: Network, CS: ConstraintSystem<N::OuterScalarFiel
+         )?;
+         let program_input = position_fe.merge(cs.ns(|| "Allocate program input"), &local_data_root_fe_program_snark)?;
+ 
++        let program_circuit_proof = <N::ProgramSNARKGadget as SNARKVerifierGadget<_>>::ProofGadget::alloc(
++            &mut cs.ns(|| "Allocate program circuit proof"),
++            || Ok(&input.proof),
++        )?;
++
+         N::ProgramSNARKGadget::check_verify(
+             &mut cs.ns(|| "Check that proof is satisfied"),
+             &program_circuit_verifying_key,
+diff --git a/dpc/src/circuits/outer_private_variables.rs b/dpc/src/circuits/outer_private_variables.rs
+index 635b92fa1..cbed092b6 100644
+--- a/dpc/src/circuits/outer_private_variables.rs
++++ b/dpc/src/circuits/outer_private_variables.rs
+@@ -37,7 +37,7 @@ impl<N: Network> OuterPrivateVariables<N> {
+         Self {
+             inner_snark_vk,
+             inner_snark_proof,
+-            program_proofs: vec![execution.clone(); N::NUM_TOTAL_RECORDS],
++            program_proofs: vec![execution.clone(); N::NUM_EXECUTABLES],
+             program_commitment: <N::ProgramCommitmentScheme as CommitmentScheme>::Output::default(),
+             program_randomness: <N::ProgramCommitmentScheme as CommitmentScheme>::Randomness::default(),
+             local_data_root: N::LocalDataRoot::default(),
+@@ -52,7 +52,7 @@ impl<N: Network> OuterPrivateVariables<N> {
+         program_randomness: <N::ProgramCommitmentScheme as CommitmentScheme>::Randomness,
+         local_data_root: N::LocalDataRoot,
+     ) -> Self {
+-        assert_eq!(N::NUM_TOTAL_RECORDS, program_proofs.len());
++        assert_eq!(N::NUM_EXECUTABLES, program_proofs.len());
+         Self {
+             inner_snark_vk,
+             inner_snark_proof,
+diff --git a/dpc/src/dpc.rs b/dpc/src/dpc.rs
+index 6cfcc8993..e27de1b11 100644
+--- a/dpc/src/dpc.rs
++++ b/dpc/src/dpc.rs
+@@ -26,7 +26,6 @@ pub struct DPC<N: Network>(PhantomData<N>);
+ impl<N: Network> DPCScheme<N> for DPC<N> {
+     type Account = Account<N>;
+     type Authorization = TransactionAuthorization<N>;
+-    type Execution = Execution<N>;
+     type LedgerProof = LedgerProof<N>;
+     type StateTransition = StateTransition<N>;
+     type Transaction = Transaction<N>;
+@@ -71,7 +70,7 @@ impl<N: Network> DPCScheme<N> for DPC<N> {
+         ledger_proof: &Self::LedgerProof,
+         rng: &mut R,
+     ) -> Result<Self::Transaction> {
+-        assert_eq!(N::NUM_TOTAL_RECORDS, executables.len());
++        assert_eq!(N::NUM_INPUT_RECORDS, executables.len());
+ 
+         let execution_timer = start_timer!(|| "DPC::execute");
+ 
+@@ -85,8 +84,8 @@ impl<N: Network> DPCScheme<N> for DPC<N> {
+         let local_data = authorization.to_local_data(rng)?;
+ 
+         // Execute the programs.
+-        let mut executions = Vec::with_capacity(N::NUM_TOTAL_RECORDS);
+-        for (i, executable) in executables.iter().enumerate() {
++        let mut executions = Vec::with_capacity(N::NUM_INPUT_RECORDS);
++        for (i, executable) in executables.iter().take(N::NUM_INPUT_RECORDS).enumerate() {
+             executions.push(executable.execute(i as u8, &local_data).unwrap());
+         }
+ 
+@@ -118,9 +117,10 @@ impl<N: Network> DPCScheme<N> for DPC<N> {
+             signatures,
+             output_records.clone(),
+             encrypted_record_randomizers,
++            &executables,
+             program_randomness.clone(),
+             local_data.leaf_randomizers().clone(),
+-        );
++        )?;
+ 
+         // Compute the inner circuit proof.
+         let inner_proof = N::InnerSNARK::prove(
+diff --git a/dpc/src/network/testnet1.rs b/dpc/src/network/testnet1.rs
+index 06635305f..4d1f5ab52 100644
+--- a/dpc/src/network/testnet1.rs
++++ b/dpc/src/network/testnet1.rs
+@@ -81,6 +81,8 @@ impl Network for Testnet1 {
+     const NUM_INPUT_RECORDS: usize = 2;
+     const NUM_OUTPUT_RECORDS: usize = 2;
+ 
++    const NUM_EXECUTABLES: usize = 2;
++
+     const MEMO_SIZE_IN_BYTES: usize = 64;
+ 
+     const POSW_PROOF_SIZE_IN_BYTES: usize = 771;
+diff --git a/dpc/src/network/testnet2.rs b/dpc/src/network/testnet2.rs
+index 0f47b0de5..ddc99da0c 100644
+--- a/dpc/src/network/testnet2.rs
++++ b/dpc/src/network/testnet2.rs
+@@ -87,6 +87,8 @@ impl Network for Testnet2 {
+     const NUM_INPUT_RECORDS: usize = 2;
+     const NUM_OUTPUT_RECORDS: usize = 2;
+ 
++    const NUM_EXECUTABLES: usize = 2;
++
+     const MEMO_SIZE_IN_BYTES: usize = 64;
+ 
+     const POSW_PROOF_SIZE_IN_BYTES: usize = 771;
+diff --git a/dpc/src/program/executable.rs b/dpc/src/program/executable.rs
+index 0e25f7e47..bd451078e 100644
+--- a/dpc/src/program/executable.rs
++++ b/dpc/src/program/executable.rs
+@@ -14,8 +14,7 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{Execution, LocalData, Network, PrivateVariables, ProgramScheme, PublicVariables};
+-use snarkvm_algorithms::merkle_tree::MerkleTreeDigest;
++use crate::{Execution, ExecutionType, LocalData, Network, PrivateVariables, ProgramScheme, PublicVariables};
+ 
+ use anyhow::Result;
+ use std::{ops::Deref, sync::Arc};
+@@ -41,13 +40,21 @@ impl<N: Network> Executable<N> {
+     }
+ 
+     /// Returns a reference to the program ID of the executable.
+-    pub fn program_id(&self) -> MerkleTreeDigest<N::ProgramCircuitTreeParameters> {
++    pub fn program_id(&self) -> N::ProgramID {
+         match self {
+             Self::Noop => N::noop_program_id(),
+             Self::Circuit(program, _, _) => program.program_id(),
+         }
+     }
+ 
++    /// Returns the execution type of the executable.
++    pub fn execution_type(&self) -> Result<ExecutionType> {
++        match self {
++            Self::Noop => Ok(ExecutionType::Noop),
++            Self::Circuit(program, circuit_id, _) => Ok(program.get_circuit_execution_type(circuit_id)?),
++        }
++    }
++
+     /// Returns the execution of the executable given the public variables.
+     pub fn execute(&self, record_position: u8, local_data: &LocalData<N>) -> Result<Execution<N>> {
+         // Construct the public variables.
+diff --git a/dpc/src/program/executables.rs b/dpc/src/program/executables.rs
+new file mode 100644
+index 000000000..1146275be
+--- /dev/null
++++ b/dpc/src/program/executables.rs
+@@ -0,0 +1,106 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use crate::{Executable, Network, Record, RecordScheme};
++
++use anyhow::{anyhow, Result};
++
++#[derive(Derivative)]
++#[derivative(Clone(bound = "N: Network"))]
++pub struct Executables<N: Network>(Vec<Executable<N>>);
++
++impl<N: Network> Executables<N> {
++    /// Initializes a new instance of `Executables`.
++    pub fn from(executables: Vec<Executable<N>>) -> Result<Self> {
++        let executables = Self(executables);
++        match executables.is_valid() {
++            true => Ok(executables),
++            false => Err(anyhow!("Failed to initialize the executables")),
++        }
++    }
++
++    pub fn is_valid(&self) -> bool {
++        // Ensure the number of executables is valid.
++        if self.0.len() > N::NUM_EXECUTABLES {
++            eprintln!("Incorrect number of executables: {}", self.0.len());
++            return false;
++        }
++
++        // Ensure the number of inputs and outputs required is valid.
++        let mut inputs = 0;
++        let mut outputs = 0;
++
++        for executable in &self.0 {
++            // Fetch the execution type.
++            let execution_type = match executable.execution_type() {
++                Ok(execution_type) => execution_type,
++                Err(error) => {
++                    eprintln!("{}", error);
++                    return false;
++                }
++            };
++
++            // Tally the number of inputs and outputs required for this executable.
++            inputs += execution_type.input_count() as usize;
++            outputs += execution_type.output_count() as usize;
++        }
++
++        inputs <= N::NUM_INPUT_RECORDS && outputs <= N::NUM_OUTPUT_RECORDS && (inputs + outputs) <= N::NUM_TOTAL_RECORDS
++    }
++
++    pub fn verify_records(&self, input_records: &Vec<Record<N>>, output_records: &Vec<Record<N>>) -> bool {
++        if !self.is_valid() {
++            eprintln!("Executables is not well-formed");
++            return false;
++        }
++
++        let mut num_inputs: usize = 0;
++        let mut num_outputs: usize = 0;
++
++        for executable in &self.0 {
++            // Fetch the execution type.
++            let execution_type = match executable.execution_type() {
++                Ok(execution_type) => execution_type,
++                Err(error) => {
++                    eprintln!("{}", error);
++                    return false;
++                }
++            };
++
++            // Verify the input records have the correct program ID.
++            for i in 0..execution_type.input_count() as usize {
++                if input_records[num_inputs + i].program_id() != executable.program_id() {
++                    eprintln!("Program ID in input record {} does not match executable", i);
++                    return false;
++                }
++            }
++
++            // Verify the output records have the correct program ID.
++            for j in 0..execution_type.output_count() as usize {
++                if output_records[num_outputs + j].program_id() != executable.program_id() {
++                    eprintln!("Program ID in output record {} does not match executable", j);
++                    return false;
++                }
++            }
++
++            // Increment the number of inputs and outputs from this executable.
++            num_inputs += execution_type.input_count() as usize;
++            num_outputs += execution_type.output_count() as usize;
++        }
++
++        true
++    }
++}
+diff --git a/dpc/src/program/execution.rs b/dpc/src/program/execution.rs
+index 3f996931a..6bcec5f14 100644
+--- a/dpc/src/program/execution.rs
++++ b/dpc/src/program/execution.rs
+@@ -25,3 +25,40 @@ pub struct Execution<N: Network> {
+     pub verifying_key: <N::ProgramSNARK as SNARK>::VerifyingKey,
+     pub proof: <N::ProgramSNARK as SNARK>::Proof,
+ }
++
++#[derive(Clone)]
++pub enum ExecutionType {
++    Noop,
++    Add,
++    Update,
++    Remove,
++    Join,
++    Split,
++    JoinSplit,
++}
++
++impl ExecutionType {
++    pub fn input_count(&self) -> u8 {
++        match self {
++            Self::Noop => 0,
++            Self::Add => 0,
++            Self::Update => 1,
++            Self::Remove => 1,
++            Self::Join => 2,
++            Self::Split => 1,
++            Self::JoinSplit => 2,
++        }
++    }
++
++    pub fn output_count(&self) -> u8 {
++        match self {
++            Self::Noop => 0,
++            Self::Add => 1,
++            Self::Update => 1,
++            Self::Remove => 0,
++            Self::Join => 1,
++            Self::Split => 2,
++            Self::JoinSplit => 2,
++        }
++    }
++}
+diff --git a/dpc/src/program/mod.rs b/dpc/src/program/mod.rs
+index 0046937c7..a29a44b96 100644
+--- a/dpc/src/program/mod.rs
++++ b/dpc/src/program/mod.rs
+@@ -17,6 +17,9 @@
+ pub mod executable;
+ pub use executable::*;
+ 
++pub mod executables;
++pub use executables::*;
++
+ pub mod execution;
+ pub use execution::*;
+ 
+diff --git a/dpc/src/program/noop_circuit.rs b/dpc/src/program/noop_circuit.rs
+index 7a47f85de..5b7633aad 100644
+--- a/dpc/src/program/noop_circuit.rs
++++ b/dpc/src/program/noop_circuit.rs
+@@ -14,7 +14,7 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{CircuitError, Network, PrivateVariables, ProgramCircuit, PublicVariables};
++use crate::{CircuitError, ExecutionType, Network, PrivateVariables, ProgramCircuit, PublicVariables};
+ use snarkvm_algorithms::prelude::*;
+ use snarkvm_gadgets::prelude::*;
+ use snarkvm_r1cs::{ConstraintSynthesizer, ConstraintSystem, SynthesisError};
+@@ -85,6 +85,11 @@ impl<N: Network> ProgramCircuit<N> for NoopCircuit<N> {
+         &self.verifying_key
+     }
+ 
++    /// Returns the circuit execution type.
++    fn execution_type(&self) -> ExecutionType {
++        ExecutionType::Noop
++    }
++
+     /// Executes the circuit, returning an proof.
+     fn execute(
+         &self,
+diff --git a/dpc/src/program/program.rs b/dpc/src/program/program.rs
+index 02b59465e..3690e2e2c 100644
+--- a/dpc/src/program/program.rs
++++ b/dpc/src/program/program.rs
+@@ -16,6 +16,7 @@
+ 
+ use crate::{
+     Execution,
++    ExecutionType,
+     Network,
+     PrivateVariables,
+     ProgramCircuit,
+@@ -24,7 +25,7 @@ use crate::{
+     ProgramScheme,
+     PublicVariables,
+ };
+-use snarkvm_algorithms::{merkle_tree::MerkleTreeDigest, prelude::*};
++use snarkvm_algorithms::prelude::*;
+ 
+ use std::sync::Arc;
+ 
+@@ -47,7 +48,7 @@ impl<N: Network> ProgramScheme<N> for Program<N> {
+     }
+ 
+     /// Returns a reference to the program ID.
+-    fn program_id(&self) -> MerkleTreeDigest<N::ProgramCircuitTreeParameters> {
++    fn program_id(&self) -> N::ProgramID {
+         *self.circuits.to_program_id()
+     }
+ 
+@@ -66,6 +67,17 @@ impl<N: Network> ProgramScheme<N> for Program<N> {
+         self.circuits.find_circuit_by_index(circuit_index)
+     }
+ 
++    /// Returns the circuit execution type given the circuit ID, if it exists.
++    fn get_circuit_execution_type(&self, circuit_id: &N::ProgramCircuitID) -> Result<ExecutionType, ProgramError> {
++        // Fetch the circuit from the tree.
++        let circuit = match self.circuits.get_circuit(circuit_id) {
++            Some(circuit) => circuit,
++            _ => return Err(MerkleError::MissingLeaf(format!("{}", circuit_id)).into()),
++        };
++        debug_assert_eq!(circuit.circuit_id(), circuit_id);
++        Ok(circuit.execution_type())
++    }
++
+     fn execute(
+         &self,
+         circuit_id: &N::ProgramCircuitID,
+diff --git a/dpc/src/program/program_circuit_tree.rs b/dpc/src/program/program_circuit_tree.rs
+index 2a7fc17b3..bc3bca3df 100644
+--- a/dpc/src/program/program_circuit_tree.rs
++++ b/dpc/src/program/program_circuit_tree.rs
+@@ -16,7 +16,7 @@
+ 
+ use crate::{Network, ProgramCircuit};
+ use snarkvm_algorithms::{
+-    merkle_tree::{MerklePath, MerkleTree, MerkleTreeDigest},
++    merkle_tree::{MerklePath, MerkleTree},
+     prelude::*,
+ };
+ use snarkvm_utilities::has_duplicates;
+@@ -144,7 +144,7 @@ impl<N: Network> ProgramCircuitTree<N> {
+     }
+ 
+     /// Returns the program ID.
+-    pub fn to_program_id(&self) -> &MerkleTreeDigest<N::ProgramCircuitTreeParameters> {
++    pub fn to_program_id(&self) -> &N::ProgramID {
+         self.tree.root()
+     }
+ }
+diff --git a/dpc/src/record/encrypted.rs b/dpc/src/record/encrypted.rs
+index 61e085603..06d8a62ca 100644
+--- a/dpc/src/record/encrypted.rs
++++ b/dpc/src/record/encrypted.rs
+@@ -15,10 +15,7 @@
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use crate::{Address, DPCError, Network, Payload, Record, RecordScheme, ViewKey};
+-use snarkvm_algorithms::{
+-    merkle_tree::MerkleTreeDigest,
+-    traits::{CommitmentScheme, EncryptionScheme, CRH},
+-};
++use snarkvm_algorithms::traits::{CommitmentScheme, EncryptionScheme, CRH};
+ use snarkvm_utilities::{
+     io::{Cursor, Result as IoResult},
+     marker::PhantomData,
+@@ -115,7 +112,7 @@ impl<N: Network> EncryptedRecord<N> {
+         let payload = Payload::read_le(&mut cursor)?;
+ 
+         // Program ID
+-        let program_id: MerkleTreeDigest<N::ProgramCircuitTreeParameters> = FromBytes::read_le(&mut cursor)?;
++        let program_id: N::ProgramID = FromBytes::read_le(&mut cursor)?;
+ 
+         // Serial number nonce
+         let serial_number_nonce = N::SerialNumber::read_le(&mut cursor)?;
+diff --git a/dpc/src/record/record.rs b/dpc/src/record/record.rs
+index f4f69a2a5..ffdf821ae 100644
+--- a/dpc/src/record/record.rs
++++ b/dpc/src/record/record.rs
+@@ -15,10 +15,7 @@
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use crate::{Address, ComputeKey, Network, Payload, RecordError, RecordScheme};
+-use snarkvm_algorithms::{
+-    merkle_tree::MerkleTreeDigest,
+-    traits::{CommitmentScheme, PRF},
+-};
++use snarkvm_algorithms::traits::{CommitmentScheme, PRF};
+ use snarkvm_utilities::{to_bytes_le, FromBytes, ToBytes, UniformRand};
+ 
+ use rand::{CryptoRng, Rng};
+@@ -41,7 +38,7 @@ pub struct Record<N: Network> {
+     // TODO (raychu86) use AleoAmount which will guard the value range
+     value: u64,
+     payload: Payload,
+-    program_id: MerkleTreeDigest<N::ProgramCircuitTreeParameters>,
++    program_id: N::ProgramID,
+     serial_number_nonce: N::SerialNumber,
+     commitment_randomness: <N::CommitmentScheme as CommitmentScheme>::Randomness,
+     commitment: N::Commitment,
+@@ -65,7 +62,7 @@ impl<N: Network> Record<N> {
+         owner: Address<N>,
+         value: u64,
+         payload: Payload,
+-        program_id: MerkleTreeDigest<N::ProgramCircuitTreeParameters>,
++        program_id: N::ProgramID,
+         serial_number_nonce: N::SerialNumber,
+         commitment_randomness: <N::CommitmentScheme as CommitmentScheme>::Randomness,
+     ) -> Result<Self, RecordError> {
+@@ -100,7 +97,7 @@ impl<N: Network> Record<N> {
+         owner: Address<N>,
+         value: u64,
+         payload: Payload,
+-        program_id: MerkleTreeDigest<N::ProgramCircuitTreeParameters>,
++        program_id: N::ProgramID,
+         serial_number_nonce: N::SerialNumber,
+         rng: &mut R,
+     ) -> Result<Self, RecordError> {
+@@ -119,7 +116,7 @@ impl<N: Network> Record<N> {
+         owner: Address<N>,
+         value: u64,
+         payload: Payload,
+-        program_id: MerkleTreeDigest<N::ProgramCircuitTreeParameters>,
++        program_id: N::ProgramID,
+         serial_number_nonce: N::SerialNumber,
+         commitment_randomness: <N::CommitmentScheme as CommitmentScheme>::Randomness,
+     ) -> Result<Self, RecordError> {
+@@ -171,7 +168,7 @@ impl<N: Network> RecordScheme for Record<N> {
+     type CommitmentRandomness = <N::CommitmentScheme as CommitmentScheme>::Randomness;
+     type Owner = Address<N>;
+     type Payload = Payload;
+-    type ProgramID = MerkleTreeDigest<N::ProgramCircuitTreeParameters>;
++    type ProgramID = N::ProgramID;
+     type SerialNumberNonce = N::SerialNumber;
+ 
+     fn is_dummy(&self) -> bool {
+@@ -225,7 +222,7 @@ impl<N: Network> FromBytes for Record<N> {
+         let owner: Address<N> = FromBytes::read_le(&mut reader)?;
+         let value: u64 = FromBytes::read_le(&mut reader)?;
+         let payload: Payload = FromBytes::read_le(&mut reader)?;
+-        let program_id: MerkleTreeDigest<N::ProgramCircuitTreeParameters> = FromBytes::read_le(&mut reader)?;
++        let program_id: N::ProgramID = FromBytes::read_le(&mut reader)?;
+         let serial_number_nonce: N::SerialNumber = FromBytes::read_le(&mut reader)?;
+         let commitment_randomness: <N::CommitmentScheme as CommitmentScheme>::Randomness =
+             FromBytes::read_le(&mut reader)?;
+diff --git a/dpc/src/traits/dpc.rs b/dpc/src/traits/dpc.rs
+index 40b5e534d..a4df93033 100644
+--- a/dpc/src/traits/dpc.rs
++++ b/dpc/src/traits/dpc.rs
+@@ -25,7 +25,6 @@ use rand::{CryptoRng, Rng};
+ pub trait DPCScheme<N: Network>: Sized {
+     type Account: AccountScheme;
+     type Authorization;
+-    type Execution;
+     type LedgerProof;
+     type StateTransition;
+     type Transaction: TransactionScheme<N>;
+diff --git a/dpc/src/traits/network.rs b/dpc/src/traits/network.rs
+index 248fe5309..b23049a2b 100644
+--- a/dpc/src/traits/network.rs
++++ b/dpc/src/traits/network.rs
+@@ -45,6 +45,8 @@ pub trait Network: 'static + Clone + Debug + PartialEq + Eq + Serialize + Send +
+     const NUM_INPUT_RECORDS: usize;
+     const NUM_OUTPUT_RECORDS: usize;
+     const NUM_TOTAL_RECORDS: usize = Self::NUM_INPUT_RECORDS + Self::NUM_OUTPUT_RECORDS;
++    
++    const NUM_EXECUTABLES: usize;
+ 
+     const MEMO_SIZE_IN_BYTES: usize;
+     
+diff --git a/dpc/src/traits/program.rs b/dpc/src/traits/program.rs
+index f278c941b..e13bfed84 100644
+--- a/dpc/src/traits/program.rs
++++ b/dpc/src/traits/program.rs
+@@ -14,8 +14,8 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{CircuitError, Execution, Network, ProgramError, PublicVariables};
+-use snarkvm_algorithms::{merkle_tree::MerkleTreeDigest, SNARK};
++use crate::{CircuitError, Execution, ExecutionType, Network, ProgramError, PublicVariables};
++use snarkvm_algorithms::SNARK;
+ 
+ use rand::{CryptoRng, Rng};
+ 
+@@ -26,7 +26,7 @@ pub trait ProgramScheme<N: Network>: Send + Sync {
+         Self: Sized;
+ 
+     /// Returns a reference to the program ID.
+-    fn program_id(&self) -> MerkleTreeDigest<N::ProgramCircuitTreeParameters>;
++    fn program_id(&self) -> N::ProgramID;
+ 
+     /// Returns `true` if the given circuit ID exists in the program.
+     fn contains_circuit(&self, circuit_id: &N::ProgramCircuitID) -> bool;
+@@ -37,6 +37,9 @@ pub trait ProgramScheme<N: Network>: Send + Sync {
+     /// Returns the circuit given the circuit index, if it exists.
+     fn find_circuit_by_index(&self, circuit_index: u8) -> Option<&Box<dyn ProgramCircuit<N>>>;
+ 
++    /// Returns the circuit execution type given the circuit ID.
++    fn get_circuit_execution_type(&self, circuit_id: &N::ProgramCircuitID) -> Result<ExecutionType, ProgramError>;
++
+     /// Returns the execution of the program.
+     fn execute(
+         &self,
+@@ -70,7 +73,7 @@ pub trait ProgramCircuit<N: Network>: Send + Sync {
+     where
+         Self: Sized;
+ 
+-    /// Returns the program circuit ID.
++    /// Returns the circuit ID.
+     fn circuit_id(&self) -> &N::ProgramCircuitID;
+ 
+     /// Returns the circuit proving key.
+@@ -79,6 +82,9 @@ pub trait ProgramCircuit<N: Network>: Send + Sync {
+     /// Returns the circuit verifying key.
+     fn verifying_key(&self) -> &<N::ProgramSNARK as SNARK>::VerifyingKey;
+ 
++    /// Returns the circuit execution type.
++    fn execution_type(&self) -> ExecutionType;
++
+     /// Returns the execution of the circuit.
+     fn execute(
+         &self,
+diff --git a/dpc/src/transition/builder.rs b/dpc/src/transition/builder.rs
+index e406d7619..94ec30d5b 100644
+--- a/dpc/src/transition/builder.rs
++++ b/dpc/src/transition/builder.rs
+@@ -27,6 +27,8 @@ pub struct StateBuilder<N: Network> {
+     outputs: Vec<Output<N>>,
+     /// A publicly-visible field with data from the state transition.
+     memo: Vec<u8>,
++    /// A list of executables for a state transition.
++    executables: Vec<Executable<N>>,
+     /// A list of errors accumulated from calling the builder.
+     errors: Vec<String>,
+ }
+@@ -37,9 +39,10 @@ impl<N: Network> StateBuilder<N> {
+     ///
+     pub fn new() -> Self {
+         Self {
+-            inputs: Vec::new(),
+-            outputs: Vec::new(),
+-            memo: Vec::new(),
++            inputs: Vec::with_capacity(N::NUM_INPUT_RECORDS),
++            outputs: Vec::with_capacity(N::NUM_OUTPUT_RECORDS),
++            memo: Vec::with_capacity(N::MEMO_SIZE_IN_BYTES),
++            executables: Vec::with_capacity(N::NUM_EXECUTABLES),
+             errors: Vec::new(),
+         }
+     }
+@@ -91,6 +94,17 @@ impl<N: Network> StateBuilder<N> {
+         self
+     }
+ 
++    ///
++    /// Adds the given executable into the builder.
++    ///
++    pub fn add_executable(mut self, executable: Executable<N>) -> Self {
++        match self.executables.len() < N::NUM_EXECUTABLES {
++            true => self.executables.push(executable),
++            false => self.errors.push("Builder exceeded maximum executables".into()),
++        };
++        self
++    }
++
+     ///
+     /// Appends the given data to the memo field in the builder.
+     ///
+@@ -174,11 +188,10 @@ impl<N: Network> StateBuilder<N> {
+         let kernel = TransactionKernel::new(serial_numbers, commitments, value_balance, memo)?;
+ 
+         // Construct the executables.
+-        let executables: Vec<_> = inputs
+-            .iter()
+-            .map(|state| state.executable().clone())
+-            .chain(outputs.iter().map(|state| state.executable().clone()))
+-            .collect();
++        let executables = Executables::from(self.executables.clone())?;
++        if !executables.verify_records(&input_records, &output_records) {
++            return Err(anyhow!("Program IDs in records do not match executables"));
++        }
+ 
+         // Update the builder with the new inputs and outputs, now that all operations have succeeded.
+         self.inputs = inputs;
+@@ -189,7 +202,8 @@ impl<N: Network> StateBuilder<N> {
+             input_records,
+             output_records,
+             noop_private_keys,
+-            executables,
++            // TODO (howardwu): TEMPORARY - Clean this up after usage is stabilized.
++            executables: self.executables.clone(),
+         })
+     }
+ 
+@@ -213,7 +227,6 @@ impl<N: Network> StateBuilder<N> {
+         let mut inputs = self.inputs.clone();
+         // Pad the inputs with noop inputs if necessary.
+         while inputs.len() < N::NUM_INPUT_RECORDS {
+-            // TODO (howardwu): Decide whether to "push" or "push_front" for program flow.
+             inputs.push(Input::new_noop(rng)?);
+         }
+ 
+@@ -221,7 +234,6 @@ impl<N: Network> StateBuilder<N> {
+         let mut outputs = self.outputs.clone();
+         // Pad the outputs with noop outputs if necessary.
+         while outputs.len() < N::NUM_OUTPUT_RECORDS {
+-            // TODO (howardwu): Decide whether to "push" or "push_front" for program flow.
+             outputs.push(Output::new_noop(rng)?);
+         }
+ 
+@@ -246,7 +258,7 @@ mod tests {
+             let seed: u64 = thread_rng().gen();
+ 
+             // Generate the expected input state.
+-            let (expected_record, expected_serial_number) = {
++            let (expected_record, expected_serial_number, expected_program_id) = {
+                 let rng = &mut ChaChaRng::seed_from_u64(seed);
+ 
+                 let account = Account::new(rng).unwrap();
+@@ -254,12 +266,13 @@ mod tests {
+                 let serial_number = input_record
+                     .to_serial_number(&account.private_key().to_compute_key().unwrap())
+                     .unwrap();
++                let program_id = input_record.program_id();
+ 
+-                (input_record, serial_number)
++                (input_record, serial_number, program_id)
+             };
+ 
+             // Generate the candidate input state.
+-            let (candidate_record, candidate_serial_number, candidate_executable) = {
++            let (candidate_record, candidate_serial_number, candidate_program_id) = {
+                 let rng = &mut ChaChaRng::seed_from_u64(seed);
+ 
+                 let mut builder = StateBuilder::<Testnet2>::new();
+@@ -269,13 +282,13 @@ mod tests {
+                 (
+                     builder.inputs[0].record().clone(),
+                     builder.inputs[0].serial_number().clone(),
+-                    builder.inputs[0].executable().clone(),
++                    builder.inputs[0].program_id().clone(),
+                 )
+             };
+ 
+             assert_eq!(expected_record, candidate_record);
+             assert_eq!(expected_serial_number, candidate_serial_number);
+-            assert!(candidate_executable.is_noop());
++            assert_eq!(expected_program_id, candidate_program_id);
+         }
+     }
+ 
+@@ -307,11 +320,11 @@ mod tests {
+             // Generate the expected output state.
+             let expected_record = {
+                 let account = Account::<Testnet2>::new(&mut expected_rng).unwrap();
+-                Record::new_noop_output(account.address, given_serial_numbers[0].clone(), &mut expected_rng).unwrap()
++                Record::new_noop_output(account.address, given_serial_numbers[0], &mut expected_rng).unwrap()
+             };
+ 
+             // Generate the candidate output state.
+-            let (candidate_address, candidate_value, candidate_payload, candidate_executable) = {
++            let (candidate_address, candidate_value, candidate_payload, candidate_program_id) = {
+                 let mut builder = StateBuilder::new();
+                 builder = builder.add_output(Output::new_noop(&mut candidate_rng).unwrap());
+                 builder.build(&mut candidate_rng).unwrap();
+@@ -319,14 +332,14 @@ mod tests {
+                     builder.outputs[0].address(),
+                     builder.outputs[0].value(),
+                     builder.outputs[0].payload().clone(),
+-                    builder.outputs[0].executable().clone(),
++                    builder.outputs[0].program_id(),
+                 )
+             };
+ 
+             assert_eq!(expected_record.owner(), candidate_address);
+             assert_eq!(expected_record.value(), candidate_value.0 as u64);
+             assert_eq!(expected_record.payload(), &candidate_payload);
+-            assert!(candidate_executable.is_noop());
++            assert_eq!(expected_record.program_id(), candidate_program_id);
+         }
+     }
+ }
+diff --git a/dpc/src/transition/input.rs b/dpc/src/transition/input.rs
+index e2ead42ba..db594d971 100644
+--- a/dpc/src/transition/input.rs
++++ b/dpc/src/transition/input.rs
+@@ -26,14 +26,10 @@ pub struct Input<N: Network> {
+     record: Record<N>,
+     serial_number: N::SerialNumber,
+     noop_private_key: Option<PrivateKey<N>>,
+-    executable: Executable<N>,
+ }
+ 
+ impl<N: Network> Input<N> {
+     pub fn new_noop<R: Rng + CryptoRng>(rng: &mut R) -> Result<Self> {
+-        // Construct the noop executable.
+-        let executable = Executable::Noop;
+-
+         // Sample a burner noop private key.
+         let noop_private_key = PrivateKey::new(rng);
+         let noop_compute_key = noop_private_key.to_compute_key()?;
+@@ -49,28 +45,16 @@ impl<N: Network> Input<N> {
+             record,
+             serial_number,
+             noop_private_key: Some(noop_private_key),
+-            executable,
+         })
+     }
+ 
+     /// Initializes a new instance of `Input`.
+-    pub fn new(compute_key: &ComputeKey<N>, record: Record<N>, executable: Option<Executable<N>>) -> Result<Self> {
++    pub fn new(compute_key: &ComputeKey<N>, record: Record<N>) -> Result<Self> {
+         // Ensure the account address matches.
+         if Address::from_compute_key(compute_key)? != record.owner() {
+             return Err(anyhow!("Address from compute key does not match the record owner"));
+         }
+ 
+-        // Retrieve the executable. If `None` is provided, construct the noop executable.
+-        let executable = match executable {
+-            Some(executable) => executable,
+-            None => Executable::Noop,
+-        };
+-
+-        // Ensure its program ID matches what is declared in the record.
+-        if executable.program_id() != record.program_id() {
+-            return Err(anyhow!("Executable program ID does not match record program ID"));
+-        }
+-
+         // Compute the serial number.
+         let serial_number = record.to_serial_number(&compute_key)?;
+ 
+@@ -78,7 +62,6 @@ impl<N: Network> Input<N> {
+             record,
+             serial_number,
+             noop_private_key: None,
+-            executable,
+         })
+     }
+ 
+@@ -87,7 +70,7 @@ impl<N: Network> Input<N> {
+         compute_key: &ComputeKey<N>,
+         value: AleoAmount,
+         payload: Payload,
+-        executable: Executable<N>,
++        program_id: N::ProgramID,
+         serial_number_nonce: N::SerialNumber,
+         commitment_randomness: <N::CommitmentScheme as CommitmentScheme>::Randomness,
+     ) -> Result<Self> {
+@@ -99,7 +82,7 @@ impl<N: Network> Input<N> {
+             address,
+             value.0 as u64,
+             payload,
+-            executable.program_id(),
++            program_id,
+             serial_number_nonce,
+             commitment_randomness,
+         )?;
+@@ -111,7 +94,6 @@ impl<N: Network> Input<N> {
+             record,
+             serial_number,
+             noop_private_key: None,
+-            executable,
+         })
+     }
+ 
+@@ -130,9 +112,9 @@ impl<N: Network> Input<N> {
+         &self.noop_private_key
+     }
+ 
+-    /// Returns a reference to the executable.
+-    pub fn executable(&self) -> &Executable<N> {
+-        &self.executable
++    /// Returns a reference to the program ID.
++    pub fn program_id(&self) -> N::ProgramID {
++        self.record.program_id()
+     }
+ }
+ 
+@@ -153,7 +135,7 @@ mod tests {
+             let seed: u64 = thread_rng().gen();
+ 
+             // Generate the expected input state.
+-            let (expected_record, expected_serial_number, expected_noop_private_key) = {
++            let (expected_record, expected_serial_number, expected_noop_private_key, expected_program_id) = {
+                 let rng = &mut ChaChaRng::seed_from_u64(seed);
+ 
+                 let account = Account::new(rng).unwrap();
+@@ -161,25 +143,27 @@ mod tests {
+                 let serial_number = input_record
+                     .to_serial_number(&account.private_key().to_compute_key().unwrap())
+                     .unwrap();
+-                (input_record, serial_number, account.private_key().clone())
++                let program_id = input_record.program_id();
++
++                (input_record, serial_number, account.private_key().clone(), program_id)
+             };
+ 
+             // Generate the candidate input state.
+-            let (candidate_record, candidate_serial_number, candidate_noop_private_key, candidate_executable) = {
++            let (candidate_record, candidate_serial_number, candidate_noop_private_key, candidate_program_id) = {
+                 let rng = &mut ChaChaRng::seed_from_u64(seed);
+                 let input = Input::<Testnet2>::new_noop(rng).unwrap();
+                 (
+                     input.record().clone(),
+                     input.serial_number().clone(),
+                     input.noop_private_key().clone(),
+-                    input.executable().clone(),
++                    input.program_id().clone(),
+                 )
+             };
+ 
+             assert_eq!(expected_record, candidate_record);
+             assert_eq!(expected_serial_number, candidate_serial_number);
+             assert_eq!(Some(expected_noop_private_key), candidate_noop_private_key);
+-            assert!(candidate_executable.is_noop());
++            assert_eq!(expected_program_id, candidate_program_id);
+         }
+     }
+ }
+diff --git a/dpc/src/transition/output.rs b/dpc/src/transition/output.rs
+index 47e84dd95..47fd15209 100644
+--- a/dpc/src/transition/output.rs
++++ b/dpc/src/transition/output.rs
+@@ -26,7 +26,7 @@ pub struct Output<N: Network> {
+     address: Address<N>,
+     value: AleoAmount,
+     payload: Payload,
+-    executable: Executable<N>,
++    program_id: N::ProgramID,
+ }
+ 
+ impl<N: Network> Output<N> {
+@@ -43,19 +43,19 @@ impl<N: Network> Output<N> {
+         address: Address<N>,
+         value: AleoAmount,
+         payload: Payload,
+-        executable: Option<Executable<N>>,
++        program_id: Option<N::ProgramID>,
+     ) -> Result<Self> {
+-        // Retrieve the executable. If `None` is provided, construct the noop executable.
+-        let executable = match executable {
+-            Some(executable) => executable,
+-            None => Executable::Noop,
++        // Retrieve the program ID. If `None` is provided, construct the noop program ID.
++        let program_id = match program_id {
++            Some(program_id) => program_id,
++            None => N::noop_program_id(),
+         };
+ 
+         Ok(Self {
+             address,
+             value,
+             payload,
+-            executable,
++            program_id,
+         })
+     }
+ 
+@@ -69,7 +69,7 @@ impl<N: Network> Output<N> {
+             self.address,
+             self.value.0 as u64,
+             self.payload.clone(),
+-            self.executable.program_id(),
++            self.program_id,
+             serial_number_nonce,
+             rng,
+         )?)
+@@ -90,9 +90,9 @@ impl<N: Network> Output<N> {
+         &self.payload
+     }
+ 
+-    /// Returns a reference to the executable.
+-    pub fn executable(&self) -> &Executable<N> {
+-        &self.executable
++    /// Returns a reference to the program ID.
++    pub fn program_id(&self) -> N::ProgramID {
++        self.program_id
+     }
+ }
+ 
+@@ -134,7 +134,7 @@ mod tests {
+             };
+ 
+             // Generate the candidate output state.
+-            let (candidate_record, candidate_address, candidate_value, candidate_payload, candidate_executable) = {
++            let (candidate_record, candidate_address, candidate_value, candidate_payload, candidate_program_id) = {
+                 let output = Output::new_noop(&mut candidate_rng).unwrap();
+                 let record = output.to_record(given_serial_numbers[0], &mut candidate_rng).unwrap();
+                 (
+@@ -142,7 +142,7 @@ mod tests {
+                     output.address(),
+                     output.value(),
+                     output.payload().clone(),
+-                    output.executable().clone(),
++                    output.program_id(),
+                 )
+             };
+ 
+@@ -150,7 +150,7 @@ mod tests {
+             assert_eq!(expected_record.owner(), candidate_address);
+             assert_eq!(expected_record.value(), candidate_value.0 as u64);
+             assert_eq!(expected_record.payload(), &candidate_payload);
+-            assert!(candidate_executable.is_noop());
++            assert_eq!(expected_record.program_id(), candidate_program_id);
+         }
+     }
+ }
+diff --git a/dpc/src/transition/tests.rs b/dpc/src/transition/tests.rs
+index 8c9d47686..7a84217d1 100644
+--- a/dpc/src/transition/tests.rs
++++ b/dpc/src/transition/tests.rs
+@@ -118,12 +118,8 @@ mod transfer {
+             let recipient = Account::new(rng).unwrap();
+ 
+             // Generate sender input
+-            let sender_input = Input::new(
+-                &sender.private_key().to_compute_key().unwrap(),
+-                coinbase_record.clone(),
+-                Some(Executable::Noop),
+-            )
+-            .unwrap();
++            let sender_input =
++                Input::new(&sender.private_key().to_compute_key().unwrap(), coinbase_record.clone()).unwrap();
+ 
+             let mut inputs = Vec::with_capacity(Testnet2::NUM_INPUT_RECORDS);
+             let mut serial_numbers = Vec::with_capacity(Testnet2::NUM_INPUT_RECORDS);
+diff --git a/dpc/src/transition/transition.rs b/dpc/src/transition/transition.rs
+index 1559d8d4a..3cbdd22ba 100644
+--- a/dpc/src/transition/transition.rs
++++ b/dpc/src/transition/transition.rs
+@@ -64,7 +64,7 @@ impl<N: Network> StateTransition<N> {
+         let mut inputs = Vec::with_capacity(N::NUM_INPUT_RECORDS);
+         for record in records {
+             balance = balance.add(AleoAmount::from_bytes(record.value() as i64));
+-            inputs.push(Input::new(&sender.to_compute_key()?, record.clone(), None)?);
++            inputs.push(Input::new(&sender.to_compute_key()?, record.clone())?);
+         }
+ 
+         // Ensure the sender has sufficient balance.

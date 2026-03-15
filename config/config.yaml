@@ -2,13 +2,12 @@
 # See docs/experiment-design.md for schema documentation
 
 github:
-  eval_org: ""  # GitHub org hosting worker forks (e.g. "provable-eval")
+  eval_org: "bug-tools-eval"
 
 tools:
   - name: greptile
     type: api        # pr | api | agent
     github_app: greptile
-    org: ""          # fork org
     cooldown_seconds: 30
     api_endpoint: "https://api.greptile.com/v2/review"
     api_key_env: "GREPTILE_API_KEY"
@@ -16,45 +15,102 @@ tools:
   - name: coderabbit
     type: pr
     github_app: coderabbit-ai
-    org: ""
     cooldown_seconds: 30
 
   - name: bugbot
     type: pr
     github_app: linear-bugbot
-    org: ""
     cooldown_seconds: 30
 
   - name: augment-code
     type: pr
     github_app: augment-code
-    org: ""
     cooldown_seconds: 30
 
   - name: deepsource
     type: pr
     github_app: deepsource-io
-    org: ""
     cooldown_seconds: 60
 
   - name: graphite-diamond
     type: pr
     github_app: graphite-app
-    org: ""
     cooldown_seconds: 30
 
+  # Legacy names kept for backward compatibility
   - name: claude-code-cli
     type: agent
-    github_app: null
-    org: null
     cooldown_seconds: 0
 
   - name: anthropic-api
     type: agent
-    github_app: null
-    org: null
     cooldown_seconds: 0
     api_key_env: "ANTHROPIC_API_KEY"
+
+  # Anthropic Claude CLI tiers
+  - name: claude-cli-haiku
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "ANTHROPIC_API_KEY"
+    model: "claude-haiku-4-5"
+
+  - name: claude-cli-sonnet
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "ANTHROPIC_API_KEY"
+    model: "claude-sonnet-4-6"
+
+  # Google Gemini CLI tiers
+  - name: gemini-cli-flash-lite
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "GEMINI_API_KEY"
+    model: "gemini-2.5-flash-lite"
+
+  - name: gemini-cli-flash
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "GEMINI_API_KEY"
+    model: "gemini-2.5-flash"
+
+  # OpenAI Codex CLI tiers
+  - name: codex-cli-mini
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "OPENAI_API_KEY"
+    model: "gpt-4.1-mini"
+
+  - name: codex-cli-o4
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "OPENAI_API_KEY"
+    model: "o4-mini"
+
+  # Google Gemini API (SDK) tiers
+  - name: google-api-flash-lite
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "GEMINI_API_KEY"
+    model: "gemini-2.5-flash-lite"
+
+  - name: google-api-flash
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "GEMINI_API_KEY"
+    model: "gemini-2.5-flash"
+
+  # OpenAI API (SDK) tiers
+  - name: openai-api-mini
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "OPENAI_API_KEY"
+    model: "gpt-4.1-mini"
+
+  - name: openai-api-o4
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "OPENAI_API_KEY"
+    model: "o4-mini"
 
 repos:
   # ProvableHQ repos (local checkouts available at ~/work/Aleo/<name>)
@@ -81,9 +137,20 @@ scoring:
     1: wrong-area
     2: correct-id
     3: correct-id-and-fix
+  catch_threshold: 2
 
 judging:
   llm_calls: 3               # majority vote
   human_sample_rate: 0.25    # fraction of cases for human review
   calibration_threshold: 0.85  # min LLM/human agreement
   model: "claude-opus-4-6"
+
+pricing:
+  # per-1M token rates: [input_usd, output_usd]
+  claude-sonnet-4-6: [3.0, 15.0]
+  claude-haiku-4-5: [0.80, 4.0]
+  claude-opus-4-6: [15.0, 75.0]
+  gemini-2.5-flash-lite: [0.0, 0.0]
+  gemini-2.5-flash: [0.15, 0.60]
+  gpt-4.1-mini: [0.40, 1.60]
+  o4-mini: [1.10, 4.40]

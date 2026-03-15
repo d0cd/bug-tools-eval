@@ -1,0 +1,59 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 67227783e..548b21619 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -71,7 +71,7 @@ version = "0.14"
+ features = [ "http1", "runtime", "server", "tcp" ]
+ 
+ [dependencies.json-rpc-types]
+-version = "1.0"
++version = "1.0.2"
+ 
+ [dependencies.jsonrpc-core]
+ version = "18"
+diff --git a/src/rpc/rpc.rs b/src/rpc/rpc.rs
+index ebce2889d..0946a593b 100644
+--- a/src/rpc/rpc.rs
++++ b/src/rpc/rpc.rs
+@@ -141,18 +141,30 @@ async fn handle_rpc<N: Network, E: Environment>(
+     };
+ 
+     // Deserialize the JSON-RPC request.
+-    let req: jrt::Request<Params> = match serde_json::from_slice(&data) {
+-        Ok(req) => req,
+-        Err(_) => {
+-            let resp = jrt::Response::<(), ()>::error(
+-                jrt::Version::V2,
+-                jrt::Error::with_custom_msg(jrt::ErrorCode::ParseError, "Couldn't parse the RPC body"),
+-                None,
+-            );
+-            let body = serde_json::to_vec(&resp).unwrap_or_default();
+-
+-            return Ok(hyper::Response::new(body.into()));
++    let req = if let Ok(req_data) = serde_json::from_slice::<serde_json::Value>(&data) {
++        match serde_json::from_value::<jrt::Request<Params>>(req_data) {
++            Ok(req) => req,
++            Err(e) => {
++                debug!("Request Parsing Error: {:?}", e);
++                let resp = jrt::Response::<(), ()>::error(
++                    jrt::Version::V2,
++                    jrt::Error::with_custom_msg(jrt::ErrorCode::ParseError, "Couldn't parse the RPC body"),
++                    None,
++                );
++                let body = serde_json::to_vec(&resp).unwrap_or_default();
++
++                return Ok(hyper::Response::new(body.into()));
++            }
+         }
++    } else {
++        let resp = jrt::Response::<(), ()>::error(
++            jrt::Version::V2,
++            jrt::Error::with_custom_msg(jrt::ErrorCode::ParseError, "Deserialize to Value failed"),
++            None,
++        );
++        let body = serde_json::to_vec(&resp).unwrap_or_default();
++
++        return Ok(hyper::Response::new(body.into()));
+     };
+ 
+     debug!("Received '{}' RPC request from {}: {:?}", &*req.method, caller, headers);

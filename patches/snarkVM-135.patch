@@ -1,0 +1,147 @@
+diff --git a/.circleci/config.yml b/.circleci/config.yml
+index 7788fc569..23e070c35 100644
+--- a/.circleci/config.yml
++++ b/.circleci/config.yml
+@@ -46,7 +46,7 @@ jobs:
+   integration-testnet1:
+     docker:
+       - image: cimg/rust:1.58
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     steps:
+       - checkout
+       - setup_environment:
+@@ -61,7 +61,7 @@ jobs:
+   integration-testnet2:
+     docker:
+       - image: cimg/rust:1.58
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     steps:
+       - checkout
+       - setup_environment:
+@@ -76,7 +76,7 @@ jobs:
+   algorithms:
+     docker:
+       - image: cimg/rust:1.58
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     parallelism: 20
+     steps:
+       - checkout
+@@ -99,7 +99,7 @@ jobs:
+   curves:
+     docker:
+       - image: cimg/rust:1.58
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     steps:
+       - checkout
+       - setup_environment:
+@@ -114,7 +114,7 @@ jobs:
+   derives:
+     docker:
+       - image: cimg/rust:1.58
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     steps:
+       - checkout
+       - setup_environment:
+@@ -129,7 +129,7 @@ jobs:
+   dpc:
+     docker:
+       - image: cimg/rust:1.58
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     steps:
+       - checkout
+       - setup_environment:
+@@ -144,7 +144,7 @@ jobs:
+   fields:
+     docker:
+       - image: cimg/rust:1.58
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     steps:
+       - checkout
+       - setup_environment:
+@@ -159,7 +159,7 @@ jobs:
+   gadgets:
+     docker:
+       - image: cimg/rust:1.58
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     steps:
+       - checkout
+       - setup_environment:
+@@ -174,7 +174,7 @@ jobs:
+   parameters:
+     docker:
+       - image: cimg/rust:1.58
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     steps:
+       - checkout
+       - setup_environment:
+@@ -189,7 +189,7 @@ jobs:
+   profiler:
+     docker:
+       - image: cimg/rust:1.58
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     steps:
+       - checkout
+       - setup_environment:
+@@ -204,7 +204,7 @@ jobs:
+   r1cs:
+     docker:
+       - image: cimg/rust:1.58
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     steps:
+       - checkout
+       - setup_environment:
+@@ -219,7 +219,7 @@ jobs:
+   utilities:
+     docker:
+       - image: cimg/rust:1.58
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     steps:
+       - checkout
+       - setup_environment:
+@@ -234,7 +234,7 @@ jobs:
+   fmt:
+     docker:
+       - image: howardwu/aleo-ci:2022-01-27
+-    resource_class: 2xlarge
++    resource_class: xlarge
+     steps:
+       - checkout
+       - setup_environment:
+diff --git a/dpc/src/virtual_machine/event.rs b/dpc/src/virtual_machine/event.rs
+index 457980f42..34cfbedb4 100644
+--- a/dpc/src/virtual_machine/event.rs
++++ b/dpc/src/virtual_machine/event.rs
+@@ -149,7 +149,7 @@ impl<'de, N: Network> Deserialize<'de> for Event<N> {
+                     2 => Ok(Self::Operation(
+                         serde_json::from_value(event["operation"].clone()).map_err(de::Error::custom)?,
+                     )),
+-                    _ => unreachable!(format!("Invalid event id {}", event_id)),
++                    _ => unreachable!("Invalid event id {}", event_id),
+                 }
+             }
+             false => FromBytesDeserializer::<Self>::deserialize_with_size_encoding(deserializer, "event"),
+diff --git a/dpc/src/virtual_machine/operation.rs b/dpc/src/virtual_machine/operation.rs
+index ddfe25ff4..0fb826a94 100644
+--- a/dpc/src/virtual_machine/operation.rs
++++ b/dpc/src/virtual_machine/operation.rs
+@@ -176,7 +176,7 @@ impl<N: Network> FromStr for Operation<N> {
+                 let function_inputs = serde_json::from_value(operation["function_inputs"].clone())?;
+                 Ok(Self::Evaluate(function_id, function_type, function_inputs))
+             }
+-            _ => unreachable!(format!("Invalid operation id {}", operation_id)),
++            _ => unreachable!("Invalid operation id {}", operation_id),
+         }
+     }
+ }

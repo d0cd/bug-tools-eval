@@ -1,0 +1,26 @@
+diff --git a/compiler/compiler/src/lib.rs b/compiler/compiler/src/lib.rs
+index 40308980fd..f39229b777 100644
+--- a/compiler/compiler/src/lib.rs
++++ b/compiler/compiler/src/lib.rs
+@@ -111,7 +111,7 @@ impl<'a> Compiler<'a> {
+ 
+             // Parse and serialize it.
+             let input_ast = leo_parser::parse_input(self.handler, &input_sf.src, input_sf.start_pos)?;
+-            input_ast.to_json_file_without_keys(self.output_directory.clone(), "inital_input_ast.json", &["span"])?;
++            input_ast.to_json_file_without_keys(self.output_directory.clone(), "initial_input_ast.json", &["span"])?;
+ 
+             self.input_ast = Some(input_ast);
+         }
+diff --git a/compiler/compiler/src/test.rs b/compiler/compiler/src/test.rs
+index ef50449b34..34b444f4d5 100644
+--- a/compiler/compiler/src/test.rs
++++ b/compiler/compiler/src/test.rs
+@@ -194,7 +194,7 @@ fn run_test(test: Test, handler: &Handler, err_buf: &BufferEmitter) -> Result<Va
+         for input in inputs {
+             let mut parsed = parsed.clone();
+             handler.extend_if_error(parsed.parse_input(input))?;
+-            let initial_input_ast = hash_file("/tmp/output/inital_input_ast.json");
++            let initial_input_ast = hash_file("/tmp/output/initial_input_ast.json");
+ 
+             output_items.push(OutputItem { initial_input_ast });
+         }

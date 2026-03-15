@@ -1,0 +1,73 @@
+diff --git a/asg/src/error/mod.rs b/asg/src/error/mod.rs
+index 8b3eccc9d1..5eb6f79c58 100644
+--- a/asg/src/error/mod.rs
++++ b/asg/src/error/mod.rs
+@@ -224,7 +224,6 @@ impl AsgConvertError {
+     }
+ 
+     pub fn unexpected_type(expected: &str, received: Option<&str>, span: &Span) -> Self {
+-        // panic!(format!("unexpected type, expected: '{}', received: '{}'", expected, received.unwrap_or("unknown")));
+         Self::new_from_span(
+             format!(
+                 "unexpected type, expected: '{}', received: '{}'",
+diff --git a/asg/src/expression/tuple_init.rs b/asg/src/expression/tuple_init.rs
+index 195b4fe4af..2dc40db252 100644
+--- a/asg/src/expression/tuple_init.rs
++++ b/asg/src/expression/tuple_init.rs
+@@ -94,7 +94,9 @@ impl<'a> FromAst<'a, leo_ast::TupleInitExpression> for TupleInitExpression<'a> {
+         };
+ 
+         if let Some(tuple_types) = tuple_types.as_ref() {
+-            if tuple_types.len() != value.elements.len() {
++            // Expected type can be equal or less than actual size of a tuple.
++            // Size of expected tuple can be based on accessed index.
++            if tuple_types.len() > value.elements.len() {
+                 return Err(AsgConvertError::unexpected_type(
+                     &*format!("tuple of length {}", tuple_types.len()),
+                     Some(&*format!("tuple of length {}", value.elements.len())),
+diff --git a/tests/compiler/tuples/access.leo b/tests/compiler/tuples/access.leo
+new file mode 100644
+index 0000000000..c75498876d
+--- /dev/null
++++ b/tests/compiler/tuples/access.leo
+@@ -0,0 +1,13 @@
++/*
++namespace: Compile
++expectation: Pass
++input_file: inputs/true_true.in
++*/
++
++function main(a: (bool, bool)) -> (bool, bool) {
++    let b = (false, false, true).0;
++    let c = (false, true, false).1;
++    let d = (true, false, false).2;
++
++    return (a.0 == b, a.1 == c == d);
++}
+diff --git a/tests/expectations/compiler/compiler/tuples/access.leo.out b/tests/expectations/compiler/compiler/tuples/access.leo.out
+new file mode 100644
+index 0000000000..06cacdebe4
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/tuples/access.leo.out
+@@ -0,0 +1,21 @@
++---
++namespace: Compile
++expectation: Pass
++outputs:
++  - circuit:
++      num_public_variables: 0
++      num_private_variables: 2
++      num_constraints: 2
++      at: 401937c524c61a28b4fab76d7a1f85bb628850012af62362a0922610372faf92
++      bt: cdf9a9cee4f2edf55111a95ae60bde9801080f6bde638a5c79273a39a2f9f7f5
++      ct: 643d5437104296e21d906ecb15b2c96ad278f20cfc4af53b12bb6069bd853726
++    output:
++      - input_file: inputs/true_true.in
++        output:
++          registers:
++            b:
++              type: bool
++              value: "true"
++            c:
++              type: bool
++              value: "false"

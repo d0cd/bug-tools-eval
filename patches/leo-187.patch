@@ -1,0 +1,153 @@
+diff --git a/asg/src/expression/array_init.rs b/asg/src/expression/array_init.rs
+index 23ea049271..d493d07290 100644
+--- a/asg/src/expression/array_init.rs
++++ b/asg/src/expression/array_init.rs
+@@ -74,7 +74,7 @@ impl<'a> FromAst<'a, leo_ast::ArrayInitExpression> for ArrayInitExpression<'a> {
+             Some(PartialType::Array(item, dims)) => (item.map(|x| *x), dims),
+             None => (None, None),
+             Some(type_) => {
+-                return Err(AsgError::unexpected_type(type_, "array", &value.span).into());
++                return Err(AsgError::unexpected_type("array", type_, &value.span).into());
+             }
+         };
+         let dimensions = value
+diff --git a/asg/src/expression/array_inline.rs b/asg/src/expression/array_inline.rs
+index 9d79c50f95..de9772e419 100644
+--- a/asg/src/expression/array_inline.rs
++++ b/asg/src/expression/array_inline.rs
+@@ -110,7 +110,7 @@ impl<'a> FromAst<'a, leo_ast::ArrayInlineExpression> for ArrayInlineExpression<'
+             Some(PartialType::Type(Type::ArrayWithoutSize(item))) => (Some(item.partial()), None),
+             None => (None, None),
+             Some(type_) => {
+-                return Err(AsgError::unexpected_type(type_, "array", &value.span).into());
++                return Err(AsgError::unexpected_type("array", type_, &value.span).into());
+             }
+         };
+ 
+diff --git a/asg/src/expression/array_range_access.rs b/asg/src/expression/array_range_access.rs
+index 0d32f3933f..af54b1a2b0 100644
+--- a/asg/src/expression/array_range_access.rs
++++ b/asg/src/expression/array_range_access.rs
+@@ -108,7 +108,7 @@ impl<'a> FromAst<'a, leo_ast::ArrayRangeAccessExpression> for ArrayRangeAccessEx
+             Some(PartialType::Array(element, len)) => (Some(PartialType::Array(element, None)), len),
+             None => (None, None),
+             Some(x) => {
+-                return Err(AsgError::unexpected_type(x, "array", &value.span).into());
++                return Err(AsgError::unexpected_type("array", x, &value.span).into());
+             }
+         };
+         let array = <&Expression<'a>>::from_ast(scope, &*value.array, expected_array)?;
+diff --git a/asg/src/expression/binary.rs b/asg/src/expression/binary.rs
+index 3029e2b98c..c5b2d4ab2b 100644
+--- a/asg/src/expression/binary.rs
++++ b/asg/src/expression/binary.rs
+@@ -123,7 +123,7 @@ impl<'a> FromAst<'a, leo_ast::BinaryExpression> for BinaryExpression<'a> {
+             BinaryOperationClass::Boolean => match expected_type {
+                 Some(PartialType::Type(Type::Boolean)) | None => None,
+                 Some(x) => {
+-                    return Err(AsgError::unexpected_type(x, Type::Boolean, &value.span).into());
++                    return Err(AsgError::unexpected_type(Type::Boolean, x, &value.span).into());
+                 }
+             },
+             BinaryOperationClass::Numeric => match expected_type {
+@@ -131,7 +131,7 @@ impl<'a> FromAst<'a, leo_ast::BinaryExpression> for BinaryExpression<'a> {
+                 Some(x @ PartialType::Type(Type::Field)) => Some(x),
+                 Some(x @ PartialType::Type(Type::Group)) => Some(x),
+                 Some(x) => {
+-                    return Err(AsgError::unexpected_type(x, "integer, field, or group", &value.span).into());
++                    return Err(AsgError::unexpected_type("integer, field, or group", x, &value.span).into());
+                 }
+                 None => None,
+             },
+@@ -192,14 +192,16 @@ impl<'a> FromAst<'a, leo_ast::BinaryExpression> for BinaryExpression<'a> {
+                 BinaryOperation::And | BinaryOperation::Or => match left_type {
+                     Some(Type::Boolean) | None => (),
+                     Some(x) => {
+-                        return Err(AsgError::unexpected_type(x, Type::Boolean, &value.span).into());
++                        return Err(AsgError::unexpected_type(Type::Boolean, x, &value.span).into());
+                     }
+                 },
+                 BinaryOperation::Eq | BinaryOperation::Ne => (), // all types allowed
+-                _ => match left_type {
++                op => match left_type {
+                     Some(Type::Integer(_)) | None => (),
+                     Some(x) => {
+-                        return Err(AsgError::unexpected_type(x, "integer", &value.span).into());
++                        return Err(
++                            AsgError::operator_allowed_only_for_type(op.as_ref(), "integer", x, &value.span).into(),
++                        );
+                     }
+                 },
+             },
+diff --git a/asg/src/expression/circuit_access.rs b/asg/src/expression/circuit_access.rs
+index b01dca1ff3..9003a4cca0 100644
+--- a/asg/src/expression/circuit_access.rs
++++ b/asg/src/expression/circuit_access.rs
+@@ -172,7 +172,7 @@ impl<'a> FromAst<'a, leo_ast::CircuitStaticFunctionAccessExpression> for Circuit
+         };
+ 
+         if let Some(expected_type) = expected_type {
+-            return Err(AsgError::unexpected_type(expected_type, "none", &value.span).into());
++            return Err(AsgError::unexpected_type("none", expected_type, &value.span).into());
+         }
+ 
+         if let Some(CircuitMember::Function(_)) = circuit.members.borrow().get(value.name.name.as_ref()) {
+diff --git a/asg/src/expression/tuple_access.rs b/asg/src/expression/tuple_access.rs
+index 327ed51548..44f524aec0 100644
+--- a/asg/src/expression/tuple_access.rs
++++ b/asg/src/expression/tuple_access.rs
+@@ -90,7 +90,7 @@ impl<'a> FromAst<'a, leo_ast::TupleAccessExpression> for TupleAccessExpression<'
+         if let Some(Type::Tuple(_items)) = tuple_type {
+         } else {
+             return Err(AsgError::unexpected_type(
+-                "a tuple",
++                "tuple",
+                 tuple_type
+                     .map(|x| x.to_string())
+                     .unwrap_or_else(|| "unknown".to_string()),
+diff --git a/asg/src/expression/unary.rs b/asg/src/expression/unary.rs
+index a9da91eec6..d3aad2dea0 100644
+--- a/asg/src/expression/unary.rs
++++ b/asg/src/expression/unary.rs
+@@ -95,7 +95,7 @@ impl<'a> FromAst<'a, leo_ast::UnaryExpression> for UnaryExpression<'a> {
+             UnaryOperation::Not => match expected_type.map(|x| x.full()).flatten() {
+                 Some(Type::Boolean) | None => Some(Type::Boolean),
+                 Some(type_) => {
+-                    return Err(AsgError::unexpected_type(type_, Type::Boolean, &value.span).into());
++                    return Err(AsgError::unexpected_type(Type::Boolean, type_, &value.span).into());
+                 }
+             },
+             UnaryOperation::Negate => match expected_type.map(|x| x.full()).flatten() {
+@@ -104,14 +104,14 @@ impl<'a> FromAst<'a, leo_ast::UnaryExpression> for UnaryExpression<'a> {
+                 Some(Type::Field) => Some(Type::Field),
+                 None => None,
+                 Some(type_) => {
+-                    return Err(AsgError::unexpected_type(type_, "integer, group, field", &value.span).into());
++                    return Err(AsgError::unexpected_type("integer, group, field", type_, &value.span).into());
+                 }
+             },
+             UnaryOperation::BitNot => match expected_type.map(|x| x.full()).flatten() {
+                 Some(type_ @ Type::Integer(_)) => Some(type_),
+                 None => None,
+                 Some(type_) => {
+-                    return Err(AsgError::unexpected_type(type_, "integer", &value.span).into());
++                    return Err(AsgError::unexpected_type("integer", type_, &value.span).into());
+                 }
+             },
+         };
+diff --git a/errors/src/asg/asg_errors.rs b/errors/src/asg/asg_errors.rs
+index 6524b6ab95..b507af18e4 100644
+--- a/errors/src/asg/asg_errors.rs
++++ b/errors/src/asg/asg_errors.rs
+@@ -467,4 +467,11 @@ create_errors!(
+         msg: format!("a variable cannot be named `{}` as a function input or variable with that name already exists in this scope", name),
+         help: None,
+     }
++
++    @formatted
++    operator_allowed_only_for_type {
++        args: (operator: impl Display, type_: impl Display, received: impl Display),
++        msg: format!("operator '{}' is only allowed for type '{}', received: '{}'", operator, type_, received),
++        help: None,
++    }
+ );

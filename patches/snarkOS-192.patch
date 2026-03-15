@@ -1,0 +1,41 @@
+diff --git a/consensus/src/consensus/inner/commit.rs b/consensus/src/consensus/inner/commit.rs
+index ca01057d2..ad036ef0c 100644
+--- a/consensus/src/consensus/inner/commit.rs
++++ b/consensus/src/consensus/inner/commit.rs
+@@ -281,7 +281,9 @@ impl ConsensusInner {
+             canon.block_height
+         );
+         loop {
+-            let mut sub_children = children.children().to_vec();
++            let mut sub_children = children.take_children();
++            // rust doesn't believe we will always set children before the next loop
++            children = DigestTree::Leaf(Digest::from([0u8; 32]));
+             if sub_children.is_empty() {
+                 break;
+             }
+diff --git a/storage/src/storage/digest_tree.rs b/storage/src/storage/digest_tree.rs
+index b3c555847..a7895297f 100644
+--- a/storage/src/storage/digest_tree.rs
++++ b/storage/src/storage/digest_tree.rs
+@@ -16,7 +16,8 @@
+ 
+ use crate::Digest;
+ 
+-#[derive(Clone, Debug)]
++// do not implement clone: this structure can be too deep, resulting in stack overflow
++#[derive(Debug)]
+ pub enum DigestTree {
+     // digest of leaf node
+     Leaf(Digest),
+@@ -66,4 +67,11 @@ impl DigestTree {
+             DigestTree::Node(_, children, _) => &children[..],
+         }
+     }
++
++    pub fn take_children(self) -> Vec<DigestTree> {
++        match self {
++            DigestTree::Leaf(_) => vec![],
++            DigestTree::Node(_, children, _) => children,
++        }
++    }
+ }

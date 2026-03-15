@@ -1,0 +1,187 @@
+diff --git a/node/messages/src/lib.rs b/node/messages/src/lib.rs
+index 8866d7dc7..4b91d1124 100644
+--- a/node/messages/src/lib.rs
++++ b/node/messages/src/lib.rs
+@@ -65,7 +65,17 @@ mod unconfirmed_transaction;
+ pub use unconfirmed_transaction::UnconfirmedTransaction;
+ 
+ use snarkos_node_executor::{NodeType, Status};
+-use snarkvm::prelude::{Block, EpochChallenge, FromBytes, Header, Network, ProverSolution, ToBytes, Transaction};
++use snarkvm::prelude::{
++    Block,
++    EpochChallenge,
++    FromBytes,
++    Header,
++    Network,
++    ProverSolution,
++    PuzzleCommitment,
++    ToBytes,
++    Transaction,
++};
+ 
+ use ::bytes::{Buf, BytesMut};
+ use anyhow::{bail, Result};
+diff --git a/node/messages/src/unconfirmed_solution.rs b/node/messages/src/unconfirmed_solution.rs
+index f05e68da5..227388e72 100644
+--- a/node/messages/src/unconfirmed_solution.rs
++++ b/node/messages/src/unconfirmed_solution.rs
+@@ -18,6 +18,7 @@ use super::*;
+ 
+ #[derive(Clone, Debug)]
+ pub struct UnconfirmedSolution<N: Network> {
++    pub puzzle_commitment: PuzzleCommitment<N>,
+     pub solution: Data<ProverSolution<N>>,
+ }
+ 
+@@ -31,12 +32,17 @@ impl<N: Network> MessageTrait for UnconfirmedSolution<N> {
+     /// Serializes the message into the buffer.
+     #[inline]
+     fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
++        writer.write_all(&self.puzzle_commitment.to_bytes_le()?)?;
+         self.solution.serialize_blocking_into(writer)
+     }
+ 
+     /// Deserializes the given buffer into a message.
+     #[inline]
+     fn deserialize(bytes: BytesMut) -> Result<Self> {
+-        Ok(Self { solution: Data::Buffer(bytes.freeze()) })
++        let mut reader = bytes.reader();
++        Ok(Self {
++            puzzle_commitment: PuzzleCommitment::read_le(&mut reader)?,
++            solution: Data::Buffer(reader.into_inner().freeze()),
++        })
+     }
+ }
+diff --git a/node/messages/src/unconfirmed_transaction.rs b/node/messages/src/unconfirmed_transaction.rs
+index c55c44bf6..292c1ff16 100644
+--- a/node/messages/src/unconfirmed_transaction.rs
++++ b/node/messages/src/unconfirmed_transaction.rs
+@@ -18,6 +18,7 @@ use super::*;
+ 
+ #[derive(Clone, Debug)]
+ pub struct UnconfirmedTransaction<N: Network> {
++    pub transaction_id: N::TransactionID,
+     pub transaction: Data<Transaction<N>>,
+ }
+ 
+@@ -31,12 +32,17 @@ impl<N: Network> MessageTrait for UnconfirmedTransaction<N> {
+     /// Serializes the message into the buffer.
+     #[inline]
+     fn serialize<W: Write>(&self, writer: &mut W) -> Result<()> {
++        writer.write_all(&self.transaction_id.to_bytes_le()?)?;
+         self.transaction.serialize_blocking_into(writer)
+     }
+ 
+     /// Deserializes the given buffer into a message.
+     #[inline]
+     fn deserialize(bytes: BytesMut) -> Result<Self> {
+-        Ok(Self { transaction: Data::Buffer(bytes.freeze()) })
++        let mut reader = bytes.reader();
++        Ok(Self {
++            transaction_id: N::TransactionID::read_le(&mut reader)?,
++            transaction: Data::Buffer(reader.into_inner().freeze()),
++        })
+     }
+ }
+diff --git a/node/rest/src/routes.rs b/node/rest/src/routes.rs
+index 1fee9663b..5d28d48e8 100644
+--- a/node/rest/src/routes.rs
++++ b/node/rest/src/routes.rs
+@@ -15,7 +15,6 @@
+ // along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use super::*;
+-use anyhow::bail;
+ 
+ /// The `get_blocks` query object.
+ #[derive(Deserialize, Serialize)]
+diff --git a/node/router/src/inbound.rs b/node/router/src/inbound.rs
+index 9edd48929..322a370b1 100644
+--- a/node/router/src/inbound.rs
++++ b/node/router/src/inbound.rs
+@@ -86,6 +86,13 @@ pub trait Inbound<N: Network>: Executor {
+                 // Perform the deferred non-blocking deserialization of the solution.
+                 match message.solution.deserialize().await {
+                     Ok(solution) => {
++                        // Check that the solution parameters match.
++                        if message.puzzle_commitment != solution.commitment() {
++                            // Peer is not following the protocol.
++                            warn!("Peer {peer_ip} is not following the 'UnconfirmedSolution' protocol");
++                            return false;
++                        }
++
+                         // Update the timestamp for the unconfirmed solution.
+                         let seen_before = router
+                             .seen_unconfirmed_solutions
+@@ -93,6 +100,7 @@ pub trait Inbound<N: Network>: Executor {
+                             .await
+                             .insert(solution.commitment(), SystemTime::now())
+                             .is_some();
++
+                         // Handle the unconfirmed solution.
+                         self.unconfirmed_solution(message_clone, solution.commitment(), solution, peer_ip, router, seen_before).await
+                     }
+@@ -108,6 +116,13 @@ pub trait Inbound<N: Network>: Executor {
+                 // Perform the deferred non-blocking deserialization of the transaction.
+                 match message.transaction.deserialize().await {
+                     Ok(transaction) => {
++                        // Check that the transaction parameters match.
++                        if message.transaction_id != transaction.id() {
++                            // Peer is not following the protocol.
++                            warn!("Peer {peer_ip} is not following the 'UnconfirmedTransaction' protocol");
++                            return false;
++                        }
++
+                         // Update the timestamp for the unconfirmed transaction.
+                         let seen_before = router
+                             .seen_unconfirmed_transactions
+@@ -115,6 +130,7 @@ pub trait Inbound<N: Network>: Executor {
+                             .await
+                             .insert(transaction.id(), SystemTime::now())
+                             .is_some();
++
+                         // Handle the unconfirmed transaction.
+                         self.unconfirmed_transaction(message_clone, transaction.id(), transaction, peer_ip, router, seen_before).await
+                     }
+diff --git a/node/router/src/outbound.rs b/node/router/src/outbound.rs
+index 3fab4ff49..99aa9ff11 100644
+--- a/node/router/src/outbound.rs
++++ b/node/router/src/outbound.rs
+@@ -74,11 +74,7 @@ pub trait Outbound {
+                 should_send
+             }
+             Message::UnconfirmedSolution(ref mut message) => {
+-                let puzzle_commitment = if let Data::Object(solution) = &message.solution {
+-                    solution.commitment()
+-                } else {
+-                    panic!("Logic error: the solution shouldn't have been serialized yet.");
+-                };
++                let puzzle_commitment = message.puzzle_commitment;
+ 
+                 // Retrieve the last seen timestamp of this solution for this peer.
+                 let last_seen = peer
+@@ -107,11 +103,7 @@ pub trait Outbound {
+                 is_ready_to_send
+             }
+             Message::UnconfirmedTransaction(ref mut message) => {
+-                let transaction_id = if let Data::Object(transaction) = &message.transaction {
+-                    transaction.id()
+-                } else {
+-                    panic!("Logic error: the transaction shouldn't have been serialized yet.");
+-                };
++                let transaction_id = message.transaction_id;
+ 
+                 // Retrieve the last seen timestamp of this transaction for this peer.
+                 let last_seen = peer
+diff --git a/node/src/prover/mod.rs b/node/src/prover/mod.rs
+index 4d93db8ce..bc4d37304 100644
+--- a/node/src/prover/mod.rs
++++ b/node/src/prover/mod.rs
+@@ -200,6 +200,7 @@ impl<N: Network> Prover<N> {
+ 
+                         // Propagate the "UnconfirmedSolution" to the network.
+                         let message = Message::UnconfirmedSolution(UnconfirmedSolution {
++                            puzzle_commitment: prover_solution.commitment(),
+                             solution: Data::Object(prover_solution),
+                         });
+                         let request = RouterRequest::MessagePropagate(message, vec![]);

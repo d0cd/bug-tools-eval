@@ -1,0 +1,195 @@
+diff --git a/ast/src/common/keyword_or_identifier.rs b/ast/src/common/keyword_or_identifier.rs
+index af013bc24b..d5a3c4ac7a 100644
+--- a/ast/src/common/keyword_or_identifier.rs
++++ b/ast/src/common/keyword_or_identifier.rs
+@@ -20,6 +20,7 @@ use crate::{
+     functions::InputKeyword,
+ };
+ 
++use crate::types::SelfType;
+ use pest_ast::FromPest;
+ use serde::Serialize;
+ use std::fmt;
+@@ -28,6 +29,7 @@ use std::fmt;
+ #[pest_ast(rule(Rule::keyword_or_identifier))]
+ pub enum KeywordOrIdentifier<'ast> {
+     SelfKeyword(SelfKeyword<'ast>),
++    SelfType(SelfType<'ast>),
+     Input(InputKeyword<'ast>),
+     Identifier(Identifier<'ast>),
+ }
+@@ -36,6 +38,7 @@ impl<'ast> fmt::Display for KeywordOrIdentifier<'ast> {
+     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+         match self {
+             KeywordOrIdentifier::SelfKeyword(self_keyword) => write!(f, "{}", self_keyword),
++            KeywordOrIdentifier::SelfType(self_type) => write!(f, "{}", self_type),
+             KeywordOrIdentifier::Input(input_keyword) => write!(f, "{}", input_keyword),
+             KeywordOrIdentifier::Identifier(identifier) => write!(f, "{}", identifier),
+         }
+diff --git a/ast/src/leo.pest b/ast/src/leo.pest
+index acaeb7523a..5a88b56dcb 100644
+--- a/ast/src/leo.pest
++++ b/ast/src/leo.pest
+@@ -369,6 +369,7 @@ expression_postfix = ${ keyword_or_identifier ~ access+ }
+ keyword_or_identifier = {
+     input_keyword
+     | self_keyword
++    | type_self
+     | identifier
+ }
+ 
+diff --git a/ast/src/types/self_type.rs b/ast/src/types/self_type.rs
+index 47cee34545..f4a91fccb5 100644
+--- a/ast/src/types/self_type.rs
++++ b/ast/src/types/self_type.rs
+@@ -22,6 +22,7 @@ use crate::{
+ use pest::Span;
+ use pest_ast::FromPest;
+ use serde::Serialize;
++use std::fmt;
+ 
+ #[derive(Clone, Debug, FromPest, PartialEq, Serialize)]
+ #[pest_ast(rule(Rule::type_self))]
+@@ -32,3 +33,9 @@ pub struct SelfType<'ast> {
+     #[serde(with = "SpanDef")]
+     pub span: Span<'ast>,
+ }
++
++impl<'ast> fmt::Display for SelfType<'ast> {
++    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
++        write!(f, "{}", self.keyword)
++    }
++}
+diff --git a/compiler/src/errors/expression.rs b/compiler/src/errors/expression.rs
+index 9f5c0e8032..47b4bd15e5 100644
+--- a/compiler/src/errors/expression.rs
++++ b/compiler/src/errors/expression.rs
+@@ -140,6 +140,12 @@ impl ExpressionError {
+         Self::new_from_span(message, span)
+     }
+ 
++    pub fn self_keyword(span: Span) -> Self {
++        let message = format!("cannot call keyword `Self` outside of a circuit function");
++
++        Self::new_from_span(message, span)
++    }
++
+     pub fn undefined_array(actual: String, span: Span) -> Self {
+         let message = format!("array `{}` must be declared before it is used in an expression", actual);
+ 
+diff --git a/compiler/src/expression/circuit/static_access.rs b/compiler/src/expression/circuit/static_access.rs
+index 04e2ae5be9..9fee2254e6 100644
+--- a/compiler/src/expression/circuit/static_access.rs
++++ b/compiler/src/expression/circuit/static_access.rs
+@@ -36,15 +36,28 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         span: Span,
+     ) -> Result<ConstrainedValue<F, G>, ExpressionError> {
+         // Get defined circuit
+-        let circuit = self
+-            .enforce_expression(
++        let circuit = match *circuit_identifier.clone() {
++            Expression::Identifier(identifier) => {
++                // Use the "Self" keyword to access a static circuit function
++                if identifier.is_self() {
++                    let circuit = self
++                        .get(&file_scope)
++                        .ok_or(ExpressionError::self_keyword(identifier.span.clone()))?;
++
++                    circuit.to_owned()
++                } else {
++                    self.evaluate_identifier(file_scope.clone(), function_scope.clone(), expected_type, identifier)?
++                }
++            }
++            expression => self.enforce_expression(
+                 cs,
+                 file_scope.clone(),
+                 function_scope.clone(),
+                 expected_type,
+-                *circuit_identifier.clone(),
+-            )?
+-            .extract_circuit(span.clone())?;
++                expression,
++            )?,
++        }
++        .extract_circuit(span.clone())?;
+ 
+         // Find static circuit function
+         let matched_function = circuit.members.into_iter().find(|member| match member {
+diff --git a/compiler/tests/circuits/member_static_function_nested.leo b/compiler/tests/circuits/member_static_function_nested.leo
+new file mode 100644
+index 0000000000..8f717f3f7c
+--- /dev/null
++++ b/compiler/tests/circuits/member_static_function_nested.leo
+@@ -0,0 +1,15 @@
++circuit Foo {
++    static function qux() {}
++
++    static function bar() {
++        Self::qux();
++    }
++
++    static function baz() {
++        Self::bar();
++    }
++}
++
++function main() {
++    Foo::baz();
++}
+\ No newline at end of file
+diff --git a/compiler/tests/circuits/mod.rs b/compiler/tests/circuits/mod.rs
+index b98d5aea99..4c9c8665e9 100644
+--- a/compiler/tests/circuits/mod.rs
++++ b/compiler/tests/circuits/mod.rs
+@@ -118,6 +118,14 @@ fn test_member_static_function() {
+     assert_satisfied(program);
+ }
+ 
++#[test]
++fn test_member_static_function_nested() {
++    let bytes = include_bytes!("member_static_function_nested.leo");
++    let program = parse_program(bytes).unwrap();
++
++    assert_satisfied(program);
++}
++
+ #[test]
+ fn test_member_static_function_invalid() {
+     let bytes = include_bytes!("member_static_function_invalid.leo");
+@@ -202,6 +210,14 @@ fn test_mutate_variable_fail() {
+ 
+ // Self
+ 
++#[test]
++fn test_self_fail() {
++    let bytes = include_bytes!("self_fail.leo");
++    let program = parse_program(bytes).unwrap();
++
++    expect_compiler_error(program);
++}
++
+ #[test]
+ fn test_self_member_pass() {
+     let bytes = include_bytes!("self_member.leo");
+diff --git a/compiler/tests/circuits/self_fail.leo b/compiler/tests/circuits/self_fail.leo
+new file mode 100644
+index 0000000000..e4e878dc89
+--- /dev/null
++++ b/compiler/tests/circuits/self_fail.leo
+@@ -0,0 +1,3 @@
++function main() {
++    Self::main();
++}
+\ No newline at end of file
+diff --git a/typed/src/common/identifier.rs b/typed/src/common/identifier.rs
+index 274bce1a02..9d71fe5350 100644
+--- a/typed/src/common/identifier.rs
++++ b/typed/src/common/identifier.rs
+@@ -94,6 +94,7 @@ impl<'ast> From<KeywordOrIdentifier<'ast>> for Identifier {
+     fn from(name: KeywordOrIdentifier<'ast>) -> Self {
+         match name {
+             KeywordOrIdentifier::SelfKeyword(keyword) => Identifier::from(keyword),
++            KeywordOrIdentifier::SelfType(self_type) => Identifier::from(self_type),
+             KeywordOrIdentifier::Input(keyword) => Identifier::from(keyword),
+             KeywordOrIdentifier::Identifier(identifier) => Identifier::from(identifier),
+         }

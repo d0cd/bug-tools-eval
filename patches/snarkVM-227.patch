@@ -1,0 +1,120 @@
+diff --git a/algorithms/src/crypto_hash/hash_to_curve.rs b/algorithms/src/crypto_hash/hash_to_curve.rs
+index dd46fab2b..6200add65 100644
+--- a/algorithms/src/crypto_hash/hash_to_curve.rs
++++ b/algorithms/src/crypto_hash/hash_to_curve.rs
+@@ -50,7 +50,7 @@ pub fn try_hash_to_curve<G: AffineCurve>(input: &str) -> Option<G> {
+         debug_assert!(g.is_on_curve());
+         debug_assert!(g.is_in_correct_subgroup_assuming_on_curve());
+ 
+-        (!g.is_zero()).then(|| g)
++        (!g.is_zero()).then_some(g)
+     })
+ }
+ 
+diff --git a/algorithms/src/snark/marlin/ahp/ahp.rs b/algorithms/src/snark/marlin/ahp/ahp.rs
+index 3de4d9a07..e8a52cb0e 100644
+--- a/algorithms/src/snark/marlin/ahp/ahp.rs
++++ b/algorithms/src/snark/marlin/ahp/ahp.rs
+@@ -50,7 +50,7 @@ impl<F: PrimeField, MM: MarlinMode> AHPForR1CS<F, MM> {
+     pub const LC_WITH_ZERO_EVAL: [&'static str; 2] = ["matrix_sumcheck", "lincheck_sumcheck"];
+ 
+     pub fn zk_bound() -> Option<usize> {
+-        MM::ZK.then(|| 1)
++        MM::ZK.then_some(1)
+     }
+ 
+     /// Check that the (formatted) public input is of the form 2^n for some integer n.
+diff --git a/algorithms/src/snark/marlin/ahp/matrices.rs b/algorithms/src/snark/marlin/ahp/matrices.rs
+index de906fadc..e8b4cecdd 100644
+--- a/algorithms/src/snark/marlin/ahp/matrices.rs
++++ b/algorithms/src/snark/marlin/ahp/matrices.rs
+@@ -230,7 +230,7 @@ mod tests {
+     use snarkvm_fields::{One, Zero};
+ 
+     fn entry(matrix: &Matrix<F>, row: usize, col: usize) -> F {
+-        matrix[row].iter().find_map(|(f, i)| (i == &col).then(|| *f)).unwrap_or_else(F::zero)
++        matrix[row].iter().find_map(|(f, i)| (i == &col).then_some(*f)).unwrap_or_else(F::zero)
+     }
+ 
+     #[test]
+diff --git a/algorithms/src/snark/marlin/ahp/prover/round_functions/first.rs b/algorithms/src/snark/marlin/ahp/prover/round_functions/first.rs
+index b75aa5c2f..adaeb1181 100644
+--- a/algorithms/src/snark/marlin/ahp/prover/round_functions/first.rs
++++ b/algorithms/src/snark/marlin/ahp/prover/round_functions/first.rs
+@@ -113,7 +113,7 @@ impl<F: PrimeField, MM: MarlinMode> AHPForR1CS<F, MM> {
+         let oracles = prover::FirstOracles { batches, mask_poly };
+         assert!(oracles.matches_info(&Self::first_round_polynomial_info(batch_size)));
+         state.first_round_oracles = Some(Arc::new(oracles));
+-        state.mz_poly_randomizer = MM::ZK.then(|| r_b_s);
++        state.mz_poly_randomizer = MM::ZK.then_some(r_b_s);
+         end_timer!(round_time);
+ 
+         Ok(state)
+diff --git a/algorithms/src/snark/marlin/data_structures/proof.rs b/algorithms/src/snark/marlin/data_structures/proof.rs
+index 134704e83..720eb0966 100644
+--- a/algorithms/src/snark/marlin/data_structures/proof.rs
++++ b/algorithms/src/snark/marlin/data_structures/proof.rs
+@@ -173,7 +173,7 @@ impl<F: PrimeField> Evaluations<F> {
+ 
+ impl<F: PrimeField> Evaluations<F> {
+     pub(crate) fn from_map(map: &std::collections::BTreeMap<String, F>, batch_size: usize) -> Self {
+-        let z_b_evals = map.iter().filter_map(|(k, v)| k.starts_with("z_b_").then(|| *v)).collect::<Vec<_>>();
++        let z_b_evals = map.iter().filter_map(|(k, v)| k.starts_with("z_b_").then_some(*v)).collect::<Vec<_>>();
+         assert_eq!(z_b_evals.len(), batch_size);
+         Self { z_b_evals, g_1_eval: map["g_1"], g_a_eval: map["g_a"], g_b_eval: map["g_b"], g_c_eval: map["g_c"] }
+     }
+diff --git a/console/algorithms/src/blake2xs/hash_to_curve.rs b/console/algorithms/src/blake2xs/hash_to_curve.rs
+index 5b5353172..b06f2a690 100644
+--- a/console/algorithms/src/blake2xs/hash_to_curve.rs
++++ b/console/algorithms/src/blake2xs/hash_to_curve.rs
+@@ -51,7 +51,7 @@ impl Blake2Xs {
+             debug_assert!(g.is_on_curve());
+             debug_assert!(g.is_in_correct_subgroup_assuming_on_curve());
+ 
+-            (!g.is_zero()).then(|| g)
++            (!g.is_zero()).then_some(g)
+         })
+     }
+ }
+diff --git a/vm/compiler/src/program/closure/bytes.rs b/vm/compiler/src/program/closure/bytes.rs
+index 63042621b..01c1bab87 100644
+--- a/vm/compiler/src/program/closure/bytes.rs
++++ b/vm/compiler/src/program/closure/bytes.rs
+@@ -32,6 +32,9 @@ impl<N: Network> FromBytes for Closure<N> {
+ 
+         // Read the instructions.
+         let num_instructions = u32::read_le(&mut reader)?;
++        if num_instructions > N::MAX_FUNCTION_INSTRUCTIONS as u32 {
++            return Err(error(format!("Failed to deserialize a closure: too many instructions ({num_instructions})")));
++        }
+         let mut instructions = Vec::with_capacity(num_instructions as usize);
+         for _ in 0..num_instructions {
+             instructions.push(Instruction::read_le(&mut reader)?);
+diff --git a/vm/compiler/src/program/function/bytes.rs b/vm/compiler/src/program/function/bytes.rs
+index 7dfa8d480..95a3ea191 100644
+--- a/vm/compiler/src/program/function/bytes.rs
++++ b/vm/compiler/src/program/function/bytes.rs
+@@ -32,6 +32,9 @@ impl<N: Network> FromBytes for Function<N> {
+ 
+         // Read the instructions.
+         let num_instructions = u32::read_le(&mut reader)?;
++        if num_instructions > N::MAX_FUNCTION_INSTRUCTIONS as u32 {
++            return Err(error(format!("Failed to deserialize a function: too many instructions ({num_instructions})")));
++        }
+         let mut instructions = Vec::with_capacity(num_instructions as usize);
+         for _ in 0..num_instructions {
+             instructions.push(Instruction::read_le(&mut reader)?);
+diff --git a/vm/compiler/src/program/instruction/bytes.rs b/vm/compiler/src/program/instruction/bytes.rs
+index f21acbe73..feeb534bc 100644
+--- a/vm/compiler/src/program/instruction/bytes.rs
++++ b/vm/compiler/src/program/instruction/bytes.rs
+@@ -30,6 +30,9 @@ impl<N: Network> FromBytes for Instruction<N> {
+                 let index = u16::read_le(&mut $reader)?;
+ 
+                 // Build the cases for all instructions.
++                if index as usize >= Instruction::<N>::OPCODES.len() {
++                    return Err(error(format!("Failed to deserialize an instruction: invalid opcode index ({index})")));
++                }
+                 $(if Instruction::<N>::OPCODES[index as usize] == $variant::<N>::opcode() {
+                     // Read the instruction.
+                     let instruction = $variant::read_le(&mut $reader)?;

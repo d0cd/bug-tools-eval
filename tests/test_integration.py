@@ -104,4 +104,4 @@ def test_pipeline_produces_analysis_report(tmp_path: Path) -> None:
     md = generate_markdown(agg)
 
     assert tool_name in md
-    assert "Catch Rate" in md
+    assert "Detection Rate" in md

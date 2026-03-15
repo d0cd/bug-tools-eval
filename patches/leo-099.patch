@@ -1,0 +1,282 @@
+diff --git a/compiler/parser/src/parser/context.rs b/compiler/parser/src/parser/context.rs
+index 8639412447..da9ade6085 100644
+--- a/compiler/parser/src/parser/context.rs
++++ b/compiler/parser/src/parser/context.rs
+@@ -39,7 +39,7 @@ pub(crate) struct ParserContext<'a, N: Network> {
+     /// The previous token, i.e., if `p.tokens = ['3', *, '4']`,
+     /// then after two `p.bump()`s, we'll have `p.token = '*'` and `p.prev_token = '3'`.
+     pub(crate) prev_token: SpannedToken,
+-    /// true if parsing an expression for if and loop statements -- means struct inits are not legal
++    /// True if parsing an expression for if and loop statements -- means struct inits are not legal.
+     pub(crate) disallow_struct_construction: bool,
+     /// The name of the program being parsed.
+     pub(crate) program_name: Option<Symbol>,
+@@ -95,7 +95,7 @@ impl<'a, N: Network> ParserContext<'a, N> {
+         &self.token.token == tok
+     }
+ 
+-    /// Checks whether the current token is a `Token::Int(_)`.
++    /// Checks whether the current token is a `Token::Integer(_)`.
+     pub(super) fn check_int(&self) -> bool {
+         matches!(&self.token.token, Token::Integer(_))
+     }
+@@ -142,7 +142,7 @@ impl<'a, N: Network> ParserContext<'a, N> {
+         Identifier { name, span, id: self.node_builder.next_id() }
+     }
+ 
+-    /// Eats the next token if its an identifier and returns it.
++    /// Eats the next token if it is an identifier and returns it.
+     pub(super) fn eat_identifier(&mut self) -> Option<Identifier> {
+         if let Token::Identifier(name) = self.token.token {
+             self.bump();
+diff --git a/compiler/parser/src/parser/file.rs b/compiler/parser/src/parser/file.rs
+index 06d844a987..3cd50e1809 100644
+--- a/compiler/parser/src/parser/file.rs
++++ b/compiler/parser/src/parser/file.rs
+@@ -75,11 +75,12 @@ impl<N: Network> ParserContext<'_, N> {
+         // Parse `foo`.
+         let import_name = self.expect_identifier()?;
+ 
+-        // Parse `.aleo`.
++        // Parse `.`.
+         self.expect(&Token::Dot)?;
+ 
++        // Parse network, which currently must be `aleo`.
+         if !self.eat(&Token::Aleo) {
+-            // Throw error for non-aleo files.
++            // Throw error for non-aleo networks.
+             return Err(ParserError::invalid_network(self.token.span).into());
+         }
+ 
+@@ -100,10 +101,10 @@ impl<N: Network> ParserContext<'_, N> {
+         // Set the program name in the context.
+         self.program_name = Some(name.name);
+ 
+-        // Parse the program network.
++        // Parse the `.`.
+         self.expect(&Token::Dot)?;
+ 
+-        // Otherwise throw parser error
++        // Parse the program network, which must be `aleo`, otherwise throw parser error.
+         self.expect(&Token::Aleo).map_err(|_| ParserError::invalid_network(self.token.span))?;
+ 
+         // Construct the program id.
+diff --git a/compiler/parser/src/parser/mod.rs b/compiler/parser/src/parser/mod.rs
+index 7a6ee0d571..33e350a893 100644
+--- a/compiler/parser/src/parser/mod.rs
++++ b/compiler/parser/src/parser/mod.rs
+@@ -14,10 +14,10 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-//! The parser to convert Leo code text into an [`Program`] AST type.
++//! The parser to convert Leo code text into a [`Program`] AST type.
+ //!
+-//! This module contains the [`parse()`] method which calls the underlying [`tokenize()`]
+-//! method to create a new program ast.
++//! This module contains the [`parse()`] function which calls the underlying [`tokenize()`]
++//! method to create a new program AST.
+ 
+ use crate::{tokenizer::*, Token};
+ 
+diff --git a/compiler/parser/src/tokenizer/lexer.rs b/compiler/parser/src/tokenizer/lexer.rs
+index fbe5bb7864..a7c33af1e7 100644
+--- a/compiler/parser/src/tokenizer/lexer.rs
++++ b/compiler/parser/src/tokenizer/lexer.rs
+@@ -154,8 +154,15 @@ impl Token {
+     //     }
+     // }
+ 
+-    /// Returns a tuple: [(integer length, integer token)] if an integer can be eaten, otherwise returns [`None`].
+-    /// An integer can be eaten if its bytes are at the front of the given `input` string.
++    /// Returns a tuple: [(integer length, integer token)] if an integer can be eaten.
++    /// An integer can be eaten if its characters are at the front of the given `input` string.
++    /// If there is no input, this function returns an error.
++    /// If there is input but no integer, this function returns the tuple consisting of
++    /// length 0 and a dummy integer token that contains an empty string.
++    /// However, this function is always called when the next character is a digit.
++    /// This function eats a sequence of one or more digits and underscores
++    /// (starting from a digit, as explained above, given when it is called),
++    /// which corresponds to a numeral in the ABNF grammar.
+     fn eat_integer(input: &mut Peekable<impl Iterator<Item = char>>) -> Result<(usize, Token)> {
+         if input.peek().is_none() {
+             return Err(ParserError::lexer_empty_input().into());
+@@ -178,7 +185,7 @@ impl Token {
+     }
+ 
+     /// Returns a tuple: [(token length, token)] if the next token can be eaten, otherwise returns an error.
+-    /// The next token can be eaten if the bytes at the front of the given `input` string can be scanned into a token.
++    /// The next token can be eaten if the characters at the front of the given `input` string can be scanned into a token.
+     pub(crate) fn eat(input: &str) -> Result<(usize, Token)> {
+         if input.is_empty() {
+             return Err(ParserError::lexer_empty_input().into());
+@@ -221,13 +228,13 @@ impl Token {
+         // See the example with the different combinations for Mul, MulAssign, Pow, PowAssign below.
+         let match_four = |
+             input: &mut Peekable<_>,
+-            first_token, // Mul '*'
+-            second_char, // '='
+-            second_token, // MulAssign '*='
+-            third_char, // '*'
+-            third_token, // Pow '**'
+-            fourth_char, // '='
+-            fourth_token // PowAssign '**='
++            first_token, // e.e. Mul '*'
++            second_char, // e.g. '='
++            second_token, // e.g. MulAssign '*='
++            third_char, // e.g. '*'
++            third_token, // e.g. Pow '**'
++            fourth_char, // e.g. '='
++            fourth_token // e.g. PowAssign '**='
+         | {
+             input.next();
+             Ok(if input.next_if_eq(&second_char).is_some() {
+@@ -252,7 +259,7 @@ impl Token {
+                 // Find end string quotation mark.
+                 // Instead of checking each `char` and pushing, we can avoid reallocations.
+                 // This works because the code 34 of double quote cannot appear as a byte
+-                // in middle of a multi-byte UTF-8 encoding of a character,
++                // in the middle of a multi-byte UTF-8 encoding of a character,
+                 // because those bytes all have the high bit set to 1;
+                 // in UTF-8, the byte 34 can only appear as the single-byte encoding of double quote.
+                 let rest = &input_str[1..];
+@@ -306,7 +313,7 @@ impl Token {
+                 if input.next_if_eq(&'/').is_some() {
+                     // Find the end of the comment line.
+                     // This works because the code 10 of line feed cannot appear as a byte
+-                    // in middle of a multi-byte UTF-8 encoding of a character,
++                    // in the middle of a multi-byte UTF-8 encoding of a character,
+                     // because those bytes all have the high bit set to 1;
+                     // in UTF-8, the byte 10 can only appear as the single-byte encoding of line feed.
+                     let comment = match input_str.as_bytes().iter().position(|c| *c == b'\n') {
+@@ -416,8 +423,8 @@ impl Token {
+                     "record" => Token::Record,
+                     "return" => Token::Return,
+                     "scalar" => Token::Scalar,
+-                    "signature" => Token::Signature,
+                     "self" => Token::SelfLower,
++                    "signature" => Token::Signature,
+                     "string" => Token::String,
+                     "struct" => Token::Struct,
+                     "transition" => Token::Transition,
+diff --git a/compiler/parser/src/tokenizer/token.rs b/compiler/parser/src/tokenizer/token.rs
+index ce76068b84..f810cea96c 100644
+--- a/compiler/parser/src/tokenizer/token.rs
++++ b/compiler/parser/src/tokenizer/token.rs
+@@ -29,20 +29,24 @@ use leo_span::{sym, Symbol};
+ #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+ pub enum Token {
+     // Comments
+-    CommentLine(String),
+-    CommentBlock(String),
++    CommentLine(String),  // the string includes the starting '//' and the ending line feed
++    CommentBlock(String), // the string includes the starting '/*' and the ending '*/'
+ 
+     // Whitespace (we do not distinguish among different kinds here)
+     WhiteSpace,
+ 
+     // Literals (= atomic literals and numerals in the ABNF grammar)
+-    // The string in Integer(String) consists of digits optionally followed by a type
+-    // The string in AddressLit(String) has the form `aleo1...`
++    // The string in Integer(String) consists of digits
++    // The string in AddressLit(String) has the form `aleo1...`.
+     True,
+     False,
+-    Integer(String), // = numeric literal or numeral in the ABNF grammar
++    Integer(String), // = numeral (including tuple index) in the ABNF grammar
+     AddressLit(String),
+     StaticString(String),
++    // The numeric literals in the ABNF grammar, which consist of numerals followed by types,
++    // are represented not as single tokens here,
++    // but as two separate tokens (one for the numeral and one for the type),
++    // enforcing, during parsing, the absence of whitespace or comments between those two tokens.
+ 
+     // Identifiers
+     Identifier(Symbol),
+diff --git a/errors/src/common/mod.rs b/errors/src/common/mod.rs
+index 3a580f97f4..41c10ce326 100644
+--- a/errors/src/common/mod.rs
++++ b/errors/src/common/mod.rs
+@@ -32,7 +32,7 @@ pub use self::traits::*;
+ 
+ // Right now for cleanliness of calling error functions we say each argument implements one of the follow types rather than giving a specific type.
+ // This allows us to just pass many types rather doing conversions cleaning up the code.
+-// The args can be made cleaneronce https://github.com/rust-lang/rust/issues/41517 or https://github.com/rust-lang/rust/issues/63063 hits stable.
++// The args can be made cleaner once https://github.com/rust-lang/rust/issues/41517 or https://github.com/rust-lang/rust/issues/63063 hits stable.
+ // Either of why would allows to generate a type alias for these trait implementing types.
+ // pub(crate) type DisplayArg = impl std::fmt::Display;
+ // pub(crate) type DebugArg = impl std::fmt::Debug;
+diff --git a/errors/src/errors/mod.rs b/errors/src/errors/mod.rs
+index f52f608696..c99242d405 100644
+--- a/errors/src/errors/mod.rs
++++ b/errors/src/errors/mod.rs
+@@ -60,16 +60,16 @@ pub enum LeoError {
+     /// Represents an AST Error in a Leo Error.
+     #[error(transparent)]
+     AstError(#[from] AstError),
+-    /// Represents an CLI Error in a Leo Error.
++    /// Represents a CLI Error in a Leo Error.
+     #[error(transparent)]
+     CliError(#[from] CliError),
+-    /// Represents an Compiler Error in a Leo Error.
++    /// Represents a Compiler Error in a Leo Error.
+     #[error(transparent)]
+     CompilerError(#[from] CompilerError),
+-    /// Represents an Package Error in a Leo Error.
++    /// Represents a Package Error in a Leo Error.
+     #[error(transparent)]
+     PackageError(#[from] PackageError),
+-    /// Represents an Parser Error in a Leo Error.
++    /// Represents a Parser Error in a Leo Error.
+     #[error(transparent)]
+     ParserError(#[from] ParserError),
+     /// Represents a Type Checker Error in a Leo Error.
+@@ -85,7 +85,7 @@ pub enum LeoError {
+     /// not re-displaying an error.
+     #[error("")]
+     LastErrorCode(i32),
+-    /// Represents a Utils Error in a Leo Error
++    /// Represents a Utils Error in a Leo Error.
+     #[error(transparent)]
+     UtilError(#[from] UtilError),
+     /// Anyhow errors.
+@@ -133,14 +133,14 @@ impl LeoError {
+     }
+ }
+ 
+-/// The LeoWarning type that contains all sub error types.
+-/// This allows a unified error type throughout the Leo crates.
++/// The LeoWarning type that contains all sub warning types.
++/// This allows a unified warning type throughout the Leo crates.
+ #[derive(Debug, Error)]
+ pub enum LeoWarning {
+-    /// Represents an Parser Error in a Leo Error.
++    /// Represents an Parser Warning in a Leo Warning.
+     #[error(transparent)]
+     ParserWarning(#[from] ParserWarning),
+-    /// Represents a Type Checker Error in a Leo Error.
++    /// Represents a Type Checker Warning in a Leo Warning.
+     #[error(transparent)]
+     TypeCheckerWarning(#[from] TypeCheckerWarning),
+ }
+diff --git a/errors/src/lib.rs b/errors/src/lib.rs
+index eac73c9d90..55bfc9f5b7 100644
+--- a/errors/src/lib.rs
++++ b/errors/src/lib.rs
+@@ -21,7 +21,7 @@
+ #[macro_use]
+ extern crate thiserror;
+ 
+-/// Contains the common functionalities for defining errors..
++/// Contains the common functionalities for defining errors.
+ #[macro_use]
+ pub mod common;
+ pub use self::common::*;
+@@ -29,6 +29,6 @@ pub use self::common::*;
+ /// Contains traits and types for channels through which errors go.
+ pub mod emitter;
+ 
+-/// Contains the errors and warnings for the Leo lang.
++/// Contains the errors and warnings for the Leo language.
+ pub mod errors;
+ pub use self::errors::*;

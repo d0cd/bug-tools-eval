@@ -1,0 +1,26 @@
+diff --git a/synthesizer/src/block/header/metadata/mod.rs b/synthesizer/src/block/header/metadata/mod.rs
+index c12819bdc..987760b9d 100644
+--- a/synthesizer/src/block/header/metadata/mod.rs
++++ b/synthesizer/src/block/header/metadata/mod.rs
+@@ -94,6 +94,8 @@ impl<N: Network> Metadata<N> {
+                     && self.coinbase_target >= N::GENESIS_COINBASE_TARGET
+                     // Ensure the proof target is at or above the minimum.
+                     && self.proof_target >= N::GENESIS_PROOF_TARGET
++                    // Ensure the coinbase target is larger than the proof target.
++                    && self.coinbase_target > self.proof_target
+                     // Ensure the last coinbase target is at or above the minimum.
+                     && self.last_coinbase_target >= N::GENESIS_COINBASE_TARGET
+                     // Ensure the last coinbase timestamp is after the genesis timestamp.
+diff --git a/synthesizer/src/block/header/metadata/serialize.rs b/synthesizer/src/block/header/metadata/serialize.rs
+index d2f74c7ab..660d7e64d 100644
+--- a/synthesizer/src/block/header/metadata/serialize.rs
++++ b/synthesizer/src/block/header/metadata/serialize.rs
+@@ -21,7 +21,7 @@ impl<N: Network> Serialize for Metadata<N> {
+     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+         match serializer.is_human_readable() {
+             true => {
+-                let mut metadata = serializer.serialize_struct("Certificate", 8)?;
++                let mut metadata = serializer.serialize_struct("Metadata", 8)?;
+                 metadata.serialize_field("network", &self.network)?;
+                 metadata.serialize_field("round", &self.round)?;
+                 metadata.serialize_field("height", &self.height)?;

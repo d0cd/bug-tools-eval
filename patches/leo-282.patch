@@ -1,0 +1,341 @@
+diff --git a/.circleci/test-examples.sh b/.circleci/test-examples.sh
+index 5c9326db78..2834aebb65 100755
+--- a/.circleci/test-examples.sh
++++ b/.circleci/test-examples.sh
+@@ -57,7 +57,8 @@ fi
+ echo "Building and running the \`bubblesort\` program..."
+ (
+   cd $EXAMPLES/bubblesort || exit
+-  $LEO run bubble_sort --file $EXAMPLES/bubblesort/inputs/bubblesort.in || exit
++  mapfile -t args < $EXAMPLES/bubblesort/inputs/bubblesort.in
++  $LEO run bubble_sort "${args[@]}" || exit
+ )
+ # Check that the bubblesort program ran successfully.
+ EXITCODE=$?
+@@ -70,7 +71,8 @@ fi
+ echo "Building and running the \`core\` program..."
+ (
+   cd $EXAMPLES/core || exit
+-  $LEO run main --file $EXAMPLES/core/inputs/core.in || exit
++  mapfile -t args < $EXAMPLES/core/inputs/core.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the core program ran successfully.
+ EXITCODE=$?
+@@ -83,7 +85,8 @@ fi
+ echo "Building and running the \`groups\` program..."
+ (
+   cd $EXAMPLES/groups || exit
+-  $LEO run main --file $EXAMPLES/groups/inputs/groups.in || exit
++  mapfile -t args < $EXAMPLES/groups/inputs/groups.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the groups program ran successfully.
+ EXITCODE=$?
+@@ -96,7 +99,8 @@ fi
+ echo "Building and running the \`hackers-delight/ntzdebruijn\` program..."
+ (
+   cd $EXAMPLES/hackers-delight/ntzdebruijn || exit
+-  $LEO run main --file $EXAMPLES/hackers-delight/ntzdebruijn/inputs/ntzdebruijn.in || exit
++  mapfile -t args < $EXAMPLES/hackers-delight/ntzdebruijn/inputs/ntzdebruijn.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the hackers-delight/ntzdebruijn program ran successfully.
+ EXITCODE=$?
+@@ -109,7 +113,8 @@ fi
+ echo "Building and running the \`hackers-delight/ntzgaudet\` program..."
+ (
+   cd $EXAMPLES/hackers-delight/ntzgaudet || exit
+-  $LEO run main --file $EXAMPLES/hackers-delight/ntzgaudet/inputs/ntzgaudet.in || exit
++  mapfile -t args < $EXAMPLES/hackers-delight/ntzgaudet/inputs/ntzgaudet.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the hackers-delight/ntzgaudet program ran successfully.
+ EXITCODE=$?
+@@ -122,7 +127,8 @@ fi
+ echo "Building and running the \`hackers-delight/ntzloops\` program..."
+ (
+   cd $EXAMPLES/hackers-delight/ntzloops || exit
+-  $LEO run main --file $EXAMPLES/hackers-delight/ntzloops/inputs/ntzloops.in || exit
++  mapfile -t args < $EXAMPLES/hackers-delight/ntzloops/inputs/ntzloops.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the hackers-delight/ntzloops program ran successfully.
+ EXITCODE=$?
+@@ -135,7 +141,8 @@ fi
+ echo "Building and running the \`hackers-delight/ntzmasks\` program..."
+ (
+   cd $EXAMPLES/hackers-delight/ntzmasks || exit
+-  $LEO run main --file $EXAMPLES/hackers-delight/ntzmasks/inputs/ntzmasks.in || exit
++  mapfile -t args < $EXAMPLES/hackers-delight/ntzmasks/inputs/ntzmasks.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the hackers-delight/ntzmasks program ran successfully.
+ EXITCODE=$?
+@@ -148,7 +155,8 @@ fi
+ echo "Building and running the \`hackers-delight/ntzreisers\` program..."
+ (
+   cd $EXAMPLES/hackers-delight/ntzreisers || exit
+-  $LEO run main --file $EXAMPLES/hackers-delight/ntzreisers/inputs/ntzreisers.in || exit
++  mapfile -t args < $EXAMPLES/hackers-delight/ntzreisers/inputs/ntzreisers.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the hackers-delight/ntzreisers program ran successfully.
+ EXITCODE=$?
+@@ -161,7 +169,8 @@ fi
+ echo "Building and running the \`hackers-delight/ntzseals\` program..."
+ (
+   cd $EXAMPLES/hackers-delight/ntzseals || exit
+-  $LEO run main --file $EXAMPLES/hackers-delight/ntzseals/inputs/ntzseals.in || exit
++  mapfile -t args < $EXAMPLES/hackers-delight/ntzseals/inputs/ntzseals.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the hackers-delight/ntzseals program ran successfully.
+ EXITCODE=$?
+@@ -174,7 +183,8 @@ fi
+ echo "Building and running the \`hackers-delight/ntzsearchtree\` program..."
+ (
+   cd $EXAMPLES/hackers-delight/ntzsearchtree || exit
+-  $LEO run main --file $EXAMPLES/hackers-delight/ntzsearchtree/inputs/ntzsearchtree.in || exit
++  mapfile -t args < $EXAMPLES/hackers-delight/ntzsearchtree/inputs/ntzsearchtree.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the hackers-delight/ntzsearchtree program ran successfully.
+ EXITCODE=$?
+@@ -187,7 +197,8 @@ fi
+ echo "Building and running the \`hackers-delight/ntzsmallvals\` program..."
+ (
+   cd $EXAMPLES/hackers-delight/ntzsmallvals || exit
+-  $LEO run main --file $EXAMPLES/hackers-delight/ntzsmallvals/inputs/ntzsmallvals.in || exit
++  mapfile -t args < $EXAMPLES/hackers-delight/ntzsmallvals/inputs/ntzsmallvals.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the hackers-delight/ntzsmallvals program ran successfully.
+ EXITCODE=$?
+@@ -200,7 +211,8 @@ fi
+ echo "Building and running the \`helloworld\` program..."
+ (
+   cd $EXAMPLES/helloworld || exit
+-  $LEO run main --file $EXAMPLES/helloworld/inputs/helloworld.in || exit
++  mapfile -t args < $EXAMPLES/helloworld/inputs/helloworld.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the helloworld program ran successfully.
+ EXITCODE=$?
+@@ -216,10 +228,12 @@ echo "Building and running the \`interest\` programs..."
+   cd $EXAMPLES/interest || exit
+ 
+   # Run the fixed period interest program.
+-  $LEO run fixed_iteration_interest --file $EXAMPLES/interest/inputs/fixed.in || exit
++  mapfile -t args < $EXAMPLES/interest/inputs/fixed.in
++  $LEO run fixed_iteration_interest "${args[@]}" || exit
+ 
+   # Run the bounded period interest program.
+-  $LEO run bounded_iteration_interest --file $EXAMPLES/interest/inputs/bounded.in || exit
++  mapfile -t args < $EXAMPLES/interest/inputs/bounded.in
++  $LEO run bounded_iteration_interest "${args[@]}" || exit
+ )
+ # Check that the interest programs ran successfully.
+ EXITCODE=$?
+@@ -232,7 +246,8 @@ fi
+ echo "Building and running the \`message\` program..."
+ (
+   cd $EXAMPLES/message || exit
+-  $LEO run main --file $EXAMPLES/message/inputs/message.in || exit
++  mapfile -t args < $EXAMPLES/message/inputs/message.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the message program ran successfully.
+ EXITCODE=$?
+@@ -246,7 +261,8 @@ echo "Building and running the \`tictactoe\` program..."
+ (
+   cd $EXAMPLES/tictactoe || exit
+   $LEO run new || exit
+-  $LEO run make_move --file $EXAMPLES/tictactoe/inputs/tictactoe.in || exit
++  mapfile -t args < $EXAMPLES/tictactoe/inputs/tictactoe.in
++  $LEO run make_move "${args[@]}" || exit
+ 
+   chmod +x $EXAMPLES/tictactoe/run.sh || exit
+   export -f leo
+@@ -265,10 +281,12 @@ echo "Building and running the \`simple_token\` programs..."
+   cd $EXAMPLES/simple_token || exit
+ 
+   # Run the mint program.
+-  $LEO run mint --file $EXAMPLES/simple_token/inputs/mint.in || exit
++  mapfile -t args < $EXAMPLES/simple_token/inputs/mint.in
++  $LEO run mint "${args[@]}" || exit
+ 
+   # Run the transfer program.
+-  $LEO run transfer --file $EXAMPLES/simple_token/inputs/transfer.in || exit
++  mapfile -t args < $EXAMPLES/simple_token/inputs/transfer.in
++  $LEO run transfer "${args[@]}" || exit
+ )
+ # Check that the simple token programs ran successfully.
+ EXITCODE=$?
+@@ -297,7 +315,8 @@ fi
+ echo "Building and running the \`twoadicity\` program..."
+ (
+   cd $EXAMPLES/twoadicity || exit
+-  $LEO run main --file $EXAMPLES/twoadicity/inputs/twoadicity.in || exit
++  mapfile -t args < $EXAMPLES/twoadicity/inputs/twoadicity.in
++  $LEO run main "${args[@]}" || exit
+ )
+ # Check that the two-adicity program ran successfully.
+ EXITCODE=$?
+diff --git a/examples b/examples
+index 155f8410fb..f0ebf32809 160000
+--- a/examples
++++ b/examples
+@@ -1 +1 @@
+-Subproject commit 155f8410fb199c971b50950882a74ff593f8f5d9
++Subproject commit f0ebf32809001ce0e9794fa2dd9643cdee42e53b
+diff --git a/leo/cli/cli.rs b/leo/cli/cli.rs
+index d9caa141c8..916c91ee85 100644
+--- a/leo/cli/cli.rs
++++ b/leo/cli/cli.rs
+@@ -184,7 +184,6 @@ mod tests {
+                 command: crate::cli::commands::LeoRun {
+                     name: "example".to_string(),
+                     inputs: vec!["1u32".to_string(), "2u32".to_string()],
+-                    file: None,
+                     compiler_options: Default::default(),
+                     env_override: Default::default(),
+                 },
+@@ -230,7 +229,6 @@ mod tests {
+                         "aleo13tngrq7506zwdxj0cxjtvp28pk937jejhne0rt4zp0z370uezuysjz2prs".to_string(),
+                         "2u32".to_string(),
+                     ],
+-                    file: None,
+                     compiler_options: Default::default(),
+                     env_override: Default::default(),
+                 },
+@@ -273,7 +271,6 @@ mod tests {
+                     inputs: vec!["1u32".to_string(), "2u32".to_string()],
+                     compiler_options: Default::default(),
+                     env_override: Default::default(),
+-                    file: None,
+                 },
+             },
+             path: Some(project_directory.clone()),
+@@ -311,7 +308,6 @@ mod tests {
+                     inputs: vec!["1u32".to_string(), "2u32".to_string()],
+                     compiler_options: Default::default(),
+                     env_override: Default::default(),
+-                    file: None,
+                 },
+             },
+             path: Some(project_directory.clone()),
+diff --git a/leo/cli/commands/execute.rs b/leo/cli/commands/execute.rs
+index c8ec399cd0..2a8c6469e4 100644
+--- a/leo/cli/commands/execute.rs
++++ b/leo/cli/commands/execute.rs
+@@ -63,8 +63,6 @@ pub struct LeoExecute {
+     pub(crate) extra: ExtraOptions,
+     #[clap(flatten)]
+     build_options: BuildOptions,
+-    #[arg(short, long, help = "The inputs to the program, from a file. Overrides the INPUTS argument.")]
+-    file: Option<String>,
+ }
+ 
+ impl Command for LeoExecute {
+@@ -225,18 +223,8 @@ fn handle_execute<A: Aleo>(
+         }
+     }
+ 
+-    // Parse the inputs.
+-    // If the `file` option is set, read the inputs from the file.
+-    let input_strings = if let Some(file) = command.file {
+-        // Read the inputs from the file.
+-        let file = std::fs::read_to_string(file).map_err(|e| CliError::custom(format!("Failed to read file: {e}")))?;
+-        // Parse the inputs from the file.
+-        file.lines().map(|line| line.to_string()).collect::<Vec<_>>()
+-    } else {
+-        // Use the inputs from the command line.
+-        command.inputs
+-    };
+-    let inputs = input_strings
++    let inputs = command
++        .inputs
+         .into_iter()
+         .map(|input| {
+             Value::from_str(&input).map_err(|e| CliError::custom(format!("Failed to parse input: {e}")).into())
+diff --git a/leo/cli/commands/run.rs b/leo/cli/commands/run.rs
+index d42cdd39ac..78baf8fe39 100644
+--- a/leo/cli/commands/run.rs
++++ b/leo/cli/commands/run.rs
+@@ -16,11 +16,7 @@
+ 
+ use super::*;
+ 
+-use leo_package::NetworkName;
+-use snarkvm::{
+-    cli::Run as SnarkVMRun,
+-    prelude::{CanaryV0, MainnetV0, Network, Parser as SnarkVMParser, TestnetV0},
+-};
++use snarkvm::cli::Run as SnarkVMRun;
+ 
+ /// Build, Prove and Run Leo program with inputs
+ #[derive(Parser, Debug)]
+@@ -29,8 +25,6 @@ pub struct LeoRun {
+     pub(crate) name: String,
+     #[clap(name = "INPUTS", help = "The inputs to the program.")]
+     pub(crate) inputs: Vec<String>,
+-    #[arg(short, long, help = "The inputs to the program, from a file. Overrides the INPUTS argument.")]
+-    pub(crate) file: Option<String>,
+     #[clap(flatten)]
+     pub(crate) compiler_options: BuildOptions,
+     #[clap(flatten)]
+@@ -50,50 +44,17 @@ impl Command for LeoRun {
+     }
+ 
+     fn apply(self, context: Context, _: Self::Input) -> Result<Self::Output> {
+-        // Parse the network.
+-        let network = context.get_network(&self.env_override.network)?.parse()?;
+-        match network {
+-            NetworkName::MainnetV0 => handle_run::<MainnetV0>(self, context),
+-            NetworkName::TestnetV0 => handle_run::<TestnetV0>(self, context),
+-            NetworkName::CanaryV0 => handle_run::<CanaryV0>(self, context),
+-        }
++        handle_run(self, context)
+     }
+ }
+ 
+ // A helper function to handle the run command.
+-fn handle_run<N: Network>(command: LeoRun, context: Context) -> Result<<LeoRun as Command>::Output> {
+-    let mut inputs = command.inputs;
+-
++fn handle_run(mut command: LeoRun, context: Context) -> Result<<LeoRun as Command>::Output> {
+     // Compose the `run` command.
+     // The argument "--" is the separator, used to make sure snarkvm doesn't try to parse negative
+     // values as CLI flags.
+     let mut arguments = vec![SNARKVM_COMMAND.to_string(), command.name, "--".to_string()];
+-
+-    // Add the inputs to the arguments.
+-    match command.file {
+-        Some(file) => {
+-            // Get the contents from the file.
+-            let path = context.dir()?.join(file);
+-            let raw_content =
+-                std::fs::read_to_string(&path).map_err(|err| PackageError::failed_to_read_file(path.display(), err))?;
+-            // Parse the values from the file.
+-            let mut content = raw_content.as_str();
+-            let mut values = vec![];
+-            while let Ok((remaining, value)) = snarkvm::prelude::Value::<N>::parse(content) {
+-                content = remaining;
+-                values.push(value);
+-            }
+-            // Check that the remaining content is empty.
+-            if !content.trim().is_empty() {
+-                return Err(PackageError::failed_to_read_input_file(path.display()).into());
+-            }
+-            // Convert the values to strings.
+-            let inputs_from_file = values.iter().map(|value| value.to_string());
+-            // Add the inputs from the file to the arguments.
+-            arguments.extend(inputs_from_file);
+-        }
+-        None => arguments.append(&mut inputs),
+-    }
++    arguments.append(&mut command.inputs);
+ 
+     // Open the Leo build/ directory
+     let path = context.dir()?;

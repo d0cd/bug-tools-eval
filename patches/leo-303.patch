@@ -1,0 +1,151 @@
+diff --git a/compiler/passes/src/function_inlining/program.rs b/compiler/passes/src/function_inlining/program.rs
+index 7d5fc2af01..18ecc1adff 100644
+--- a/compiler/passes/src/function_inlining/program.rs
++++ b/compiler/passes/src/function_inlining/program.rs
+@@ -30,7 +30,7 @@ impl ProgramReconstructor for FunctionInliningVisitor<'_> {
+         let order = self
+             .state
+             .call_graph
+-            .post_order()
++            .post_order_with_filter(|location| location.program == self.program)
+             .unwrap()
+             .into_iter()
+             .filter_map(|location| (location.program == self.program).then_some(location.path))
+@@ -118,6 +118,8 @@ impl ProgramReconstructor for FunctionInliningVisitor<'_> {
+     }
+ 
+     fn reconstruct_program(&mut self, input: Program) -> Program {
++        let stubs = input.stubs.into_iter().map(|(id, stub)| (id, self.reconstruct_stub(stub))).collect();
++
+         // Populate `self.function_map` using the functions in the program scopes and the modules
+         input
+             .modules
+@@ -141,6 +143,7 @@ impl ProgramReconstructor for FunctionInliningVisitor<'_> {
+         // modules will be traversed using the call graph and reconstructed in the right order, so
+         // no need to reconstruct the modules explicitly.
+         Program {
++            stubs,
+             program_scopes: input
+                 .program_scopes
+                 .into_iter()
+diff --git a/compiler/passes/src/write_transforming/visitor.rs b/compiler/passes/src/write_transforming/visitor.rs
+index ba4335dc49..1b28252b87 100644
+--- a/compiler/passes/src/write_transforming/visitor.rs
++++ b/compiler/passes/src/write_transforming/visitor.rs
+@@ -31,6 +31,7 @@ use leo_ast::{
+     Path,
+     Program,
+     Statement,
++    Stub,
+     Type,
+ };
+ use leo_span::Symbol;
+@@ -257,6 +258,11 @@ impl AstVisitor for WriteTransformingFiller<'_> {
+ 
+ impl WriteTransformingFiller<'_> {
+     fn fill(&mut self, program: &Program) {
++        for stub in program.stubs.iter() {
++            if let (_, Stub::FromLeo { program, .. }) = stub {
++                self.fill(program);
++            }
++        }
+         for (_, module) in program.modules.iter() {
+             self.0.program = module.program_name;
+             for (_, function) in module.functions.iter() {
+diff --git a/tests/expectations/compiler/array/array_assign_in_external.out b/tests/expectations/compiler/array/array_assign_in_external.out
+new file mode 100644
+index 0000000000..8b78542197
+--- /dev/null
++++ b/tests/expectations/compiler/array/array_assign_in_external.out
+@@ -0,0 +1,11 @@
++program child.aleo;
++
++function foo:
++    input r0 as u32.private;
++    cast 1u32 2u32 3u32 into r1 as [u32; 3u32];
++    output r1 as [u32; 3u32].private;
++// --- Next Program --- //
++import child.aleo;
++program parent.aleo;
++
++function main:
+diff --git a/tests/expectations/compiler/function/inline_in_external.out b/tests/expectations/compiler/function/inline_in_external.out
+new file mode 100644
+index 0000000000..8d1bc7b885
+--- /dev/null
++++ b/tests/expectations/compiler/function/inline_in_external.out
+@@ -0,0 +1,19 @@
++program child.aleo;
++
++function foo:
++    async foo into r0;
++    output r0 as child.aleo/foo.future;
++
++finalize foo:
++    assert.eq true true;
++    assert.eq false true;
++// --- Next Program --- //
++import child.aleo;
++program parent.aleo;
++
++function foo:
++    async foo into r0;
++    output r0 as parent.aleo/foo.future;
++
++finalize foo:
++    assert.eq true true;
+diff --git a/tests/tests/compiler/array/array_assign_in_external.leo b/tests/tests/compiler/array/array_assign_in_external.leo
+new file mode 100644
+index 0000000000..6a32b29e42
+--- /dev/null
++++ b/tests/tests/compiler/array/array_assign_in_external.leo
+@@ -0,0 +1,18 @@
++// This test ensures that `WriteTransforming` works on array assignment in Leo stubs
++
++program child.aleo {
++    transition foo(b: u32) -> [u32; 3] {
++        let a = [b; 3];
++        a[0] = 1;
++        a[1] = 2;
++        a[2] = 3;
++        return a;
++    }
++}
++
++// --- Next Program --- //
++
++import child.aleo;
++program parent.aleo {
++    transition main() { }
++}
+diff --git a/tests/tests/compiler/function/inline_in_external.leo b/tests/tests/compiler/function/inline_in_external.leo
+new file mode 100644
+index 0000000000..ce8147f975
+--- /dev/null
++++ b/tests/tests/compiler/function/inline_in_external.leo
+@@ -0,0 +1,25 @@
++// This test ensures that `FunctionInlining` works in Leo stubs
++
++program child.aleo {
++    async transition foo() -> Future {
++      return async {
++        assert(f() == 4);
++        assert(f() != 4);
++      };
++    }
++
++    inline f() -> u32 { return 4; }
++}
++
++// --- Next Program --- //
++
++import child.aleo;
++program parent.aleo {
++    async transition foo() -> Future {
++      return async {
++        assert(f() == 4);
++      };
++    }
++
++    inline f() -> u32 { return 4; }
++}

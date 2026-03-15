@@ -1,0 +1,91 @@
+diff --git a/node/bft/src/gateway.rs b/node/bft/src/gateway.rs
+index 4135a456e..43401e7e2 100644
+--- a/node/bft/src/gateway.rs
++++ b/node/bft/src/gateway.rs
+@@ -1193,10 +1193,13 @@ impl<N: Network> Disconnect for Gateway<N> {
+ #[async_trait]
+ impl<N: Network> OnConnect for Gateway<N> {
+     async fn on_connect(&self, peer_addr: SocketAddr) {
+-        if let Some(peer) = self.get_connected_peer(peer_addr) {
+-            if peer.node_type == NodeType::BootstrapClient {
+-                let _ =
+-                    <Self as Transport<N>>::send(self, peer_addr, Event::ValidatorsRequest(ValidatorsRequest)).await;
++        if let Some(listener_addr) = self.resolve_to_listener(&peer_addr) {
++            if let Some(peer) = self.get_connected_peer(listener_addr) {
++                if peer.node_type == NodeType::BootstrapClient {
++                    let _ =
++                        <Self as Transport<N>>::send(self, listener_addr, Event::ValidatorsRequest(ValidatorsRequest))
++                            .await;
++                }
+             }
+         }
+     }
+diff --git a/node/src/client/router.rs b/node/src/client/router.rs
+index 0ed3f634d..87f0ed99f 100644
+--- a/node/src/client/router.rs
++++ b/node/src/client/router.rs
+@@ -65,13 +65,15 @@ impl<N: Network, C: ConsensusStorage<N>> Handshake for Client<N, C> {
+ impl<N: Network, C: ConsensusStorage<N>> OnConnect for Client<N, C> {
+     async fn on_connect(&self, peer_addr: SocketAddr) {
+         // Resolve the peer address to the listener address.
+-        if let Some(peer) = self.router.get_connected_peer(peer_addr) {
+-            // If it's a bootstrap client, only request its peers.
+-            if peer.node_type == NodeType::BootstrapClient {
+-                self.router().send(peer.listener_addr, Message::PeerRequest(PeerRequest));
+-            } else {
+-                // Send the first `Ping` message to the peer.
+-                self.ping.on_peer_connected(peer.listener_addr);
++        if let Some(listener_addr) = self.router().resolve_to_listener(peer_addr) {
++            if let Some(peer) = self.router().get_connected_peer(listener_addr) {
++                // If it's a bootstrap client, only request its peers.
++                if peer.node_type == NodeType::BootstrapClient {
++                    self.router().send(listener_addr, Message::PeerRequest(PeerRequest));
++                } else {
++                    // Send the first `Ping` message to the peer.
++                    self.ping.on_peer_connected(listener_addr);
++                }
+             }
+         }
+     }
+diff --git a/node/src/prover/router.rs b/node/src/prover/router.rs
+index a5b441b5c..c4fcf7773 100644
+--- a/node/src/prover/router.rs
++++ b/node/src/prover/router.rs
+@@ -60,10 +60,12 @@ where
+ {
+     async fn on_connect(&self, peer_addr: SocketAddr) {
+         // Resolve the peer address to the listener address.
+-        if let Some(peer) = self.router.get_connected_peer(peer_addr) {
+-            if peer.node_type != NodeType::BootstrapClient {
+-                // Send the first `Ping` message to the peer.
+-                self.ping.on_peer_connected(peer.listener_addr);
++        if let Some(listener_addr) = self.router().resolve_to_listener(peer_addr) {
++            if let Some(peer) = self.router().get_connected_peer(listener_addr) {
++                if peer.node_type != NodeType::BootstrapClient {
++                    // Send the first `Ping` message to the peer.
++                    self.ping.on_peer_connected(listener_addr);
++                }
+             }
+         }
+     }
+diff --git a/node/src/validator/router.rs b/node/src/validator/router.rs
+index 8208b59c4..ca384f5bd 100644
+--- a/node/src/validator/router.rs
++++ b/node/src/validator/router.rs
+@@ -66,10 +66,12 @@ where
+ {
+     async fn on_connect(&self, peer_addr: SocketAddr) {
+         // Resolve the peer address to the listener address.
+-        if let Some(peer) = self.router.get_connected_peer(peer_addr) {
+-            if peer.node_type != NodeType::BootstrapClient {
+-                // Send the first `Ping` message to the peer.
+-                self.ping.on_peer_connected(peer.listener_addr);
++        if let Some(listener_addr) = self.router().resolve_to_listener(peer_addr) {
++            if let Some(peer) = self.router().get_connected_peer(listener_addr) {
++                if peer.node_type != NodeType::BootstrapClient {
++                    // Send the first `Ping` message to the peer.
++                    self.ping.on_peer_connected(listener_addr);
++                }
+             }
+         }
+     }

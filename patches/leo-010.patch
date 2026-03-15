@@ -1,0 +1,395 @@
+diff --git a/ast/src/leo.pest b/ast/src/leo.pest
+index 38bf0c1a91..2d763db9ff 100644
+--- a/ast/src/leo.pest
++++ b/ast/src/leo.pest
+@@ -131,7 +131,7 @@ operation_pow_assign = { "**=" }
+ /// Types
+ 
+ // Declared in types/type_.rs
+-type_ = { type_self | type_tuple |  type_array | type_data | type_circuit }
++type_ = { type_self | type_tuple | type_array | type_data | type_circuit }
+ 
+ // Declared in types/integer_type.rs
+ type_integer = {
+diff --git a/compiler/src/expression/array/array.rs b/compiler/src/expression/array/array.rs
+index 6c3c2160ae..8c06345902 100644
+--- a/compiler/src/expression/array/array.rs
++++ b/compiler/src/expression/array/array.rs
+@@ -46,13 +46,13 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         if let Some(type_) = expected_type {
+             match type_ {
+                 Type::Array(ref type_, ref dimensions) => {
+-                    let number = match dimensions.last() {
++                    let number = match dimensions.first() {
+                         Some(number) => number.clone(),
+                         None => return Err(ExpressionError::unexpected_array(type_.to_string(), span)),
+                     };
+ 
+                     expected_dimensions.push(number);
+-                    expected_type = Some(type_.inner_dimension(dimensions).clone());
++                    expected_type = Some(type_.outer_dimension(dimensions).clone());
+                 }
+                 ref type_ => {
+                     return Err(ExpressionError::unexpected_array(type_.to_string(), span));
+@@ -69,9 +69,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+                         match self.get(&array_name) {
+                             Some(value) => match value {
+                                 ConstrainedValue::Array(array) => result.extend(array.clone()),
+-                                value => {
+-                                    return Err(ExpressionError::invalid_spread(value.to_string(), span));
+-                                }
++                                value => return Err(ExpressionError::invalid_spread(value.to_string(), span)),
+                             },
+                             None => return Err(ExpressionError::undefined_array(identifier.name, span)),
+                         }
+diff --git a/compiler/src/value/value.rs b/compiler/src/value/value.rs
+index c229fa2e9c..57e4df3f89 100644
+--- a/compiler/src/value/value.rs
++++ b/compiler/src/value/value.rs
+@@ -112,7 +112,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedValue<F, G> {
+                 let array_type = types[0].to_type(span.clone())?;
+                 let count = types.len();
+ 
+-                // nested array type
++                // Nested array type
+                 if let Type::Array(inner_type, inner_dimensions) = &array_type {
+                     let mut dimensions = inner_dimensions.clone();
+                     dimensions.push(count);
+diff --git a/compiler/tests/array/input/initializer_fail.in b/compiler/tests/array/input/initializer_fail.in
+index cf991c79b6..0ff699aa13 100644
+--- a/compiler/tests/array/input/initializer_fail.in
++++ b/compiler/tests/array/input/initializer_fail.in
+@@ -1,2 +1,2 @@
+ [main]
+-a: [u8; (3, 2)] = [0; (2, 2)];
+\ No newline at end of file
++a: [u8; (3, 2)] = [0u8; (2, 2)];
+diff --git a/compiler/tests/array/input/inline_fail.leo b/compiler/tests/array/input/inline_fail.leo
+index ef826e9f0c..1e380be10d 100644
+--- a/compiler/tests/array/input/inline_fail.leo
++++ b/compiler/tests/array/input/inline_fail.leo
+@@ -1,3 +1,3 @@
+ function main() {
+     let a = [1u8, bool];
+-}
+\ No newline at end of file
++}
+diff --git a/compiler/tests/array/input/input_nested_3x2.in b/compiler/tests/array/input/input_nested_3x2.in
+new file mode 100644
+index 0000000000..9eaafe9bdd
+--- /dev/null
++++ b/compiler/tests/array/input/input_nested_3x2.in
+@@ -0,0 +1,2 @@
++[main]
++a: [u8; (3, 2)] = [[0u8; 2]; 3];
+diff --git a/compiler/tests/array/input/input_nested_3x2_fail.in b/compiler/tests/array/input/input_nested_3x2_fail.in
+new file mode 100644
+index 0000000000..d1c114a08b
+--- /dev/null
++++ b/compiler/tests/array/input/input_nested_3x2_fail.in
+@@ -0,0 +1,2 @@
++[main]
++a: [u8; (3, 2)] = [[0u8; 3]; 2)];
+diff --git a/compiler/tests/array/input/input_tuple_3x2.in b/compiler/tests/array/input/input_tuple_3x2.in
+new file mode 100644
+index 0000000000..1c0bd495ec
+--- /dev/null
++++ b/compiler/tests/array/input/input_tuple_3x2.in
+@@ -0,0 +1,2 @@
++[main]
++a: [u8; (3, 2)] = [0u8; (3, 2)];
+diff --git a/compiler/tests/array/input/input_tuple_3x2_fail.in b/compiler/tests/array/input/input_tuple_3x2_fail.in
+new file mode 100644
+index 0000000000..c281d9d464
+--- /dev/null
++++ b/compiler/tests/array/input/input_tuple_3x2_fail.in
+@@ -0,0 +1,2 @@
++[main]
++a: [u8; (3, 2)] = [0u8; (2, 3)];
+diff --git a/compiler/tests/array/input_nested_3x2.leo b/compiler/tests/array/input_nested_3x2.leo
+new file mode 100644
+index 0000000000..88777e90f7
+--- /dev/null
++++ b/compiler/tests/array/input_nested_3x2.leo
+@@ -0,0 +1,3 @@
++function main(a: [u8; (3, 2)]) {
++    console.assert(a == [[0u8; 2]; 3)]);
++}
+diff --git a/compiler/tests/array/input_nested_3x2_fail.leo b/compiler/tests/array/input_nested_3x2_fail.leo
+new file mode 100644
+index 0000000000..1f5bf7b334
+--- /dev/null
++++ b/compiler/tests/array/input_nested_3x2_fail.leo
+@@ -0,0 +1,3 @@
++function main(a: [u8; (3, 2)]) {
++    console.assert(a == [[0u8; 2]; 3)]); // This should be written the right way as this test is for the input file.
++}
+diff --git a/compiler/tests/array/input_tuple_3x2.leo b/compiler/tests/array/input_tuple_3x2.leo
+new file mode 100644
+index 0000000000..4c3c001f41
+--- /dev/null
++++ b/compiler/tests/array/input_tuple_3x2.leo
+@@ -0,0 +1,3 @@
++function main(a: [u8; (3, 2)]) {
++    console.assert(a == [0u8; (3, 2)]);
++}
+diff --git a/compiler/tests/array/input_tuple_3x2_fail.leo b/compiler/tests/array/input_tuple_3x2_fail.leo
+new file mode 100644
+index 0000000000..4c3c001f41
+--- /dev/null
++++ b/compiler/tests/array/input_tuple_3x2_fail.leo
+@@ -0,0 +1,3 @@
++function main(a: [u8; (3, 2)]) {
++    console.assert(a == [0u8; (3, 2)]);
++}
+diff --git a/compiler/tests/array/mod.rs b/compiler/tests/array/mod.rs
+index b9a337e756..cee31fec09 100644
+--- a/compiler/tests/array/mod.rs
++++ b/compiler/tests/array/mod.rs
+@@ -120,33 +120,45 @@ fn test_initializer_input_fail() {
+ }
+ 
+ #[test]
+-fn test_spread() {
+-    let program_bytes = include_bytes!("spread.leo");
+-    let input_bytes = include_bytes!("input/three_ones.in");
++#[ignore]
++// TODO (howardwu): Add support for this syntax.
++fn test_input_nested_3x2() {
++    let program_bytes = include_bytes!("input_nested_3x2.leo");
++    let input_bytes = include_bytes!("input/input_nested_3x2.in");
+     let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+-fn test_slice() {
+-    let program_bytes = include_bytes!("slice.leo");
+-    let input_bytes = include_bytes!("input/three_ones.in");
++fn test_input_nested_3x2_fail() {
++    let program_bytes = include_bytes!("input_nested_3x2_fail.leo");
++    let input_bytes = include_bytes!("input/input_nested_3x2_fail.in");
++    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
++
++    assert!(syntax_error);
++}
++
++#[test]
++fn test_input_tuple_3x2() {
++    let program_bytes = include_bytes!("input_tuple_3x2.leo");
++    let input_bytes = include_bytes!("input/input_tuple_3x2.in");
+     let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
+ #[test]
+-fn test_multi() {
+-    let program_bytes = include_bytes!("multi.leo");
+-    let program = parse_program(program_bytes).unwrap();
++fn test_input_tuple_3x2_fail() {
++    let program_bytes = include_bytes!("input_tuple_3x2_fail.leo");
++    let input_bytes = include_bytes!("input/input_tuple_3x2_fail.in");
++    let syntax_error = parse_program_with_input(program_bytes, input_bytes).is_err();
+ 
+-    assert_satisfied(program);
++    assert!(syntax_error);
+ }
+ 
+ #[test]
+-fn test_multi_fail() {
++fn test_multi_fail_initializer() {
+     let program_bytes = include_bytes!("multi_fail_initializer.leo");
+     let program = parse_program(program_bytes).unwrap();
+ 
+@@ -176,3 +188,53 @@ fn test_multi_initializer_fail() {
+ 
+     expect_compiler_error(program);
+ }
++
++#[test]
++fn test_nested_3x2_value() {
++    let program_bytes = include_bytes!("nested_3x2_value.leo");
++    let program = parse_program(program_bytes).unwrap();
++
++    assert_satisfied(program);
++}
++
++#[test]
++fn test_nested_3x2_value_fail() {
++    let program_bytes = include_bytes!("nested_3x2_value_fail.leo");
++    let program = parse_program(program_bytes).unwrap();
++
++    expect_compiler_error(program);
++}
++
++#[test]
++fn test_tuple_3x2_value() {
++    let program_bytes = include_bytes!("tuple_3x2_value.leo");
++    let program = parse_program(program_bytes).unwrap();
++
++    assert_satisfied(program);
++}
++
++#[test]
++fn test_tuple_3x2_value_fail() {
++    let program_bytes = include_bytes!("tuple_3x2_value_fail.leo");
++    let program = parse_program(program_bytes).unwrap();
++
++    expect_compiler_error(program);
++}
++
++#[test]
++fn test_spread() {
++    let program_bytes = include_bytes!("spread.leo");
++    let input_bytes = include_bytes!("input/three_ones.in");
++    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++
++    assert_satisfied(program);
++}
++
++#[test]
++fn test_slice() {
++    let program_bytes = include_bytes!("slice.leo");
++    let input_bytes = include_bytes!("input/three_ones.in");
++    let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
++
++    assert_satisfied(program);
++}
+diff --git a/compiler/tests/array/multi.leo b/compiler/tests/array/multi.leo
+deleted file mode 100644
+index 8602c39465..0000000000
+--- a/compiler/tests/array/multi.leo
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Multidimensional array syntax in leo
+-function main() {
+-    const a = [[0u32, 0u32, 0u32], [0u32, 0u32, 0u32]]; // inline
+-
+-    const b: [u32; (3, 2)] = [[0; 3]; 2]; // initializer
+-
+-    console.assert(a == b);
+-}
+\ No newline at end of file
+diff --git a/compiler/tests/array/nested_3x2_value.leo b/compiler/tests/array/nested_3x2_value.leo
+new file mode 100644
+index 0000000000..c5f64c997e
+--- /dev/null
++++ b/compiler/tests/array/nested_3x2_value.leo
+@@ -0,0 +1,8 @@
++// Multidimensional array syntax in leo
++function main() {
++    const a = [[0u32, 0u32], [0u32, 0u32], [0u32, 0u32]]; // inline
++
++    const b: [u32; (3, 2)] = [[0; 2]; 3]; // initializer
++
++    console.assert(a == b);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/array/nested_3x2_value_fail.leo b/compiler/tests/array/nested_3x2_value_fail.leo
+new file mode 100644
+index 0000000000..a187a51991
+--- /dev/null
++++ b/compiler/tests/array/nested_3x2_value_fail.leo
+@@ -0,0 +1,4 @@
++// Multidimensional array syntax in leo
++function main() {
++    const a: [u32; (3, 2)] = [[0; 3]; 2]; // initializer (incorrectly reversed ordering)
++}
+diff --git a/compiler/tests/array/tuple_3x2_value.leo b/compiler/tests/array/tuple_3x2_value.leo
+new file mode 100644
+index 0000000000..b6659539d5
+--- /dev/null
++++ b/compiler/tests/array/tuple_3x2_value.leo
+@@ -0,0 +1,8 @@
++// Multidimensional array syntax in leo
++function main() {
++    const a = [[0u32, 0u32], [0u32, 0u32], [0u32, 0u32]]; // inline
++
++    const b: [u32; (3, 2)] = [0; (3, 2)]; // initializer
++
++    console.assert(a == b);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/array/tuple_3x2_value_fail.leo b/compiler/tests/array/tuple_3x2_value_fail.leo
+new file mode 100644
+index 0000000000..78593ab696
+--- /dev/null
++++ b/compiler/tests/array/tuple_3x2_value_fail.leo
+@@ -0,0 +1,4 @@
++// Multidimensional array syntax in leo
++function main() {
++    const a: [u32; (3, 2)] = [0; (2, 3)]; // initializer (incorrectly reversed ordering)
++}
+diff --git a/leo/main.rs b/leo/main.rs
+index 7c8c124904..61aa8a7b0c 100644
+--- a/leo/main.rs
++++ b/leo/main.rs
+@@ -22,8 +22,9 @@ use clap::{App, AppSettings, Arg};
+ fn main() -> Result<(), CLIError> {
+     let app = App::new("leo")
+         .version(include_str!("./leo-version"))
+-        .about("Leo compiler and package manager")
+-        .author("The Aleo Team <hello@aleo.org>")
++        .before_help("Hello world")
++        // .about("Leo compiler and package manager")
++        // .author("The Aleo Team <hello@aleo.org>")
+         .settings(&[
+             AppSettings::ColoredHelp,
+             AppSettings::DisableHelpSubcommand,
+diff --git a/typed/src/common/span.rs b/typed/src/common/span.rs
+index ac58c59c8b..b5af258eb2 100644
+--- a/typed/src/common/span.rs
++++ b/typed/src/common/span.rs
+@@ -14,7 +14,7 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use pest::{Position, Span as AstSpan};
++use pest::Span as AstSpan;
+ use serde::{Deserialize, Serialize};
+ 
+ #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+diff --git a/typed/src/expression.rs b/typed/src/expression.rs
+index 8b654a7352..fb17a983b4 100644
+--- a/typed/src/expression.rs
++++ b/typed/src/expression.rs
+@@ -501,7 +501,7 @@ impl<'ast> From<ArrayInitializerExpression<'ast>> for Expression {
+         // Initializes an arrays elements using the rust `vec!` macro.
+         // If there are multiple array dimensions, then `elements` is used as the first expression in a `vec!` macro.
+         // This creates a multi-dimensional array by chaining `vec!` macros.
+-        for (i, dimension) in dimensions.into_iter().enumerate() {
++        for (i, dimension) in dimensions.into_iter().rev().enumerate() {
+             if i == 0 {
+                 elements = vec![expression.clone(); dimension];
+             } else {
+diff --git a/typed/src/input/input_value.rs b/typed/src/input/input_value.rs
+index 6f9ad83eee..6a1fbb75a8 100644
+--- a/typed/src/input/input_value.rs
++++ b/typed/src/input/input_value.rs
+@@ -108,7 +108,7 @@ impl InputValue {
+     ) -> Result<Self, InputParserError> {
+         let mut array_dimensions = TypedExpression::get_input_array_dimensions(array_type.dimensions.clone());
+ 
+-        // Return an error if the outer array dimension does not equal the number of array elements
++        // Return an error if the outer array dimension does not equal the number of array elements.
+         if let Some(outer_dimension) = array_dimensions.pop() {
+             array_type.dimensions = array_type.dimensions.next_dimension();
+ 
+@@ -118,13 +118,13 @@ impl InputValue {
+         };
+ 
+         let inner_array_type = if array_dimensions.len() == 0 {
+-            // this is a single array
++            // This is a single array
+             match array_type.type_ {
+                 ArrayElement::Basic(basic) => Type::Basic(basic),
+                 ArrayElement::Tuple(tuple) => Type::Tuple(tuple),
+             }
+         } else {
+-            // this is a multi-dimensional array
++            // This is a multi-dimensional array
+             Type::Array(array_type)
+         };
+ 

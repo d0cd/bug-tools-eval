@@ -1,0 +1,328 @@
+diff --git a/sdk/package.json b/sdk/package.json
+index 472eaac6..1fceeb23 100644
+--- a/sdk/package.json
++++ b/sdk/package.json
+@@ -35,8 +35,8 @@
+   "homepage": "https://github.com/AleoHQ/aleo#readme",
+   "dependencies": {
+     "@aleohq/wasm": "file:../wasm/pkg",
+-    "jsdoc": "^3.6.11",
+-    "unfetch": "^4.2.0"
++    "axios": "^1.1.3",
++    "jsdoc": "^3.6.11"
+   },
+   "devDependencies": {
+     "@types/jest": "^29.4.0",
+diff --git a/sdk/src/index.ts b/sdk/src/index.ts
+index 4836a5d4..9b03c0d3 100644
+--- a/sdk/src/index.ts
++++ b/sdk/src/index.ts
+@@ -1,5 +1,12 @@
+ import { Account } from "./account";
+-import { NodeConnection } from "./node_connection";
++import { AleoNetworkClient } from "./node_connection";
++import { Block } from "./models/block";
++import { Execution} from "./models/execution";
++import { Input} from "./models/input";
++import { Output} from "./models/output";
++import { Transaction } from "./models/transaction";
++import { Transition } from "./models/transition";
++
+ import { Address, PrivateKey, Signature, ViewKey } from "@aleohq/wasm";
+ 
+-export { Account, NodeConnection, PrivateKey, Signature, ViewKey, Address };
++export { Account, Address, AleoNetworkClient, Block, Execution, Input, PrivateKey, Output, Signature, Transaction, Transition, ViewKey };
+diff --git a/sdk/src/node_connection.ts b/sdk/src/node_connection.ts
+index ce83b216..22fcca2c 100644
+--- a/sdk/src/node_connection.ts
++++ b/sdk/src/node_connection.ts
+@@ -1,7 +1,5 @@
+-import fetch from "unfetch";
+-import { Account } from "./account";
+-import { Block } from "./models/block";
+-import { Transaction } from "./models/transaction";
++import axios from "axios";
++import { Account, Block, Transaction, Transition } from ".";
+ 
+ /**
+  * Connection management class that encapsulates REST calls to publicly exposed endpoints of Aleo nodes.
+@@ -10,12 +8,12 @@ import { Transaction } from "./models/transaction";
+  * @param {string} host
+  * @example
+  * // Connection to a local node
+- * let local_connection = new NodeConnection("localhost:4130");
++ * let local_connection = new NodeConnection("http://localhost:3030");
+  *
+  * // Connection to a public beacon node
+- * let public_connection = new NodeConnection("vm.aleo.org/api");
++ * let public_connection = new NodeConnection("https://vm.aleo.org/api");
+  */
+-export class NodeConnection {
++export class AleoNetworkClient {
+   host: string;
+   account: Account | undefined;
+ 
+@@ -47,19 +45,13 @@ export class NodeConnection {
+ 
+   async fetchData<Type>(
+     url = "/",
+-    method = "GET",
+-    body = "",
+-    headers: Record<string, string> = { "Content-Type": "application/json" }
+   ): Promise<Type> {
+-      const response = await fetch(this.host + url, {
+-        method: method,
+-        body: JSON.stringify(body),
+-        headers: headers,
+-      });
+-      try {
+-        if (!response.ok) { throw response }
+-        return (await response.json()) as Type;
+-      } catch (error) { throw error; }
++     try {
++       const response = await axios.get<Type>(this.host + url);
++       return response.data;
++     } catch (error) {
++       throw new Error("Error fetching data.");
++     }
+   }
+ 
+   /**
+@@ -71,9 +63,9 @@ export class NodeConnection {
+    */
+   async getBlock(height: number): Promise<Block | Error> {
+     try {
+-      return await this.fetchData<Block>("/block/" + height);
++      const block = await this.fetchData<Block>("/block/" + height);
++      return block;
+     } catch (error) {
+-      console.log("Error - response: ", error);
+       throw new Error("Error fetching block.");
+     }
+   }
+@@ -88,10 +80,9 @@ export class NodeConnection {
+    */
+   async getBlockRange(start: number, end: number): Promise<Array<Block> | Error> {
+     try {
+-      return await this.fetchData<Array<Block>>("/blocks?start={" + start + "}&end={" + end + "}");
++      return await this.fetchData<Array<Block>>("/blocks?start=" + start + "&end=" + end);
+     } catch (error) {
+       const errorMessage = "Error fetching blocks between " + start + " and " + end + "."
+-      console.log(errorMessage + "- response: ", error);
+       throw new Error(errorMessage);
+     }
+   }
+@@ -107,7 +98,6 @@ export class NodeConnection {
+     try {
+       return await this.fetchData<string>("/program/" + programId)
+     } catch (error) {
+-      console.log("Error fetching program - response: ", error);
+       throw new Error("Error fetching program");
+     }
+   }
+@@ -122,7 +112,6 @@ export class NodeConnection {
+     try {
+       return await this.fetchData<Block>("/latest/block") as Block;
+     } catch (error) {
+-      console.log("Error - response: ", error);
+       throw new Error("Error fetching latest block.");
+     }
+   }
+@@ -137,7 +126,6 @@ export class NodeConnection {
+     try {
+       return await this.fetchData<string>("/latest/hash");
+     } catch (error) {
+-      console.log("Error - response: ", error);
+       throw new Error("Error fetching latest hash.");
+     }
+   }
+@@ -152,7 +140,6 @@ export class NodeConnection {
+     try {
+       return await this.fetchData<number>("/latest/height");
+     } catch (error) {
+-      console.log("Error - response: ", error);
+       throw new Error("Error fetching latest height.");
+     }
+   }
+@@ -165,9 +152,8 @@ export class NodeConnection {
+    */
+   async getStateRoot(): Promise<string | Error> {
+     try {
+-      return await this.fetchData<string>("latest/stateRoot");
++      return await this.fetchData<string>("/latest/stateRoot");
+     } catch (error) {
+-      console.log("Error - response: ", error);
+       throw new Error("Error fetching Aleo state root");
+     }
+   }
+@@ -183,7 +169,6 @@ export class NodeConnection {
+     try {
+       return await this.fetchData<Transaction>("/transaction/" + id);
+     } catch (error) {
+-      console.log("Error - response: ", error);
+       throw new Error("Error fetching transaction.");
+     }
+   }
+@@ -197,9 +182,8 @@ export class NodeConnection {
+    */
+   async getTransactions(height: number): Promise<Array<Transaction> | Error> {
+     try {
+-      return await this.fetchData<Array<Transaction>>("/transactions/" + height);
++      return await this.fetchData<Array<Transaction>>("/block/" + height.toString() + "/transactions");
+     } catch (error) {
+-      console.log("Error - response: ", error);
+       throw new Error("Error fetching transactions.");
+     }
+   }
+@@ -214,10 +198,23 @@ export class NodeConnection {
+     try {
+       return await this.fetchData<Array<Transaction>>("/memoryPool/transactions");
+     } catch (error) {
+-      console.log("Error - response: ", error);
+       throw new Error("Error fetching transactions from mempool.");
+     }
+   }
++
++  /**
++   * Returns the transition id by its unique identifier
++   *
++   * @example
++   * let transition = connection.getTransitionId("2429232855236830926144356377868449890830704336664550203176918782554219952323field");
++   */
++  async getTransitionId(transition_id: string): Promise<Transition | Error> {
++    try {
++      return await this.fetchData<Transition>("/find/transitionID/" + transition_id);
++    } catch (error) {
++      throw new Error("Error fetching transition ID.");
++    }
++  }
+ }
+ 
+-export default NodeConnection;
++export default AleoNetworkClient;
+diff --git a/sdk/tests/node.test.ts b/sdk/tests/node.test.ts
+new file mode 100644
+index 00000000..8471d9e0
+--- /dev/null
++++ b/sdk/tests/node.test.ts
+@@ -0,0 +1,119 @@
++import {Account, Block, AleoNetworkClient, Transaction} from "../src";
++jest.retryTimes(3);
++
++describe('NodeConnection', () => {
++    let connection: AleoNetworkClient;
++
++    beforeEach(() => {
++        connection = new AleoNetworkClient("https://vm.aleo.org/api");
++    });
++
++    describe('setAccount', () => {
++        it('should set the account property', () => {
++            const account = new Account();
++            connection.setAccount(account);
++            expect(connection.getAccount()).toEqual(account);
++        }, 60000);
++    });
++
++    describe('getBlock', () => {
++        it('should return a Block object', async () => {
++            const block = await connection.getBlock(1);
++            expect((block as Block).block_hash).toEqual("ab128sn9ju8r9fp3sc8px9l6m6ceruzzy4ahpnp05rzluygdqn6cqqs4jsf2q");
++        }, 60000);
++
++        it('should throw an error if the request fails', async () => {
++            await expect(connection.getBlock(99999999)).rejects.toThrow('Error fetching block.');
++        }, 60000);
++    });
++
++    describe('getBlockRange', () => {
++        it('should return an array of Block objects', async () => {
++            const blockRange = await connection.getBlockRange(1, 3);
++            expect(Array.isArray(blockRange)).toBe(true);
++            expect((blockRange as Block[]).length).toBe(2);
++            expect(((blockRange as Block[])[0] as Block).block_hash).toBe("ab128sn9ju8r9fp3sc8px9l6m6ceruzzy4ahpnp05rzluygdqn6cqqs4jsf2q");
++            expect(((blockRange as Block[])[1] as Block).block_hash).toBe("ab10jhvxr4hx9488kkv4wz6vt0cu6gnjupk9rcg7djcvw0tsxgdggzq3h4s5j");
++
++        }, 60000);
++
++        it('should throw an error if the request fails', async () => {
++            await expect(connection.getBlockRange(999999999, 1000000000)).rejects.toThrow('Error fetching blocks between 999999999 and 1000000000.');
++        }, 60000);
++    });
++
++    describe('getProgram', () => {
++        it('should return a string', async () => {
++            const program = await connection.getProgram('credits.aleo');
++            expect(typeof program).toBe('string');
++        }, 60000);
++
++        it('should throw an error if the request fails', async () => {
++            const program_id = "a" + (Math.random()).toString(32).substring(2) + ".aleo";
++            await expect(connection.getProgram(program_id)).rejects.toThrow('Error fetching program');
++        }, 60000);
++    });
++
++    describe('getLatestBlock', () => {
++        it('should return a Block object', async () => {
++            const latestBlock = await connection.getLatestBlock();
++            expect(typeof (latestBlock as Block).block_hash).toBe('string');
++        }, 60000);
++    });
++
++    describe('getLatestHash', () => {
++        it('should return a string', async () => {
++            const latestHash = await connection.getLatestHash();
++            expect(typeof latestHash).toBe('string');
++        }, 60000);
++    });
++
++    describe('getLatestHeight', () => {
++        it('should return a number', async () => {
++            const latestHeight = await connection.getLatestHeight();
++            expect(typeof latestHeight).toBe('number');
++        }, 60000);
++    });
++
++
++    describe('getStateRoot', () => {
++        it('should return a string', async () => {
++            const stateRoot = await connection.getStateRoot();
++            expect(typeof stateRoot).toBe('string');
++        }, 60000);
++    });
++
++    describe('getTransaction', () => {
++        it('should return a Transaction object', async () => {
++            const transaction = await connection.getTransaction('at1z4sgvtmc7mhd3qw2tdzc8mqyg60gx2qgtdzcg6e6k673d3pfz5psfhe3kd');
++            expect((transaction as Transaction).type).toBe("execute");
++        }, 60000);
++
++        it('should throw an error if the request fails', async () => {
++            await expect(connection.getTransaction('nonexistentid')).rejects.toThrow('Error fetching transaction.');
++        }, 60000);
++    });
++
++    describe('getTransactions', () => {
++        it('should return an array of Transaction objects', async () => {
++            const transactions = await connection.getTransactions(1);
++            expect(Array.isArray(transactions)).toBe(true);
++            expect((transactions as Transaction[]).length).toBeGreaterThan(0);
++        }, 60000);
++
++        it('should throw an error if the request fails', async () => {
++            await expect(connection.getTransactions(999999999)).rejects.toThrow('Error fetching transactions.');
++        }, 60000);
++    });
++
++    describe('getTransitionId', () => {
++        it('should return a transition id', async () => {
++            const transition = await connection.getTransitionId('2429232855236830926144356377868449890830704336664550203176918782554219952323field')
++            expect(typeof transition).toBe('string');
++        }, 60000);
++
++        it('should throw an error if the request fails', async () => {
++            await expect(connection.getTransitionId("garbage")).rejects.toThrow("Error fetching transition ID.");
++        }, 60000);
++    });
++});
+\ No newline at end of file

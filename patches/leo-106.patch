@@ -1,0 +1,142 @@
+diff --git a/compiler/passes/src/function_inlining/inline_expression.rs b/compiler/passes/src/function_inlining/inline_expression.rs
+index 60e0673365..b83c2d6505 100644
+--- a/compiler/passes/src/function_inlining/inline_expression.rs
++++ b/compiler/passes/src/function_inlining/inline_expression.rs
+@@ -58,7 +58,7 @@ impl ExpressionReconstructor for FunctionInliner<'_> {
+                 let parameter_to_argument = callee
+                     .input
+                     .iter()
+-                    .map(|input| input.identifier())
++                    .map(|input| input.identifier().name)
+                     .zip_eq(input.arguments.into_iter())
+                     .collect::<IndexMap<_, _>>();
+ 
+@@ -74,7 +74,7 @@ impl ExpressionReconstructor for FunctionInliner<'_> {
+                 self.assignment_renamer.clear();
+ 
+                 // Replace each input variable with the appropriate parameter.
+-                let replace = |identifier: &Identifier| match parameter_to_argument.get(identifier) {
++                let replace = |identifier: &Identifier| match parameter_to_argument.get(&identifier.name) {
+                     Some(expression) => expression.clone(),
+                     None => Expression::Identifier(*identifier),
+                 };
+diff --git a/tests/expectations/compiler/finalize/inline_in_finalize.out b/tests/expectations/compiler/finalize/inline_in_finalize.out
+index 700c103a80..88396e0a28 100644
+--- a/tests/expectations/compiler/finalize/inline_in_finalize.out
++++ b/tests/expectations/compiler/finalize/inline_in_finalize.out
+@@ -6,6 +6,6 @@ outputs:
+     unrolled_ast: 66c08e3fa6b22b7663e949d6ea72455bca2c26a573ba094f084310a086a4cf0b
+     ssa_ast: b86f0471ac1a09039a4ce147e87b0c41b9c3378dba0cb560b4a2fe41533781c2
+     flattened_ast: 52f744a6cf805739c77995f73c2f626ad2403301c5dc6e007b9c2092869f5224
+-    inlined_ast: b7ef966c924c7fd055476fd974079af70e235aed43d8cbff30c7eadad8e342c7
+-    dce_ast: b7ef966c924c7fd055476fd974079af70e235aed43d8cbff30c7eadad8e342c7
++    inlined_ast: 7624599cd1c4e1dbd47fd1a649f1451e94fe0c38b1796f0a88d0061d160dcf3a
++    dce_ast: 7624599cd1c4e1dbd47fd1a649f1451e94fe0c38b1796f0a88d0061d160dcf3a
+     bytecode: cc321ba26e486e2c153e774573e880a340d698f08c7d24602f883aef1c900b73
+diff --git a/tests/expectations/compiler/function/dead_code_elimination.out b/tests/expectations/compiler/function/dead_code_elimination.out
+index 838bae428c..928c7cee87 100644
+--- a/tests/expectations/compiler/function/dead_code_elimination.out
++++ b/tests/expectations/compiler/function/dead_code_elimination.out
+@@ -6,6 +6,6 @@ outputs:
+     unrolled_ast: d7414ef76b5d83ba8daed6e65487425048596937d5a6f783a313d3264d5db267
+     ssa_ast: 6722ef50ccdf19eaaa57f68a249a6eb01ba78ec8ec60da0d8d664613324287aa
+     flattened_ast: 58ed29011b87aad89fe50f62402f441c9aa53fc2e18c3a188d94d0a88734236d
+-    inlined_ast: 1c57a7047a0523c5f576e5df33fa9b70cf2baedfb8149266686837ba2827c44e
++    inlined_ast: 7ce8d6b0f22068cd9cf428040b3b55f08f7f890b09ed77c5f35d4ce10ed9232b
+     dce_ast: 48e52aa4ba7d5f4c5126ec93a14ec29772f80c73cc2d6ab5c77001f920b4c65b
+     bytecode: bc387336869a1d12a90c9fb923466f737bad08d04a165a8b611256868f960201
+diff --git a/tests/expectations/compiler/function/flatten_inlined_tuples_of_structs.out b/tests/expectations/compiler/function/flatten_inlined_tuples_of_structs.out
+index 71c16ec631..474e1e0b7e 100644
+--- a/tests/expectations/compiler/function/flatten_inlined_tuples_of_structs.out
++++ b/tests/expectations/compiler/function/flatten_inlined_tuples_of_structs.out
+@@ -6,6 +6,6 @@ outputs:
+     unrolled_ast: 4635467db62681996e855b4233873bf65abd26ae9659332c67a1d28dfdcd3a88
+     ssa_ast: 478e60c54d2fcb05625042228bb467278257e7392d846fd49ccd5c43fcbcbd5e
+     flattened_ast: 12157cdc9233e60a00d749cc033465d3aeafa625fb769223717e0e87c5cdf9d6
+-    inlined_ast: 11c63116821757047efeec64483fbc8b22edff09ddc745d80670bf02895dd62e
+-    dce_ast: d531e3256e104e13c05125353b768cf9aa2bc3913f3ba0edb4f04b25ae8dd18c
+-    bytecode: f0b23d05369e0db4f6f4cf1b10923caea289d78e911ed7250c13b828b2ae68d5
++    inlined_ast: 083fd4b542fb73d805267040a0c739e69b7b22e9249678c7fce949cad666c419
++    dce_ast: 083fd4b542fb73d805267040a0c739e69b7b22e9249678c7fce949cad666c419
++    bytecode: 4365132fcfe7e243d3a3eeee1691feef89afe6cc03e20ce84e625008ddfec367
+diff --git a/tests/expectations/compiler/function/function_call_inline.out b/tests/expectations/compiler/function/function_call_inline.out
+index 9b12818c6f..74129df80d 100644
+--- a/tests/expectations/compiler/function/function_call_inline.out
++++ b/tests/expectations/compiler/function/function_call_inline.out
+@@ -6,6 +6,6 @@ outputs:
+     unrolled_ast: 42426e586a4fe69f06466e4621a8cf4547408ad38c108a85bf0beaf812859a66
+     ssa_ast: 4b33649beef6673aafce25c35c16c034fb41ec33fdf562751b7e51d712caf309
+     flattened_ast: e2ee2ee7c6e1c187de5977f44b0a39e11d946243990eb48df92b3a3e939b3906
+-    inlined_ast: aae0684cc29719b75d1af553fae21f9cafd04d15fd211eeb4d8cebbf913bcd6c
+-    dce_ast: aae0684cc29719b75d1af553fae21f9cafd04d15fd211eeb4d8cebbf913bcd6c
++    inlined_ast: af95979bf9d2d37a6cad26389cc5e63122148741a14a6780913fcc87861b1587
++    dce_ast: af95979bf9d2d37a6cad26389cc5e63122148741a14a6780913fcc87861b1587
+     bytecode: 6c18f3614147617dbd01fb1404fc8c75c0a788872cec905ad5566a443f7f2e91
+diff --git a/tests/expectations/compiler/function/inline_twice.out b/tests/expectations/compiler/function/inline_twice.out
+new file mode 100644
+index 0000000000..6e600377fd
+--- /dev/null
++++ b/tests/expectations/compiler/function/inline_twice.out
+@@ -0,0 +1,11 @@
++---
++namespace: Compile
++expectation: Pass
++outputs:
++  - initial_ast: 663841cf97b446530937f0487ba3bc8aeae2857418ea566be8faf6740e3b1b0f
++    unrolled_ast: 663841cf97b446530937f0487ba3bc8aeae2857418ea566be8faf6740e3b1b0f
++    ssa_ast: 048763c7b3734825b8f07e2ad2b20fd5fcc4b9835bd83fd03872c10e17e92a65
++    flattened_ast: 32fb09e1a7a1277e20d9bbc57760e2ae9725929eb7f91ebbdab19cd2506eb46a
++    inlined_ast: 7728d3d1819783b0e50b7ec3ffc9ee249e826279fd0c82964b4c7e6a4e57a1ce
++    dce_ast: 7728d3d1819783b0e50b7ec3ffc9ee249e826279fd0c82964b4c7e6a4e57a1ce
++    bytecode: 3fd4db4753c6aa17cbd64612c47547344c2a06eb22218407c1bf490080ce7ae4
+diff --git a/tests/expectations/execution/flattened_function_and_inline_matches.out b/tests/expectations/execution/flattened_function_and_inline_matches.out
+index 32d508e989..08ada30ab1 100644
+--- a/tests/expectations/execution/flattened_function_and_inline_matches.out
++++ b/tests/expectations/execution/flattened_function_and_inline_matches.out
+@@ -6,9 +6,9 @@ outputs:
+     unrolled_ast: fe735d4b87fc695a7a68a059af8d769a3b1d257a924c08e7490f61575d843230
+     ssa_ast: 24bb584afbee563be7c24228473fd4e0d83cb76197f66b4c4a9ddb9c1c2c5c2e
+     flattened_ast: 4352bd983b2778643e78bb8efc4b2ab9a728dc52f9bff605875d82b82b72a0fb
+-    inlined_ast: 87236ec1e5020ccdaec371ece97cac3d3c5873649ea7b8ac5df8390e46ff7405
+-    dce_ast: a5706593c11da3c7b703dc111b365cb18f3bdba093f04547babf5959410391f4
+-    bytecode: 39c8353dc4af7a70a8156ada8b429104819e5291f8847de9560eeb752ba3b6a4
++    inlined_ast: c719c0c8b4d1904caf8526e56434f8824153c9a5aceab2e8d0dd3729687114f0
++    dce_ast: c719c0c8b4d1904caf8526e56434f8824153c9a5aceab2e8d0dd3729687114f0
++    bytecode: 134abb1ec51eefe80a4a7f4303572abfec238a5adb6a9b5aad1e73ea66860eac
+     results:
+       bar:
+         - input: "[true, true, 1u8, 0u8]"
+@@ -16,7 +16,7 @@ outputs:
+         - input: "[true, false, 1u8, 1u8]"
+           output: "[1u8, 1u8, {\n  a: 1u8,\n  b: 1u8,\n  c: {\n    c: 1u8\n  }\n}]"
+         - input: "[false, true, 2u8, 1u8]"
+-          output: "[3u8, 1u8, {\n  a: 2u8,\n  b: 1u8,\n  c: {\n    c: 2u8\n  }\n}]"
++          output: "[1u8, 1u8, {\n  a: 2u8,\n  b: 1u8,\n  c: {\n    c: 2u8\n  }\n}]"
+         - input: "[false, false, 2u8, 2u8]"
+           output: "[2u8, 2u8, {\n  a: 2u8,\n  b: 2u8,\n  c: {\n    c: 2u8\n  }\n}]"
+       blar:
+diff --git a/tests/tests/compiler/function/inline_twice.leo b/tests/tests/compiler/function/inline_twice.leo
+new file mode 100644
+index 0000000000..73236dcca3
+--- /dev/null
++++ b/tests/tests/compiler/function/inline_twice.leo
+@@ -0,0 +1,19 @@
++/*
++namespace: Compile
++expectation: Pass
++*/
++
++program test.aleo {
++    inline get_bit(number: u32, i: u8) -> bool {
++        let mask: u32 = 1u32 << i;
++        return number.and(mask) > 0u32;
++    }
++
++    inline get_cell_occupant(board: u32, i: u8) -> u8 {
++        return get_bit(board, i) ? 2u8 : 1u8;
++    }
++
++    transition make_move(board: u32, i: u8) -> u8 {
++        return get_cell_occupant(board, i);
++    }
++}

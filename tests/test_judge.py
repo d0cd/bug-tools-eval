@@ -7,10 +7,12 @@ import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import anthropic
 import pytest
 import yaml
 
 from bugeval.judge import (
+    _build_judge_prompt,
     _extract_judge_json,
     judge_case,
     judge_normalized_results,
@@ -254,6 +256,57 @@ def test_judge_normalized_results_dry_run(tmp_path: Path) -> None:
     assert len(list(scores_dir.glob("*.yaml"))) == 1
 
 
+# --- _build_judge_prompt ---
+
+
+def test_build_judge_prompt_includes_suggested_fix() -> None:
+    """suggested_fix on enriched Comment should appear in the judge prompt."""
+    from tests.conftest import make_case
+
+    case = make_case()
+    result = NormalizedResult(
+        test_case_id="case-001",
+        tool="anthropic-api",
+        comments=[
+            Comment(body="off by one", file="a.rs", line=10, suggested_fix="Add bounds check")
+        ],
+    )
+    prompt = _build_judge_prompt(case, result)
+    assert "Add bounds check" in prompt
+    assert "Fix:" in prompt
+
+
+def test_build_judge_prompt_no_fix_no_section() -> None:
+    """When no suggested_fix, the Fix: line should not appear."""
+    from tests.conftest import make_case
+
+    case = make_case()
+    result = NormalizedResult(
+        test_case_id="case-001",
+        tool="greptile",
+        comments=[Comment(body="off by one", file="a.rs", line=10)],
+    )
+    prompt = _build_judge_prompt(case, result)
+    assert "Fix:" not in prompt
+
+
+def test_judge_case_uses_temperature_zero() -> None:
+    """judge_case must pass temperature=0 to the LLM for reproducibility."""
+    from tests.conftest import make_case
+
+    case = make_case()
+    result = _make_result()
+
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = _make_mock_response(2)
+
+    with patch("bugeval.judge.Anthropic", return_value=mock_client):
+        judge_case(case, result, system_prompt="judge this")
+
+    call_kwargs = mock_client.messages.create.call_args_list[0][1]
+    assert call_kwargs.get("temperature") == 0
+
+
 def test_judge_normalized_results_returns_count(tmp_path: Path) -> None:
     """Returns the count of results that were scored."""
     cases_dir = tmp_path / "cases"
@@ -269,3 +322,31 @@ def test_judge_normalized_results_returns_count(tmp_path: Path) -> None:
         count = judge_normalized_results(tmp_path, cases_dir, dry_run=False)
 
     assert count == 1
+
+
+def test_judge_case_retries_on_rate_limit() -> None:
+    """judge_case retries when the API raises RateLimitError, then succeeds."""
+    from tests.conftest import make_case
+
+    case = make_case()
+    result = _make_result()
+
+    mock_client = MagicMock()
+    rate_limit_error = anthropic.RateLimitError(
+        message="rate limited",
+        response=MagicMock(status_code=429, headers={}),
+        body={},
+    )
+    mock_client.messages.create.side_effect = [
+        rate_limit_error,
+        _make_mock_response(2),
+        _make_mock_response(2),
+        _make_mock_response(2),
+    ]
+
+    with patch("bugeval.judge.Anthropic", return_value=mock_client):
+        with patch("bugeval.agent_api_runner.time.sleep"):
+            score = judge_case(case, result, system_prompt="judge this")
+
+    assert score.score == 2
+    assert mock_client.messages.create.call_count == 4  # 1 failure + 3 successes

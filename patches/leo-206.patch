@@ -1,0 +1,817 @@
+diff --git a/compiler/ast/src/stub/function_stub.rs b/compiler/ast/src/stub/function_stub.rs
+index aced6ce9e0..d80c8c5eb7 100644
+--- a/compiler/ast/src/stub/function_stub.rs
++++ b/compiler/ast/src/stub/function_stub.rs
+@@ -315,7 +315,7 @@ impl<N: Network, Instruction: InstructionTrait<N>, Command: CommandTrait<N>>
+                             id: Default::default(),
+                         }),
+                         ValueType::ExternalRecord(loc) => Input::External(External {
+-                            identifier: Identifier::new(Symbol::intern("dummy"), Default::default()),
++                            identifier: arg_name,
+                             program_name: ProgramId::from(loc.program_id()).name,
+                             record: Identifier::from(loc.resource()),
+                             span: Default::default(),
+diff --git a/compiler/passes/src/type_checking/check_program.rs b/compiler/passes/src/type_checking/check_program.rs
+index 8215b76ae1..ed9a7edf2e 100644
+--- a/compiler/passes/src/type_checking/check_program.rs
++++ b/compiler/passes/src/type_checking/check_program.rs
+@@ -28,8 +28,6 @@ use std::collections::HashSet;
+ 
+ impl<'a> ProgramVisitor<'a> for TypeChecker<'a> {
+     fn visit_program(&mut self, input: &'a Program) {
+-        // Calculate the intersection of the imports specified in the `.leo` file and the dependencies derived from the `program.json` file.
+-
+         // Typecheck the program's stubs.
+         input.stubs.iter().for_each(|(symbol, stub)| {
+             if symbol != &stub.stub_id.name.name {
+@@ -41,6 +39,7 @@ impl<'a> ProgramVisitor<'a> for TypeChecker<'a> {
+             }
+             self.visit_stub(stub)
+         });
++        self.is_stub = false;
+ 
+         // Typecheck the program scopes.
+         input.program_scopes.values().for_each(|scope| self.visit_program_scope(scope));
+@@ -151,6 +150,11 @@ impl<'a> ProgramVisitor<'a> for TypeChecker<'a> {
+                 input.program_id.name.span + input.program_id.network.span,
+             ));
+         }
++        // Check that each program has at least one transition function.
++        // This is a snarkvm requirement.
++        else if transition_count == 0 {
++            self.emit_err(TypeCheckerError::no_transitions(input.program_id.name.span + input.program_id.network.span));
++        }
+     }
+ 
+     fn visit_struct(&mut self, input: &'a Struct) {
+diff --git a/compiler/passes/src/type_checking/checker.rs b/compiler/passes/src/type_checking/checker.rs
+index 98bf547dea..56d501d0eb 100644
+--- a/compiler/passes/src/type_checking/checker.rs
++++ b/compiler/passes/src/type_checking/checker.rs
+@@ -57,11 +57,12 @@ pub struct TypeChecker<'a> {
+     pub(crate) has_return: bool,
+     /// Whether or not the function that we are currently traversing invokes the finalize block.
+     pub(crate) has_finalize: bool,
+-
+     /// Whether or not we are currently traversing a finalize block.
+     pub(crate) is_finalize: bool,
+     /// Whether or not we are currently traversing a return statement.
+     pub(crate) is_return: bool,
++    /// Whether or not we are currently traversing a stub.
++    pub(crate) is_stub: bool,
+ }
+ 
+ const ADDRESS_TYPE: Type = Type::Address;
+@@ -128,6 +129,7 @@ impl<'a> TypeChecker<'a> {
+             has_finalize: false,
+             is_finalize: false,
+             is_return: false,
++            is_stub: true,
+         }
+     }
+ 
+@@ -1176,15 +1178,17 @@ impl<'a> TypeChecker<'a> {
+                 }
+             }
+ 
+-            // Check for conflicting variable names.
+-            if let Err(err) =
+-                self.symbol_table.borrow_mut().insert_variable(input_var.identifier().name, VariableSymbol {
+-                    type_: input_var.type_(),
+-                    span: input_var.identifier().span(),
+-                    declaration: VariableType::Input(input_var.mode()),
+-                })
+-            {
+-                self.handler.emit_err(err);
++            // Add non-stub inputs to the symbol table.
++            if !self.is_stub {
++                if let Err(err) =
++                    self.symbol_table.borrow_mut().insert_variable(input_var.identifier().name, VariableSymbol {
++                        type_: input_var.type_(),
++                        span: input_var.identifier().span(),
++                        declaration: VariableType::Input(input_var.mode()),
++                    })
++                {
++                    self.handler.emit_err(err);
++                }
+             }
+         });
+ 
+@@ -1262,15 +1266,17 @@ impl<'a> TypeChecker<'a> {
+                 if input_var.mode() == Mode::Constant || input_var.mode() == Mode::Private {
+                     self.emit_err(TypeCheckerError::finalize_input_mode_must_be_public(input_var.span()));
+                 }
+-                // Check for conflicting variable names.
+-                if let Err(err) =
+-                    self.symbol_table.borrow_mut().insert_variable(input_var.identifier().name, VariableSymbol {
+-                        type_: input_var.type_(),
+-                        span: input_var.identifier().span(),
+-                        declaration: VariableType::Input(input_var.mode()),
+-                    })
+-                {
+-                    self.handler.emit_err(err);
++                // Add non-stub inputs to the symbol table.
++                if !self.is_stub {
++                    if let Err(err) =
++                        self.symbol_table.borrow_mut().insert_variable(input_var.identifier().name, VariableSymbol {
++                            type_: input_var.type_(),
++                            span: input_var.identifier().span(),
++                            declaration: VariableType::Input(input_var.mode()),
++                        })
++                    {
++                        self.handler.emit_err(err);
++                    }
+                 }
+             }
+         });
+diff --git a/errors/src/errors/type_checker/type_checker_error.rs b/errors/src/errors/type_checker/type_checker_error.rs
+index a3930845e8..299322487c 100644
+--- a/errors/src/errors/type_checker/type_checker_error.rs
++++ b/errors/src/errors/type_checker/type_checker_error.rs
+@@ -747,4 +747,11 @@ create_messages!(
+         msg: format!("`stub` name `{stub_name}` does not match program name `{program_name}`"),
+         help: Some("Check that the name you used as a dependency in program.json matches the name you used to import the program in the main leo file.".to_string()),
+     }
++
++    @formatted
++    no_transitions {
++        args: (),
++        msg: format!("A program must have at least one transition function."),
++        help: None,
++    }
+ );
+diff --git a/tests/expectations/compiler/address/gt_fail.out b/tests/expectations/compiler/address/gt_fail.out
+index 43f1c5982a..cc8424df56 100644
+--- a/tests/expectations/compiler/address/gt_fail.out
++++ b/tests/expectations/compiler/address/gt_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372021]: Comparison `>` is not supported for the address type.\n    --> compiler-test:7:16\n     |\n   7 |         return x > sender;\n     |                ^^^^^^^^^^\n"
++  - "Error [ETYC0372021]: Comparison `>` is not supported for the address type.\n    --> compiler-test:7:16\n     |\n   7 |         return x > sender;\n     |                ^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/address/gte_fail.out b/tests/expectations/compiler/address/gte_fail.out
+index ee6d6d83c7..295479b635 100644
+--- a/tests/expectations/compiler/address/gte_fail.out
++++ b/tests/expectations/compiler/address/gte_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372021]: Comparison `>=` is not supported for the address type.\n    --> compiler-test:7:16\n     |\n   7 |         return x >= sender;\n     |                ^^^^^^^^^^^\n"
++  - "Error [ETYC0372021]: Comparison `>=` is not supported for the address type.\n    --> compiler-test:7:16\n     |\n   7 |         return x >= sender;\n     |                ^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/address/lt_fail.out b/tests/expectations/compiler/address/lt_fail.out
+index e1dd67e77b..32bafdcb31 100644
+--- a/tests/expectations/compiler/address/lt_fail.out
++++ b/tests/expectations/compiler/address/lt_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372021]: Comparison `<` is not supported for the address type.\n    --> compiler-test:7:16\n     |\n   7 |         return x < sender;\n     |                ^^^^^^^^^^\n"
++  - "Error [ETYC0372021]: Comparison `<` is not supported for the address type.\n    --> compiler-test:7:16\n     |\n   7 |         return x < sender;\n     |                ^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/address/lte_fail.out b/tests/expectations/compiler/address/lte_fail.out
+index 7a78b46e56..1639d44446 100644
+--- a/tests/expectations/compiler/address/lte_fail.out
++++ b/tests/expectations/compiler/address/lte_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372021]: Comparison `<=` is not supported for the address type.\n    --> compiler-test:7:16\n     |\n   7 |         return x <= sender;\n     |                ^^^^^^^^^^^\n"
++  - "Error [ETYC0372021]: Comparison `<=` is not supported for the address type.\n    --> compiler-test:7:16\n     |\n   7 |         return x <= sender;\n     |                ^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/core/algorithms/pedersen_fail.out b/tests/expectations/compiler/core/algorithms/pedersen_fail.out
+index f48a0c644f..58d4128f1e 100644
+--- a/tests/expectations/compiler/core/algorithms/pedersen_fail.out
++++ b/tests/expectations/compiler/core/algorithms/pedersen_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372007]: Expected one type from `address, bool, field, group, struct, integer, scalar, struct`, but got `u128`\n    --> compiler-test:5:50\n     |\n   5 |         let a: group = Pedersen64::hash_to_field(1u128); // Pedersen64 hash_to_field returns a field type\n     |                                                  ^^^^^\nError [ETYC0372007]: Expected one type from `group`, but got `field`\n    --> compiler-test:5:24\n     |\n   5 |         let a: group = Pedersen64::hash_to_field(1u128); // Pedersen64 hash_to_field returns a field type\n     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
++  - "Error [ETYC0372007]: Expected one type from `address, bool, field, group, struct, integer, scalar, struct`, but got `u128`\n    --> compiler-test:5:50\n     |\n   5 |         let a: group = Pedersen64::hash_to_field(1u128); // Pedersen64 hash_to_field returns a field type\n     |                                                  ^^^^^\nError [ETYC0372007]: Expected one type from `group`, but got `field`\n    --> compiler-test:5:24\n     |\n   5 |         let a: group = Pedersen64::hash_to_field(1u128); // Pedersen64 hash_to_field returns a field type\n     |                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/definition/define_multiple_variables_fail.out b/tests/expectations/compiler/definition/define_multiple_variables_fail.out
+index 9f2ba859c2..85c78fb178 100644
+--- a/tests/expectations/compiler/definition/define_multiple_variables_fail.out
++++ b/tests/expectations/compiler/definition/define_multiple_variables_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372082]: Expected a tuple with 2 elements, found one with 3 elements\n    --> compiler-test:5:13\n     |\n   5 |         let (a,b,c): (u8,u8) = (2u8,3u8);\n     |             ^^^^^^^\nError [ETYC0372082]: Expected a tuple with 3 elements, found one with 2 elements\n    --> compiler-test:6:13\n     |\n   6 |         let (d,e): (u8,u8,u8) = (1u8,2u8,3u8);\n     |             ^^^^^\nError [ETYC0372003]: Expected type `(u8,u8,u8)` but type `u8` was found\n    --> compiler-test:7:36\n     |\n   7 |         let (g,h,i): (u8,u8,u8) = (1u8);\n     |                                    ^^^\n"
++  - "Error [ETYC0372082]: Expected a tuple with 2 elements, found one with 3 elements\n    --> compiler-test:5:13\n     |\n   5 |         let (a,b,c): (u8,u8) = (2u8,3u8);\n     |             ^^^^^^^\nError [ETYC0372082]: Expected a tuple with 3 elements, found one with 2 elements\n    --> compiler-test:6:13\n     |\n   6 |         let (d,e): (u8,u8,u8) = (1u8,2u8,3u8);\n     |             ^^^^^\nError [ETYC0372003]: Expected type `(u8,u8,u8)` but type `u8` was found\n    --> compiler-test:7:36\n     |\n   7 |         let (g,h,i): (u8,u8,u8) = (1u8);\n     |                                    ^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {\n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/definition/tuple_def_fail.out b/tests/expectations/compiler/definition/tuple_def_fail.out
+index f10aaec82c..8e93220948 100644
+--- a/tests/expectations/compiler/definition/tuple_def_fail.out
++++ b/tests/expectations/compiler/definition/tuple_def_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372061]: Tuples on the left-hand side of a `DefinitionStatement` can only contain identifiers.\n    --> compiler-test:5:14\n     |\n   5 |         let (1u8+1u8,1u8+1u8): (u8,u8) = (1u8,2u8);\n     |              ^^^^^^^\nError [ETYC0372061]: Tuples on the left-hand side of a `DefinitionStatement` can only contain identifiers.\n    --> compiler-test:5:22\n     |\n   5 |         let (1u8+1u8,1u8+1u8): (u8,u8) = (1u8,2u8);\n     |                      ^^^^^^^\n"
++  - "Error [ETYC0372061]: Tuples on the left-hand side of a `DefinitionStatement` can only contain identifiers.\n    --> compiler-test:5:14\n     |\n   5 |         let (1u8+1u8,1u8+1u8): (u8,u8) = (1u8,2u8);\n     |              ^^^^^^^\nError [ETYC0372061]: Tuples on the left-hand side of a `DefinitionStatement` can only contain identifiers.\n    --> compiler-test:5:22\n     |\n   5 |         let (1u8+1u8,1u8+1u8): (u8,u8) = (1u8,2u8);\n     |                      ^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {\n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/definition/use_decl_variable_as_assign_fail.out b/tests/expectations/compiler/definition/use_decl_variable_as_assign_fail.out
+index 71cc835b77..ff087f274b 100644
+--- a/tests/expectations/compiler/definition/use_decl_variable_as_assign_fail.out
++++ b/tests/expectations/compiler/definition/use_decl_variable_as_assign_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372005]: Unknown variable `b`\n    --> compiler-test:5:18\n     |\n   5 |     \tlet b: u8 = b;\n     |                  ^\n"
++  - "Error [ETYC0372005]: Unknown variable `b`\n    --> compiler-test:5:18\n     |\n   5 |     \tlet b: u8 = b;\n     |                  ^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/finalize/closure_with_finalize_fail.out b/tests/expectations/compiler/finalize/closure_with_finalize_fail.out
+index 52ee42dd5c..23edc142d5 100644
+--- a/tests/expectations/compiler/finalize/closure_with_finalize_fail.out
++++ b/tests/expectations/compiler/finalize/closure_with_finalize_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372036]: Cannot use a `finalize` statement without a `finalize` block.\n    --> compiler-test:5:9\n     |\n   5 |         return a + b then finalize(a, b);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372044]: Function must contain a `finalize` statement on all execution paths.\n    --> compiler-test:8:5\n     |\n   8 |     function bar(a: u8, b: u8) -> u8 {\n   9 |         return a + b;\n  10 |     }\n     |     ^\nError [ETYC0372031]: Only transition functions can have a `finalize` block.\n    --> compiler-test:12:5\n     |\n  12 |     finalize bar(a: u8, b: u8) -> u8 {\n  13 |         return a + b;\n  14 |     }\n     |     ^\n     |\n     = Remove the `finalize` block or use the keyword `transition` instead of `function`.\nError [ETYC0372071]: A finalize block cannot return a value.\n    --> compiler-test:12:5\n     |\n  12 |     finalize bar(a: u8, b: u8) -> u8 {\n  13 |         return a + b;\n  14 |     }\n     |     ^\nError [ETYC0372031]: Only transition functions can have a `finalize` block.\n    --> compiler-test:21:5\n     |\n  21 |     finalize mint_public(receiver: address, amount: u64) {\n  22 |         Mapping::set(account, receiver, amount);\n  23 |     }\n     |     ^\n     |\n     = Remove the `finalize` block or use the keyword `transition` instead of `function`.\nError [ETYC0372005]: Unknown variable `account`\n    --> compiler-test:22:22\n     |\n  22 |         Mapping::set(account, receiver, amount);\n     |                      ^^^^^^^\n"
++  - "Error [ETYC0372036]: Cannot use a `finalize` statement without a `finalize` block.\n    --> compiler-test:5:9\n     |\n   5 |         return a + b then finalize(a, b);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372044]: Function must contain a `finalize` statement on all execution paths.\n    --> compiler-test:8:5\n     |\n   8 |     function bar(a: u8, b: u8) -> u8 {\n   9 |         return a + b;\n  10 |     }\n     |     ^\nError [ETYC0372031]: Only transition functions can have a `finalize` block.\n    --> compiler-test:12:5\n     |\n  12 |     finalize bar(a: u8, b: u8) -> u8 {\n  13 |         return a + b;\n  14 |     }\n     |     ^\n     |\n     = Remove the `finalize` block or use the keyword `transition` instead of `function`.\nError [ETYC0372071]: A finalize block cannot return a value.\n    --> compiler-test:12:5\n     |\n  12 |     finalize bar(a: u8, b: u8) -> u8 {\n  13 |         return a + b;\n  14 |     }\n     |     ^\nError [ETYC0372031]: Only transition functions can have a `finalize` block.\n    --> compiler-test:21:5\n     |\n  21 |     finalize mint_public(receiver: address, amount: u64) {\n  22 |         Mapping::set(account, receiver, amount);\n  23 |     }\n     |     ^\n     |\n     = Remove the `finalize` block or use the keyword `transition` instead of `function`.\nError [ETYC0372005]: Unknown variable `account`\n    --> compiler-test:22:22\n     |\n  22 |         Mapping::set(account, receiver, amount);\n     |                      ^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/finalize/mapping_fail.out b/tests/expectations/compiler/finalize/mapping_fail.out
+index 7290cc5683..ff05c72519 100644
+--- a/tests/expectations/compiler/finalize/mapping_fail.out
++++ b/tests/expectations/compiler/finalize/mapping_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372030]: A mapping's key cannot be a tuple\n    --> compiler-test:4:5\n     |\n   4 |     mapping foo: (u32, u32) => u32;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372017]: The type `baz` is not found in the current scope.\n    --> compiler-test:6:5\n     |\n   6 |     mapping floo: baz => u8;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372017]: The type `foo` is not found in the current scope.\n    --> compiler-test:8:5\n     |\n   8 |     mapping floop: foo => foo;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372017]: The type `foo` is not found in the current scope.\n    --> compiler-test:8:5\n     |\n   8 |     mapping floop: foo => foo;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372017]: The type `foo` is not found in the current scope.\n    --> compiler-test:10:5\n     |\n  10 |     mapping bar: foo => baz;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372017]: The type `baz` is not found in the current scope.\n    --> compiler-test:10:5\n     |\n  10 |     mapping bar: foo => baz;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372030]: A mapping's value cannot be a record\n    --> compiler-test:19:5\n     |\n  19 |     mapping real_tokens: address => RealToken;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372030]: A mapping's key cannot be a record\n    --> compiler-test:21:5\n     |\n  21 |     mapping owners: RealToken => address;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
++  - "Error [ETYC0372030]: A mapping's key cannot be a tuple\n    --> compiler-test:4:5\n     |\n   4 |     mapping foo: (u32, u32) => u32;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372017]: The type `baz` is not found in the current scope.\n    --> compiler-test:6:5\n     |\n   6 |     mapping floo: baz => u8;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372017]: The type `foo` is not found in the current scope.\n    --> compiler-test:8:5\n     |\n   8 |     mapping floop: foo => foo;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372017]: The type `foo` is not found in the current scope.\n    --> compiler-test:8:5\n     |\n   8 |     mapping floop: foo => foo;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372017]: The type `foo` is not found in the current scope.\n    --> compiler-test:10:5\n     |\n  10 |     mapping bar: foo => baz;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372017]: The type `baz` is not found in the current scope.\n    --> compiler-test:10:5\n     |\n  10 |     mapping bar: foo => baz;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372030]: A mapping's value cannot be a record\n    --> compiler-test:19:5\n     |\n  19 |     mapping real_tokens: address => RealToken;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372030]: A mapping's key cannot be a record\n    --> compiler-test:21:5\n     |\n  21 |     mapping owners: RealToken => address;\n     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/finalize/mapping_operations_in_inline_fail.out b/tests/expectations/compiler/finalize/mapping_operations_in_inline_fail.out
+index d15fe5f4a1..0a34d79183 100644
+--- a/tests/expectations/compiler/finalize/mapping_operations_in_inline_fail.out
++++ b/tests/expectations/compiler/finalize/mapping_operations_in_inline_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372077]: This operation can only be used in a `finalize` block.\n    --> compiler-test:8:9\n     |\n   8 |         Mapping::set(values, 0u8, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `Mapping::set` must be inside a finalize block.\n    --> compiler-test:8:9\n     |\n   8 |         Mapping::set(values, 0u8, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372077]: This operation can only be used in a `finalize` block.\n    --> compiler-test:9:9\n     |\n   9 |         Mapping::get_or_use(account, self.caller, 1u64);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `Mapping::get_or` must be inside a finalize block.\n    --> compiler-test:9:9\n     |\n   9 |         Mapping::get_or_use(account, self.caller, 1u64);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372077]: This operation can only be used in a `finalize` block.\n    --> compiler-test:10:9\n     |\n  10 |         Mapping::get(values, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `Mapping::get` must be inside a finalize block.\n    --> compiler-test:10:9\n     |\n  10 |         Mapping::get(values, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372077]: This operation can only be used in a `finalize` block.\n    --> compiler-test:14:9\n     |\n  14 |         Mapping::set(values, 0u8, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `Mapping::set` must be inside a finalize block.\n    --> compiler-test:14:9\n     |\n  14 |         Mapping::set(values, 0u8, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372077]: This operation can only be used in a `finalize` block.\n    --> compiler-test:15:9\n     |\n  15 |         Mapping::get_or_use(account, self.caller, 1u64);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `Mapping::get_or` must be inside a finalize block.\n    --> compiler-test:15:9\n     |\n  15 |         Mapping::get_or_use(account, self.caller, 1u64);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372077]: This operation can only be used in a `finalize` block.\n    --> compiler-test:16:9\n     |\n  16 |         Mapping::get(values, 0u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `Mapping::get` must be inside a finalize block.\n    --> compiler-test:16:9\n     |\n  16 |         Mapping::get(values, 0u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372044]: Function must contain a `finalize` statement on all execution paths.\n    --> compiler-test:13:5\n     |\n  13 |     inline bar() {\n  14 |         Mapping::set(values, 0u8, 1u8);\n  15 |         Mapping::get_or_use(account, self.caller, 1u64);\n  16 |         Mapping::get(values, 0u8);\n  17 |     }\n     |     ^\nError [ETYC0372031]: Only transition functions can have a `finalize` block.\n    --> compiler-test:19:5\n     |\n  19 |     finalize finalize_no_params() {\n  20 |         foo();\n  21 |         bar();\n  22 |     }\n     |     ^\n     |\n     = Remove the `finalize` block or use the keyword `transition` instead of `function`.\nError [ETYC0372045]: `finalize` name `bar` does not match function name `finalize_no_params`\n    --> compiler-test:19:5\n     |\n  19 |     finalize finalize_no_params() {\n  20 |         foo();\n  21 |         bar();\n  22 |     }\n     |     ^\nError [ETYC0372066]: Cyclic dependency between functions: `bar` --> `bar`\n"
++  - "Error [ETYC0372077]: This operation can only be used in a `finalize` block.\n    --> compiler-test:8:9\n     |\n   8 |         Mapping::set(values, 0u8, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `Mapping::set` must be inside a finalize block.\n    --> compiler-test:8:9\n     |\n   8 |         Mapping::set(values, 0u8, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372077]: This operation can only be used in a `finalize` block.\n    --> compiler-test:9:9\n     |\n   9 |         Mapping::get_or_use(account, self.caller, 1u64);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `Mapping::get_or` must be inside a finalize block.\n    --> compiler-test:9:9\n     |\n   9 |         Mapping::get_or_use(account, self.caller, 1u64);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372077]: This operation can only be used in a `finalize` block.\n    --> compiler-test:10:9\n     |\n  10 |         Mapping::get(values, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `Mapping::get` must be inside a finalize block.\n    --> compiler-test:10:9\n     |\n  10 |         Mapping::get(values, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372077]: This operation can only be used in a `finalize` block.\n    --> compiler-test:14:9\n     |\n  14 |         Mapping::set(values, 0u8, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `Mapping::set` must be inside a finalize block.\n    --> compiler-test:14:9\n     |\n  14 |         Mapping::set(values, 0u8, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372077]: This operation can only be used in a `finalize` block.\n    --> compiler-test:15:9\n     |\n  15 |         Mapping::get_or_use(account, self.caller, 1u64);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `Mapping::get_or` must be inside a finalize block.\n    --> compiler-test:15:9\n     |\n  15 |         Mapping::get_or_use(account, self.caller, 1u64);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372077]: This operation can only be used in a `finalize` block.\n    --> compiler-test:16:9\n     |\n  16 |         Mapping::get(values, 0u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `Mapping::get` must be inside a finalize block.\n    --> compiler-test:16:9\n     |\n  16 |         Mapping::get(values, 0u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372044]: Function must contain a `finalize` statement on all execution paths.\n    --> compiler-test:13:5\n     |\n  13 |     inline bar() {\n  14 |         Mapping::set(values, 0u8, 1u8);\n  15 |         Mapping::get_or_use(account, self.caller, 1u64);\n  16 |         Mapping::get(values, 0u8);\n  17 |     }\n     |     ^\nError [ETYC0372031]: Only transition functions can have a `finalize` block.\n    --> compiler-test:19:5\n     |\n  19 |     finalize finalize_no_params() {\n  20 |         foo();\n  21 |         bar();\n  22 |     }\n     |     ^\n     |\n     = Remove the `finalize` block or use the keyword `transition` instead of `function`.\nError [ETYC0372045]: `finalize` name `bar` does not match function name `finalize_no_params`\n    --> compiler-test:19:5\n     |\n  19 |     finalize finalize_no_params() {\n  20 |         foo();\n  21 |         bar();\n  22 |     }\n     |     ^\nError [ETYC0372066]: Cyclic dependency between functions: `bar` --> `bar`\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {\n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/function/annotated_function_fail.out b/tests/expectations/compiler/function/annotated_function_fail.out
+index 1044f1297b..ad0e868b55 100644
+--- a/tests/expectations/compiler/function/annotated_function_fail.out
++++ b/tests/expectations/compiler/function/annotated_function_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372027]: Unknown annotation: `@test`.\n    --> compiler-test:4:5\n     |\n   4 |     @test\n     |     ^^^^^\nError [ETYC0372027]: Unknown annotation: `@program`.\n    --> compiler-test:9:5\n     |\n   9 |     @program\n     |     ^^^^^^^^\n"
++  - "Error [ETYC0372027]: Unknown annotation: `@test`.\n    --> compiler-test:4:5\n     |\n   4 |     @test\n     |     ^^^^^\nError [ETYC0372027]: Unknown annotation: `@program`.\n    --> compiler-test:9:5\n     |\n   9 |     @program\n     |     ^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/function/no_transition_fail.out b/tests/expectations/compiler/function/no_transition_fail.out
+new file mode 100644
+index 0000000000..2c7570fd43
+--- /dev/null
++++ b/tests/expectations/compiler/function/no_transition_fail.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {\n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/function/non_transition_variant_input_record_fail.out b/tests/expectations/compiler/function/non_transition_variant_input_record_fail.out
+index 1b8b9569c7..04b1ed4a81 100644
+--- a/tests/expectations/compiler/function/non_transition_variant_input_record_fail.out
++++ b/tests/expectations/compiler/function/non_transition_variant_input_record_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372064]: A `function` cannot have a record as input or output.\n    --> compiler-test:9:18\n     |\n   9 |     function foo(a: credits) -> u8 {\n     |                  ^\nError [ETYC0372064]: A `function` cannot have a record as input or output.\n    --> compiler-test:13:41\n     |\n  13 |     function boo(a: address, b: u64) -> credits {\n     |                                         ^^^^^^^\n"
++  - "Error [ETYC0372064]: A `function` cannot have a record as input or output.\n    --> compiler-test:9:18\n     |\n   9 |     function foo(a: credits) -> u8 {\n     |                  ^\nError [ETYC0372064]: A `function` cannot have a record as input or output.\n    --> compiler-test:13:41\n     |\n  13 |     function boo(a: address, b: u64) -> credits {\n     |                                         ^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {\n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/function/shadow_function_with_input_fail.out b/tests/expectations/compiler/function/shadow_function_with_input_fail.out
+index e89def5647..65712349c0 100644
+--- a/tests/expectations/compiler/function/shadow_function_with_input_fail.out
++++ b/tests/expectations/compiler/function/shadow_function_with_input_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [EAST0372006]: function `hi` shadowed by\n    --> compiler-test:8:21\n     |\n   8 |     function tester(hi: u8) -> u8 {\n     |                     ^^\n"
++  - "Error [EAST0372006]: function `hi` shadowed by\n    --> compiler-test:8:21\n     |\n   8 |     function tester(hi: u8) -> u8 {\n     |                     ^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/function/standard_function_calls_standard_function_fail.out b/tests/expectations/compiler/function/standard_function_calls_standard_function_fail.out
+index 4d89eab9be..60f92ca84d 100644
+--- a/tests/expectations/compiler/function/standard_function_calls_standard_function_fail.out
++++ b/tests/expectations/compiler/function/standard_function_calls_standard_function_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372047]: Only `inline` can be called from a `function` or `inline`.\n    --> compiler-test:6:19\n     |\n   6 |            return adder(a, b);\n     |                   ^^^^^^^^^^^\nError [ETYC0372047]: Only `inline` can be called from a `function` or `inline`.\n    --> compiler-test:8:20\n     |\n   8 |             return subber(a, b);\n     |                    ^^^^^^^^^^^^\n"
++  - "Error [ETYC0372047]: Only `inline` can be called from a `function` or `inline`.\n    --> compiler-test:6:19\n     |\n   6 |            return adder(a, b);\n     |                   ^^^^^^^^^^^\nError [ETYC0372047]: Only `inline` can be called from a `function` or `inline`.\n    --> compiler-test:8:20\n     |\n   8 |             return subber(a, b);\n     |                    ^^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/function/undefined_data_type_fail.out b/tests/expectations/compiler/function/undefined_data_type_fail.out
+index 33c4a6bbe9..2929a3defb 100644
+--- a/tests/expectations/compiler/function/undefined_data_type_fail.out
++++ b/tests/expectations/compiler/function/undefined_data_type_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372017]: The type `Board` is not found in the current scope.\n    --> compiler-test:4:35\n     |\n   4 |     function aria192check_for_win(b: Board, p: u8) -> u128bool {\n     |                                   ^\nError [ETYC0372017]: The type `u128bool` is not found in the current scope.\n    --> compiler-test:4:55\n     |\n   4 |     function aria192check_for_win(b: Board, p: u8) -> u128bool {\n     |                                                       ^^^^^^^^\nError [ETYC0372005]: Unknown variable `test`\n    --> compiler-test:5:16\n     |\n   5 |         return test;\n     |                ^^^^\n"
++  - "Error [ETYC0372017]: The type `Board` is not found in the current scope.\n    --> compiler-test:4:35\n     |\n   4 |     function aria192check_for_win(b: Board, p: u8) -> u128bool {\n     |                                   ^\nError [ETYC0372017]: The type `u128bool` is not found in the current scope.\n    --> compiler-test:4:55\n     |\n   4 |     function aria192check_for_win(b: Board, p: u8) -> u128bool {\n     |                                                       ^^^^^^^^\nError [ETYC0372005]: Unknown variable `test`\n    --> compiler-test:5:16\n     |\n   5 |         return test;\n     |                ^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {\n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/function/undefined_fail.out b/tests/expectations/compiler/function/undefined_fail.out
+index d514b70cd1..9f7902209a 100644
+--- a/tests/expectations/compiler/function/undefined_fail.out
++++ b/tests/expectations/compiler/function/undefined_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372005]: Unknown function `my_function`\n    --> compiler-test:5:9\n     |\n   5 |         my_function();\n     |         ^^^^^^^^^^^\n"
++  - "Error [ETYC0372005]: Unknown function `my_function`\n    --> compiler-test:5:9\n     |\n   5 |         my_function();\n     |         ^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/group/mult_by_group_fail.out b/tests/expectations/compiler/group/mult_by_group_fail.out
+index 967f0d81c8..12c9e2a2b3 100644
+--- a/tests/expectations/compiler/group/mult_by_group_fail.out
++++ b/tests/expectations/compiler/group/mult_by_group_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372007]: Expected one type from `scalar`, but got `group`\n    --> compiler-test:5:30\n     |\n   5 |         return (_, _)group * a;\n     |                              ^\n"
++  - "Error [ETYC0372007]: Expected one type from `scalar`, but got `group`\n    --> compiler-test:5:30\n     |\n   5 |         return (_, _)group * a;\n     |                              ^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/i128/max_fail.out b/tests/expectations/compiler/integers/i128/max_fail.out
+index 1446b990cf..e629cd1283 100644
+--- a/tests/expectations/compiler/integers/i128/max_fail.out
++++ b/tests/expectations/compiler/integers/i128/max_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value 170141183460469231731687303715884105728 is not a valid `i128`\n    --> compiler-test:5:23\n     |\n   5 |         let a: i128 = 170141183460469231731687303715884105728i128;\n     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
++  - "Error [ETYC0372008]: The value 170141183460469231731687303715884105728 is not a valid `i128`\n    --> compiler-test:5:23\n     |\n   5 |         let a: i128 = 170141183460469231731687303715884105728i128;\n     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/i32/max_fail.out b/tests/expectations/compiler/integers/i32/max_fail.out
+index 9f2c4e4e6b..988b21f596 100644
+--- a/tests/expectations/compiler/integers/i32/max_fail.out
++++ b/tests/expectations/compiler/integers/i32/max_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value 2147483648 is not a valid `i32`\n    --> compiler-test:5:22\n     |\n   5 |         let a: i32 = 2147483648i32;\n     |                      ^^^^^^^^^^^^^\n"
++  - "Error [ETYC0372008]: The value 2147483648 is not a valid `i32`\n    --> compiler-test:5:22\n     |\n   5 |         let a: i32 = 2147483648i32;\n     |                      ^^^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/i64/max_fail.out b/tests/expectations/compiler/integers/i64/max_fail.out
+index dd89a21584..88290b7609 100644
+--- a/tests/expectations/compiler/integers/i64/max_fail.out
++++ b/tests/expectations/compiler/integers/i64/max_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value 9223372036854775808 is not a valid `i64`\n    --> compiler-test:5:22\n     |\n   5 |         let a: i64 = 9223372036854775808i64;\n     |                      ^^^^^^^^^^^^^^^^^^^^^^\n"
++  - "Error [ETYC0372008]: The value 9223372036854775808 is not a valid `i64`\n    --> compiler-test:5:22\n     |\n   5 |         let a: i64 = 9223372036854775808i64;\n     |                      ^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/i8/max_fail.out b/tests/expectations/compiler/integers/i8/max_fail.out
+index ad8fe897af..72a865c7b0 100644
+--- a/tests/expectations/compiler/integers/i8/max_fail.out
++++ b/tests/expectations/compiler/integers/i8/max_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value 128 is not a valid `i8`\n    --> compiler-test:5:21\n     |\n   5 |         let a: i8 = 128i8;\n     |                     ^^^^^\n"
++  - "Error [ETYC0372008]: The value 128 is not a valid `i8`\n    --> compiler-test:5:21\n     |\n   5 |         let a: i8 = 128i8;\n     |                     ^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/u128/max_fail.out b/tests/expectations/compiler/integers/u128/max_fail.out
+index 1d9a32c1f8..47e1b850fc 100644
+--- a/tests/expectations/compiler/integers/u128/max_fail.out
++++ b/tests/expectations/compiler/integers/u128/max_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value 340282366920938463463374607431768211456 is not a valid `u128`\n    --> compiler-test:5:23\n     |\n   5 |         let a: u128 = 340282366920938463463374607431768211456u128;\n     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
++  - "Error [ETYC0372008]: The value 340282366920938463463374607431768211456 is not a valid `u128`\n    --> compiler-test:5:23\n     |\n   5 |         let a: u128 = 340282366920938463463374607431768211456u128;\n     |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/u128/min_fail.out b/tests/expectations/compiler/integers/u128/min_fail.out
+index 800688f1a1..585090db53 100644
+--- a/tests/expectations/compiler/integers/u128/min_fail.out
++++ b/tests/expectations/compiler/integers/u128/min_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value -1 is not a valid `u128`\n    --> compiler-test:5:23\n     |\n   5 |         let a: u128 = -1u128;\n     |                       ^^^^^^\n"
++  - "Error [ETYC0372008]: The value -1 is not a valid `u128`\n    --> compiler-test:5:23\n     |\n   5 |         let a: u128 = -1u128;\n     |                       ^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/u16/max_fail.out b/tests/expectations/compiler/integers/u16/max_fail.out
+index e4ab924d28..c1228a192f 100644
+--- a/tests/expectations/compiler/integers/u16/max_fail.out
++++ b/tests/expectations/compiler/integers/u16/max_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value 65536 is not a valid `u16`\n    --> compiler-test:5:22\n     |\n   5 |         let a: u16 = 65536u16;\n     |                      ^^^^^^^^\n"
++  - "Error [ETYC0372008]: The value 65536 is not a valid `u16`\n    --> compiler-test:5:22\n     |\n   5 |         let a: u16 = 65536u16;\n     |                      ^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/u16/min_fail.out b/tests/expectations/compiler/integers/u16/min_fail.out
+index 1474653ed9..6f5a5a127a 100644
+--- a/tests/expectations/compiler/integers/u16/min_fail.out
++++ b/tests/expectations/compiler/integers/u16/min_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value -1 is not a valid `u16`\n    --> compiler-test:5:22\n     |\n   5 |         let a: u16 = -1u16;\n     |                      ^^^^^\n"
++  - "Error [ETYC0372008]: The value -1 is not a valid `u16`\n    --> compiler-test:5:22\n     |\n   5 |         let a: u16 = -1u16;\n     |                      ^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/u32/max_fail.out b/tests/expectations/compiler/integers/u32/max_fail.out
+index e9afc4608d..d72189abc8 100644
+--- a/tests/expectations/compiler/integers/u32/max_fail.out
++++ b/tests/expectations/compiler/integers/u32/max_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value 4294967296 is not a valid `u32`\n    --> compiler-test:5:22\n     |\n   5 |         let a: u32 = 4294967296u32;\n     |                      ^^^^^^^^^^^^^\n"
++  - "Error [ETYC0372008]: The value 4294967296 is not a valid `u32`\n    --> compiler-test:5:22\n     |\n   5 |         let a: u32 = 4294967296u32;\n     |                      ^^^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/u32/min_fail.out b/tests/expectations/compiler/integers/u32/min_fail.out
+index e9dadac947..7846a98071 100644
+--- a/tests/expectations/compiler/integers/u32/min_fail.out
++++ b/tests/expectations/compiler/integers/u32/min_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value -1 is not a valid `u32`\n    --> compiler-test:5:22\n     |\n   5 |         let a: u32 = -1u32;\n     |                      ^^^^^\n"
++  - "Error [ETYC0372008]: The value -1 is not a valid `u32`\n    --> compiler-test:5:22\n     |\n   5 |         let a: u32 = -1u32;\n     |                      ^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/u64/max_fail.out b/tests/expectations/compiler/integers/u64/max_fail.out
+index 90f06d037c..04b442aa04 100644
+--- a/tests/expectations/compiler/integers/u64/max_fail.out
++++ b/tests/expectations/compiler/integers/u64/max_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value 18446744073709551616 is not a valid `u64`\n    --> compiler-test:5:22\n     |\n   5 |         let a: u64 = 18446744073709551616u64;\n     |                      ^^^^^^^^^^^^^^^^^^^^^^^\n"
++  - "Error [ETYC0372008]: The value 18446744073709551616 is not a valid `u64`\n    --> compiler-test:5:22\n     |\n   5 |         let a: u64 = 18446744073709551616u64;\n     |                      ^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/u64/min_fail.out b/tests/expectations/compiler/integers/u64/min_fail.out
+index 8a092b3057..3426306592 100644
+--- a/tests/expectations/compiler/integers/u64/min_fail.out
++++ b/tests/expectations/compiler/integers/u64/min_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value -1 is not a valid `u64`\n    --> compiler-test:5:22\n     |\n   5 |         let a: u64 = -1u64;\n     |                      ^^^^^\n"
++  - "Error [ETYC0372008]: The value -1 is not a valid `u64`\n    --> compiler-test:5:22\n     |\n   5 |         let a: u64 = -1u64;\n     |                      ^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/u8/max_fail.out b/tests/expectations/compiler/integers/u8/max_fail.out
+index 57ab71b466..ad7267865c 100644
+--- a/tests/expectations/compiler/integers/u8/max_fail.out
++++ b/tests/expectations/compiler/integers/u8/max_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value 256 is not a valid `u8`\n    --> compiler-test:5:21\n     |\n   5 |         let a: u8 = 256u8;\n     |                     ^^^^^\n"
++  - "Error [ETYC0372008]: The value 256 is not a valid `u8`\n    --> compiler-test:5:21\n     |\n   5 |         let a: u8 = 256u8;\n     |                     ^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/integers/u8/min_fail.out b/tests/expectations/compiler/integers/u8/min_fail.out
+index 28c5feb0e4..bcdceece58 100644
+--- a/tests/expectations/compiler/integers/u8/min_fail.out
++++ b/tests/expectations/compiler/integers/u8/min_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:5:21\n     |\n   5 |         let a: u8 = -1u8;\n     |                     ^^^^\n"
++  - "Error [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:5:21\n     |\n   5 |         let a: u8 = -1u8;\n     |                     ^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/records/duplicate_var_fail.out b/tests/expectations/compiler/records/duplicate_var_fail.out
+index b0251f5aec..860d70b4dd 100644
+--- a/tests/expectations/compiler/records/duplicate_var_fail.out
++++ b/tests/expectations/compiler/records/duplicate_var_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372016]: Record Token defined with more than one variable with the same name.\n    --> compiler-test:4:5\n     |\n   4 |     record Token {\n   5 |         // The token owner.\n   6 |         owner: address,\n   7 |         // The token owner.\n   8 |         owner: address, // Cannot define two record variables with the same name.\n   9 |         // The token amount.\n  10 |         amount: u64,\n  11 |     }\n     |     ^\n"
++  - "Error [ETYC0372016]: Record Token defined with more than one variable with the same name.\n    --> compiler-test:4:5\n     |\n   4 |     record Token {\n   5 |         // The token owner.\n   6 |         owner: address,\n   7 |         // The token owner.\n   8 |         owner: address, // Cannot define two record variables with the same name.\n   9 |         // The token amount.\n  10 |         amount: u64,\n  11 |     }\n     |     ^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/records/init_expression_type_fail.out b/tests/expectations/compiler/records/init_expression_type_fail.out
+index 27b873ebf4..4cf22a1ff4 100644
+--- a/tests/expectations/compiler/records/init_expression_type_fail.out
++++ b/tests/expectations/compiler/records/init_expression_type_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372064]: A `function` cannot have a record as input or output.\n    --> compiler-test:11:44\n     |\n  11 |     function mint(r0: address, r1: u64) -> Token {\n     |                                            ^^^^^\nError [ETYC0372003]: Expected type `address` but type `u64` was found\n    --> compiler-test:13:20\n     |\n  13 |             owner: r1, // This variable should be type address.\n     |                    ^^\nError [ETYC0372003]: Expected type `u64` but type `address` was found\n    --> compiler-test:14:21\n     |\n  14 |             amount: r0, // This variable should be type u64.\n     |                     ^^\nError [ETYC0372047]: Only `inline` can be called from a `function` or `inline`.\n    --> compiler-test:20:24\n     |\n  20 |         let t: Token = mint(x, c);\n     |                        ^^^^^^^^^^\n"
++  - "Error [ETYC0372064]: A `function` cannot have a record as input or output.\n    --> compiler-test:11:44\n     |\n  11 |     function mint(r0: address, r1: u64) -> Token {\n     |                                            ^^^^^\nError [ETYC0372003]: Expected type `address` but type `u64` was found\n    --> compiler-test:13:20\n     |\n  13 |             owner: r1, // This variable should be type address.\n     |                    ^^\nError [ETYC0372003]: Expected type `u64` but type `address` was found\n    --> compiler-test:14:21\n     |\n  14 |             amount: r0, // This variable should be type u64.\n     |                     ^^\nError [ETYC0372047]: Only `inline` can be called from a `function` or `inline`.\n    --> compiler-test:20:24\n     |\n  20 |         let t: Token = mint(x, c);\n     |                        ^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/records/init_expression_var_fail.out b/tests/expectations/compiler/records/init_expression_var_fail.out
+index eb13a624dc..29d5a78208 100644
+--- a/tests/expectations/compiler/records/init_expression_var_fail.out
++++ b/tests/expectations/compiler/records/init_expression_var_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372064]: A `function` cannot have a record as input or output.\n    --> compiler-test:11:44\n     |\n  11 |     function mint(r0: address, r1: u64) -> Token {\n     |                                            ^^^^^\nError [ETYC0372013]: Struct initialization expression for `Token` is missing member `owner`.\n    --> compiler-test:12:16\n     |\n  12 |         return Token {\n  13 |             sender: r0, // This variable should be named `owner`.\n  14 |             amount: r1,\n  15 |         };\n     |          ^^^^^^\nError [ETYC0372047]: Only `inline` can be called from a `function` or `inline`.\n    --> compiler-test:20:24\n     |\n  20 |         let t: Token = mint(x, c);\n     |                        ^^^^^^^^^^\n"
++  - "Error [ETYC0372064]: A `function` cannot have a record as input or output.\n    --> compiler-test:11:44\n     |\n  11 |     function mint(r0: address, r1: u64) -> Token {\n     |                                            ^^^^^\nError [ETYC0372013]: Struct initialization expression for `Token` is missing member `owner`.\n    --> compiler-test:12:16\n     |\n  12 |         return Token {\n  13 |             sender: r0, // This variable should be named `owner`.\n  14 |             amount: r1,\n  15 |         };\n     |          ^^^^^^\nError [ETYC0372047]: Only `inline` can be called from a `function` or `inline`.\n    --> compiler-test:20:24\n     |\n  20 |         let t: Token = mint(x, c);\n     |                        ^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/records/nested_record_1_fail.out b/tests/expectations/compiler/records/nested_record_1_fail.out
+index 33f8ab8047..fde6f824c6 100644
+--- a/tests/expectations/compiler/records/nested_record_1_fail.out
++++ b/tests/expectations/compiler/records/nested_record_1_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:11:9\n     |\n  11 |         foo: Foo,\n     |         ^^^\n     |\n     = Remove the record `Foo` from `Token`.\n"
++  - "Error [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:11:9\n     |\n  11 |         foo: Foo,\n     |         ^^^\n     |\n     = Remove the record `Foo` from `Token`.\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/records/nested_record_2_fail.out b/tests/expectations/compiler/records/nested_record_2_fail.out
+index 0f628f316c..be59edf87e 100644
+--- a/tests/expectations/compiler/records/nested_record_2_fail.out
++++ b/tests/expectations/compiler/records/nested_record_2_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372055]: A record cannot contain a tuple.\n    --> compiler-test:7:9\n     |\n   7 |         foo: (Foo, Foo),\n     |         ^^^\nError [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:7:9\n     |\n   7 |         foo: (Foo, Foo),\n     |         ^^^\n     |\n     = Remove the record `Foo` from `Token2`.\nError [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:7:9\n     |\n   7 |         foo: (Foo, Foo),\n     |         ^^^\n     |\n     = Remove the record `Foo` from `Token2`.\n"
++  - "Error [ETYC0372055]: A record cannot contain a tuple.\n    --> compiler-test:7:9\n     |\n   7 |         foo: (Foo, Foo),\n     |         ^^^\nError [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:7:9\n     |\n   7 |         foo: (Foo, Foo),\n     |         ^^^\n     |\n     = Remove the record `Foo` from `Token2`.\nError [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:7:9\n     |\n   7 |         foo: (Foo, Foo),\n     |         ^^^\n     |\n     = Remove the record `Foo` from `Token2`.\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/records/nested_record_3_fail.out b/tests/expectations/compiler/records/nested_record_3_fail.out
+index be800efadb..926dfc3cad 100644
+--- a/tests/expectations/compiler/records/nested_record_3_fail.out
++++ b/tests/expectations/compiler/records/nested_record_3_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:11:9\n     |\n  11 |         bar: Foo,\n     |         ^^^\n     |\n     = Remove the record `Foo` from `Bar`.\n"
++  - "Error [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:11:9\n     |\n  11 |         bar: Foo,\n     |         ^^^\n     |\n     = Remove the record `Foo` from `Bar`.\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/records/nested_record_4_fail.out b/tests/expectations/compiler/records/nested_record_4_fail.out
+index 0296559455..641cc7a33e 100644
+--- a/tests/expectations/compiler/records/nested_record_4_fail.out
++++ b/tests/expectations/compiler/records/nested_record_4_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372055]: A record cannot contain a tuple.\n    --> compiler-test:6:9\n     |\n   6 |         bar: (Bar, Bar),\n     |         ^^^\nError [ETYC0372055]: A struct cannot contain a tuple.\n    --> compiler-test:10:9\n     |\n  10 |         bar: (Token, Token),\n     |         ^^^\nError [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:10:9\n     |\n  10 |         bar: (Token, Token),\n     |         ^^^\n     |\n     = Remove the record `Token` from `Bar`.\nError [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:10:9\n     |\n  10 |         bar: (Token, Token),\n     |         ^^^\n     |\n     = Remove the record `Token` from `Bar`.\n"
++  - "Error [ETYC0372055]: A record cannot contain a tuple.\n    --> compiler-test:6:9\n     |\n   6 |         bar: (Bar, Bar),\n     |         ^^^\nError [ETYC0372055]: A struct cannot contain a tuple.\n    --> compiler-test:10:9\n     |\n  10 |         bar: (Token, Token),\n     |         ^^^\nError [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:10:9\n     |\n  10 |         bar: (Token, Token),\n     |         ^^^\n     |\n     = Remove the record `Token` from `Bar`.\nError [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:10:9\n     |\n  10 |         bar: (Token, Token),\n     |         ^^^\n     |\n     = Remove the record `Token` from `Bar`.\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/records/no_owner_fail.out b/tests/expectations/compiler/records/no_owner_fail.out
+index 4b6e8151eb..4f8e4d372e 100644
+--- a/tests/expectations/compiler/records/no_owner_fail.out
++++ b/tests/expectations/compiler/records/no_owner_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372019]: The `record` type requires the variable `owner: address`.\n    --> compiler-test:5:5\n     |\n   5 |     record Token {\n   6 |         // The token amount.\n   7 |         amount: u64,\n   8 |     }\n     |     ^\n"
++  - "Error [ETYC0372019]: The `record` type requires the variable `owner: address`.\n    --> compiler-test:5:5\n     |\n   5 |     record Token {\n   6 |         // The token amount.\n   7 |         amount: u64,\n   8 |     }\n     |     ^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/records/owner_wrong_ty.out b/tests/expectations/compiler/records/owner_wrong_ty.out
+index ee9df20525..dbb4cb8982 100644
+--- a/tests/expectations/compiler/records/owner_wrong_ty.out
++++ b/tests/expectations/compiler/records/owner_wrong_ty.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372020]: The field `owner` in a `record` must have type `address`.\n    --> compiler-test:5:5\n     |\n   5 |     record Token {\n   6 |         owner: bool,\n   7 |     }\n     |     ^\n"
++  - "Error [ETYC0372020]: The field `owner` in a `record` must have type `address`.\n    --> compiler-test:5:5\n     |\n   5 |     record Token {\n   6 |         owner: bool,\n   7 |     }\n     |     ^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/scalar/div_fail.out b/tests/expectations/compiler/scalar/div_fail.out
+index c23d7a5ee7..6ff34c5283 100644
+--- a/tests/expectations/compiler/scalar/div_fail.out
++++ b/tests/expectations/compiler/scalar/div_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372007]: Expected one type from `field, i8, i16, i32, i64, i128, u8, u16, u32, u64, u128`, but got `scalar`\n    --> compiler-test:5:16\n     |\n   5 |         return a / b; // division not supported for scalar types.\n     |                ^^^^^\n"
++  - "Error [ETYC0372007]: Expected one type from `field, i8, i16, i32, i64, i128, u8, u16, u32, u64, u128`, but got `scalar`\n    --> compiler-test:5:16\n     |\n   5 |         return a / b; // division not supported for scalar types.\n     |                ^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/scalar/square_root_fail.out b/tests/expectations/compiler/scalar/square_root_fail.out
+index 2ed5c58f7d..11c9e0b2c7 100644
+--- a/tests/expectations/compiler/scalar/square_root_fail.out
++++ b/tests/expectations/compiler/scalar/square_root_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372007]: Expected one type from `field`, but got `scalar`\n    --> compiler-test:5:16\n     |\n   5 |         return a.square_root(); // square root not supported for scalar types.\n     |                ^^^^^^^^^^^^^^^\n"
++  - "Error [ETYC0372007]: Expected one type from `field`, but got `scalar`\n    --> compiler-test:5:16\n     |\n   5 |         return a.square_root(); // square root not supported for scalar types.\n     |                ^^^^^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/statements/assign_ternary.out b/tests/expectations/compiler/statements/assign_ternary.out
+index 0b965c1356..fc0166651f 100644
+--- a/tests/expectations/compiler/statements/assign_ternary.out
++++ b/tests/expectations/compiler/statements/assign_ternary.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372003]: Expected type `boolean` but type `u32` was found\n    --> compiler-test:5:30\n     |\n   5 |         let x: bool = true ? x: true;\n     |                              ^\nError [EAST0372009]: variable `x` shadowed by\n    --> compiler-test:5:13\n     |\n   5 |         let x: bool = true ? x: true;\n     |             ^\n"
++  - "Error [ETYC0372003]: Expected type `boolean` but type `u32` was found\n    --> compiler-test:5:30\n     |\n   5 |         let x: bool = true ? x: true;\n     |                              ^\nError [EAST0372009]: variable `x` shadowed by\n    --> compiler-test:5:13\n     |\n   5 |         let x: bool = true ? x: true;\n     |             ^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/statements/compare_diff_types_fail.out b/tests/expectations/compiler/statements/compare_diff_types_fail.out
+index 922aa4ab45..ff28366f06 100644
+--- a/tests/expectations/compiler/statements/compare_diff_types_fail.out
++++ b/tests/expectations/compiler/statements/compare_diff_types_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372003]: Expected type `u8` but type `i8` was found\n    --> compiler-test:5:23\n     |\n   5 |         let b: bool = a == 1u8;\n     |                       ^^^^^^^^\nError [ETYC0372003]: Expected type `u8` but type `i8` was found\n    --> compiler-test:6:23\n     |\n   6 |         let c: bool = a != 1u8;\n     |                       ^^^^^^^^\nError [ETYC0372003]: Expected type `u8` but type `i8` was found\n    --> compiler-test:7:23\n     |\n   7 |         let d: bool = a > 1u8;\n     |                       ^^^^^^^\nError [ETYC0372003]: Expected type `u8` but type `i8` was found\n    --> compiler-test:8:23\n     |\n   8 |         let e: bool = a < 1u8;\n     |                       ^^^^^^^\nError [ETYC0372003]: Expected type `u8` but type `i8` was found\n    --> compiler-test:9:23\n     |\n   9 |         let f: bool = a >= 1u8;\n     |                       ^^^^^^^^\nError [ETYC0372003]: Expected type `u8` but type `i8` was found\n    --> compiler-test:10:23\n     |\n  10 |         let g: bool = a <= 1u8;\n     |                       ^^^^^^^^\nError [ETYC0372007]: Expected one type from `i8`, but got `u8`\n    --> compiler-test:11:26\n     |\n  11 |         let h: u32 = a * 1u8;\n     |                          ^^^\nError [ETYC0372007]: Expected one type from `i8`, but got `u32`\n    --> compiler-test:11:22\n     |\n  11 |         let h: u32 = a * 1u8;\n     |                      ^^^^^^^\n"
++  - "Error [ETYC0372003]: Expected type `u8` but type `i8` was found\n    --> compiler-test:5:23\n     |\n   5 |         let b: bool = a == 1u8;\n     |                       ^^^^^^^^\nError [ETYC0372003]: Expected type `u8` but type `i8` was found\n    --> compiler-test:6:23\n     |\n   6 |         let c: bool = a != 1u8;\n     |                       ^^^^^^^^\nError [ETYC0372003]: Expected type `u8` but type `i8` was found\n    --> compiler-test:7:23\n     |\n   7 |         let d: bool = a > 1u8;\n     |                       ^^^^^^^\nError [ETYC0372003]: Expected type `u8` but type `i8` was found\n    --> compiler-test:8:23\n     |\n   8 |         let e: bool = a < 1u8;\n     |                       ^^^^^^^\nError [ETYC0372003]: Expected type `u8` but type `i8` was found\n    --> compiler-test:9:23\n     |\n   9 |         let f: bool = a >= 1u8;\n     |                       ^^^^^^^^\nError [ETYC0372003]: Expected type `u8` but type `i8` was found\n    --> compiler-test:10:23\n     |\n  10 |         let g: bool = a <= 1u8;\n     |                       ^^^^^^^^\nError [ETYC0372007]: Expected one type from `i8`, but got `u8`\n    --> compiler-test:11:26\n     |\n  11 |         let h: u32 = a * 1u8;\n     |                          ^^^\nError [ETYC0372007]: Expected one type from `i8`, but got `u32`\n    --> compiler-test:11:22\n     |\n  11 |         let h: u32 = a * 1u8;\n     |                      ^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/statements/compare_invalid_negates_fail.out b/tests/expectations/compiler/statements/compare_invalid_negates_fail.out
+index 51d0de2746..e99b36af48 100644
+--- a/tests/expectations/compiler/statements/compare_invalid_negates_fail.out
++++ b/tests/expectations/compiler/statements/compare_invalid_negates_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:5:24\n     |\n   5 |         let b: bool = -a == -1u8;\n     |                        ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:5:29\n     |\n   5 |         let b: bool = -a == -1u8;\n     |                             ^^^^\nError [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:6:24\n     |\n   6 |         let c: bool = -a > -1u8;\n     |                        ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:6:28\n     |\n   6 |         let c: bool = -a > -1u8;\n     |                            ^^^^\nError [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:7:24\n     |\n   7 |         let d: bool = -a < -1u8;\n     |                        ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:7:28\n     |\n   7 |         let d: bool = -a < -1u8;\n     |                            ^^^^\nError [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:8:24\n     |\n   8 |         let e: bool = -a >= -1u8;\n     |                        ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:8:29\n     |\n   8 |         let e: bool = -a >= -1u8;\n     |                             ^^^^\nError [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:9:24\n     |\n   9 |         let f: bool = -a <= -1u8;\n     |                        ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:9:29\n     |\n   9 |         let f: bool = -a <= -1u8;\n     |                             ^^^^\nError [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:10:22\n     |\n  10 |         let g: u8 = -a * -1u8;\n     |                      ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:10:26\n     |\n  10 |         let g: u8 = -a * -1u8;\n     |                          ^^^^\nError [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:11:22\n     |\n  11 |         let h: u8 = -a ** -1u8;\n     |                      ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:11:27\n     |\n  11 |         let h: u8 = -a ** -1u8;\n     |                           ^^^^\n"
++  - "Error [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:5:24\n     |\n   5 |         let b: bool = -a == -1u8;\n     |                        ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:5:29\n     |\n   5 |         let b: bool = -a == -1u8;\n     |                             ^^^^\nError [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:6:24\n     |\n   6 |         let c: bool = -a > -1u8;\n     |                        ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:6:28\n     |\n   6 |         let c: bool = -a > -1u8;\n     |                            ^^^^\nError [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:7:24\n     |\n   7 |         let d: bool = -a < -1u8;\n     |                        ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:7:28\n     |\n   7 |         let d: bool = -a < -1u8;\n     |                            ^^^^\nError [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:8:24\n     |\n   8 |         let e: bool = -a >= -1u8;\n     |                        ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:8:29\n     |\n   8 |         let e: bool = -a >= -1u8;\n     |                             ^^^^\nError [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:9:24\n     |\n   9 |         let f: bool = -a <= -1u8;\n     |                        ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:9:29\n     |\n   9 |         let f: bool = -a <= -1u8;\n     |                             ^^^^\nError [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:10:22\n     |\n  10 |         let g: u8 = -a * -1u8;\n     |                      ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:10:26\n     |\n  10 |         let g: u8 = -a * -1u8;\n     |                          ^^^^\nError [ETYC0372007]: Expected one type from `field, group, i8, i16, i32, i64, i128`, but got `u8`\n    --> compiler-test:11:22\n     |\n  11 |         let h: u8 = -a ** -1u8;\n     |                      ^\nError [ETYC0372008]: The value -1 is not a valid `u8`\n    --> compiler-test:11:27\n     |\n  11 |         let h: u8 = -a ** -1u8;\n     |                           ^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/statements/duplicate_variable.out b/tests/expectations/compiler/statements/duplicate_variable.out
+index de88f74650..de6c34f2a5 100644
+--- a/tests/expectations/compiler/statements/duplicate_variable.out
++++ b/tests/expectations/compiler/statements/duplicate_variable.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [EAST0372009]: variable `x` shadowed by\n    --> compiler-test:6:12\n     |\n   6 |       \tlet x: bool = true;\n     |            ^\n"
++  - "Error [EAST0372009]: variable `x` shadowed by\n    --> compiler-test:6:12\n     |\n   6 |       \tlet x: bool = true;\n     |            ^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/statements/iteration_bound_too_large_fail.out b/tests/expectations/compiler/statements/iteration_bound_too_large_fail.out
+index 966a8f720d..6b7d188528 100644
+--- a/tests/expectations/compiler/statements/iteration_bound_too_large_fail.out
++++ b/tests/expectations/compiler/statements/iteration_bound_too_large_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372008]: The value 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000 is not a valid `u64`\n    --> compiler-test:7:28\n     |\n   7 |         for i:u64 in 0u64..1000000000000000000000000000000000000000000000000000000000000000000000000000000000000u64 {\n     |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
++  - "Error [ETYC0372008]: The value 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000 is not a valid `u64`\n    --> compiler-test:7:28\n     |\n   7 |         for i:u64 in 0u64..1000000000000000000000000000000000000000000000000000000000000000000000000000000000000u64 {\n     |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {\n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/statements/loop_returns_fail.out b/tests/expectations/compiler/statements/loop_returns_fail.out
+index d976ea12df..d7ec6c544b 100644
+--- a/tests/expectations/compiler/statements/loop_returns_fail.out
++++ b/tests/expectations/compiler/statements/loop_returns_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372026]: Loop body contains a return statement or always returns.\n    --> compiler-test:6:9\n     |\n   6 |         for i: u32 in 0u32..9u32 {\n   7 |             return false;\n   8 |         }\n     |         ^\n     |\n     = Remove the code in the loop body that always returns.\nError [ETYC0372026]: Loop body contains a return statement or always returns.\n    --> compiler-test:10:9\n     |\n  10 |         for i: u32 in 0u32..9u32 {\n  11 |             if (x == 0u32) {\n  12 |                 return false;\n  13 |             } else {\n  14 |                 return true;\n  15 |             }\n  16 |         }\n     |         ^\n     |\n     = Remove the code in the loop body that always returns.\n"
++  - "Error [ETYC0372026]: Loop body contains a return statement or always returns.\n    --> compiler-test:6:9\n     |\n   6 |         for i: u32 in 0u32..9u32 {\n   7 |             return false;\n   8 |         }\n     |         ^\n     |\n     = Remove the code in the loop body that always returns.\nError [ETYC0372026]: Loop body contains a return statement or always returns.\n    --> compiler-test:10:9\n     |\n  10 |         for i: u32 in 0u32..9u32 {\n  11 |             if (x == 0u32) {\n  12 |                 return false;\n  13 |             } else {\n  14 |                 return true;\n  15 |             }\n  16 |         }\n     |         ^\n     |\n     = Remove the code in the loop body that always returns.\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/statements/multiple_returns_in_one_block_fail.out b/tests/expectations/compiler/statements/multiple_returns_in_one_block_fail.out
+index 87a22b9d6f..55a7b7629d 100644
+--- a/tests/expectations/compiler/statements/multiple_returns_in_one_block_fail.out
++++ b/tests/expectations/compiler/statements/multiple_returns_in_one_block_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372025]: Cannot reach the following statement.\n    --> compiler-test:6:9\n     |\n   6 |         let double: u32 = x + x;\n     |         ^^^^^^^^^^^^^^^^^^^^^^^\n     |\n     = Remove the unreachable code.\nError [ETYC0372025]: Cannot reach the following statement.\n    --> compiler-test:7:9\n     |\n   7 |         return double;\n     |         ^^^^^^^^^^^^^^\n     |\n     = Remove the unreachable code.\n"
++  - "Error [ETYC0372025]: Cannot reach the following statement.\n    --> compiler-test:6:9\n     |\n   6 |         let double: u32 = x + x;\n     |         ^^^^^^^^^^^^^^^^^^^^^^^\n     |\n     = Remove the unreachable code.\nError [ETYC0372025]: Cannot reach the following statement.\n    --> compiler-test:7:9\n     |\n   7 |         return double;\n     |         ^^^^^^^^^^^^^^\n     |\n     = Remove the unreachable code.\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/statements/non_existant_var_exp_fail.out b/tests/expectations/compiler/statements/non_existant_var_exp_fail.out
+index 2e8621fb0f..36636ea0fa 100644
+--- a/tests/expectations/compiler/statements/non_existant_var_exp_fail.out
++++ b/tests/expectations/compiler/statements/non_existant_var_exp_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372005]: Unknown variable `z`\n    --> compiler-test:5:23\n     |\n   5 |     \tlet b: u8 = 1u8**z;\n     |                       ^\n"
++  - "Error [ETYC0372005]: Unknown variable `z`\n    --> compiler-test:5:23\n     |\n   5 |     \tlet b: u8 = 1u8**z;\n     |                       ^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/statements/non_existant_vars_mul_fail.out b/tests/expectations/compiler/statements/non_existant_vars_mul_fail.out
+index 38b835987b..f6c9b9dca7 100644
+--- a/tests/expectations/compiler/statements/non_existant_vars_mul_fail.out
++++ b/tests/expectations/compiler/statements/non_existant_vars_mul_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372005]: Unknown variable `x`\n    --> compiler-test:5:18\n     |\n   5 |     \tlet b: u8 = x*z;\n     |                  ^\nError [ETYC0372005]: Unknown variable `z`\n    --> compiler-test:5:20\n     |\n   5 |     \tlet b: u8 = x*z;\n     |                    ^\nError [ETYC0372004]: Could not determine the type of `x`\n    --> compiler-test:5:18\n     |\n   5 |     \tlet b: u8 = x*z;\n     |                  ^\nError [ETYC0372004]: Could not determine the type of `z`\n    --> compiler-test:5:20\n     |\n   5 |     \tlet b: u8 = x*z;\n     |                    ^\n"
++  - "Error [ETYC0372005]: Unknown variable `x`\n    --> compiler-test:5:18\n     |\n   5 |     \tlet b: u8 = x*z;\n     |                  ^\nError [ETYC0372005]: Unknown variable `z`\n    --> compiler-test:5:20\n     |\n   5 |     \tlet b: u8 = x*z;\n     |                    ^\nError [ETYC0372004]: Could not determine the type of `x`\n    --> compiler-test:5:18\n     |\n   5 |     \tlet b: u8 = x*z;\n     |                  ^\nError [ETYC0372004]: Could not determine the type of `z`\n    --> compiler-test:5:20\n     |\n   5 |     \tlet b: u8 = x*z;\n     |                    ^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/statements/statements_after_complete_conditional_return_fail.out b/tests/expectations/compiler/statements/statements_after_complete_conditional_return_fail.out
+index dd46b82e9f..095bc16140 100644
+--- a/tests/expectations/compiler/statements/statements_after_complete_conditional_return_fail.out
++++ b/tests/expectations/compiler/statements/statements_after_complete_conditional_return_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372025]: Cannot reach the following statement.\n    --> compiler-test:10:9\n     |\n  10 |         let double: u32 = x + x;\n     |         ^^^^^^^^^^^^^^^^^^^^^^^\n     |\n     = Remove the unreachable code.\nError [ETYC0372025]: Cannot reach the following statement.\n    --> compiler-test:11:9\n     |\n  11 |         return double;\n     |         ^^^^^^^^^^^^^^\n     |\n     = Remove the unreachable code.\n"
++  - "Error [ETYC0372025]: Cannot reach the following statement.\n    --> compiler-test:10:9\n     |\n  10 |         let double: u32 = x + x;\n     |         ^^^^^^^^^^^^^^^^^^^^^^^\n     |\n     = Remove the unreachable code.\nError [ETYC0372025]: Cannot reach the following statement.\n    --> compiler-test:11:9\n     |\n  11 |         return double;\n     |         ^^^^^^^^^^^^^^\n     |\n     = Remove the unreachable code.\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/structs/cyclic_structs_one_fail.out b/tests/expectations/compiler/structs/cyclic_structs_one_fail.out
+index 6310185861..034d2d40cb 100644
+--- a/tests/expectations/compiler/structs/cyclic_structs_one_fail.out
++++ b/tests/expectations/compiler/structs/cyclic_structs_one_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372065]: Cyclic dependency between structs: `Foo` --> `Foo`\n"
++  - "Error [ETYC0372065]: Cyclic dependency between structs: `Foo` --> `Foo`\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {\n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/structs/cyclic_structs_three_fail.out b/tests/expectations/compiler/structs/cyclic_structs_three_fail.out
+index 78d961d8d9..1839d19cfb 100644
+--- a/tests/expectations/compiler/structs/cyclic_structs_three_fail.out
++++ b/tests/expectations/compiler/structs/cyclic_structs_three_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372065]: Cyclic dependency between structs: `One` --> `Two` --> `Three` --> `One`\n"
++  - "Error [ETYC0372065]: Cyclic dependency between structs: `One` --> `Two` --> `Three` --> `One`\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {\n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/structs/cyclic_structs_two_fail.out b/tests/expectations/compiler/structs/cyclic_structs_two_fail.out
+index b4a37f33ba..b6dcfff9b9 100644
+--- a/tests/expectations/compiler/structs/cyclic_structs_two_fail.out
++++ b/tests/expectations/compiler/structs/cyclic_structs_two_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372065]: Cyclic dependency between structs: `Bar` --> `Baz` --> `Bar`\n"
++  - "Error [ETYC0372065]: Cyclic dependency between structs: `Bar` --> `Baz` --> `Bar`\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {\n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/structs/duplicate_name_context.out b/tests/expectations/compiler/structs/duplicate_name_context.out
+index 4c5341f6f3..c298f52e7d 100644
+--- a/tests/expectations/compiler/structs/duplicate_name_context.out
++++ b/tests/expectations/compiler/structs/duplicate_name_context.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [EAST0372007]: struct `Bar` shadowed by\n    --> compiler-test:9:13\n     |\n   9 |         let Bar: u32 = 66u32;\n     |             ^^^\n"
++  - "Error [EAST0372007]: struct `Bar` shadowed by\n    --> compiler-test:9:13\n     |\n   9 |         let Bar: u32 = 66u32;\n     |             ^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/structs/duplicate_struct_variable.out b/tests/expectations/compiler/structs/duplicate_struct_variable.out
+index 70c341b842..745a5017fd 100644
+--- a/tests/expectations/compiler/structs/duplicate_struct_variable.out
++++ b/tests/expectations/compiler/structs/duplicate_struct_variable.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372015]: Struct Bar defined with more than one member with the same name.\n    --> compiler-test:4:5\n     |\n   4 |     struct Bar {\n   5 |         x: u32,\n   6 |         x: u32,\n   7 |     }\n     |     ^\n"
++  - "Error [ETYC0372015]: Struct Bar defined with more than one member with the same name.\n    --> compiler-test:4:5\n     |\n   4 |     struct Bar {\n   5 |         x: u32,\n   6 |         x: u32,\n   7 |     }\n     |     ^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/structs/inline_fail.out b/tests/expectations/compiler/structs/inline_fail.out
+index 2ad806502b..a0df2919ff 100644
+--- a/tests/expectations/compiler/structs/inline_fail.out
++++ b/tests/expectations/compiler/structs/inline_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372013]: Struct initialization expression for `Foo` is missing member `x`.\n    --> compiler-test:10:22\n     |\n  10 |         let a: Foo = Foo { y: 0u32 };\n     |                      ^^^^^^^^^^^^^^^\n"
++  - "Error [ETYC0372013]: Struct initialization expression for `Foo` is missing member `x`.\n    --> compiler-test:10:22\n     |\n  10 |         let a: Foo = Foo { y: 0u32 };\n     |                      ^^^^^^^^^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/structs/inline_undefined.out b/tests/expectations/compiler/structs/inline_undefined.out
+index 02906debdc..bf8ad9dd68 100644
+--- a/tests/expectations/compiler/structs/inline_undefined.out
++++ b/tests/expectations/compiler/structs/inline_undefined.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372017]: The type `Foo` is not found in the current scope.\n    --> compiler-test:5:9\n     |\n   5 |         let a: Foo = Foo { };\n     |         ^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372005]: Unknown struct `Foo`\n    --> compiler-test:5:22\n     |\n   5 |         let a: Foo = Foo { };\n     |                      ^^^\n"
++  - "Error [ETYC0372017]: The type `Foo` is not found in the current scope.\n    --> compiler-test:5:9\n     |\n   5 |         let a: Foo = Foo { };\n     |         ^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372005]: Unknown struct `Foo`\n    --> compiler-test:5:22\n     |\n   5 |         let a: Foo = Foo { };\n     |                      ^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/structs/struct_contains_record_fail.out b/tests/expectations/compiler/structs/struct_contains_record_fail.out
+index 224484b2b2..fc1e8f32e5 100644
+--- a/tests/expectations/compiler/structs/struct_contains_record_fail.out
++++ b/tests/expectations/compiler/structs/struct_contains_record_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:6:9\n     |\n   6 |         token: Token,\n     |         ^^^^^\n     |\n     = Remove the record `Token` from `Foo`.\nError [ETYC0372065]: Cyclic dependency between structs: `Foo` --> `Token` --> `Foo`\n"
++  - "Error [ETYC0372029]: A struct or record cannot contain another record.\n    --> compiler-test:6:9\n     |\n   6 |         token: Token,\n     |         ^^^^^\n     |\n     = Remove the record `Token` from `Foo`.\nError [ETYC0372065]: Cyclic dependency between structs: `Foo` --> `Token` --> `Foo`\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/tuple/access_out_of_bounds_fail.out b/tests/expectations/compiler/tuple/access_out_of_bounds_fail.out
+index 2eb3a4232f..ecd1df1d78 100644
+--- a/tests/expectations/compiler/tuple/access_out_of_bounds_fail.out
++++ b/tests/expectations/compiler/tuple/access_out_of_bounds_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372024]: Tuple index `2` out of range for a tuple with length `2`\n    --> compiler-test:7:24\n     |\n   7 |         return (t.0, t.2); // Index `t.2` is out of bounds.\n     |                        ^\nError [ETYC0372014]: t.2 is not a valid core function call.\n    --> compiler-test:7:24\n     |\n   7 |         return (t.0, t.2); // Index `t.2` is out of bounds.\n     |                        ^\n"
++  - "Error [ETYC0372024]: Tuple index `2` out of range for a tuple with length `2`\n    --> compiler-test:7:24\n     |\n   7 |         return (t.0, t.2); // Index `t.2` is out of bounds.\n     |                        ^\nError [ETYC0372014]: t.2 is not a valid core function call.\n    --> compiler-test:7:24\n     |\n   7 |         return (t.0, t.2); // Index `t.2` is out of bounds.\n     |                        ^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/tuple/tuple_in_record_fail.out b/tests/expectations/compiler/tuple/tuple_in_record_fail.out
+index dee4a62852..d4e74d8455 100644
+--- a/tests/expectations/compiler/tuple/tuple_in_record_fail.out
++++ b/tests/expectations/compiler/tuple/tuple_in_record_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372055]: A record cannot contain a tuple.\n    --> compiler-test:6:9\n     |\n   6 |         amounts: (u64, u64),\n     |         ^^^^^^^\n"
++  - "Error [ETYC0372055]: A record cannot contain a tuple.\n    --> compiler-test:6:9\n     |\n   6 |         amounts: (u64, u64),\n     |         ^^^^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {\n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/tuple/tuple_in_struct_fail.out b/tests/expectations/compiler/tuple/tuple_in_struct_fail.out
+index 173191b051..5c32bc3911 100644
+--- a/tests/expectations/compiler/tuple/tuple_in_struct_fail.out
++++ b/tests/expectations/compiler/tuple/tuple_in_struct_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372055]: A struct cannot contain a tuple.\n    --> compiler-test:5:9\n     |\n   5 |         mem: (u8, u16)\n     |         ^^^\nError [ETYC0372055]: A struct cannot contain a tuple.\n    --> compiler-test:9:9\n     |\n   9 |         mems: (A, A)\n     |         ^^^^\n"
++  - "Error [ETYC0372055]: A struct cannot contain a tuple.\n    --> compiler-test:5:9\n     |\n   5 |         mem: (u8, u16)\n     |         ^^^\nError [ETYC0372055]: A struct cannot contain a tuple.\n    --> compiler-test:9:9\n     |\n   9 |         mems: (A, A)\n     |         ^^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {\n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/tuple/tuple_not_allowed_fail.out b/tests/expectations/compiler/tuple/tuple_not_allowed_fail.out
+index 8c3f551d81..0ba80a81f0 100644
+--- a/tests/expectations/compiler/tuple/tuple_not_allowed_fail.out
++++ b/tests/expectations/compiler/tuple/tuple_not_allowed_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372055]: A struct cannot contain a tuple.\n    --> compiler-test:22:9\n     |\n  22 |         mem: (u8, u16)\n     |         ^^^\nError [ETYC0372056]: A function cannot take in a tuple as input.\n    --> compiler-test:8:18\n     |\n   8 |     function foo(a: (u8, u16)) -> (u8, u16) {\n     |                  ^\nError [ETYC0372054]: A tuple type cannot contain a tuple.\n    --> compiler-test:12:28\n     |\n  12 |     function bar() -> (u8, (u16, u32)) {\n     |                            ^^^^^^^^^^\nError [ETYC0372058]: A tuple expression cannot contain another tuple expression.\n    --> compiler-test:13:22\n     |\n  13 |         return (1u8, (2u16, 3u32));\n     |                      ^^^^^^^^^^^^\nError [ETYC0372058]: A tuple expression cannot contain another tuple expression.\n    --> compiler-test:13:22\n     |\n  13 |         return (1u8, (2u16, 3u32));\n     |                      ^^^^^^^^^^^^\nError [ETYC0372007]: Expected one type from `i8, i16, i32, i64, i128, u8, u16, u32, u64, u128`, but got `(u8,u16)`\n    --> compiler-test:17:13\n     |\n  17 |         for i: (u8, u16) in 0u8..2u8 {}\n     |             ^\nError [ETYC0372003]: Expected type `(u8,u16)` but type `u8` was found\n    --> compiler-test:17:29\n     |\n  17 |         for i: (u8, u16) in 0u8..2u8 {}\n     |                             ^^^\nError [ETYC0372003]: Expected type `(u8,u16)` but type `u8` was found\n    --> compiler-test:17:34\n     |\n  17 |         for i: (u8, u16) in 0u8..2u8 {}\n     |                                  ^^^\n"
++  - "Error [ETYC0372055]: A struct cannot contain a tuple.\n    --> compiler-test:22:9\n     |\n  22 |         mem: (u8, u16)\n     |         ^^^\nError [ETYC0372056]: A function cannot take in a tuple as input.\n    --> compiler-test:8:18\n     |\n   8 |     function foo(a: (u8, u16)) -> (u8, u16) {\n     |                  ^\nError [ETYC0372054]: A tuple type cannot contain a tuple.\n    --> compiler-test:12:28\n     |\n  12 |     function bar() -> (u8, (u16, u32)) {\n     |                            ^^^^^^^^^^\nError [ETYC0372058]: A tuple expression cannot contain another tuple expression.\n    --> compiler-test:13:22\n     |\n  13 |         return (1u8, (2u16, 3u32));\n     |                      ^^^^^^^^^^^^\nError [ETYC0372058]: A tuple expression cannot contain another tuple expression.\n    --> compiler-test:13:22\n     |\n  13 |         return (1u8, (2u16, 3u32));\n     |                      ^^^^^^^^^^^^\nError [ETYC0372007]: Expected one type from `i8, i16, i32, i64, i128, u8, u16, u32, u64, u128`, but got `(u8,u16)`\n    --> compiler-test:17:13\n     |\n  17 |         for i: (u8, u16) in 0u8..2u8 {}\n     |             ^\nError [ETYC0372003]: Expected type `(u8,u16)` but type `u8` was found\n    --> compiler-test:17:29\n     |\n  17 |         for i: (u8, u16) in 0u8..2u8 {}\n     |                             ^^^\nError [ETYC0372003]: Expected type `(u8,u16)` but type `u8` was found\n    --> compiler-test:17:34\n     |\n  17 |         for i: (u8, u16) in 0u8..2u8 {}\n     |                                  ^^^\nError [ETYC0372093]: A program must have at least one transition function.\n    --> compiler-test:1:1\n     |\n   1 | \n   2 | \n   3 | program test.aleo {    \n     | ^^^^^^^^^^^^\n"
+diff --git a/tests/tests/compiler/function/no_transition_fail.leo b/tests/tests/compiler/function/no_transition_fail.leo
+new file mode 100644
+index 0000000000..b158046533
+--- /dev/null
++++ b/tests/tests/compiler/function/no_transition_fail.leo
+@@ -0,0 +1,7 @@
++/*
++namespace: Compile
++expectation: Fail
++*/
++
++program test.aleo {
++}
+\ No newline at end of file

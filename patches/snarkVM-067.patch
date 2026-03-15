@@ -1,0 +1,101 @@
+diff --git a/algorithms/src/crypto_hash/poseidon.rs b/algorithms/src/crypto_hash/poseidon.rs
+index df52c8222..49b56e93b 100644
+--- a/algorithms/src/crypto_hash/poseidon.rs
++++ b/algorithms/src/crypto_hash/poseidon.rs
+@@ -483,7 +483,7 @@ impl<F: PrimeField, const RATE: usize> PoseidonSponge<F, RATE, 1> {
+         let dest_elements = bits
+             .chunks_exact(num_bits_per_nonnative)
+             .map(|per_nonnative_bits| {
+-                // technically, this can be done via BigInterger::from_bits; here, we use this
++                // technically, this can be done via BigInteger::from_bits; here, we use this
+                 // method for consistency with the gadget counterpart
+                 let mut res = TargetField::zero();
+ 
+diff --git a/circuit/environment/src/helpers/r1cs.rs b/circuit/environment/src/helpers/r1cs.rs
+index fd5a9db41..8a4a6f18e 100644
+--- a/circuit/environment/src/helpers/r1cs.rs
++++ b/circuit/environment/src/helpers/r1cs.rs
+@@ -52,7 +52,7 @@ fn hash_to_sha256<T: Hash>(t: &T) -> [u8; 32] {
+ pub type Scope = String;
+ 
+ /// A list of hashes of all the R1CS objects that have reached the
+-/// coversion to Assignment stage. It's a vector in case there are
++/// conversion to Assignment stage. It's a vector in case there are
+ /// any duplicates (which could indicate no change or redundant
+ /// work) and since they need to eventually be sorted in order to
+ /// have deterministic order, as they may be created in parallel.
+diff --git a/curves/src/traits/tests_field.rs b/curves/src/traits/tests_field.rs
+index ae0a5d556..03eb7e393 100644
+--- a/curves/src/traits/tests_field.rs
++++ b/curves/src/traits/tests_field.rs
+@@ -103,7 +103,7 @@ fn random_inversion_tests<F: Field, R: Rng>(rng: &mut R) {
+ 
+     for _ in 0..ITERATIONS {
+         let mut a = F::rand(rng);
+-        let b = a.inverse().unwrap(); // probablistically nonzero
++        let b = a.inverse().unwrap(); // probabilistically nonzero
+         a *= &b;
+ 
+         assert_eq!(a, F::one());
+diff --git a/ledger/src/check_next_block.rs b/ledger/src/check_next_block.rs
+index 04679d66a..67154e4bc 100644
+--- a/ledger/src/check_next_block.rs
++++ b/ledger/src/check_next_block.rs
+@@ -137,7 +137,7 @@ impl<N: Network, C: ConsensusStorage<N>> Ledger<N, C> {
+     /// Check that leaves in the subdag point to batches in other blocks that are valid.
+     ///
+     /// This does not verify that the batches are signed correctly or that the edges are valid
+-    /// (only point to the previous round), as those checks already happend when the node received the batch.
++    /// (only point to the previous round), as those checks already happened when the node received the batch.
+     fn check_block_subdag_leaves(&self, block: &Block<N>) -> Result<()> {
+         // Check if the block has a subdag.
+         let Authority::Quorum(subdag) = block.authority() else {
+diff --git a/ledger/src/tests.rs b/ledger/src/tests.rs
+index e7524def2..7c5e5efd8 100644
+--- a/ledger/src/tests.rs
++++ b/ledger/src/tests.rs
+@@ -68,7 +68,7 @@ fn extract_transmissions(
+     transmissions
+ }
+ 
+-/// Helper to build chains with custom sturctures for testing
++/// Helper to build chains with custom structures for testing
+ struct TestChainBuilder {
+     /// The keys of all validators.
+     private_keys: Vec<PrivateKey<CurrentNetwork>>,
+@@ -91,7 +91,7 @@ struct TestChainBuilder {
+ }
+ 
+ impl TestChainBuilder {
+-    /// Initialize the builder with the specified commitee and gensis block
++    /// Initialize the builder with the specified committee and genesis block
+     pub fn new(private_keys: Vec<PrivateKey<CurrentNetwork>>, genesis: Block<CurrentNetwork>) -> Self {
+         // Initialize the ledger with the genesis block.
+         let ledger =
+@@ -147,7 +147,7 @@ impl TestChainBuilder {
+ 
+         let block_height = self.current_height + 1;
+ 
+-        // SubDAGs can be at most GC roudns long.
++        // SubDAGs can be at most GC rounds long.
+         let mut round = if self.last_block_round < BatchHeader::<CurrentNetwork>::MAX_GC_ROUNDS as u64 {
+             1
+         } else {
+@@ -773,7 +773,7 @@ fn test_bond_and_unbond_validator() {
+     let new_member_withdrawal_private_key = PrivateKey::<CurrentNetwork>::new(rng).unwrap();
+     let new_member_withdrawal_address = Address::try_from(&new_member_withdrawal_private_key).unwrap();
+ 
+-    // Fund the new committee member and their withdrawwal address.
++    // Fund the new committee member and their withdrawal address.
+     let inputs = [
+         Value::from_str(&format!("{new_member_address}")).unwrap(),
+         Value::from_str("20000000000000u64").unwrap(), // 20 million credits.
+@@ -840,7 +840,7 @@ fn test_bond_and_unbond_validator() {
+     let committee = ledger.latest_committee().unwrap();
+     assert!(committee.is_committee_member(new_member_address));
+ 
+-    // Check that number of validators in the `metadata` mapping in `credtis.aleo` is updated.
++    // Check that number of validators in the `metadata` mapping in `credits.aleo` is updated.
+     let program_id = ProgramID::<CurrentNetwork>::from_str("credits.aleo").unwrap();
+     let metadata_mapping_name = Identifier::from_str("metadata").unwrap();
+     let key = Plaintext::<CurrentNetwork>::from_str("aleo1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq3ljyzc")

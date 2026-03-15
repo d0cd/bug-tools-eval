@@ -4,6 +4,7 @@ import click
 
 from bugeval.analyze import analyze
 from bugeval.curate import curate
+from bugeval.dashboard import dashboard
 from bugeval.extract_patch import extract_patch
 from bugeval.human_judge import human_judge
 from bugeval.judge import judge
@@ -12,6 +13,7 @@ from bugeval.merge_cases import merge_cases
 from bugeval.mine_candidates_cmd import mine_candidates
 from bugeval.normalize import normalize
 from bugeval.pipeline import pipeline
+from bugeval.prediction_format import export_predictions_cmd, import_predictions_cmd
 from bugeval.run_agent_eval import run_agent_eval
 from bugeval.run_api_eval import run_api_eval
 from bugeval.run_pr_eval import run_pr_eval
@@ -44,3 +46,6 @@ cli.add_command(human_judge)
 cli.add_command(mine_candidates)
 cli.add_command(validate_env)
 cli.add_command(status)
+cli.add_command(dashboard)
+cli.add_command(export_predictions_cmd)
+cli.add_command(import_predictions_cmd)

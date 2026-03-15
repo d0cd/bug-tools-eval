@@ -1,0 +1,23 @@
+diff --git a/ledger/src/tests.rs b/ledger/src/tests.rs
+index bcd56d212..a17f1f932 100644
+--- a/ledger/src/tests.rs
++++ b/ledger/src/tests.rs
+@@ -2936,7 +2936,7 @@ mod valid_solutions {
+         let validator_address = Address::try_from(&private_key).unwrap();
+ 
+         // Initialize the store.
+-        let store = ConsensusStore::<_, LedgerType<_>>::open(StorageMode::new_test(None)).unwrap();
++        let store = ConsensusStore::<_, LedgerType>::open(StorageMode::new_test(None)).unwrap();
+         // Create a genesis block with a seeded RNG to reproduce the same genesis private keys.
+         let seed: u64 = rng.gen();
+         let genesis_rng = &mut TestRng::from_seed(seed);
+@@ -2955,8 +2955,7 @@ mod valid_solutions {
+         let mut chain_builder = TestChainBuilder::new(private_keys.to_vec(), genesis.clone());
+ 
+         // Construct the ledger.
+-        let ledger =
+-            Ledger::<CurrentNetwork, LedgerType<CurrentNetwork>>::load(genesis, StorageMode::new_test(None)).unwrap();
++        let ledger = Ledger::<CurrentNetwork, LedgerType>::load(genesis, StorageMode::new_test(None)).unwrap();
+ 
+         // Retrieve the puzzle parameters.
+         let puzzle = ledger.puzzle();

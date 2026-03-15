@@ -1,0 +1,693 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 396782407e..55e839eccf 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -972,6 +972,7 @@ dependencies = [
+  "leo-package",
+  "log",
+  "notify",
++ "num-bigint",
+  "rand",
+  "rand_core",
+  "reqwest",
+diff --git a/Cargo.toml b/Cargo.toml
+index ea98e2bb44..d86f57e6ba 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -35,6 +35,7 @@ from-pest = { version = "0.3.1" }
+ lazy_static = { version = "1.4.0" }
+ log = { version = "0.4" }
+ notify= { version = "4.0.15" }
++num-bigint = { version = "0.3" }
+ rand = { version = "0.7" }
+ rand_core = { version = "0.5.1" }
+ reqwest = { version = "0.10.7", features = ["blocking", "json"] }
+diff --git a/compiler/src/compiler.rs b/compiler/src/compiler.rs
+index 77388ae128..bcde2061c4 100644
+--- a/compiler/src/compiler.rs
++++ b/compiler/src/compiler.rs
+@@ -140,13 +140,14 @@ impl<F: Field + PrimeField, G: GroupType<F>> Compiler<F, G> {
+     /// Synthesizes the circuit without program input to verify correctness.
+     pub fn compile_constraints<CS: ConstraintSystem<F>>(self, cs: &mut CS) -> Result<OutputBytes, CompilerError> {
+         let path = self.main_file_path;
+-        let input = self.program_input.empty();
+ 
+-        generate_constraints::<F, G, CS>(cs, self.program, input, &self.imported_programs).map_err(|mut error| {
+-            error.set_path(path);
++        generate_constraints::<F, G, CS>(cs, self.program, self.program_input, &self.imported_programs).map_err(
++            |mut error| {
++                error.set_path(path);
+ 
+-            error
+-        })
++                error
++            },
++        )
+     }
+ 
+     /// Synthesizes the circuit for test functions with program input.
+diff --git a/leo/commands/build.rs b/leo/commands/build.rs
+index d293e429ed..a0ff73bd38 100644
+--- a/leo/commands/build.rs
++++ b/leo/commands/build.rs
+@@ -1,13 +1,17 @@
+-use crate::{cli::*, cli_types::*, errors::CLIError};
++use crate::{
++    cli::*,
++    cli_types::*,
++    errors::CLIError,
++    synthesizer::{CircuitSynthesizer, SerializedCircuit},
++};
+ use leo_compiler::{compiler::Compiler, group::targets::edwards_bls12::EdwardsGroupType};
+ use leo_package::{
+     inputs::*,
+-    outputs::{ChecksumFile, OutputsDirectory, OUTPUTS_DIRECTORY_NAME},
++    outputs::{ChecksumFile, CircuitFile, OutputsDirectory, OUTPUTS_DIRECTORY_NAME},
+     root::Manifest,
+     source::{LibFile, MainFile, LIB_FILE_NAME, MAIN_FILE_NAME, SOURCE_DIRECTORY_NAME},
+ };
+ 
+-use snarkos_algorithms::snark::groth16::KeypairAssembly;
+ use snarkos_curves::{bls12_377::Bls12_377, edwards_bls12::Fq};
+ use snarkos_models::gadgets::r1cs::ConstraintSystem;
+ 
+@@ -98,18 +102,34 @@ impl CLI for BuildCommand {
+ 
+             // Generate the program on the constraint system and verify correctness
+             {
+-                let mut cs = KeypairAssembly::<Bls12_377> {
+-                    num_inputs: 0,
+-                    num_aux: 0,
+-                    num_constraints: 0,
++                let mut cs = CircuitSynthesizer::<Bls12_377> {
+                     at: vec![],
+                     bt: vec![],
+                     ct: vec![],
++                    input_assignment: vec![],
++                    aux_assignment: vec![],
+                 };
+                 let temporary_program = program.clone();
+                 let output = temporary_program.compile_constraints(&mut cs)?;
+                 log::debug!("Compiled constraints - {:#?}", output);
+                 log::debug!("Number of constraints - {:#?}", cs.num_constraints());
++
++                // Serialize the circuit
++                let circuit_object = SerializedCircuit::from(cs);
++                let json = circuit_object.to_json_string().unwrap();
++                // println!("json: {}", json);
++
++                // Write serialized circuit to circuit `.json` file.
++                let circuit_file = CircuitFile::new(&package_name);
++                circuit_file.write_to(&path, json)?;
++
++                // Check that we can read the serialized circuit file
++                let serialized = circuit_file.read_from(&package_path)?;
++
++                // Deserialize the circuit
++                let deserialized = SerializedCircuit::from_json_string(&serialized).unwrap();
++                let _circuit_synthesizer = CircuitSynthesizer::<Bls12_377>::try_from(deserialized).unwrap();
++                // println!("deserialized {:?}", circuit_synthesizer.num_constraints());
+             }
+ 
+             // If a checksum file exists, check if it differs from the new checksum
+diff --git a/leo/errors/cli.rs b/leo/errors/cli.rs
+index 8687b82f0b..1e751c866a 100644
+--- a/leo/errors/cli.rs
++++ b/leo/errors/cli.rs
+@@ -9,12 +9,15 @@ pub enum CLIError {
+     #[error("{}", _0)]
+     BytesFileError(ZipFileError),
+ 
+-    #[error("{}: {}", _0, _1)]
+-    Crate(&'static str, String),
+-
+     #[error("{}", _0)]
+     ChecksumFileError(ChecksumFileError),
+ 
++    #[error("{}", _0)]
++    CircuitFileError(CircuitFileError),
++
++    #[error("{}: {}", _0, _1)]
++    Crate(&'static str, String),
++
+     #[error("{}", _0)]
+     GitignoreError(GitignoreError),
+ 
+@@ -94,6 +97,13 @@ impl From<ChecksumFileError> for CLIError {
+     }
+ }
+ 
++impl From<CircuitFileError> for CLIError {
++    fn from(error: CircuitFileError) -> Self {
++        log::error!("{}\n", error);
++        CLIError::CircuitFileError(error)
++    }
++}
++
+ impl From<GitignoreError> for CLIError {
+     fn from(error: GitignoreError) -> Self {
+         log::error!("{}\n", error);
+diff --git a/leo/lib.rs b/leo/lib.rs
+index 9c27ffed9d..a492f4990d 100644
+--- a/leo/lib.rs
++++ b/leo/lib.rs
+@@ -7,3 +7,4 @@ pub mod cli_types;
+ pub mod commands;
+ pub mod errors;
+ pub mod logger;
++pub mod synthesizer;
+diff --git a/leo/synthesizer/circuit_synthesizer.rs b/leo/synthesizer/circuit_synthesizer.rs
+new file mode 100644
+index 0000000000..6ab1e18cbe
+--- /dev/null
++++ b/leo/synthesizer/circuit_synthesizer.rs
+@@ -0,0 +1,95 @@
++use snarkos_errors::gadgets::SynthesisError;
++use snarkos_models::{
++    curves::{Field, PairingEngine},
++    gadgets::r1cs::{ConstraintSystem, Index, LinearCombination, Variable},
++};
++
++pub struct CircuitSynthesizer<E: PairingEngine> {
++    // Constraints
++    pub(crate) at: Vec<Vec<(E::Fr, Index)>>,
++    pub(crate) bt: Vec<Vec<(E::Fr, Index)>>,
++    pub(crate) ct: Vec<Vec<(E::Fr, Index)>>,
++
++    // Assignments of variables
++    pub(crate) input_assignment: Vec<E::Fr>,
++    pub(crate) aux_assignment: Vec<E::Fr>,
++}
++
++impl<E: PairingEngine> ConstraintSystem<E::Fr> for CircuitSynthesizer<E> {
++    type Root = Self;
++
++    #[inline]
++    fn alloc<F, A, AR>(&mut self, _: A, f: F) -> Result<Variable, SynthesisError>
++    where
++        F: FnOnce() -> Result<E::Fr, SynthesisError>,
++        A: FnOnce() -> AR,
++        AR: Into<String>,
++    {
++        let index = self.aux_assignment.len();
++        self.aux_assignment.push(f()?);
++        Ok(Variable::new_unchecked(Index::Aux(index)))
++    }
++
++    #[inline]
++    fn alloc_input<F, A, AR>(&mut self, _: A, f: F) -> Result<Variable, SynthesisError>
++    where
++        F: FnOnce() -> Result<E::Fr, SynthesisError>,
++        A: FnOnce() -> AR,
++        AR: Into<String>,
++    {
++        let index = self.input_assignment.len();
++        self.input_assignment.push(f()?);
++        Ok(Variable::new_unchecked(Index::Input(index)))
++    }
++
++    #[inline]
++    fn enforce<A, AR, LA, LB, LC>(&mut self, _: A, a: LA, b: LB, c: LC)
++    where
++        A: FnOnce() -> AR,
++        AR: Into<String>,
++        LA: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
++        LB: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
++        LC: FnOnce(LinearCombination<E::Fr>) -> LinearCombination<E::Fr>,
++    {
++        let num_constraints = self.num_constraints();
++
++        self.at.push(Vec::new());
++        self.bt.push(Vec::new());
++        self.ct.push(Vec::new());
++
++        push_constraints(a(LinearCombination::zero()), &mut self.at, num_constraints);
++
++        push_constraints(b(LinearCombination::zero()), &mut self.bt, num_constraints);
++
++        push_constraints(c(LinearCombination::zero()), &mut self.ct, num_constraints);
++    }
++
++    fn push_namespace<NR, N>(&mut self, _: N)
++    where
++        NR: Into<String>,
++        N: FnOnce() -> NR,
++    {
++        // Do nothing; we don't care about namespaces in this context.
++    }
++
++    fn pop_namespace(&mut self) {
++        // Do nothing; we don't care about namespaces in this context.
++    }
++
++    fn get_root(&mut self) -> &mut Self::Root {
++        self
++    }
++
++    fn num_constraints(&self) -> usize {
++        self.at.len()
++    }
++}
++
++fn push_constraints<F: Field>(l: LinearCombination<F>, constraints: &mut [Vec<(F, Index)>], this_constraint: usize) {
++    for (var, coeff) in l.as_ref() {
++        match var.get_unchecked() {
++            Index::Input(i) => constraints[this_constraint].push((*coeff, Index::Input(i))),
++            Index::Aux(i) => constraints[this_constraint].push((*coeff, Index::Aux(i))),
++        }
++    }
++}
+diff --git a/leo/synthesizer/mod.rs b/leo/synthesizer/mod.rs
+new file mode 100644
+index 0000000000..c4174cc275
+--- /dev/null
++++ b/leo/synthesizer/mod.rs
+@@ -0,0 +1,11 @@
++pub mod circuit_synthesizer;
++pub use self::circuit_synthesizer::*;
++
++pub mod serialized_circuit;
++pub use self::serialized_circuit::*;
++
++pub mod serialized_field;
++pub use self::serialized_field::*;
++
++pub mod serialized_index;
++pub use self::serialized_index::*;
+diff --git a/leo/synthesizer/serialized_circuit.rs b/leo/synthesizer/serialized_circuit.rs
+new file mode 100644
+index 0000000000..55c9bd9c13
+--- /dev/null
++++ b/leo/synthesizer/serialized_circuit.rs
+@@ -0,0 +1,176 @@
++use crate::synthesizer::{CircuitSynthesizer, SerializedField, SerializedIndex};
++
++use snarkos_curves::bls12_377::Bls12_377;
++use snarkos_errors::curves::FieldError;
++use snarkos_models::{
++    curves::PairingEngine,
++    gadgets::r1cs::{ConstraintSystem, Index},
++};
++
++use serde::{Deserialize, Serialize};
++use std::convert::TryFrom;
++
++#[derive(Serialize, Deserialize)]
++pub struct SerializedCircuit {
++    pub num_inputs: usize,
++    pub num_aux: usize,
++    pub num_constraints: usize,
++
++    pub input_assignment: Vec<SerializedField>,
++    pub aux_assignment: Vec<SerializedField>,
++
++    pub at: Vec<Vec<(SerializedField, SerializedIndex)>>,
++    pub bt: Vec<Vec<(SerializedField, SerializedIndex)>>,
++    pub ct: Vec<Vec<(SerializedField, SerializedIndex)>>,
++}
++
++impl SerializedCircuit {
++    pub fn to_json_string(&self) -> Result<String, serde_json::Error> {
++        Ok(serde_json::to_string_pretty(&self)?)
++    }
++
++    pub fn from_json_string(json: &str) -> Result<Self, serde_json::Error> {
++        serde_json::from_str(json)
++    }
++}
++
++impl<E: PairingEngine> From<CircuitSynthesizer<E>> for SerializedCircuit {
++    fn from(synthesizer: CircuitSynthesizer<E>) -> Self {
++        let num_inputs = synthesizer.input_assignment.len();
++        let num_aux = synthesizer.aux_assignment.len();
++        let num_constraints = synthesizer.num_constraints();
++
++        // Serialize assignments
++        fn get_serialized_assignments<E: PairingEngine>(assignments: &Vec<E::Fr>) -> Vec<SerializedField> {
++            let mut serialized = vec![];
++
++            for assignment in assignments {
++                let field = SerializedField::from(assignment);
++
++                serialized.push(field);
++            }
++
++            serialized
++        }
++
++        let input_assignment = get_serialized_assignments::<E>(&synthesizer.input_assignment);
++        let aux_assignment = get_serialized_assignments::<E>(&synthesizer.aux_assignment);
++
++        // Serialize constraints
++        fn get_serialized_constraints<E: PairingEngine>(
++            constraints: &Vec<(E::Fr, Index)>,
++        ) -> Vec<(SerializedField, SerializedIndex)> {
++            let mut serialized = vec![];
++
++            for &(ref coeff, index) in constraints {
++                let field = SerializedField::from(coeff);
++                let index = SerializedIndex::from(index);
++
++                serialized.push((field, index))
++            }
++
++            serialized
++        }
++
++        let mut at = vec![];
++        let mut bt = vec![];
++        let mut ct = vec![];
++
++        for i in 0..num_constraints {
++            // Serialize at[i]
++
++            let a_constraints = get_serialized_constraints::<E>(&synthesizer.at[i]);
++            at.push(a_constraints);
++
++            // Serialize bt[i]
++
++            let b_constraints = get_serialized_constraints::<E>(&synthesizer.bt[i]);
++            bt.push(b_constraints);
++
++            // Serialize ct[i]
++
++            let c_constraints = get_serialized_constraints::<E>(&synthesizer.ct[i]);
++            ct.push(c_constraints);
++        }
++
++        Self {
++            num_inputs,
++            num_aux,
++            num_constraints,
++            input_assignment,
++            aux_assignment,
++            at,
++            bt,
++            ct,
++        }
++    }
++}
++
++impl TryFrom<SerializedCircuit> for CircuitSynthesizer<Bls12_377> {
++    type Error = FieldError;
++
++    fn try_from(serialized: SerializedCircuit) -> Result<CircuitSynthesizer<Bls12_377>, Self::Error> {
++        // Deserialize assignments
++        fn get_deserialized_assignments(
++            assignments: &Vec<SerializedField>,
++        ) -> Result<Vec<<Bls12_377 as PairingEngine>::Fr>, FieldError> {
++            let mut deserialized = vec![];
++
++            for serialized_assignment in assignments {
++                let field = <Bls12_377 as PairingEngine>::Fr::try_from(serialized_assignment)?;
++
++                deserialized.push(field);
++            }
++
++            Ok(deserialized)
++        }
++
++        let input_assignment = get_deserialized_assignments(&serialized.input_assignment)?;
++        let aux_assignment = get_deserialized_assignments(&serialized.aux_assignment)?;
++
++        // Deserialize constraints
++        fn get_deserialized_constraints(
++            constraints: &Vec<(SerializedField, SerializedIndex)>,
++        ) -> Result<Vec<(<Bls12_377 as PairingEngine>::Fr, Index)>, FieldError> {
++            let mut deserialized = vec![];
++
++            for &(ref serialized_coeff, ref serialized_index) in constraints {
++                let field = <Bls12_377 as PairingEngine>::Fr::try_from(serialized_coeff)?;
++                let index = Index::from(serialized_index);
++
++                deserialized.push((field, index));
++            }
++
++            Ok(deserialized)
++        }
++
++        let mut at = vec![];
++        let mut bt = vec![];
++        let mut ct = vec![];
++
++        for i in 0..serialized.num_constraints {
++            // Deserialize at[i]
++
++            let a_constraints = get_deserialized_constraints(&serialized.at[i])?;
++            at.push(a_constraints);
++
++            // Deserialize bt[i]
++
++            let b_constraints = get_deserialized_constraints(&serialized.bt[i])?;
++            bt.push(b_constraints);
++
++            // Deserialize ct[i]
++
++            let c_constraints = get_deserialized_constraints(&serialized.ct[i])?;
++            ct.push(c_constraints);
++        }
++
++        Ok(CircuitSynthesizer::<Bls12_377> {
++            input_assignment,
++            aux_assignment,
++            at,
++            bt,
++            ct,
++        })
++    }
++}
+diff --git a/leo/synthesizer/serialized_field.rs b/leo/synthesizer/serialized_field.rs
+new file mode 100644
+index 0000000000..9ed3a91e27
+--- /dev/null
++++ b/leo/synthesizer/serialized_field.rs
+@@ -0,0 +1,35 @@
++use snarkos_errors::curves::FieldError;
++use snarkos_models::curves::{Field, Fp256, Fp256Parameters};
++
++use num_bigint::BigUint;
++use serde::{Deserialize, Serialize};
++use std::{convert::TryFrom, str::FromStr};
++
++#[derive(Serialize, Deserialize)]
++pub struct SerializedField(pub String);
++
++impl<F: Field> From<&F> for SerializedField {
++    fn from(field: &F) -> Self {
++        // write field to buffer
++
++        let mut buf = Vec::new();
++
++        field.write(&mut buf).unwrap();
++
++        // convert to base 10 integer
++
++        let f_bigint = BigUint::from_bytes_le(&buf);
++
++        let f_string = f_bigint.to_str_radix(10);
++
++        Self(f_string)
++    }
++}
++
++impl<P: Fp256Parameters> TryFrom<&SerializedField> for Fp256<P> {
++    type Error = FieldError;
++
++    fn try_from(serialized: &SerializedField) -> Result<Self, Self::Error> {
++        Fp256::<P>::from_str(&serialized.0)
++    }
++}
+diff --git a/leo/synthesizer/serialized_index.rs b/leo/synthesizer/serialized_index.rs
+new file mode 100644
+index 0000000000..c77586ce6c
+--- /dev/null
++++ b/leo/synthesizer/serialized_index.rs
+@@ -0,0 +1,27 @@
++use snarkos_models::gadgets::r1cs::Index;
++
++use serde::{Deserialize, Serialize};
++
++#[derive(Serialize, Deserialize)]
++pub enum SerializedIndex {
++    Input(usize),
++    Aux(usize),
++}
++
++impl From<Index> for SerializedIndex {
++    fn from(index: Index) -> Self {
++        match index {
++            Index::Input(idx) => Self::Input(idx),
++            Index::Aux(idx) => Self::Aux(idx),
++        }
++    }
++}
++
++impl From<&SerializedIndex> for Index {
++    fn from(serialized_index: &SerializedIndex) -> Self {
++        match serialized_index {
++            SerializedIndex::Input(idx) => Index::Input(idx.clone()),
++            SerializedIndex::Aux(idx) => Index::Aux(idx.clone()),
++        }
++    }
++}
+diff --git a/package/src/errors/outputs/circuit.rs b/package/src/errors/outputs/circuit.rs
+new file mode 100644
+index 0000000000..75287299f0
+--- /dev/null
++++ b/package/src/errors/outputs/circuit.rs
+@@ -0,0 +1,25 @@
++use std::{io, path::PathBuf};
++
++#[derive(Debug, Error)]
++pub enum CircuitFileError {
++    #[error("{}: {}", _0, _1)]
++    Crate(&'static str, String),
++
++    #[error("creating: {}", _0)]
++    Creating(io::Error),
++
++    #[error("Cannot read from the provided file path - {:?}", _0)]
++    FileReadError(PathBuf),
++
++    #[error("Cannot remove the provided file - {:?}", _0)]
++    FileRemovalError(PathBuf),
++
++    #[error("writing: {}", _0)]
++    Writing(io::Error),
++}
++
++impl From<std::io::Error> for CircuitFileError {
++    fn from(error: std::io::Error) -> Self {
++        CircuitFileError::Crate("std::io", format!("{}", error))
++    }
++}
+diff --git a/package/src/errors/outputs/mod.rs b/package/src/errors/outputs/mod.rs
+index f9ba49a493..022e413f2a 100644
+--- a/package/src/errors/outputs/mod.rs
++++ b/package/src/errors/outputs/mod.rs
+@@ -1,3 +1,6 @@
++pub mod circuit;
++pub use circuit::*;
++
+ pub mod checksum;
+ pub use checksum::*;
+ 
+diff --git a/package/src/outputs/circuit.rs b/package/src/outputs/circuit.rs
+new file mode 100644
+index 0000000000..00d4312877
+--- /dev/null
++++ b/package/src/outputs/circuit.rs
+@@ -0,0 +1,73 @@
++//! The serialized circuit output file.
++
++use crate::{errors::CircuitFileError, outputs::OUTPUTS_DIRECTORY_NAME};
++
++use serde::Deserialize;
++use std::{
++    fs::{self, File},
++    io::Write,
++    path::PathBuf,
++};
++
++pub static CIRCUIT_FILE_EXTENSION: &str = ".json";
++
++#[derive(Deserialize)]
++pub struct CircuitFile {
++    pub package_name: String,
++}
++
++impl CircuitFile {
++    pub fn new(package_name: &str) -> Self {
++        Self {
++            package_name: package_name.to_string(),
++        }
++    }
++
++    pub fn exists_at(&self, path: &PathBuf) -> bool {
++        let path = self.setup_file_path(path);
++        path.exists()
++    }
++
++    /// Reads the serialized circuit from the given file path if it exists.
++    pub fn read_from(&self, path: &PathBuf) -> Result<String, CircuitFileError> {
++        let path = self.setup_file_path(path);
++
++        Ok(fs::read_to_string(&path).map_err(|_| CircuitFileError::FileReadError(path.clone()))?)
++    }
++
++    /// Writes the given serialized circuit to a file.
++    pub fn write_to(&self, path: &PathBuf, circuit: String) -> Result<(), CircuitFileError> {
++        let path = self.setup_file_path(path);
++
++        let mut file = File::create(&path)?;
++        file.write_all(circuit.as_bytes())?;
++
++        Ok(())
++    }
++
++    /// Removes the serialized circuit at the given path if it exists. Returns `true` on success,
++    /// `false` if the file doesn't exist, and `Error` if the file system fails during operation.
++    pub fn remove(&self, path: &PathBuf) -> Result<bool, CircuitFileError> {
++        let path = self.setup_file_path(path);
++        if !path.exists() {
++            return Ok(false);
++        }
++
++        fs::remove_file(&path).map_err(|_| CircuitFileError::FileRemovalError(path.clone()))?;
++        Ok(true)
++    }
++
++    fn setup_file_path(&self, path: &PathBuf) -> PathBuf {
++        let mut path = path.to_owned();
++        if path.is_dir() {
++            if !path.ends_with(OUTPUTS_DIRECTORY_NAME) {
++                path.push(PathBuf::from(OUTPUTS_DIRECTORY_NAME));
++            }
++            path.push(PathBuf::from(format!(
++                "{}{}",
++                self.package_name, CIRCUIT_FILE_EXTENSION
++            )));
++        }
++        path
++    }
++}
+diff --git a/package/src/outputs/mod.rs b/package/src/outputs/mod.rs
+index a075e21225..30bd5d58d1 100644
+--- a/package/src/outputs/mod.rs
++++ b/package/src/outputs/mod.rs
+@@ -1,3 +1,6 @@
++pub mod circuit;
++pub use self::circuit::*;
++
+ pub mod checksum;
+ pub use self::checksum::*;
+ 
+diff --git a/package/src/root/zip.rs b/package/src/root/zip.rs
+index 1236672577..48c8d08ea0 100644
+--- a/package/src/root/zip.rs
++++ b/package/src/root/zip.rs
+@@ -6,6 +6,7 @@ use crate::{
+     inputs::{INPUTS_DIRECTORY_NAME, INPUT_FILE_EXTENSION},
+     outputs::{
+         CHECKSUM_FILE_EXTENSION,
++        CIRCUIT_FILE_EXTENSION,
+         OUTPUTS_DIRECTORY_NAME,
+         PROOF_FILE_EXTENSION,
+         PROVING_KEY_FILE_EXTENSION,
+@@ -123,7 +124,7 @@ fn is_excluded(path: &Path) -> bool {
+         return true;
+     }
+ 
+-    // excluded extensions: `.in`, `.bytes`, `lpk`, `lvk`, `.proof`, `.sum`
++    // excluded extensions: `.in`, `.bytes`, `lpk`, `lvk`, `.proof`, `.sum`, `.zip`, `.bytes`
+     path.extension()
+         .map(|ext| {
+             ext.eq(INPUT_FILE_EXTENSION.trim_start_matches("."))
+@@ -133,6 +134,7 @@ fn is_excluded(path: &Path) -> bool {
+                 | ext.eq(PROOF_FILE_EXTENSION.trim_start_matches("."))
+                 | ext.eq(CHECKSUM_FILE_EXTENSION.trim_start_matches("."))
+                 | ext.eq(ZIP_FILE_EXTENSION.trim_start_matches("."))
++                | ext.eq(CIRCUIT_FILE_EXTENSION.trim_start_matches("."))
+         })
+         .unwrap_or(false)
+ }

@@ -1,0 +1,65 @@
+diff --git a/network/src/server/connection_handler.rs b/network/src/server/connection_handler.rs
+index 41fc5c11e..e3ceb12b4 100644
+--- a/network/src/server/connection_handler.rs
++++ b/network/src/server/connection_handler.rs
+@@ -140,7 +140,7 @@ impl Server {
+                             sync_handler.sync_node = peer.0.clone();
+                         };
+                     }
+-                    // drop(sync_handler);
++                    drop(sync_handler);
+                 }
+ 
+                 // Store connected peers in database.
+@@ -215,6 +215,11 @@ impl Server {
+                 } else {
+                     interval_ticker += 1;
+                 }
++
++                // Drop the locks
++                drop(peer_book);
++                drop(connections);
++                drop(pings);
+             }
+         });
+     }
+diff --git a/network/src/server/message_handler.rs b/network/src/server/message_handler.rs
+index ef6543370..f06177e53 100644
+--- a/network/src/server/message_handler.rs
++++ b/network/src/server/message_handler.rs
+@@ -173,6 +173,7 @@ impl Server {
+                 info!("Disconnected from peer: {:?}", channel.address);
+                 let mut peer_book = self.context.peer_book.write().await;
+                 peer_book.disconnect_peer(channel.address);
++                drop(peer_book);
+             } else {
+                 debug!("Message name not recognized {:?}", name.to_string());
+             }
+diff --git a/network/src/server/mod.rs b/network/src/server/mod.rs
+index b6b705ebf..5c00b0cae 100644
+--- a/network/src/server/mod.rs
++++ b/network/src/server/mod.rs
+@@ -96,9 +96,7 @@ pub async fn propagate_block(context: Arc<Context>, data: Vec<u8>, block_miner:
+     for (socket, _) in &context.peer_book.read().await.get_connected() {
+         if *socket != block_miner && *socket != *context.local_address.read().await {
+             if let Some(channel) = context.connections.read().await.get(socket) {
+-                if let Err(_) = channel.write(&Block::new(data.clone())).await {
+-                    warn!("Failed to send block to {}", socket);
+-                }
++                channel.write(&Block::new(data.clone())).await?;
+             }
+         }
+     }
+diff --git a/network/src/server/server.rs b/network/src/server/server.rs
+index 9e7c2dfb3..c711c8646 100644
+--- a/network/src/server/server.rs
++++ b/network/src/server/server.rs
+@@ -298,6 +298,8 @@ impl Server {
+                             context.peer_book.write().await.forget_peer(receiver_address);
+                         }
+ 
++                        drop(local_address);
++
+                         context.connections.write().await.store_channel(&handshake.channel);
+ 
+                         if let Some(version) = version_message {

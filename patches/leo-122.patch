@@ -1,0 +1,141 @@
+diff --git a/README.md b/README.md
+index e482acbe21..3d4c25af8c 100644
+--- a/README.md
++++ b/README.md
+@@ -95,14 +95,14 @@ Congratulations! You've just run your first Leo program.
+ 
+ ## 4. Documentation
+ 
+-* [Hello World - Next Steps](https://developer.aleo.org/developer/getting_started/hello_world)
+-* [Leo Language Documentation](https://developer.aleo.org/developer/language/layout)
++* [Hello World - Next Steps](https://developer.aleo.org/leo/getting_started/hello_world)
++* [Leo Language Documentation](https://developer.aleo.org/leo/getting_started/overview)
+ * [Leo ABNF Grammar](./docs/grammar/abnf-grammar.txt)
+-* [Homepage](https://developer.aleo.org/developer/getting_started/overview)
++* [Homepage](https://developer.aleo.org/overview/)
+ 
+ ## 5. Contributing
+  
+-Please see our guidelines in the [developer documentation](https://developer.aleo.org/developer/additional_material/contributing)
++Please see our guidelines in the [developer documentation](./CONTRIBUTING.md)
+ 
+ Thank you for helping make Leo better!
+ 
+diff --git a/compiler/ast/src/input/input_ast.rs b/compiler/ast/src/input/input_ast.rs
+index c1f99dba43..950d352e46 100644
+--- a/compiler/ast/src/input/input_ast.rs
++++ b/compiler/ast/src/input/input_ast.rs
+@@ -73,7 +73,7 @@ impl InputAst {
+ 
+     /// Serializes the `Input` into a JSON Value.
+     pub fn to_json_value(&self) -> Result<serde_json::Value> {
+-        Ok(serde_json::to_value(&self).map_err(|e| AstError::failed_to_convert_ast_to_json_value(&e))?)
++        Ok(serde_json::to_value(self).map_err(|e| AstError::failed_to_convert_ast_to_json_value(&e))?)
+     }
+ 
+     /// Serializes the input into a JSON file.
+diff --git a/compiler/compiler/src/test.rs b/compiler/compiler/src/test.rs
+index 8475f5f46e..e7a7a12c6d 100644
+--- a/compiler/compiler/src/test.rs
++++ b/compiler/compiler/src/test.rs
+@@ -84,7 +84,7 @@ fn hash_content(content: &str) -> String {
+ }
+ 
+ fn hash_file(path: &str) -> String {
+-    let file = fs::read_to_string(&Path::new(path)).unwrap();
++    let file = fs::read_to_string(Path::new(path)).unwrap();
+     hash_content(&file)
+ }
+ 
+@@ -210,7 +210,7 @@ fn run_test(test: Test, handler: &Handler, err_buf: &BufferEmitter) -> Result<Va
+     let cwd = test.config.get("cwd").map(|val| {
+         let mut cwd = test.path.clone();
+         cwd.pop();
+-        cwd.join(&val.as_str().unwrap())
++        cwd.join(val.as_str().unwrap())
+     });
+ 
+     let mut parsed = handler.extend_if_error(parse_program(handler, &test.content, cwd))?;
+diff --git a/compiler/passes/src/type_checking/check_expressions.rs b/compiler/passes/src/type_checking/check_expressions.rs
+index 300e2e71bd..bf8b1e7920 100644
+--- a/compiler/passes/src/type_checking/check_expressions.rs
++++ b/compiler/passes/src/type_checking/check_expressions.rs
+@@ -142,7 +142,7 @@ impl<'a> ExpressionVisitor<'a> for TypeChecker<'a> {
+                                 // Case where `access.name` is not a member of the circuit.
+                                 None => {
+                                     self.emit_err(TypeCheckerError::invalid_circuit_variable(
+-                                        &access.name,
++                                        access.name,
+                                         &circ,
+                                         access.name.span(),
+                                     ));
+@@ -405,7 +405,7 @@ impl<'a> ExpressionVisitor<'a> for TypeChecker<'a> {
+ 
+                     Some(ret)
+                 } else {
+-                    self.emit_err(TypeCheckerError::unknown_sym("function", &ident.name, ident.span()));
++                    self.emit_err(TypeCheckerError::unknown_sym("function", ident.name, ident.span()));
+                     None
+                 }
+             }
+@@ -451,7 +451,7 @@ impl<'a> ExpressionVisitor<'a> for TypeChecker<'a> {
+         } else {
+             self.emit_err(TypeCheckerError::unknown_sym(
+                 "circuit",
+-                &input.name.name,
++                input.name.name,
+                 input.name.span(),
+             ));
+             None
+diff --git a/compiler/passes/src/type_checking/checker.rs b/compiler/passes/src/type_checking/checker.rs
+index 6a5fd93ccd..6025019f8a 100644
+--- a/compiler/passes/src/type_checking/checker.rs
++++ b/compiler/passes/src/type_checking/checker.rs
+@@ -305,7 +305,7 @@ impl<'a> TypeChecker<'a> {
+                 None => {
+                     // Not a core library circuit.
+                     self.emit_err(TypeCheckerError::invalid_core_instruction(
+-                        &ident.name,
++                        ident.name,
+                         function.name,
+                         ident.span(),
+                     ));
+diff --git a/leo/commands/deploy.rs b/leo/commands/deploy.rs
+index 38f6679299..b3f32178a1 100644
+--- a/leo/commands/deploy.rs
++++ b/leo/commands/deploy.rs
+@@ -50,7 +50,7 @@ impl Command for Deploy {
+             .map_err(|err| PackageError::failed_to_set_cwd(build_directory.display(), err))?;
+ 
+         // Call the `aleo node` command from the Aleo SDK.
+-        let command = AleoDeploy::try_parse_from(&[ALEO_CLI_COMMAND]).map_err(CliError::failed_to_parse_aleo_node)?;
++        let command = AleoDeploy::try_parse_from([ALEO_CLI_COMMAND]).map_err(CliError::failed_to_parse_aleo_node)?;
+         let res = command.parse().map_err(CliError::failed_to_execute_aleo_node)?;
+ 
+         // Log the output of the `aleo node` command.
+diff --git a/leo/commands/new.rs b/leo/commands/new.rs
+index e7725b9de5..409f617da9 100644
+--- a/leo/commands/new.rs
++++ b/leo/commands/new.rs
+@@ -51,7 +51,7 @@ impl Command for New {
+     fn apply(self, context: Context, _: Self::Input) -> Result<Self::Output> {
+         // Call the `aleo new` command from the Aleo SDK.
+         let command =
+-            AleoNew::try_parse_from(&[ALEO_CLI_COMMAND, &self.name]).map_err(CliError::failed_to_parse_aleo_new)?;
++            AleoNew::try_parse_from([ALEO_CLI_COMMAND, &self.name]).map_err(CliError::failed_to_parse_aleo_new)?;
+         let result = command.parse().map_err(CliError::failed_to_execute_aleo_new)?;
+ 
+         // todo: modify the readme file to recommend building with `leo build`.
+diff --git a/leo/context.rs b/leo/context.rs
+index 3b79cfd0e6..bbcdf402bc 100644
+--- a/leo/context.rs
++++ b/leo/context.rs
+@@ -67,7 +67,7 @@ impl Context {
+ 
+         // Read the manifest file to string.
+         let manifest_string =
+-            std::fs::read_to_string(&manifest.path()).map_err(PackageError::failed_to_open_manifest)?;
++            std::fs::read_to_string(manifest.path()).map_err(PackageError::failed_to_open_manifest)?;
+ 
+         // Construct the file path.
+         let build_manifest_path = build_path.join(Manifest::<Network>::file_name());

@@ -1,0 +1,80 @@
+diff --git a/compiler/parser/src/parser/file.rs b/compiler/parser/src/parser/file.rs
+index 3cd50e1809..92e743991f 100644
+--- a/compiler/parser/src/parser/file.rs
++++ b/compiler/parser/src/parser/file.rs
+@@ -137,7 +137,7 @@ impl<N: Network> ParserContext<'_, N> {
+                 Token::At | Token::Async | Token::Function | Token::Transition | Token::Inline => {
+                     let (id, function) = self.parse_function()?;
+ 
+-                    // Partition into transitions and functions so that don't have to sort later.
++                    // Partition into transitions and functions so that we don't have to sort later.
+                     if function.variant.is_transition() {
+                         transitions.push((id, function));
+                     } else {
+@@ -147,13 +147,16 @@ impl<N: Network> ParserContext<'_, N> {
+                 Token::RightCurly => break,
+                 _ => {
+                     return Err(Self::unexpected_item(&self.token, &[
++                        Token::Const,
+                         Token::Struct,
+                         Token::Record,
+                         Token::Mapping,
+                         Token::At,
++                        Token::Async,
+                         Token::Function,
+                         Token::Transition,
+                         Token::Inline,
++                        Token::RightCurly,
+                     ])
+                     .into());
+                 }
+diff --git a/tests/expectations/parser/finalize/finalize_fail.out b/tests/expectations/parser/finalize/finalize_fail.out
+index 459d84d50d..c648822a9a 100644
+--- a/tests/expectations/parser/finalize/finalize_fail.out
++++ b/tests/expectations/parser/finalize/finalize_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370005]: expected 'struct', 'record', 'mapping', '@', 'function', 'transition', 'inline' -- found 'finalize'\n    --> test:6:7\n     |\n   6 |     } finalize {\n     |       ^^^^^^^^"
++  - "Error [EPAR0370005]: expected 'const', 'struct', 'record', 'mapping', '@', 'async', 'function', 'transition', 'inline', '}' -- found 'finalize'\n    --> test:6:7\n     |\n   6 |     } finalize {\n     |       ^^^^^^^^"
+diff --git a/tests/expectations/parser/functions/ident_token_fail.out b/tests/expectations/parser/functions/ident_token_fail.out
+index a034d20dc4..33283f860f 100644
+--- a/tests/expectations/parser/functions/ident_token_fail.out
++++ b/tests/expectations/parser/functions/ident_token_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370005]: expected 'struct', 'record', 'mapping', '@', 'function', 'transition', 'inline' -- found '1'\n    --> test:4:5\n     |\n   4 |     1 main() {}}\n     |     ^"
++  - "Error [EPAR0370005]: expected 'const', 'struct', 'record', 'mapping', '@', 'async', 'function', 'transition', 'inline', '}' -- found '1'\n    --> test:4:5\n     |\n   4 |     1 main() {}}\n     |     ^"
+diff --git a/tests/expectations/parser/functions/test_keyword_fail.out b/tests/expectations/parser/functions/test_keyword_fail.out
+index b4e98eef56..de79c01227 100644
+--- a/tests/expectations/parser/functions/test_keyword_fail.out
++++ b/tests/expectations/parser/functions/test_keyword_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370005]: expected 'struct', 'record', 'mapping', '@', 'function', 'transition', 'inline' -- found 'test'\n    --> test:4:5\n     |\n   4 |     test main() {}}\n     |     ^^^^"
++  - "Error [EPAR0370005]: expected 'const', 'struct', 'record', 'mapping', '@', 'async', 'function', 'transition', 'inline', '}' -- found 'test'\n    --> test:4:5\n     |\n   4 |     test main() {}}\n     |     ^^^^"
+diff --git a/tests/expectations/parser/program/circuit_deprecated_fail.out b/tests/expectations/parser/program/circuit_deprecated_fail.out
+index f3f19c147a..b1dd4715b0 100644
+--- a/tests/expectations/parser/program/circuit_deprecated_fail.out
++++ b/tests/expectations/parser/program/circuit_deprecated_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370005]: expected 'struct', 'record', 'mapping', '@', 'function', 'transition', 'inline' -- found 'circuit'\n    --> test:5:5\n     |\n   5 |     circuit Foo {\n     |     ^^^^^^^"
++  - "Error [EPAR0370005]: expected 'const', 'struct', 'record', 'mapping', '@', 'async', 'function', 'transition', 'inline', '}' -- found 'circuit'\n    --> test:5:5\n     |\n   5 |     circuit Foo {\n     |     ^^^^^^^"
+diff --git a/tests/expectations/parser/program/mapping_fail.out b/tests/expectations/parser/program/mapping_fail.out
+index 233b09e314..c675f52513 100644
+--- a/tests/expectations/parser/program/mapping_fail.out
++++ b/tests/expectations/parser/program/mapping_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Parse
+ expectation: Fail
+ outputs:
+-  - "Error [EPAR0370005]: expected 'struct', 'record', 'mapping', '@', 'function', 'transition', 'inline' -- found 'mappin'\n    --> test:4:5\n     |\n   4 |     mappin balances: address => u128;\n     |     ^^^^^^"
++  - "Error [EPAR0370005]: expected 'const', 'struct', 'record', 'mapping', '@', 'async', 'function', 'transition', 'inline', '}' -- found 'mappin'\n    --> test:4:5\n     |\n   4 |     mappin balances: address => u128;\n     |     ^^^^^^"

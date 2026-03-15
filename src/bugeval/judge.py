@@ -12,6 +12,7 @@ import click
 import yaml
 from anthropic import Anthropic
 
+from bugeval.agent_api_runner import _ANTHROPIC_RETRYABLE, _retry_call
 from bugeval.judge_models import (
     CommentClassification,
     CommentJudgment,
@@ -20,6 +21,7 @@ from bugeval.judge_models import (
     majority_vote,
 )
 from bugeval.models import TestCase
+from bugeval.pr_eval_models import default_judging
 from bugeval.result_models import NormalizedResult
 from bugeval.run_pr_eval import load_cases
 
@@ -64,13 +66,13 @@ def _build_judge_prompt(case: TestCase, result: NormalizedResult) -> str:
     findings_text = "\n".join(
         f"  - file: {f.file}, line: {f.line}, summary: {f.summary}" for f in case.expected_findings
     )
-    comments_text = (
-        "\n".join(
-            f"  [{i}] file={c.file or '(none)'} line={c.line or '?'}: {c.body[:200]}"
-            for i, c in enumerate(result.comments)
-        )
-        or "  (no comments)"
-    )
+    comment_lines = []
+    for i, c in enumerate(result.comments):
+        line = f"  [{i}] file={c.file or '(none)'} line={c.line or '?'}: {c.body[:200]}"
+        if c.suggested_fix:
+            line += f"\n      Fix: {c.suggested_fix[:200]}"
+        comment_lines.append(line)
+    comments_text = "\n".join(comment_lines) or "  (no comments)"
 
     # Tool name is intentionally omitted to prevent judge bias (self-eval pitfall mitigation).
     return (
@@ -86,18 +88,22 @@ def judge_case(
     case: TestCase,
     result: NormalizedResult,
     system_prompt: str,
-    model: str = "claude-opus-4-6",
-    n_votes: int = 3,
+    model: str | None = None,
+    n_votes: int | None = None,
     dry_run: bool = False,
     client: Anthropic | None = None,
 ) -> JudgeScore:
     """Run n_votes independent judge calls. Return majority-vote JudgeScore."""
+    _judging = default_judging()
+    resolved_model = model or _judging.model
+    resolved_n_votes = n_votes or _judging.llm_calls
+
     if dry_run:
         return JudgeScore(
             test_case_id=case.id,
             tool=result.tool,
             score=0,
-            votes=[0] * n_votes,
+            votes=[0] * resolved_n_votes,
             reasoning="dry-run",
         )
 
@@ -108,12 +114,16 @@ def judge_case(
     # Parallel lists for successful parses: (score, reasoning, comment_judgments)
     parsed_votes: list[tuple[int, str, list[CommentJudgment]]] = []
 
-    for _ in range(n_votes):
-        response = _client.messages.create(
-            model=model,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],  # type: ignore[arg-type]
-            max_tokens=2048,
+    for _ in range(resolved_n_votes):
+        response = _retry_call(
+            lambda: _client.messages.create(
+                model=resolved_model,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_prompt}],  # type: ignore[arg-type]
+                max_tokens=2048,
+                temperature=0,
+            ),
+            _ANTHROPIC_RETRYABLE,
         )
         text = ""
         for block in response.content:
@@ -158,7 +168,7 @@ def judge_case(
         else f"Votes: {votes}. Majority: {score}."
     )
     if parse_failures:
-        reasoning += f" ({parse_failures}/{n_votes} votes failed to parse.)"
+        reasoning += f" ({parse_failures}/{resolved_n_votes} votes failed to parse.)"
 
     return JudgeScore(
         test_case_id=case.id,

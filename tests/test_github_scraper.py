@@ -1,6 +1,7 @@
 """Tests for GitHub scraper: scoring, linking, and utility functions. No gh calls."""
 
 import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -695,3 +696,15 @@ class TestScrapeStateRoundTrip:
     def test_missing_file_returns_none(self, tmp_path: Path) -> None:
         result = load_scrape_state(tmp_path / "nonexistent.yaml")
         assert result is None
+
+
+def test_run_gh_timeout() -> None:
+    """run_gh raises GhError when the subprocess times out."""
+    from bugeval.github_scraper import run_gh
+
+    with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd=["gh"], timeout=60)):
+        try:
+            run_gh("repo", "list")
+            assert False, "expected GhError"
+        except GhError as e:
+            assert "timed out" in str(e)

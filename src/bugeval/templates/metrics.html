@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Metrics — bugeval{% endblock %}
+{% block content %}
+<h1>Metrics</h1>
+
+<div class="card">
+  <select onchange="if(this.value) window.location='/metrics/'+this.value; else window.location='/metrics'">
+    <option value="">Select run…</option>
+    {% for r in runs %}<option value="{{ r }}" {% if r == selected_run %}selected{% endif %}>{{ r }}</option>{% endfor %}
+  </select>
+  <a href="/metrics" class="btn btn-secondary btn-sm" style="margin-left:6px;">List all</a>
+</div>
+
+{% if run_data is none %}
+<h2>Available Runs</h2>
+{% if runs %}
+<table>
+  <thead><tr><th>Run</th><th>Action</th></tr></thead>
+  <tbody>
+    {% for r in runs %}
+    <tr>
+      <td>{{ r }}</td>
+      <td><a href="/metrics/{{ r }}" class="btn btn-primary btn-sm">View</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<div class="card text-muted">No runs found.</div>
+{% endif %}
+
+{% else %}
+
+<h2>{{ selected_run }}</h2>
+
+<!-- Overall stats -->
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-num">{{ run_data.scores | length }}</div>
+    <div class="stat-label">Total Scores</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ "%.1f%%"|format(run_data.catch_rate * 100) }}</div>
+    <div class="stat-label">Overall Detection Rate</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ "%.2f"|format(run_data.avg_snr) }}</div>
+    <div class="stat-label">Avg SNR</div>
+  </div>
+  <div class="stat-card">
+    {% set kr = run_data.kappa_report %}
+    <div class="stat-num {% if kr.calibrated %}kappa-ok{% else %}kappa-bad{% endif %}">
+      {{ "%.3f"|format(kr.kappa) if kr.n_pairs > 0 else "–" }}
+    </div>
+    <div class="stat-label">Cohen's κ {% if kr.calibrated %}✓{% endif %}</div>
+  </div>
+</div>
+
+<!-- Per-tool table -->
+{% if run_data.agg %}
+<div class="card">
+  <h2>Per-Tool Summary</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Tool</th>
+        <th>Cases</th>
+        <th>Detection Rate</th>
+        <th>Avg Score</th>
+        <th>Avg SNR</th>
+        {% for s in scoring_scale %}<th>Score {{ s }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for tool, m in run_data.agg.items() %}
+      <tr>
+        <td>{{ tool }}</td>
+        <td>{{ m.count }}</td>
+        <td>
+          {% set pct = m.catch_rate * 100 %}
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span>{{ "%.1f%%"|format(pct) }}</span>
+            <div class="progress-bar-wrap" style="width:80px;">
+              <div class="progress-bar-fill" style="width:{{ pct }}%;"></div>
+            </div>
+          </div>
+        </td>
+        <td>{{ "%.2f"|format(m.avg_score) }}</td>
+        <td>{{ "%.2f"|format(m.avg_snr) }}</td>
+        {% set dist = m.score_dist %}
+        {% for s in scoring_scale %}<td>{{ dist.get(s, 0) }}</td>{% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<!-- Cost table -->
+{% if run_data.cost_by_tool %}
+{% set any_cost = run_data.cost_by_tool.values() | selectattr("total") | list %}
+{% if any_cost %}
+<div class="card">
+  <h2>Cost</h2>
+  <table>
+    <thead>
+      <tr><th>Tool</th><th>Total</th><th>Per Review</th><th>Per Detection</th></tr>
+    </thead>
+    <tbody>
+      {% for tool, c in run_data.cost_by_tool.items() %}
+      <tr>
+        <td>{{ tool }}</td>
+        <td>${{ "%.4f"|format(c.total) }}</td>
+        <td>${{ "%.4f"|format(c.per_review) }}</td>
+        <td>${{ "%.4f"|format(c.per_detection) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- DX summary -->
+{% if run_data.dx_summary %}
+<div class="card">
+  <h2>DX Assessment</h2>
+  <table>
+    <thead>
+      <tr><th>Tool</th><th>Actionability</th><th>FP Burden</th><th>Integration</th><th>Latency</th></tr>
+    </thead>
+    <tbody>
+      {% for tool, avgs in run_data.dx_summary.items() %}
+      <tr>
+        <td>{{ tool }}</td>
+        <td>{{ "%.1f"|format(avgs.actionability) }}</td>
+        <td>{{ "%.1f"|format(avgs.false_positive_burden) }}</td>
+        <td>{{ "%.1f"|format(avgs.integration_friction) }}</td>
+        <td>{{ "%.1f"|format(avgs.response_latency) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p style="margin-top:8px;"><a href="/dx?run={{ selected_run }}" class="btn btn-secondary btn-sm">Enter DX scores →</a></p>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

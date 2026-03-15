@@ -1,0 +1,109 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index af040671c..fefd6f9e2 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -2521,7 +2521,6 @@ dependencies = [
+  "paste",
+  "rand",
+  "rayon",
+- "reqwest",
+  "serde",
+  "serde_json",
+  "snarkvm-algorithms",
+@@ -2531,6 +2530,7 @@ dependencies = [
+  "snarkvm-fields",
+  "snarkvm-utilities",
+  "tracing",
++ "ureq",
+ ]
+ 
+ [[package]]
+diff --git a/synthesizer/Cargo.toml b/synthesizer/Cargo.toml
+index f80b7c9a4..a004625e7 100644
+--- a/synthesizer/Cargo.toml
++++ b/synthesizer/Cargo.toml
+@@ -108,10 +108,6 @@ version = "0.8"
+ version = "1"
+ optional = true
+ 
+-[dependencies.reqwest]
+-version = "0.11"
+-features = [ "blocking", "json" ]
+-
+ [dependencies.serde]
+ version = "1.0"
+ 
+@@ -122,6 +118,10 @@ features = [ "preserve_order" ]
+ [dependencies.tracing]
+ version = "0.1"
+ 
++[dependencies.ureq]
++version = "2.6.2"
++features = [ "json" ]
++
+ [dev-dependencies.console]
+ package = "snarkvm-console"
+ path = "../console"
+diff --git a/synthesizer/src/process/stack/inclusion/mod.rs b/synthesizer/src/process/stack/inclusion/mod.rs
+index b2a7acc56..702e355b2 100644
+--- a/synthesizer/src/process/stack/inclusion/mod.rs
++++ b/synthesizer/src/process/stack/inclusion/mod.rs
+@@ -57,18 +57,6 @@ impl<N: Network, B: BlockStorage<N>> From<&BlockStore<N, B>> for Query<N, B> {
+     }
+ }
+ 
+-impl<N: Network, B: BlockStorage<N>> From<reqwest::Url> for Query<N, B> {
+-    fn from(url: reqwest::Url) -> Self {
+-        Self::REST(url.to_string())
+-    }
+-}
+-
+-impl<N: Network, B: BlockStorage<N>> From<&reqwest::Url> for Query<N, B> {
+-    fn from(url: &reqwest::Url) -> Self {
+-        Self::REST(url.to_string())
+-    }
+-}
+-
+ impl<N: Network, B: BlockStorage<N>> From<String> for Query<N, B> {
+     fn from(url: String) -> Self {
+         Self::REST(url)
+@@ -96,7 +84,7 @@ impl<N: Network, B: BlockStorage<N>> Query<N, B> {
+             }
+             #[cfg(not(feature = "wasm"))]
+             Self::REST(url) => match N::ID {
+-                3 => Ok(Self::get_request(&format!("{url}/testnet3/program/{program_id}"))?.json()?),
++                3 => Ok(Self::get_request(&format!("{url}/testnet3/program/{program_id}"))?.into_json()?),
+                 _ => bail!("Unsupported network ID in inclusion query"),
+             },
+             #[cfg(feature = "wasm")]
+@@ -110,7 +98,7 @@ impl<N: Network, B: BlockStorage<N>> Query<N, B> {
+             Self::VM(block_store) => Ok(block_store.current_state_root()),
+             #[cfg(not(feature = "wasm"))]
+             Self::REST(url) => match N::ID {
+-                3 => Ok(Self::get_request(&format!("{url}/testnet3/latest/stateRoot"))?.json()?),
++                3 => Ok(Self::get_request(&format!("{url}/testnet3/latest/stateRoot"))?.into_json()?),
+                 _ => bail!("Unsupported network ID in inclusion query"),
+             },
+             #[cfg(feature = "wasm")]
+@@ -124,7 +112,7 @@ impl<N: Network, B: BlockStorage<N>> Query<N, B> {
+             Self::VM(block_store) => block_store.get_state_path_for_commitment(commitment),
+             #[cfg(not(feature = "wasm"))]
+             Self::REST(url) => match N::ID {
+-                3 => Ok(Self::get_request(&format!("{url}/testnet3/statePath/{commitment}"))?.json()?),
++                3 => Ok(Self::get_request(&format!("{url}/testnet3/statePath/{commitment}"))?.into_json()?),
+                 _ => bail!("Unsupported network ID in inclusion query"),
+             },
+             #[cfg(feature = "wasm")]
+@@ -134,9 +122,9 @@ impl<N: Network, B: BlockStorage<N>> Query<N, B> {
+ 
+     /// Performs a GET request to the given URL.
+     #[cfg(not(feature = "wasm"))]
+-    fn get_request(url: &str) -> Result<reqwest::blocking::Response> {
+-        let response = reqwest::blocking::get(url)?;
+-        if response.status().is_success() { Ok(response) } else { bail!("Failed to fetch from {}", url) }
++    fn get_request(url: &str) -> Result<ureq::Response> {
++        let response = ureq::get(url).call()?;
++        if response.status() == 200 { Ok(response) } else { bail!("Failed to fetch from {}", url) }
+     }
+ }
+ 

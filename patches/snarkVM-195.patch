@@ -1,0 +1,509 @@
+diff --git a/algorithms/src/commitment/pedersen.rs b/algorithms/src/commitment/pedersen.rs
+index c4377034c..7f0c5b6c2 100644
+--- a/algorithms/src/commitment/pedersen.rs
++++ b/algorithms/src/commitment/pedersen.rs
+@@ -30,7 +30,7 @@ pub struct PedersenCommitment<G: ProjectiveCurve, const NUM_WINDOWS: usize, cons
+ impl<G: ProjectiveCurve, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize> CommitmentScheme
+     for PedersenCommitment<G, NUM_WINDOWS, WINDOW_SIZE>
+ {
+-    type Output = G;
++    type Output = G::Affine;
+     type Parameters = (Vec<Vec<G>>, Vec<G>);
+     type Randomness = G::ScalarField;
+ 
+@@ -60,7 +60,7 @@ impl<G: ProjectiveCurve, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize> Com
+             ));
+         }
+ 
+-        let mut output = self.crh.hash(&input)?;
++        let mut output = self.crh.hash(&input)?.into_projective();
+ 
+         // Compute h^r.
+         let scalar_bits = BitIteratorLE::new(randomness.to_repr());
+@@ -70,7 +70,7 @@ impl<G: ProjectiveCurve, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize> Com
+             }
+         }
+ 
+-        Ok(output)
++        Ok(output.into_affine())
+     }
+ 
+     fn parameters(&self) -> Self::Parameters {
+diff --git a/algorithms/src/commitment/pedersen_compressed.rs b/algorithms/src/commitment/pedersen_compressed.rs
+index 09af8069d..917f091e0 100644
+--- a/algorithms/src/commitment/pedersen_compressed.rs
++++ b/algorithms/src/commitment/pedersen_compressed.rs
+@@ -39,7 +39,7 @@ impl<G: ProjectiveCurve, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize> Com
+ 
+     /// Returns the affine x-coordinate as the commitment.
+     fn commit(&self, input: &[u8], randomness: &Self::Randomness) -> Result<Self::Output, CommitmentError> {
+-        let affine = self.pedersen.commit(input, randomness)?.into_affine();
++        let affine = self.pedersen.commit(input, randomness)?;
+         debug_assert!(affine.is_in_correct_subgroup_assuming_on_curve());
+         Ok(affine.to_x_coordinate())
+     }
+diff --git a/algorithms/src/crh/bowe_hopwood_pedersen.rs b/algorithms/src/crh/bowe_hopwood_pedersen.rs
+index c53a05275..b242aeada 100644
+--- a/algorithms/src/crh/bowe_hopwood_pedersen.rs
++++ b/algorithms/src/crh/bowe_hopwood_pedersen.rs
+@@ -45,7 +45,7 @@ pub struct BoweHopwoodPedersenCRH<G: ProjectiveCurve, const NUM_WINDOWS: usize,
+ impl<G: ProjectiveCurve, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize> CRH
+     for BoweHopwoodPedersenCRH<G, NUM_WINDOWS, WINDOW_SIZE>
+ {
+-    type Output = G;
++    type Output = G::Affine;
+     type Parameters = PedersenCRH<G, NUM_WINDOWS, WINDOW_SIZE>;
+ 
+     const INPUT_SIZE_BITS: usize = PedersenCRH::<G, NUM_WINDOWS, WINDOW_SIZE>::INPUT_SIZE_BITS;
+@@ -149,7 +149,7 @@ impl<G: ProjectiveCurve, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize> CRH
+ 
+         end_timer!(eval_time);
+ 
+-        Ok(result)
++        Ok(result.into_affine())
+     }
+ 
+     fn parameters(&self) -> &Self::Parameters {
+diff --git a/algorithms/src/crh/bowe_hopwood_pedersen_compressed.rs b/algorithms/src/crh/bowe_hopwood_pedersen_compressed.rs
+index 4ea344a35..365b9b01a 100644
+--- a/algorithms/src/crh/bowe_hopwood_pedersen_compressed.rs
++++ b/algorithms/src/crh/bowe_hopwood_pedersen_compressed.rs
+@@ -46,7 +46,7 @@ impl<G: ProjectiveCurve, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize> CRH
+     }
+ 
+     fn hash(&self, input: &[u8]) -> Result<Self::Output, CRHError> {
+-        let affine = self.bhp.hash(input)?.into_affine();
++        let affine = self.bhp.hash(input)?;
+         debug_assert!(affine.is_in_correct_subgroup_assuming_on_curve());
+         Ok(affine.to_x_coordinate())
+     }
+diff --git a/algorithms/src/crh/pedersen.rs b/algorithms/src/crh/pedersen.rs
+index bbfab2320..4adfacac4 100644
+--- a/algorithms/src/crh/pedersen.rs
++++ b/algorithms/src/crh/pedersen.rs
+@@ -33,7 +33,7 @@ pub struct PedersenCRH<G: ProjectiveCurve, const NUM_WINDOWS: usize, const WINDO
+ impl<G: ProjectiveCurve, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize> CRH
+     for PedersenCRH<G, NUM_WINDOWS, WINDOW_SIZE>
+ {
+-    type Output = G;
++    type Output = G::Affine;
+     type Parameters = Vec<Vec<G>>;
+ 
+     const INPUT_SIZE_BITS: usize = WINDOW_SIZE * NUM_WINDOWS;
+@@ -81,7 +81,7 @@ impl<G: ProjectiveCurve, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize> CRH
+             })
+             .fold(G::zero(), |a, b| a + b);
+ 
+-        Ok(result)
++        Ok(result.into_affine())
+     }
+ 
+     fn parameters(&self) -> &Self::Parameters {
+diff --git a/algorithms/src/crh/pedersen_compressed.rs b/algorithms/src/crh/pedersen_compressed.rs
+index 6e917f9bf..dec693afd 100644
+--- a/algorithms/src/crh/pedersen_compressed.rs
++++ b/algorithms/src/crh/pedersen_compressed.rs
+@@ -43,7 +43,7 @@ impl<G: ProjectiveCurve, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize> CRH
+ 
+     /// Returns the affine x-coordinate as the collision-resistant hash output.
+     fn hash(&self, input: &[u8]) -> Result<Self::Output, CRHError> {
+-        let affine = self.crh.hash(input)?.into_affine();
++        let affine = self.crh.hash(input)?;
+         debug_assert!(affine.is_in_correct_subgroup_assuming_on_curve());
+         Ok(affine.to_x_coordinate())
+     }
+diff --git a/gadgets/src/algorithms/commitment/pedersen.rs b/gadgets/src/algorithms/commitment/pedersen.rs
+index 461fb070e..35b08039c 100644
+--- a/gadgets/src/algorithms/commitment/pedersen.rs
++++ b/gadgets/src/algorithms/commitment/pedersen.rs
+@@ -16,7 +16,7 @@
+ 
+ use crate::{
+     integers::uint::UInt8,
+-    traits::{algorithms::CommitmentGadget, alloc::AllocGadget, curves::GroupGadget, integers::Integer},
++    traits::{algorithms::CommitmentGadget, alloc::AllocGadget, curves::CurveGadget, integers::Integer},
+ };
+ use snarkvm_algorithms::commitment::PedersenCommitment;
+ use snarkvm_curves::ProjectiveCurve;
+@@ -60,7 +60,7 @@ impl<G: ProjectiveCurve, F: PrimeField> AllocGadget<G::ScalarField, F> for Peder
+ pub struct PedersenCommitmentGadget<
+     G: ProjectiveCurve,
+     F: Field,
+-    GG: GroupGadget<G, F>,
++    GG: CurveGadget<G, F>,
+     const NUM_WINDOWS: usize,
+     const WINDOW_SIZE: usize,
+ > {
+@@ -70,7 +70,7 @@ pub struct PedersenCommitmentGadget<
+ }
+ 
+ // TODO (howardwu): This should be only `alloc_constant`. This is unsafe convention.
+-impl<G: ProjectiveCurve, F: PrimeField, GG: GroupGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
++impl<G: ProjectiveCurve, F: PrimeField, GG: CurveGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
+     AllocGadget<PedersenCommitment<G, NUM_WINDOWS, WINDOW_SIZE>, F>
+     for PedersenCommitmentGadget<G, F, GG, NUM_WINDOWS, WINDOW_SIZE>
+ {
+@@ -105,7 +105,7 @@ impl<G: ProjectiveCurve, F: PrimeField, GG: GroupGadget<G, F>, const NUM_WINDOWS
+     }
+ }
+ 
+-impl<G: ProjectiveCurve, F: PrimeField, GG: GroupGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
++impl<G: ProjectiveCurve, F: PrimeField, GG: CurveGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
+     CommitmentGadget<PedersenCommitment<G, NUM_WINDOWS, WINDOW_SIZE>, F>
+     for PedersenCommitmentGadget<G, F, GG, NUM_WINDOWS, WINDOW_SIZE>
+ {
+diff --git a/gadgets/src/algorithms/commitment/tests.rs b/gadgets/src/algorithms/commitment/tests.rs
+index 2fd38c4e7..d54436816 100644
+--- a/gadgets/src/algorithms/commitment/tests.rs
++++ b/gadgets/src/algorithms/commitment/tests.rs
+@@ -24,10 +24,7 @@ use snarkvm_algorithms::{
+     commitment::{Blake2sCommitment, PedersenCommitment},
+     traits::CommitmentScheme,
+ };
+-use snarkvm_curves::{
+-    edwards_bls12::{EdwardsProjective, Fq, Fr},
+-    traits::ProjectiveCurve,
+-};
++use snarkvm_curves::edwards_bls12::{EdwardsProjective, Fq, Fr};
+ use snarkvm_r1cs::{ConstraintSystem, TestConstraintSystem};
+ use snarkvm_utilities::rand::UniformRand;
+ 
+@@ -106,7 +103,7 @@ fn pedersen_commitment_gadget_test() {
+         .check_commitment_gadget(&mut cs.ns(|| "commitment_gadget"), &input_bytes, &randomness_gadget)
+         .unwrap();
+ 
+-    let native_output = native_output.into_affine();
++    let native_output = native_output;
+     assert_eq!(native_output.x, output_gadget.x.get_value().unwrap());
+     assert_eq!(native_output.y, output_gadget.y.get_value().unwrap());
+     assert!(cs.is_satisfied());
+diff --git a/gadgets/src/algorithms/crh/bowe_hopwood_pedersen.rs b/gadgets/src/algorithms/crh/bowe_hopwood_pedersen.rs
+index cc7d6b300..d22ff057a 100644
+--- a/gadgets/src/algorithms/crh/bowe_hopwood_pedersen.rs
++++ b/gadgets/src/algorithms/crh/bowe_hopwood_pedersen.rs
+@@ -18,7 +18,7 @@ use crate::{
+     algorithms::crh::pedersen::PedersenCRHGadget,
+     bits::Boolean,
+     integers::uint::UInt8,
+-    traits::{algorithms::CRHGadget, alloc::AllocGadget, curves::GroupGadget, integers::Integer},
++    traits::{algorithms::CRHGadget, alloc::AllocGadget, curves::CurveGadget, integers::Integer},
+ };
+ use snarkvm_algorithms::{
+     crh::{BoweHopwoodPedersenCRH, PedersenCRH, BOWE_HOPWOOD_CHUNK_SIZE},
+@@ -34,7 +34,7 @@ use std::borrow::Borrow;
+ pub struct BoweHopwoodPedersenCRHGadget<
+     G: ProjectiveCurve,
+     F: Field,
+-    GG: GroupGadget<G, F>,
++    GG: CurveGadget<G, F>,
+     const NUM_WINDOWS: usize,
+     const WINDOW_SIZE: usize,
+ > {
+@@ -42,7 +42,7 @@ pub struct BoweHopwoodPedersenCRHGadget<
+ }
+ 
+ // TODO (howardwu): This should be only `alloc_constant`. This is unsafe convention.
+-impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
++impl<G: ProjectiveCurve, F: Field, GG: CurveGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
+     AllocGadget<BoweHopwoodPedersenCRH<G, NUM_WINDOWS, WINDOW_SIZE>, F>
+     for BoweHopwoodPedersenCRHGadget<G, F, GG, NUM_WINDOWS, WINDOW_SIZE>
+ {
+@@ -75,7 +75,7 @@ impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>, const NUM_WINDOWS: usi
+     }
+ }
+ 
+-impl<F: Field, G: ProjectiveCurve, GG: GroupGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
++impl<F: Field, G: ProjectiveCurve, GG: CurveGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
+     CRHGadget<BoweHopwoodPedersenCRH<G, NUM_WINDOWS, WINDOW_SIZE>, F>
+     for BoweHopwoodPedersenCRHGadget<G, F, GG, NUM_WINDOWS, WINDOW_SIZE>
+ {
+diff --git a/gadgets/src/algorithms/crh/pedersen.rs b/gadgets/src/algorithms/crh/pedersen.rs
+index fa6dffda1..0ab87294c 100644
+--- a/gadgets/src/algorithms/crh/pedersen.rs
++++ b/gadgets/src/algorithms/crh/pedersen.rs
+@@ -20,7 +20,7 @@ use crate::{
+     traits::{
+         algorithms::{CRHGadget, MaskedCRHGadget},
+         alloc::AllocGadget,
+-        curves::GroupGadget,
++        curves::CurveGadget,
+         integers::Integer,
+     },
+ };
+@@ -35,7 +35,7 @@ use std::{borrow::Borrow, marker::PhantomData};
+ pub struct PedersenCRHGadget<
+     G: ProjectiveCurve,
+     F: Field,
+-    GG: GroupGadget<G, F>,
++    GG: CurveGadget<G, F>,
+     const NUM_WINDOWS: usize,
+     const WINDOW_SIZE: usize,
+ > {
+@@ -45,7 +45,7 @@ pub struct PedersenCRHGadget<
+ }
+ 
+ // TODO (howardwu): This should be only `alloc_constant`. This is unsafe convention.
+-impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
++impl<G: ProjectiveCurve, F: Field, GG: CurveGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
+     AllocGadget<PedersenCRH<G, NUM_WINDOWS, WINDOW_SIZE>, F> for PedersenCRHGadget<G, F, GG, NUM_WINDOWS, WINDOW_SIZE>
+ {
+     fn alloc<
+@@ -79,7 +79,7 @@ impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>, const NUM_WINDOWS: usi
+     }
+ }
+ 
+-impl<F: Field, G: ProjectiveCurve, GG: GroupGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
++impl<F: Field, G: ProjectiveCurve, GG: CurveGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
+     CRHGadget<PedersenCRH<G, NUM_WINDOWS, WINDOW_SIZE>, F> for PedersenCRHGadget<G, F, GG, NUM_WINDOWS, WINDOW_SIZE>
+ {
+     type OutputGadget = GG;
+@@ -104,7 +104,7 @@ fn pad_input_and_bitify<const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>(inpu
+     padded_input.into_iter().flat_map(|byte| byte.to_bits_le()).collect()
+ }
+ 
+-impl<F: PrimeField, G: ProjectiveCurve, GG: GroupGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
++impl<F: PrimeField, G: ProjectiveCurve, GG: CurveGadget<G, F>, const NUM_WINDOWS: usize, const WINDOW_SIZE: usize>
+     MaskedCRHGadget<PedersenCRH<G, NUM_WINDOWS, WINDOW_SIZE>, F>
+     for PedersenCRHGadget<G, F, GG, NUM_WINDOWS, WINDOW_SIZE>
+ {
+diff --git a/gadgets/src/algorithms/encryption/group.rs b/gadgets/src/algorithms/encryption/group.rs
+index 4bad5ca30..4c85d51a1 100644
+--- a/gadgets/src/algorithms/encryption/group.rs
++++ b/gadgets/src/algorithms/encryption/group.rs
+@@ -20,7 +20,7 @@ use crate::{
+     traits::{
+         algorithms::EncryptionGadget,
+         alloc::AllocGadget,
+-        curves::{CompressedGroupGadget, GroupGadget},
++        curves::{CompressedGroupGadget, CurveGadget},
+         eq::{ConditionalEqGadget, EqGadget},
+         integers::integer::Integer,
+     },
+@@ -149,13 +149,13 @@ impl<G: ProjectiveCurve, F: PrimeField> AllocGadget<Vec<G::ScalarField>, F>
+ 
+ /// Group encryption public key gadget
+ #[derive(Debug, PartialEq, Eq)]
+-pub struct GroupEncryptionPublicKeyGadget<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> {
++pub struct GroupEncryptionPublicKeyGadget<G: ProjectiveCurve, F: Field, GG: CurveGadget<G, F>> {
+     public_key: GG,
+     _group: PhantomData<*const G>,
+     _engine: PhantomData<*const F>,
+ }
+ 
+-impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> AllocGadget<GroupEncryptionPublicKey<G>, F>
++impl<G: ProjectiveCurve, F: Field, GG: CurveGadget<G, F>> AllocGadget<GroupEncryptionPublicKey<G>, F>
+     for GroupEncryptionPublicKeyGadget<G, F, GG>
+ {
+     fn alloc<
+@@ -206,7 +206,7 @@ impl<G: ProjectiveCurve, F: Field, GG: CompressedGroupGadget<G, F>> ToBytesGadge
+     }
+ }
+ 
+-impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> Clone for GroupEncryptionPublicKeyGadget<G, F, GG> {
++impl<G: ProjectiveCurve, F: Field, GG: CurveGadget<G, F>> Clone for GroupEncryptionPublicKeyGadget<G, F, GG> {
+     fn clone(&self) -> Self {
+         Self {
+             public_key: self.public_key.clone(),
+@@ -216,7 +216,7 @@ impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> Clone for GroupEncrypt
+     }
+ }
+ 
+-impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> ConditionalEqGadget<F>
++impl<G: ProjectiveCurve, F: Field, GG: CurveGadget<G, F>> ConditionalEqGadget<F>
+     for GroupEncryptionPublicKeyGadget<G, F, GG>
+ {
+     #[inline]
+@@ -240,17 +240,17 @@ impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> ConditionalEqGadget<F>
+     }
+ }
+ 
+-impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> EqGadget<F> for GroupEncryptionPublicKeyGadget<G, F, GG> {}
++impl<G: ProjectiveCurve, F: Field, GG: CurveGadget<G, F>> EqGadget<F> for GroupEncryptionPublicKeyGadget<G, F, GG> {}
+ 
+ /// Group encryption plaintext gadget
+ #[derive(Debug, PartialEq, Eq)]
+-pub struct GroupEncryptionPlaintextGadget<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> {
++pub struct GroupEncryptionPlaintextGadget<G: ProjectiveCurve, F: Field, GG: CurveGadget<G, F>> {
+     plaintext: Vec<GG>,
+     _group: PhantomData<*const G>,
+     _engine: PhantomData<*const F>,
+ }
+ 
+-impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> AllocGadget<Vec<G>, F>
++impl<G: ProjectiveCurve, F: Field, GG: CurveGadget<G, F>> AllocGadget<Vec<G>, F>
+     for GroupEncryptionPlaintextGadget<G, F, GG>
+ {
+     fn alloc<Fn: FnOnce() -> Result<T, SynthesisError>, T: Borrow<Vec<G>>, CS: ConstraintSystem<F>>(
+@@ -261,7 +261,11 @@ impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> AllocGadget<Vec<G>, F>
+ 
+         let mut plaintext = Vec::with_capacity(values.len());
+         for (i, value) in values.into_iter().enumerate() {
+-            let alloc_group = GG::alloc(cs.ns(|| format!("Plaintext Iteration {}", i)), || Ok(value.borrow()))?;
++            let alloc_group =
++                <GG as AllocGadget<G, F>>::alloc(
++                    cs.ns(|| format!("Plaintext Iteration {}", i)),
++                    || Ok(value.borrow()),
++                )?;
+             plaintext.push(alloc_group);
+         }
+ 
+@@ -280,7 +284,10 @@ impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> AllocGadget<Vec<G>, F>
+ 
+         let mut plaintext = Vec::with_capacity(values.len());
+         for (i, value) in values.into_iter().enumerate() {
+-            let alloc_group = GG::alloc_input(cs.ns(|| format!("Plaintext Iteration {}", i)), || Ok(value.borrow()))?;
++            let alloc_group =
++                <GG as AllocGadget<G, F>>::alloc_input(cs.ns(|| format!("Plaintext Iteration {}", i)), || {
++                    Ok(value.borrow())
++                })?;
+             plaintext.push(alloc_group);
+         }
+ 
+@@ -292,7 +299,7 @@ impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> AllocGadget<Vec<G>, F>
+     }
+ }
+ 
+-impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> Clone for GroupEncryptionPlaintextGadget<G, F, GG> {
++impl<G: ProjectiveCurve, F: Field, GG: CurveGadget<G, F>> Clone for GroupEncryptionPlaintextGadget<G, F, GG> {
+     fn clone(&self) -> Self {
+         Self {
+             plaintext: self.plaintext.clone(),
+@@ -302,7 +309,7 @@ impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> Clone for GroupEncrypt
+     }
+ }
+ 
+-impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> ConditionalEqGadget<F>
++impl<G: ProjectiveCurve, F: Field, GG: CurveGadget<G, F>> ConditionalEqGadget<F>
+     for GroupEncryptionPlaintextGadget<G, F, GG>
+ {
+     #[inline]
+@@ -328,7 +335,7 @@ impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> ConditionalEqGadget<F>
+     }
+ }
+ 
+-impl<G: ProjectiveCurve, F: Field, GG: GroupGadget<G, F>> EqGadget<F> for GroupEncryptionPlaintextGadget<G, F, GG> {}
++impl<G: ProjectiveCurve, F: Field, GG: CurveGadget<G, F>> EqGadget<F> for GroupEncryptionPlaintextGadget<G, F, GG> {}
+ 
+ /// Group encryption ciphertext gadget
+ #[derive(Clone, Debug, PartialEq, Eq)]
+@@ -349,7 +356,10 @@ impl<G: ProjectiveCurve, F: Field, GG: CompressedGroupGadget<G, F>> AllocGadget<
+ 
+         let mut ciphertext = Vec::with_capacity(values.len());
+         for (i, value) in values.into_iter().enumerate() {
+-            let alloc_group = GG::alloc(cs.ns(|| format!("Ciphertext Iteration {}", i)), || Ok(value.borrow()))?;
++            let alloc_group =
++                <GG as AllocGadget<G, F>>::alloc(cs.ns(|| format!("Ciphertext Iteration {}", i)), || {
++                    Ok(value.borrow())
++                })?;
+             ciphertext.push(alloc_group);
+         }
+ 
+@@ -368,7 +378,10 @@ impl<G: ProjectiveCurve, F: Field, GG: CompressedGroupGadget<G, F>> AllocGadget<
+ 
+         let mut ciphertext = Vec::with_capacity(values.len());
+         for (i, value) in values.into_iter().enumerate() {
+-            let alloc_group = GG::alloc_input(cs.ns(|| format!("Ciphertext Iteration {}", i)), || Ok(value.borrow()))?;
++            let alloc_group =
++                <GG as AllocGadget<G, F>>::alloc_input(cs.ns(|| format!("Ciphertext Iteration {}", i)), || {
++                    Ok(value.borrow())
++                })?;
+             ciphertext.push(alloc_group);
+         }
+ 
+diff --git a/gadgets/src/curves/templates/bls12/affine.rs b/gadgets/src/curves/templates/bls12/affine.rs
+index 0894d92d9..39a41a8cf 100644
+--- a/gadgets/src/curves/templates/bls12/affine.rs
++++ b/gadgets/src/curves/templates/bls12/affine.rs
+@@ -30,7 +30,7 @@ use crate::{
+     integers::uint::UInt8,
+     traits::{
+         alloc::AllocGadget,
+-        curves::GroupGadget,
++        curves::{CurveGadget, GroupGadget},
+         eq::{ConditionalEqGadget, EqGadget, NEqGadget},
+         fields::{FieldGadget, ToConstraintFieldGadget},
+         select::CondSelectGadget,
+@@ -554,6 +554,31 @@ impl<P: ShortWeierstrassParameters, F: PrimeField, FG: FieldGadget<P::BaseField,
+     }
+ }
+ 
++impl<P: ShortWeierstrassParameters, F: PrimeField, FG: FieldGadget<P::BaseField, F>> AllocGadget<SWAffine<P>, F>
++    for AffineGadget<P, F, FG>
++{
++    fn alloc<Fn: FnOnce() -> Result<T, SynthesisError>, T: Borrow<SWAffine<P>>, CS: ConstraintSystem<F>>(
++        cs: CS,
++        f: Fn,
++    ) -> Result<Self, SynthesisError> {
++        Self::alloc(cs, || Ok(f()?.borrow().into_projective()))
++    }
++
++    fn alloc_checked<Fn: FnOnce() -> Result<T, SynthesisError>, T: Borrow<SWAffine<P>>, CS: ConstraintSystem<F>>(
++        cs: CS,
++        f: Fn,
++    ) -> Result<Self, SynthesisError> {
++        Self::alloc_checked(cs, || Ok(f()?.borrow().into_projective()))
++    }
++
++    fn alloc_input<Fn: FnOnce() -> Result<T, SynthesisError>, T: Borrow<SWAffine<P>>, CS: ConstraintSystem<F>>(
++        cs: CS,
++        f: Fn,
++    ) -> Result<Self, SynthesisError> {
++        Self::alloc_input(cs, || Ok(f()?.borrow().into_projective()))
++    }
++}
++
+ impl<P, F, FG> ToBitsBEGadget<F> for AffineGadget<P, F, FG>
+ where
+     P: ShortWeierstrassParameters,
+@@ -624,3 +649,11 @@ where
+         Ok(res)
+     }
+ }
++
++impl<P, F, FG> CurveGadget<SWProjective<P>, F> for AffineGadget<P, F, FG>
++where
++    P: ShortWeierstrassParameters,
++    F: PrimeField,
++    FG: FieldGadget<P::BaseField, F>,
++{
++}
+diff --git a/gadgets/src/curves/templates/twisted_edwards/mod.rs b/gadgets/src/curves/templates/twisted_edwards/mod.rs
+index f2392e3b6..c500382f8 100644
+--- a/gadgets/src/curves/templates/twisted_edwards/mod.rs
++++ b/gadgets/src/curves/templates/twisted_edwards/mod.rs
+@@ -29,7 +29,7 @@ use crate::{
+     integers::uint::UInt8,
+     traits::{
+         alloc::AllocGadget,
+-        curves::{CompressedGroupGadget, GroupGadget},
++        curves::{CompressedGroupGadget, CurveGadget, GroupGadget},
+         eq::{ConditionalEqGadget, EqGadget, NEqGadget},
+         fields::FieldGadget,
+         select::CondSelectGadget,
+@@ -1074,6 +1074,11 @@ mod projective_impl {
+         }
+     }
+ 
++    impl<P: TwistedEdwardsParameters, F: Field, FG: FieldGadget<P::BaseField, F>> CurveGadget<TEProjective<P>, F>
++        for AffineGadget<P, F, FG>
++    {
++    }
++
+     impl<P: TwistedEdwardsParameters, F: Field, FG: FieldGadget<P::BaseField, F>>
+         CompressedGroupGadget<TEProjective<P>, F> for AffineGadget<P, F, FG>
+     {
+diff --git a/gadgets/src/traits/curves/group.rs b/gadgets/src/traits/curves/group.rs
+index 76026bd43..5f4d469dd 100644
+--- a/gadgets/src/traits/curves/group.rs
++++ b/gadgets/src/traits/curves/group.rs
+@@ -252,7 +252,9 @@ pub trait GroupGadget<G: Group, F: Field>:
+     fn cost_of_double() -> usize;
+ }
+ 
+-pub trait CompressedGroupGadget<G: ProjectiveCurve, F: Field>: GroupGadget<G, F> {
++pub trait CurveGadget<G: ProjectiveCurve, F: Field>: GroupGadget<G, F> + AllocGadget<G::Affine, F> {}
++
++pub trait CompressedGroupGadget<G: ProjectiveCurve, F: Field>: CurveGadget<G, F> {
+     type BaseFieldGadget: ToBytesGadget<F>
+         + EqGadget<F>
+         + CondSelectGadget<F>

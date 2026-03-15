@@ -1,0 +1,370 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index c18c6695ce..34bf18883b 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -1277,6 +1277,7 @@ dependencies = [
+  "snarkos-gadgets",
+  "snarkos-models",
+  "thiserror",
++ "tracing",
+ ]
+ 
+ [[package]]
+diff --git a/ast/src/errors/parser.rs b/ast/src/errors/parser.rs
+index 641b86b84f..8c8888535d 100644
+--- a/ast/src/errors/parser.rs
++++ b/ast/src/errors/parser.rs
+@@ -37,6 +37,26 @@ pub enum ParserError {
+     SyntaxTreeError,
+ }
+ 
++impl ParserError {
++    pub fn set_path(&mut self, path: PathBuf) {
++        match self {
++            ParserError::SyntaxError(error) => {
++                let new_error: Error<Rule> = match error {
++                    SyntaxError::Error(error) => {
++                        let new_error = error.clone();
++                        new_error.with_path(path.to_str().unwrap())
++                    }
++                };
++
++                tracing::error!("{}", new_error);
++
++                *error = SyntaxError::Error(new_error);
++            }
++            _ => {}
++        }
++    }
++}
++
+ impl From<Error<Rule>> for ParserError {
+     fn from(error: Error<Rule>) -> Self {
+         ParserError::SyntaxError(SyntaxError::from(error))
+diff --git a/ast/src/errors/syntax.rs b/ast/src/errors/syntax.rs
+index dab51bbc5e..c79fdb1676 100644
+--- a/ast/src/errors/syntax.rs
++++ b/ast/src/errors/syntax.rs
+@@ -21,7 +21,7 @@ use pest::error::Error;
+ #[derive(Debug, Error)]
+ pub enum SyntaxError {
+     #[error("aborting due to syntax error")]
+-    Error,
++    Error(Error<Rule>),
+ }
+ 
+ impl From<Error<Rule>> for SyntaxError {
+@@ -59,8 +59,6 @@ impl From<Error<Rule>> for SyntaxError {
+             rule => format!("{:?}", rule),
+         });
+ 
+-        tracing::error!("{}\n", error);
+-
+-        SyntaxError::Error
++        SyntaxError::Error(error)
+     }
+ }
+diff --git a/compiler/src/compiler.rs b/compiler/src/compiler.rs
+index 15b908f761..62b36d2dce 100644
+--- a/compiler/src/compiler.rs
++++ b/compiler/src/compiler.rs
+@@ -68,12 +68,34 @@ impl<F: Field + PrimeField, G: GroupType<F>> Compiler<F, G> {
+ 
+     /// Parse the input and state files.
+     /// Stores a typed ast of all input variables to the program.
+-    pub fn parse_input(&mut self, input_string: &str, state_string: &str) -> Result<(), CompilerError> {
+-        let input_syntax_tree = LeoInputParser::parse_file(&input_string)?;
+-        let state_syntax_tree = LeoInputParser::parse_file(&state_string)?;
++    pub fn parse_input(
++        &mut self,
++        input_string: &str,
++        input_path: PathBuf,
++        state_string: &str,
++        state_path: PathBuf,
++    ) -> Result<(), CompilerError> {
++        let input_syntax_tree = LeoInputParser::parse_file(&input_string).map_err(|mut e| {
++            e.set_path(input_path.clone());
+ 
+-        self.program_input.parse_input(input_syntax_tree)?;
+-        self.program_input.parse_state(state_syntax_tree)?;
++            e
++        })?;
++        let state_syntax_tree = LeoInputParser::parse_file(&state_string).map_err(|mut e| {
++            e.set_path(state_path.clone());
++
++            e
++        })?;
++
++        self.program_input.parse_input(input_syntax_tree).map_err(|mut e| {
++            e.set_path(input_path);
++
++            e
++        })?;
++        self.program_input.parse_state(state_syntax_tree).map_err(|mut e| {
++            e.set_path(state_path);
++
++            e
++        })?;
+ 
+         Ok(())
+     }
+@@ -99,11 +121,14 @@ impl<F: Field + PrimeField, G: GroupType<F>> Compiler<F, G> {
+         main_file_path: PathBuf,
+         output_directory: PathBuf,
+         input_string: &str,
++        input_path: PathBuf,
+         state_string: &str,
++        state_path: PathBuf,
+     ) -> Result<Self, CompilerError> {
+         let mut compiler = Self::new(package_name, main_file_path, output_directory);
+ 
+-        compiler.parse_input(input_string, state_string)?;
++        compiler.parse_input(input_string, input_path, state_string, state_path)?;
++
+         compiler.parse_program()?;
+ 
+         Ok(compiler)
+@@ -122,7 +147,11 @@ impl<F: Field + PrimeField, G: GroupType<F>> Compiler<F, G> {
+     #[deprecated(note = "Please use the 'parse_program' method instead.")]
+     pub fn parse_program_from_string(&mut self, program_string: &str) -> Result<(), CompilerError> {
+         // Use the given bytes to construct the abstract syntax tree.
+-        let ast = LeoAst::new(&self.main_file_path, &program_string)?;
++        let ast = LeoAst::new(&self.main_file_path, &program_string).map_err(|mut e| {
++            e.set_path(self.main_file_path.clone());
++
++            e
++        })?;
+ 
+         // Derive the package name.
+         let package_name = self.package_name.clone();
+diff --git a/compiler/src/errors/compiler.rs b/compiler/src/errors/compiler.rs
+index e51991d6ad..0f1bc30a7f 100644
+--- a/compiler/src/errors/compiler.rs
++++ b/compiler/src/errors/compiler.rs
+@@ -67,6 +67,7 @@ pub enum CompilerError {
+ impl CompilerError {
+     pub fn set_path(&mut self, path: PathBuf) {
+         match self {
++            CompilerError::InputParserError(error) => error.set_path(path),
+             CompilerError::FunctionError(error) => error.set_path(path),
+             CompilerError::OutputStringError(error) => error.set_path(path),
+             _ => {}
+diff --git a/compiler/tests/mod.rs b/compiler/tests/mod.rs
+index 0b498e0ee1..b6cfd689de 100644
+--- a/compiler/tests/mod.rs
++++ b/compiler/tests/mod.rs
+@@ -72,8 +72,9 @@ pub(crate) fn parse_program(bytes: &[u8]) -> Result<EdwardsTestCompiler, Compile
+ pub(crate) fn parse_input(bytes: &[u8]) -> Result<EdwardsTestCompiler, CompilerError> {
+     let mut compiler = new_compiler();
+     let input_string = String::from_utf8_lossy(bytes);
++    let path = PathBuf::new();
+ 
+-    compiler.parse_input(&input_string, EMPTY_FILE)?;
++    compiler.parse_input(&input_string, path.clone(), EMPTY_FILE, path)?;
+ 
+     Ok(compiler)
+ }
+@@ -81,8 +82,9 @@ pub(crate) fn parse_input(bytes: &[u8]) -> Result<EdwardsTestCompiler, CompilerE
+ pub(crate) fn parse_state(bytes: &[u8]) -> Result<EdwardsTestCompiler, CompilerError> {
+     let mut compiler = new_compiler();
+     let state_string = String::from_utf8_lossy(bytes);
++    let path = PathBuf::new();
+ 
+-    compiler.parse_input(EMPTY_FILE, &state_string)?;
++    compiler.parse_input(EMPTY_FILE, path.clone(), &state_string, path)?;
+ 
+     Ok(compiler)
+ }
+@@ -94,8 +96,9 @@ pub(crate) fn parse_input_and_state(
+     let mut compiler = new_compiler();
+     let input_string = String::from_utf8_lossy(input_bytes);
+     let state_string = String::from_utf8_lossy(state_bytes);
++    let path = PathBuf::new();
+ 
+-    compiler.parse_input(&input_string, &state_string)?;
++    compiler.parse_input(&input_string, path.clone(), &state_string, path)?;
+ 
+     Ok(compiler)
+ }
+@@ -108,8 +111,9 @@ pub fn parse_program_with_input(
+ 
+     let program_string = String::from_utf8_lossy(program_bytes);
+     let input_string = String::from_utf8_lossy(input_bytes);
++    let path = PathBuf::new();
+ 
+-    compiler.parse_input(&input_string, EMPTY_FILE)?;
++    compiler.parse_input(&input_string, path.clone(), EMPTY_FILE, path)?;
+     compiler.parse_program_from_string(&program_string)?;
+ 
+     Ok(compiler)
+@@ -123,8 +127,9 @@ pub fn parse_program_with_state(
+ 
+     let program_string = String::from_utf8_lossy(program_bytes);
+     let state_string = String::from_utf8_lossy(state_bytes);
++    let path = PathBuf::new();
+ 
+-    compiler.parse_input(EMPTY_FILE, &state_string)?;
++    compiler.parse_input(EMPTY_FILE, path.clone(), &state_string, path)?;
+     compiler.parse_program_from_string(&program_string)?;
+ 
+     Ok(compiler)
+@@ -140,8 +145,9 @@ pub fn parse_program_with_input_and_state(
+     let program_string = String::from_utf8_lossy(program_bytes);
+     let input_string = String::from_utf8_lossy(input_bytes);
+     let state_string = String::from_utf8_lossy(state_bytes);
++    let path = PathBuf::new();
+ 
+-    compiler.parse_input(&input_string, &state_string)?;
++    compiler.parse_input(&input_string, path.clone(), &state_string, path)?;
+     compiler.parse_program_from_string(&program_string)?;
+ 
+     Ok(compiler)
+diff --git a/input/Cargo.toml b/input/Cargo.toml
+index 3ba99f88bf..e553a026f1 100644
+--- a/input/Cargo.toml
++++ b/input/Cargo.toml
+@@ -51,3 +51,6 @@ version = "2.0"
+ 
+ [dependencies.thiserror]
+ version = "1.0"
++
++[dependencies.tracing]
++version = "0.1"
+\ No newline at end of file
+diff --git a/input/src/errors/parser.rs b/input/src/errors/parser.rs
+index d808b61b51..b062564471 100644
+--- a/input/src/errors/parser.rs
++++ b/input/src/errors/parser.rs
+@@ -52,6 +52,24 @@ pub enum InputParserError {
+ }
+ 
+ impl InputParserError {
++    pub fn set_path(&mut self, path: PathBuf) {
++        match self {
++            InputParserError::SyntaxError(error) => {
++                let new_error: Error<Rule> = match error {
++                    InputSyntaxError::Error(error) => {
++                        let new_error = error.clone();
++                        new_error.with_path(path.to_str().unwrap())
++                    }
++                };
++
++                tracing::error!("{}", new_error);
++
++                *error = InputSyntaxError::Error(new_error);
++            }
++            _ => {}
++        }
++    }
++
+     fn new_from_span(message: String, span: Span) -> Self {
+         let error = Error::new_from_span(ErrorVariant::CustomError { message }, span);
+ 
+diff --git a/input/src/errors/syntax.rs b/input/src/errors/syntax.rs
+index ffcb97723c..27f163bbc3 100644
+--- a/input/src/errors/syntax.rs
++++ b/input/src/errors/syntax.rs
+@@ -21,7 +21,7 @@ use pest::error::Error;
+ #[derive(Debug, Error)]
+ pub enum SyntaxError {
+     #[error("aborting due to syntax error")]
+-    Error,
++    Error(Error<Rule>),
+ }
+ 
+ impl From<Error<Rule>> for SyntaxError {
+@@ -39,8 +39,6 @@ impl From<Error<Rule>> for SyntaxError {
+             rule => format!("{:?}", rule),
+         });
+ 
+-        println!("{}\n", error);
+-
+-        SyntaxError::Error
++        SyntaxError::Error(error)
+     }
+ }
+diff --git a/leo/commands/build.rs b/leo/commands/build.rs
+index 2bfefe9549..399a67141c 100644
+--- a/leo/commands/build.rs
++++ b/leo/commands/build.rs
+@@ -110,10 +110,10 @@ impl CLI for BuildCommand {
+             main_file_path.push(MAIN_FILENAME);
+ 
+             // Load the input file at `package_name.in`
+-            let input_string = InputFile::new(&package_name).read_from(&path)?;
++            let (input_string, input_path) = InputFile::new(&package_name).read_from(&path)?;
+ 
+             // Load the state file at `package_name.in`
+-            let state_string = StateFile::new(&package_name).read_from(&path)?;
++            let (state_string, state_path) = StateFile::new(&package_name).read_from(&path)?;
+ 
+             // Log compilation of files to console
+             tracing::info!("Compiling main program... ({:?})", main_file_path);
+@@ -124,7 +124,9 @@ impl CLI for BuildCommand {
+                 main_file_path.clone(),
+                 output_directory,
+                 &input_string,
++                input_path,
+                 &state_string,
++                state_path,
+             )?;
+ 
+             // Compute the current program checksum
+diff --git a/package/src/inputs/input.rs b/package/src/inputs/input.rs
+index c7c91266ae..faa4da52a6 100644
+--- a/package/src/inputs/input.rs
++++ b/package/src/inputs/input.rs
+@@ -49,11 +49,11 @@ impl InputFile {
+     }
+ 
+     /// Reads the program input variables from the given file path if it exists.
+-    pub fn read_from(&self, path: &PathBuf) -> Result<String, InputFileError> {
++    pub fn read_from(&self, path: &PathBuf) -> Result<(String, PathBuf), InputFileError> {
+         let path = self.setup_file_path(path);
+ 
+         let input = fs::read_to_string(&path).map_err(|_| InputFileError::FileReadError(path.clone()))?;
+-        Ok(input)
++        Ok((input, path))
+     }
+ 
+     /// Writes the standard input format to a file.
+diff --git a/package/src/inputs/pairs.rs b/package/src/inputs/pairs.rs
+index 6c05ddcccb..c00c8ea908 100644
+--- a/package/src/inputs/pairs.rs
++++ b/package/src/inputs/pairs.rs
+@@ -57,7 +57,7 @@ impl TryFrom<&PathBuf> for InputPairs {
+                 .ok_or(InputsDirectoryError::GettingFileName(file.as_os_str().to_owned()))?;
+ 
+             if file_extension == INPUT_FILE_EXTENSION.trim_start_matches(".") {
+-                let input_file = InputFile::new(file_name).read_from(&file)?;
++                let input_file = InputFile::new(file_name).read_from(&file)?.0;
+ 
+                 if pairs.contains_key(file_name) {
+                     let pair = pairs.get_mut(file_name).unwrap();
+@@ -70,7 +70,7 @@ impl TryFrom<&PathBuf> for InputPairs {
+                     pairs.insert(file_name.to_owned(), pair);
+                 }
+             } else if file_extension == STATE_FILE_EXTENSION.trim_start_matches(".") {
+-                let state_file = StateFile::new(file_name).read_from(&file)?;
++                let state_file = StateFile::new(file_name).read_from(&file)?.0;
+ 
+                 if pairs.contains_key(file_name) {
+                     let pair = pairs.get_mut(file_name).unwrap();
+diff --git a/package/src/inputs/state.rs b/package/src/inputs/state.rs
+index a8c2043f5a..594d6e4cb6 100644
+--- a/package/src/inputs/state.rs
++++ b/package/src/inputs/state.rs
+@@ -49,11 +49,11 @@ impl StateFile {
+     }
+ 
+     /// Reads the state input variables from the given file path if it exists.
+-    pub fn read_from(&self, path: &PathBuf) -> Result<String, StateFileError> {
++    pub fn read_from(&self, path: &PathBuf) -> Result<(String, PathBuf), StateFileError> {
+         let path = self.setup_file_path(path);
+ 
+         let input = fs::read_to_string(&path).map_err(|_| StateFileError::FileReadError(path.clone()))?;
+-        Ok(input)
++        Ok((input, path))
+     }
+ 
+     /// Writes the standard input format to a file.

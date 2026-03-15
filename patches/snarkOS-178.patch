@@ -1,0 +1,174 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index d069cedea..02707b96d 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -3205,6 +3205,7 @@ dependencies = [
+  "parking_lot",
+  "peak_alloc",
+  "rand",
++ "rayon",
+  "reqwest",
+  "serde",
+  "snarkos-account",
+diff --git a/node/router/Cargo.toml b/node/router/Cargo.toml
+index c0483487c..a796cf267 100644
+--- a/node/router/Cargo.toml
++++ b/node/router/Cargo.toml
+@@ -58,6 +58,9 @@ version = "0.12"
+ [dependencies.rand]
+ version = "0.8"
+ 
++[dependencies.rayon]
++version = "1.10"
++
+ [dependencies.reqwest]
+ version = "0.11"
+ 
+diff --git a/node/router/src/inbound.rs b/node/router/src/inbound.rs
+index b8d985040..7ebbac2b7 100644
+--- a/node/router/src/inbound.rs
++++ b/node/router/src/inbound.rs
+@@ -36,7 +36,7 @@ use snarkvm::prelude::{
+ 
+ use anyhow::{anyhow, bail, Result};
+ use snarkos_node_tcp::is_bogon_ip;
+-use std::{net::SocketAddr, time::Instant};
++use std::net::SocketAddr;
+ use tokio::task::spawn_blocking;
+ 
+ /// The max number of peers to send in a `PeerResponse` message.
+@@ -76,6 +76,9 @@ pub trait Inbound<N: Network>: Reading + Outbound<N> {
+ 
+         trace!("Received '{}' from '{peer_ip}'", message.name());
+ 
++        // Update the last seen timestamp of the peer.
++        self.router().update_last_seen_for_connected_peer(peer_ip);
++
+         // This match statement handles the inbound message by deserializing the message,
+         // checking that the message is valid, and then calling the appropriate (trait) handler.
+         match message {
+@@ -110,7 +113,19 @@ pub trait Inbound<N: Network>: Reading + Outbound<N> {
+                     bail!("Peer '{peer_ip}' is not following the protocol (unexpected block response)")
+                 }
+                 // Perform the deferred non-blocking deserialization of the blocks.
+-                let blocks = blocks.deserialize().await.map_err(|error| anyhow!("[BlockResponse] {error}"))?;
++                // The deserialization can take a long time (minutes). We should not be running
++                // this on a blocking task, but on a rayon thread pool.
++                let (send, recv) = tokio::sync::oneshot::channel();
++                rayon::spawn_fifo(move || {
++                    let blocks = blocks.deserialize_blocking().map_err(|error| anyhow!("[BlockResponse] {error}"));
++                    let _ = send.send(blocks);
++                });
++                let blocks = match recv.await {
++                    Ok(Ok(blocks)) => blocks,
++                    Ok(Err(error)) => bail!("Peer '{peer_ip}' sent an invalid block response - {error}"),
++                    Err(error) => bail!("Peer '{peer_ip}' sent an invalid block response - {error}"),
++                };
++
+                 // Ensure the block response is well-formed.
+                 blocks.ensure_response_is_well_formed(peer_ip, request.start_height, request.end_height)?;
+ 
+@@ -169,8 +184,6 @@ pub trait Inbound<N: Network>: Reading + Outbound<N> {
+                         peer.set_version(message.version);
+                         // Update the node type of the peer.
+                         peer.set_node_type(message.node_type);
+-                        // Update the last seen timestamp of the peer.
+-                        peer.set_last_seen(Instant::now());
+                     })
+                 {
+                     bail!("[Ping] {error}");
+diff --git a/node/router/src/lib.rs b/node/router/src/lib.rs
+index e957a214e..45e6470e8 100644
+--- a/node/router/src/lib.rs
++++ b/node/router/src/lib.rs
+@@ -500,6 +500,12 @@ impl<N: Network> Router<N> {
+         Ok(())
+     }
+ 
++    pub fn update_last_seen_for_connected_peer(&self, peer_ip: SocketAddr) {
++        if let Some(peer) = self.connected_peers.write().get_mut(&peer_ip) {
++            peer.set_last_seen(Instant::now());
++        }
++    }
++
+     /// Removes the connected peer and adds them to the candidate peers.
+     pub fn remove_connected_peer(&self, peer_ip: SocketAddr) {
+         // Removes the bidirectional map between the listener address and (ambiguous) peer address.
+diff --git a/node/src/client/router.rs b/node/src/client/router.rs
+index 53f7356f8..e621a2a35 100644
+--- a/node/src/client/router.rs
++++ b/node/src/client/router.rs
+@@ -115,6 +115,26 @@ impl<N: Network, C: ConsensusStorage<N>> Reading for Client<N, C> {
+ 
+     /// Processes a message received from the network.
+     async fn process_message(&self, peer_addr: SocketAddr, message: Self::Message) -> io::Result<()> {
++        let clone = self.clone();
++        if matches!(message, Message::BlockRequest(_) | Message::BlockResponse(_)) {
++            // Handle BlockRequest and BlockResponse messages in a separate task to not block the
++            // inbound queue.
++            tokio::spawn(async move {
++                clone.process_message_inner(peer_addr, message).await;
++            });
++        } else {
++            self.process_message_inner(peer_addr, message).await;
++        }
++        Ok(())
++    }
++}
++
++impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
++    async fn process_message_inner(
++        &self,
++        peer_addr: SocketAddr,
++        message: <Client<N, C> as snarkos_node_tcp::protocols::Reading>::Message,
++    ) {
+         // Process the message. Disconnect if the peer violated the protocol.
+         if let Err(error) = self.inbound(peer_addr, message).await {
+             if let Some(peer_ip) = self.router().resolve_to_listener(&peer_addr) {
+@@ -124,7 +144,6 @@ impl<N: Network, C: ConsensusStorage<N>> Reading for Client<N, C> {
+                 self.router().disconnect(peer_ip);
+             }
+         }
+-        Ok(())
+     }
+ }
+ 
+diff --git a/node/src/validator/router.rs b/node/src/validator/router.rs
+index 0ac3743ae..550171d3b 100644
+--- a/node/src/validator/router.rs
++++ b/node/src/validator/router.rs
+@@ -111,6 +111,26 @@ impl<N: Network, C: ConsensusStorage<N>> Reading for Validator<N, C> {
+ 
+     /// Processes a message received from the network.
+     async fn process_message(&self, peer_addr: SocketAddr, message: Self::Message) -> io::Result<()> {
++        let clone = self.clone();
++        if matches!(message, Message::BlockRequest(_) | Message::BlockResponse(_)) {
++            // Handle BlockRequest and BlockResponse messages in a separate task to not block the
++            // inbound queue.
++            tokio::spawn(async move {
++                clone.process_message_inner(peer_addr, message).await;
++            });
++        } else {
++            self.process_message_inner(peer_addr, message).await;
++        }
++        Ok(())
++    }
++}
++
++impl<N: Network, C: ConsensusStorage<N>> Validator<N, C> {
++    async fn process_message_inner(
++        &self,
++        peer_addr: SocketAddr,
++        message: <Validator<N, C> as snarkos_node_tcp::protocols::Reading>::Message,
++    ) {
+         // Process the message. Disconnect if the peer violated the protocol.
+         if let Err(error) = self.inbound(peer_addr, message).await {
+             if let Some(peer_ip) = self.router().resolve_to_listener(&peer_addr) {
+@@ -120,7 +140,6 @@ impl<N: Network, C: ConsensusStorage<N>> Reading for Validator<N, C> {
+                 self.router().disconnect(peer_ip);
+             }
+         }
+-        Ok(())
+     }
+ }
+ 

@@ -1,0 +1,1029 @@
+diff --git a/curves/src/bls12_377/fq.rs b/curves/src/bls12_377/fq.rs
+index 5f47458ad..9a13bbf07 100644
+--- a/curves/src/bls12_377/fq.rs
++++ b/curves/src/bls12_377/fq.rs
+@@ -14,7 +14,7 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use snarkvm_fields::{FftParameters, FieldParameters, Fp384, Fp384Parameters};
++use snarkvm_fields::{FftParameters, FieldParameters, Fp384, Fp384Parameters, PoseidonMDSParameters};
+ use snarkvm_utilities::biginteger::BigInteger384 as BigInteger;
+ 
+ pub type Fq = Fp384<FqParameters>;
+@@ -120,3 +120,89 @@ impl FieldParameters for FqParameters {
+         0x35c,
+     ]);
+ }
++
++impl PoseidonMDSParameters for FqParameters {
++    const POSEIDON_ALPHA: u64 = 17;
++    const POSEIDON_FULL_ROUNDS: u32 = 8;
++    const POSEIDON_MDS: [[BigInteger; 3]; 3] = [
++        [
++            BigInteger([
++                8172967597780954035u64,
++                6008815347824693113u64,
++                4592403753008098902u64,
++                14851063508046765924u64,
++                5306993576991644926u64,
++                16603003293726031u64,
++            ]),
++            BigInteger([
++                17569403088604308u64,
++                17682572356524644437u64,
++                2359184719407488192u64,
++                16083283379166159201u64,
++                5105602493841543119u64,
++                8672980712485792u64,
++            ]),
++            BigInteger([
++                12316216836904703884u64,
++                17783819148460676477u64,
++                5182093414834056284u64,
++                9192323074044742792u64,
++                15091267172548134993u64,
++                45090915910082212u64,
++            ]),
++        ],
++        [
++            BigInteger([
++                14801833939635027068u64,
++                7013328969900695617u64,
++                15720484090102208943u64,
++                13671746346006573204u64,
++                17925411853826579348u64,
++                86428814309121125u64,
++            ]),
++            BigInteger([
++                17624342405307035836u64,
++                6116808379636279617u64,
++                10799701812362080479u64,
++                10006225831313738853u64,
++                6470237557205326410u64,
++                79199972292541975u64,
++            ]),
++            BigInteger([
++                3054733087357147792u64,
++                17691235172212186961u64,
++                8334009145457048575u64,
++                12262622436410632068u64,
++                2349412626666515315u64,
++                11319001813360516u64,
++            ]),
++        ],
++        [
++            BigInteger([
++                2273528872882178312u64,
++                16665688939646869132u64,
++                341033436731129471u64,
++                1114340925258231644u64,
++                16154103318641537191u64,
++                8065793780653267u64,
++            ]),
++            BigInteger([
++                4629876387047989026u64,
++                2210105303418988442u64,
++                16069385238970284835u64,
++                6570780206775703383u64,
++                17759700008175431301u64,
++                16439019728427980u64,
++            ]),
++            BigInteger([
++                12717129937993317565u64,
++                13426457888220300229u64,
++                5221551723056385617u64,
++                6256493013794088213u64,
++                461901669955011041u64,
++                105694585219148878u64,
++            ]),
++        ],
++    ];
++    const POSEIDON_PARTIAL_ROUNDS: u32 = 31;
++}
+diff --git a/fields/src/fp_256.rs b/fields/src/fp_256.rs
+index e06bd33e4..3ecff247d 100644
+--- a/fields/src/fp_256.rs
++++ b/fields/src/fp_256.rs
+@@ -23,6 +23,8 @@ use crate::{
+     FieldParameters,
+     LegendreSymbol,
+     One,
++    PoseidonMDSField,
++    PoseidonMDSParameters,
+     PrimeField,
+     SquareRootField,
+     Zero,
+@@ -612,3 +614,30 @@ impl<'a, P: Fp256Parameters> DivAssign<&'a Self> for Fp256<P> {
+         self.mul_assign(&other.inverse().unwrap());
+     }
+ }
++
++impl<P: Fp256Parameters + PoseidonMDSParameters> PoseidonMDSField for Fp256<P> {
++    fn poseidon_mds_matrix() -> Vec<Vec<Self>> {
++        let mut mds = Vec::<Vec<Self>>::new();
++        for row in P::POSEIDON_MDS.iter() {
++            mds.push(
++                row.iter()
++                    .map(|b| Self::from_repr_raw(*b))
++                    .collect::<Vec<Self>>()
++                    .to_vec(),
++            );
++        }
++        mds
++    }
++
++    fn poseidon_alpha() -> u64 {
++        P::POSEIDON_ALPHA
++    }
++
++    fn poseidon_number_full_rounds() -> u32 {
++        P::POSEIDON_FULL_ROUNDS
++    }
++
++    fn poseidon_number_partial_rounds() -> u32 {
++        P::POSEIDON_PARTIAL_ROUNDS
++    }
++}
+diff --git a/fields/src/fp_320.rs b/fields/src/fp_320.rs
+index 635fa1321..36ed5f4c6 100644
+--- a/fields/src/fp_320.rs
++++ b/fields/src/fp_320.rs
+@@ -23,6 +23,8 @@ use crate::{
+     FieldParameters,
+     LegendreSymbol,
+     One,
++    PoseidonMDSField,
++    PoseidonMDSParameters,
+     PrimeField,
+     SquareRootField,
+     Zero,
+@@ -655,3 +657,30 @@ impl<'a, P: Fp320Parameters> DivAssign<&'a Self> for Fp320<P> {
+         self.mul_assign(&other.inverse().unwrap());
+     }
+ }
++
++impl<P: Fp320Parameters + PoseidonMDSParameters> PoseidonMDSField for Fp320<P> {
++    fn poseidon_mds_matrix() -> Vec<Vec<Self>> {
++        let mut mds = Vec::<Vec<Self>>::new();
++        for row in P::POSEIDON_MDS.iter() {
++            mds.push(
++                row.iter()
++                    .map(|b| Self::from_repr_raw(*b))
++                    .collect::<Vec<Self>>()
++                    .to_vec(),
++            );
++        }
++        mds
++    }
++
++    fn poseidon_alpha() -> u64 {
++        P::POSEIDON_ALPHA
++    }
++
++    fn poseidon_number_full_rounds() -> u32 {
++        P::POSEIDON_FULL_ROUNDS
++    }
++
++    fn poseidon_number_partial_rounds() -> u32 {
++        P::POSEIDON_PARTIAL_ROUNDS
++    }
++}
+diff --git a/fields/src/fp_384.rs b/fields/src/fp_384.rs
+index 143f9017a..f1d6760fa 100644
+--- a/fields/src/fp_384.rs
++++ b/fields/src/fp_384.rs
+@@ -23,6 +23,8 @@ use crate::{
+     FieldParameters,
+     LegendreSymbol,
+     One,
++    PoseidonMDSField,
++    PoseidonMDSParameters,
+     PrimeField,
+     SquareRootField,
+     Zero,
+@@ -695,3 +697,30 @@ impl<'a, P: Fp384Parameters> DivAssign<&'a Self> for Fp384<P> {
+         self.mul_assign(&other.inverse().unwrap());
+     }
+ }
++
++impl<P: Fp384Parameters + PoseidonMDSParameters> PoseidonMDSField for Fp384<P> {
++    fn poseidon_mds_matrix() -> Vec<Vec<Self>> {
++        let mut mds = Vec::<Vec<Self>>::new();
++        for row in P::POSEIDON_MDS.iter() {
++            mds.push(
++                row.iter()
++                    .map(|b| Self::from_repr_raw(*b))
++                    .collect::<Vec<Self>>()
++                    .to_vec(),
++            );
++        }
++        mds
++    }
++
++    fn poseidon_alpha() -> u64 {
++        P::POSEIDON_ALPHA
++    }
++
++    fn poseidon_number_full_rounds() -> u32 {
++        P::POSEIDON_FULL_ROUNDS
++    }
++
++    fn poseidon_number_partial_rounds() -> u32 {
++        P::POSEIDON_PARTIAL_ROUNDS
++    }
++}
+diff --git a/fields/src/fp_768.rs b/fields/src/fp_768.rs
+index cd054a088..505587eb8 100644
+--- a/fields/src/fp_768.rs
++++ b/fields/src/fp_768.rs
+@@ -23,6 +23,8 @@ use crate::{
+     FieldParameters,
+     LegendreSymbol,
+     One,
++    PoseidonMDSField,
++    PoseidonMDSParameters,
+     PrimeField,
+     SquareRootField,
+     Zero,
+@@ -1153,3 +1155,30 @@ impl<'a, P: Fp768Parameters> DivAssign<&'a Self> for Fp768<P> {
+         self.mul_assign(&other.inverse().unwrap());
+     }
+ }
++
++impl<P: Fp768Parameters + PoseidonMDSParameters> PoseidonMDSField for Fp768<P> {
++    fn poseidon_mds_matrix() -> Vec<Vec<Self>> {
++        let mut mds = Vec::<Vec<Self>>::new();
++        for row in P::POSEIDON_MDS.iter() {
++            mds.push(
++                row.iter()
++                    .map(|b| Self::from_repr_raw(*b))
++                    .collect::<Vec<Self>>()
++                    .to_vec(),
++            );
++        }
++        mds
++    }
++
++    fn poseidon_alpha() -> u64 {
++        P::POSEIDON_ALPHA
++    }
++
++    fn poseidon_number_full_rounds() -> u32 {
++        P::POSEIDON_FULL_ROUNDS
++    }
++
++    fn poseidon_number_partial_rounds() -> u32 {
++        P::POSEIDON_PARTIAL_ROUNDS
++    }
++}
+diff --git a/fields/src/fp_832.rs b/fields/src/fp_832.rs
+index c5a31e185..0928e378f 100644
+--- a/fields/src/fp_832.rs
++++ b/fields/src/fp_832.rs
+@@ -23,6 +23,8 @@ use crate::{
+     FieldParameters,
+     LegendreSymbol,
+     One,
++    PoseidonMDSField,
++    PoseidonMDSParameters,
+     PrimeField,
+     SquareRootField,
+     Zero,
+@@ -1149,3 +1151,30 @@ impl<'a, P: Fp832Parameters> DivAssign<&'a Self> for Fp832<P> {
+         self.mul_assign(&other.inverse().unwrap());
+     }
+ }
++
++impl<P: Fp832Parameters + PoseidonMDSParameters> PoseidonMDSField for Fp832<P> {
++    fn poseidon_mds_matrix() -> Vec<Vec<Self>> {
++        let mut mds = Vec::<Vec<Self>>::new();
++        for row in P::POSEIDON_MDS.iter() {
++            mds.push(
++                row.iter()
++                    .map(|b| Self::from_repr_raw(*b))
++                    .collect::<Vec<Self>>()
++                    .to_vec(),
++            );
++        }
++        mds
++    }
++
++    fn poseidon_alpha() -> u64 {
++        P::POSEIDON_ALPHA
++    }
++
++    fn poseidon_number_full_rounds() -> u32 {
++        P::POSEIDON_FULL_ROUNDS
++    }
++
++    fn poseidon_number_partial_rounds() -> u32 {
++        P::POSEIDON_PARTIAL_ROUNDS
++    }
++}
+diff --git a/fields/src/traits/mod.rs b/fields/src/traits/mod.rs
+index 2968aa2f3..59fa909ea 100644
+--- a/fields/src/traits/mod.rs
++++ b/fields/src/traits/mod.rs
+@@ -40,3 +40,6 @@ pub use to_constraint_field::*;
+ 
+ mod zero;
+ pub use zero::*;
++
++mod poseidon_mds_field;
++pub use poseidon_mds_field::*;
+diff --git a/fields/src/traits/poseidon_mds_field.rs b/fields/src/traits/poseidon_mds_field.rs
+new file mode 100644
+index 000000000..41addaf10
+--- /dev/null
++++ b/fields/src/traits/poseidon_mds_field.rs
+@@ -0,0 +1,44 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use crate::{FftParameters, PrimeField};
++
++/// The interface for MDS parameters
++pub trait PoseidonMDSParameters: 'static + Send + Sync + Sized + FftParameters {
++    /// The 3x3 MDS matrix
++    const POSEIDON_MDS: [[Self::BigInteger; 3]; 3];
++    /// The alpha
++    const POSEIDON_ALPHA: u64;
++    /// The number of full rounds
++    const POSEIDON_FULL_ROUNDS: u32;
++    /// The number of partial rounds
++    const POSEIDON_PARTIAL_ROUNDS: u32;
++}
++
++/// The interface for a prime field with Poseidon MDS matrix.
++pub trait PoseidonMDSField: PrimeField {
++    /// Returns the Poseidon parameters
++    fn poseidon_mds_matrix() -> Vec<Vec<Self>>;
++
++    /// Returns the Poseidon alpha value
++    fn poseidon_alpha() -> u64;
++
++    /// Returns the Poseidon number of full rounds
++    fn poseidon_number_full_rounds() -> u32;
++
++    /// Returns the Poseidon number of partial rounds
++    fn poseidon_number_partial_rounds() -> u32;
++}
+diff --git a/marlin/src/constraints/ahp.rs b/marlin/src/constraints/ahp.rs
+index 3be10d0ec..06e4abc38 100644
+--- a/marlin/src/constraints/ahp.rs
++++ b/marlin/src/constraints/ahp.rs
+@@ -19,7 +19,7 @@ use core::marker::PhantomData;
+ use hashbrown::{HashMap, HashSet};
+ 
+ use snarkvm_algorithms::fft::EvaluationDomain;
+-use snarkvm_fields::PrimeField;
++use snarkvm_fields::{PoseidonMDSField, PrimeField};
+ use snarkvm_gadgets::{
+     bits::{Boolean, ToBitsLEGadget},
+     fields::FpGadget,
+@@ -97,7 +97,7 @@ pub struct VerifierThirdMsgVar<TargetField: PrimeField, BaseField: PrimeField> {
+ /// The AHP gadget.
+ pub struct AHPForR1CS<
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+ > where
+@@ -112,7 +112,7 @@ pub struct AHPForR1CS<
+ 
+ impl<
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+ > AHPForR1CS<TargetField, BaseField, PC, PCG>
+diff --git a/marlin/src/constraints/snark.rs b/marlin/src/constraints/snark.rs
+index 2c2e6f19d..87b5e5e30 100644
+--- a/marlin/src/constraints/snark.rs
++++ b/marlin/src/constraints/snark.rs
+@@ -22,7 +22,7 @@ use std::{
+ use rand::{CryptoRng, Rng, RngCore};
+ 
+ use snarkvm_algorithms::{SNARKError, SNARK};
+-use snarkvm_fields::{PrimeField, ToConstraintField};
++use snarkvm_fields::{PoseidonMDSField, PrimeField, ToConstraintField};
+ use snarkvm_gadgets::{
+     bits::Boolean,
+     nonnative::NonNativeFieldInputVar,
+@@ -74,7 +74,7 @@ impl Debug for MarlinBound {
+ /// The Marlin proof system.
+ pub struct MarlinSNARK<
+     F: PrimeField,
+-    FSF: PrimeField,
++    FSF: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<F>,
+     FS: FiatShamirRng<F, FSF>,
+     MC: MarlinMode,
+@@ -91,7 +91,7 @@ pub struct MarlinSNARK<
+ impl<TargetField, BaseField, PC, FS, MM, C> MarlinSNARK<TargetField, BaseField, PC, FS, MM, C>
+ where
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     FS: FiatShamirRng<TargetField, BaseField>,
+     MM: MarlinMode,
+@@ -160,7 +160,7 @@ where
+ impl<TargetField, BaseField, PC, FS, MM, C> SNARK for MarlinSNARK<TargetField, BaseField, PC, FS, MM, C>
+ where
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     FS: FiatShamirRng<TargetField, BaseField>,
+     MM: MarlinMode,
+@@ -213,7 +213,7 @@ where
+ pub struct MarlinSNARKGadget<F, FSF, PC, FS, MM, PCG, FSG>
+ where
+     F: PrimeField,
+-    FSF: PrimeField,
++    FSF: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<F>,
+     FS: FiatShamirRng<F, FSF>,
+     MM: MarlinMode,
+@@ -234,7 +234,7 @@ impl<TargetField, BaseField, PC, FS, MM, PCG, FSG, C>
+     for MarlinSNARKGadget<TargetField, BaseField, PC, FS, MM, PCG, FSG>
+ where
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     FS: FiatShamirRng<TargetField, BaseField>,
+     MM: MarlinMode,
+diff --git a/marlin/src/constraints/verifier.rs b/marlin/src/constraints/verifier.rs
+index 53bd90cf7..99984dc9a 100644
+--- a/marlin/src/constraints/verifier.rs
++++ b/marlin/src/constraints/verifier.rs
+@@ -16,7 +16,7 @@
+ 
+ use core::marker::PhantomData;
+ 
+-use snarkvm_fields::PrimeField;
++use snarkvm_fields::{PoseidonMDSField, PrimeField};
+ use snarkvm_gadgets::{
+     bits::Boolean,
+     nonnative::{params::OptimizationType, NonNativeFieldVar},
+@@ -74,7 +74,7 @@ impl<TargetField, BaseField, PC, PCG, FS, MM, C>
+     for MarlinVerificationGadget<TargetField, BaseField, PC, PCG>
+ where
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PC::VerifierKey: ToConstraintField<BaseField>,
+     PC::Commitment: ToConstraintField<BaseField>,
+@@ -114,7 +114,7 @@ where
+ impl<TargetField, BaseField, PC, PCG> MarlinVerificationGadget<TargetField, BaseField, PC, PCG>
+ where
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+     PCG::VerifierKeyVar: ToConstraintFieldGadget<BaseField>,
+diff --git a/marlin/src/constraints/verifier_key/circuit_verifier_key.rs b/marlin/src/constraints/verifier_key/circuit_verifier_key.rs
+index 0c4037734..91a6d5b1c 100644
+--- a/marlin/src/constraints/verifier_key/circuit_verifier_key.rs
++++ b/marlin/src/constraints/verifier_key/circuit_verifier_key.rs
+@@ -17,7 +17,7 @@
+ use core::borrow::Borrow;
+ 
+ use snarkvm_algorithms::fft::EvaluationDomain;
+-use snarkvm_fields::PrimeField;
++use snarkvm_fields::{PoseidonMDSField, PrimeField};
+ use snarkvm_gadgets::{bits::ToBytesGadget, fields::FpGadget, integers::uint::UInt8, traits::alloc::AllocGadget};
+ use snarkvm_polycommit::PCCheckVar;
+ use snarkvm_r1cs::{ConstraintSystem, SynthesisError};
+@@ -27,7 +27,7 @@ use crate::{marlin::CircuitVerifyingKey, PolynomialCommitment};
+ /// The circuit verifying key gadget
+ pub struct CircuitVerifyingKeyVar<
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+ > {
+@@ -47,7 +47,7 @@ pub struct CircuitVerifyingKeyVar<
+ 
+ impl<
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+ > Clone for CircuitVerifyingKeyVar<TargetField, BaseField, PC, PCG>
+@@ -66,7 +66,7 @@ impl<
+ 
+ impl<
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+ > CircuitVerifyingKeyVar<TargetField, BaseField, PC, PCG>
+@@ -79,7 +79,7 @@ impl<
+ 
+ impl<
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+ > AllocGadget<CircuitVerifyingKey<TargetField, PC>, BaseField>
+@@ -211,7 +211,7 @@ impl<
+ 
+ impl<
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+ > ToBytesGadget<BaseField> for CircuitVerifyingKeyVar<TargetField, BaseField, PC, PCG>
+diff --git a/marlin/src/constraints/verifier_key/prepared_circuit_verifier_key.rs b/marlin/src/constraints/verifier_key/prepared_circuit_verifier_key.rs
+index dd20fcb84..dfd88fbd0 100644
+--- a/marlin/src/constraints/verifier_key/prepared_circuit_verifier_key.rs
++++ b/marlin/src/constraints/verifier_key/prepared_circuit_verifier_key.rs
+@@ -17,7 +17,7 @@
+ use core::borrow::Borrow;
+ use std::marker::PhantomData;
+ 
+-use snarkvm_fields::{PrimeField, ToConstraintField};
++use snarkvm_fields::{PoseidonMDSField, PrimeField, ToConstraintField};
+ use snarkvm_gadgets::{
+     bits::ToBytesGadget,
+     fields::FpGadget,
+@@ -42,7 +42,7 @@ use crate::{
+ /// The prepared circuit verifying key gadget
+ pub struct PreparedCircuitVerifyingKeyVar<
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+     PR: FiatShamirRng<TargetField, BaseField>,
+@@ -68,7 +68,7 @@ pub struct PreparedCircuitVerifyingKeyVar<
+ 
+ impl<
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+     PR: FiatShamirRng<TargetField, BaseField>,
+@@ -92,7 +92,7 @@ impl<
+ impl<TargetField, BaseField, PC, PCG, PR, R> PreparedCircuitVerifyingKeyVar<TargetField, BaseField, PC, PCG, PR, R>
+ where
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+     PR: FiatShamirRng<TargetField, BaseField>,
+@@ -159,7 +159,7 @@ impl<TargetField, BaseField, PC, PCG, PR, R> AllocGadget<PreparedCircuitVerifyin
+     for PreparedCircuitVerifyingKeyVar<TargetField, BaseField, PC, PCG, PR, R>
+ where
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+     PR: FiatShamirRng<TargetField, BaseField>,
+@@ -368,7 +368,7 @@ impl<TargetField, BaseField, PC, PCG, PR, R> AllocGadget<CircuitVerifyingKey<Tar
+     for PreparedCircuitVerifyingKeyVar<TargetField, BaseField, PC, PCG, PR, R>
+ where
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+     PR: FiatShamirRng<TargetField, BaseField>,
+@@ -423,7 +423,7 @@ impl<TargetField, BaseField, PC, PCG, PR, R> ToBytesGadget<BaseField>
+     for PreparedCircuitVerifyingKeyVar<TargetField, BaseField, PC, PCG, PR, R>
+ where
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+     PR: FiatShamirRng<TargetField, BaseField>,
+@@ -458,7 +458,7 @@ impl<TargetField, BaseField, PC, PCG, PR, R> AllocBytesGadget<Vec<u8>, BaseField
+     for PreparedCircuitVerifyingKeyVar<TargetField, BaseField, PC, PCG, PR, R>
+ where
+     TargetField: PrimeField,
+-    BaseField: PrimeField,
++    BaseField: PrimeField + PoseidonMDSField,
+     PC: PolynomialCommitment<TargetField>,
+     PCG: PCCheckVar<TargetField, PC, BaseField>,
+     PR: FiatShamirRng<TargetField, BaseField>,
+diff --git a/marlin/src/fiat_shamir/fiat_shamir_algebraic_sponge_gadget.rs b/marlin/src/fiat_shamir/fiat_shamir_algebraic_sponge_gadget.rs
+index f7cac9a65..5aa51266d 100644
+--- a/marlin/src/fiat_shamir/fiat_shamir_algebraic_sponge_gadget.rs
++++ b/marlin/src/fiat_shamir/fiat_shamir_algebraic_sponge_gadget.rs
+@@ -455,7 +455,7 @@ mod tests {
+     use rand_chacha::ChaChaRng;
+     use rand_core::SeedableRng;
+ 
+-    use snarkvm_curves::bls12_377::Fr;
++    use snarkvm_curves::bls12_377::Fq;
+     use snarkvm_fields::One;
+     use snarkvm_gadgets::{bits::ToBitsLEGadget, traits::eq::EqGadget};
+     use snarkvm_r1cs::TestConstraintSystem;
+@@ -469,10 +469,10 @@ mod tests {
+ 
+     use super::*;
+ 
+-    type PS = PoseidonSponge<Fr>;
+-    type PSGadget = PoseidonSpongeVar<Fr>;
+-    type FS = FiatShamirAlgebraicSpongeRng<Fr, Fr, PS>;
+-    type FSGadget = FiatShamirAlgebraicSpongeRngVar<Fr, Fr, PS, PSGadget>;
++    type PS = PoseidonSponge<Fq>;
++    type PSGadget = PoseidonSpongeVar<Fq>;
++    type FS = FiatShamirAlgebraicSpongeRng<Fq, Fq, PS>;
++    type FSGadget = FiatShamirAlgebraicSpongeRngVar<Fq, Fq, PS, PSGadget>;
+ 
+     const MAX_ELEMENTS: usize = 50;
+     const MAX_ELEMENT_SIZE: usize = 100;
+@@ -493,7 +493,7 @@ mod tests {
+ 
+         let mut absorbed_rand_field_elems = Vec::new();
+         for _ in 0..NUM_ABSORBED_RAND_FIELD_ELEMS {
+-            absorbed_rand_field_elems.push(Fr::rand(rng));
++            absorbed_rand_field_elems.push(Fq::rand(rng));
+         }
+ 
+         let mut absorbed_rand_byte_elems = Vec::<Vec<u8>>::new();
+@@ -518,7 +518,7 @@ mod tests {
+             .unwrap();
+ 
+         // fs_rng in the constraint world
+-        let mut cs = TestConstraintSystem::<Fr>::new();
++        let mut cs = TestConstraintSystem::<Fq>::new();
+         let mut fs_rng_gadget = FSGadget::new(cs.ns(|| "new"));
+ 
+         let mut absorbed_rand_field_elems_gadgets = Vec::new();
+@@ -605,7 +605,7 @@ mod tests {
+         let mut rng = ChaChaRng::seed_from_u64(123456789u64);
+ 
+         for i in 0..ITERATIONS {
+-            let mut cs = TestConstraintSystem::<Fr>::new();
++            let mut cs = TestConstraintSystem::<Fq>::new();
+ 
+             // Generate random element.
+             let num_bytes: usize = rng.gen_range(0..MAX_ELEMENT_SIZE);
+@@ -646,26 +646,26 @@ mod tests {
+         let mut rng = ChaChaRng::seed_from_u64(123456789u64);
+ 
+         for i in 0..ITERATIONS {
+-            let mut cs = TestConstraintSystem::<Fr>::new();
++            let mut cs = TestConstraintSystem::<Fq>::new();
+ 
+             // Generate random elements.
+             let num_elements: usize = rng.gen_range(0..MAX_ELEMENT_SIZE);
+-            let elements: Vec<_> = (0..num_elements).map(|_| Fr::rand(&mut rng)).collect();
++            let elements: Vec<_> = (0..num_elements).map(|_| Fq::rand(&mut rng)).collect();
+ 
+             // Construct elements limb representations
+-            let mut element_limbs = Vec::<(Fr, Fr)>::new();
+-            let mut element_limb_gadgets = Vec::<(FpGadget<Fr>, Fr)>::new();
++            let mut element_limbs = Vec::<(Fq, Fq)>::new();
++            let mut element_limb_gadgets = Vec::<(FpGadget<Fq>, Fq)>::new();
+ 
+             for (j, elem) in elements.iter().enumerate() {
+                 let limbs =
+-                    AllocatedNonNativeFieldVar::<Fr, Fr>::get_limbs_representations(elem, OptimizationType::Weight)
++                    AllocatedNonNativeFieldVar::<Fq, Fq>::get_limbs_representations(elem, OptimizationType::Weight)
+                         .unwrap();
+                 for (k, limb) in limbs.iter().enumerate() {
+                     let allocated_limb =
+                         FpGadget::alloc(cs.ns(|| format!("alloc_limb_{}_{}_{}", i, j, k)), || Ok(limb)).unwrap();
+ 
+-                    element_limbs.push((*limb, Fr::one()));
+-                    element_limb_gadgets.push((allocated_limb, Fr::one()));
++                    element_limbs.push((*limb, Fq::one()));
++                    element_limb_gadgets.push((allocated_limb, Fq::one()));
+                     // Specifically set to one, since most gadgets in the constraint world would not have zero noise (due to the relatively weak normal form testing in `alloc`)
+                 }
+             }
+@@ -698,18 +698,18 @@ mod tests {
+         let mut rng = ChaChaRng::seed_from_u64(123456789u64);
+ 
+         for i in 0..ITERATIONS {
+-            let mut cs = TestConstraintSystem::<Fr>::new();
++            let mut cs = TestConstraintSystem::<Fq>::new();
+ 
+             // Generate random elements.
+             let num_elements: usize = rng.gen_range(0..MAX_ELEMENT_SIZE);
+-            let elements: Vec<_> = (0..num_elements).map(|_| Fr::rand(&mut rng)).collect();
++            let elements: Vec<_> = (0..num_elements).map(|_| Fq::rand(&mut rng)).collect();
+ 
+             // Construct elements limb representations
+-            let mut element_limbs = Vec::<(Fr, Fr)>::new();
+-            let mut element_limb_gadgets = Vec::<(FpGadget<Fr>, Fr)>::new();
++            let mut element_limbs = Vec::<(Fq, Fq)>::new();
++            let mut element_limb_gadgets = Vec::<(FpGadget<Fq>, Fq)>::new();
+ 
+             for (j, elem) in elements.iter().enumerate() {
+-                let limbs = AllocatedNonNativeFieldVar::<Fr, Fr>::get_limbs_representations(
++                let limbs = AllocatedNonNativeFieldVar::<Fq, Fq>::get_limbs_representations(
+                     elem,
+                     OptimizationType::Constraints,
+                 )
+@@ -718,8 +718,8 @@ mod tests {
+                     let allocated_limb =
+                         FpGadget::alloc(cs.ns(|| format!("alloc_limb_{}_{}_{}", i, j, k)), || Ok(limb)).unwrap();
+ 
+-                    element_limbs.push((*limb, Fr::one()));
+-                    element_limb_gadgets.push((allocated_limb, Fr::one()));
++                    element_limbs.push((*limb, Fq::one()));
++                    element_limb_gadgets.push((allocated_limb, Fq::one()));
+                     // Specifically set to one, since most gadgets in the constraint world would not have zero noise (due to the relatively weak normal form testing in `alloc`)
+                 }
+             }
+@@ -752,7 +752,7 @@ mod tests {
+         let mut rng = ChaChaRng::seed_from_u64(123456789u64);
+ 
+         for i in 0..ITERATIONS {
+-            let mut cs = TestConstraintSystem::<Fr>::new();
++            let mut cs = TestConstraintSystem::<Fq>::new();
+ 
+             // Create a new FS rng and FS rng gadget.
+             let mut fs_rng = FS::new();
+@@ -805,7 +805,7 @@ mod tests {
+         let mut rng = ChaChaRng::seed_from_u64(123456789u64);
+ 
+         for i in 0..ITERATIONS {
+-            let mut cs = TestConstraintSystem::<Fr>::new();
++            let mut cs = TestConstraintSystem::<Fq>::new();
+ 
+             // Create a new FS rng.
+             let mut fs_rng = FS::new();
+@@ -815,7 +815,7 @@ mod tests {
+ 
+             // Generate random elements.
+             let num_elements: usize = rng.gen_range(0..MAX_ELEMENTS);
+-            let elements: Vec<_> = (0..num_elements).map(|_| Fr::rand(&mut rng)).collect();
++            let elements: Vec<_> = (0..num_elements).map(|_| Fq::rand(&mut rng)).collect();
+ 
+             let mut element_gadgets = vec![];
+             for (j, element) in elements.iter().enumerate() {
+@@ -859,7 +859,7 @@ mod tests {
+         let mut rng = ChaChaRng::seed_from_u64(123456789u64);
+ 
+         for i in 0..ITERATIONS {
+-            let mut cs = TestConstraintSystem::<Fr>::new();
++            let mut cs = TestConstraintSystem::<Fq>::new();
+ 
+             // Create a new FS rng.
+             let mut fs_rng = FS::new();
+@@ -869,7 +869,7 @@ mod tests {
+ 
+             // Generate random elements.
+             let num_elements: usize = rng.gen_range(0..MAX_ELEMENTS);
+-            let elements: Vec<_> = (0..num_elements).map(|_| Fr::rand(&mut rng)).collect();
++            let elements: Vec<_> = (0..num_elements).map(|_| Fq::rand(&mut rng)).collect();
+ 
+             let mut element_gadgets = vec![];
+             for (j, element) in elements.iter().enumerate() {
+@@ -921,7 +921,7 @@ mod tests {
+         let mut rng = ChaChaRng::seed_from_u64(123456789u64);
+ 
+         for i in 0..ITERATIONS {
+-            let mut cs = TestConstraintSystem::<Fr>::new();
++            let mut cs = TestConstraintSystem::<Fq>::new();
+ 
+             // Create a new FS rng.
+             let mut fs_rng = FS::new();
+@@ -931,7 +931,7 @@ mod tests {
+ 
+             // Generate random elements.
+             let num_elements: usize = rng.gen_range(0..MAX_ELEMENTS);
+-            let elements: Vec<_> = (0..num_elements).map(|_| Fr::rand(&mut rng)).collect();
++            let elements: Vec<_> = (0..num_elements).map(|_| Fq::rand(&mut rng)).collect();
+ 
+             let mut element_gadgets = vec![];
+             for (j, element) in elements.iter().enumerate() {
+@@ -999,7 +999,7 @@ mod tests {
+         let mut rng = ChaChaRng::seed_from_u64(123456789u64);
+ 
+         for i in 0..ITERATIONS {
+-            let mut cs = TestConstraintSystem::<Fr>::new();
++            let mut cs = TestConstraintSystem::<Fq>::new();
+ 
+             // Create a new FS rng.
+             let mut fs_rng = FS::new();
+@@ -1009,7 +1009,7 @@ mod tests {
+ 
+             // Generate random elements.
+             let num_elements: usize = rng.gen_range(0..MAX_ELEMENTS);
+-            let elements: Vec<_> = (0..num_elements).map(|_| Fr::rand(&mut rng)).collect();
++            let elements: Vec<_> = (0..num_elements).map(|_| Fq::rand(&mut rng)).collect();
+ 
+             let mut element_gadgets = vec![];
+             for (j, element) in elements.iter().enumerate() {
+@@ -1062,7 +1062,7 @@ mod tests {
+         let mut rng = ChaChaRng::seed_from_u64(123456789u64);
+ 
+         for i in 0..ITERATIONS {
+-            let mut cs = TestConstraintSystem::<Fr>::new();
++            let mut cs = TestConstraintSystem::<Fq>::new();
+ 
+             // Create a new FS rng.
+             let mut fs_rng = FS::new();
+@@ -1072,7 +1072,7 @@ mod tests {
+ 
+             // Generate random elements.
+             let num_elements: usize = rng.gen_range(0..MAX_ELEMENTS);
+-            let elements: Vec<_> = (0..num_elements).map(|_| Fr::rand(&mut rng)).collect();
++            let elements: Vec<_> = (0..num_elements).map(|_| Fq::rand(&mut rng)).collect();
+ 
+             let mut element_gadgets = vec![];
+             for (j, element) in elements.iter().enumerate() {
+diff --git a/marlin/src/fiat_shamir/fiat_shamir_poseidon_sponge.rs b/marlin/src/fiat_shamir/fiat_shamir_poseidon_sponge.rs
+index 49d0c51e4..cc3c43d32 100644
+--- a/marlin/src/fiat_shamir/fiat_shamir_poseidon_sponge.rs
++++ b/marlin/src/fiat_shamir/fiat_shamir_poseidon_sponge.rs
+@@ -22,7 +22,7 @@
+ //
+ 
+ use crate::fiat_shamir::AlgebraicSponge;
+-use snarkvm_fields::PrimeField;
++use snarkvm_fields::{PoseidonMDSField, PrimeField};
+ 
+ use rand_core::SeedableRng;
+ 
+@@ -34,7 +34,7 @@ pub(super) enum PoseidonSpongeState {
+ 
+ #[derive(Clone)]
+ /// The sponge for Poseidon
+-pub struct PoseidonSponge<F: PrimeField> {
++pub struct PoseidonSponge<F: PrimeField + PoseidonMDSField> {
+     /// Number of rounds in a full-round operation
+     pub(super) full_rounds: u32,
+     /// number of rounds in a partial-round operation
+@@ -57,7 +57,7 @@ pub struct PoseidonSponge<F: PrimeField> {
+     pub(super) mode: PoseidonSpongeState,
+ }
+ 
+-impl<F: PrimeField> PoseidonSponge<F> {
++impl<F: PrimeField + PoseidonMDSField> PoseidonSponge<F> {
+     fn apply_s_box(&self, state: &mut [F], is_full_round: bool) {
+         // Full rounds apply the S Box (x^alpha) to every element of state
+         if is_full_round {
+@@ -160,18 +160,15 @@ impl<F: PrimeField> PoseidonSponge<F> {
+     }
+ }
+ 
+-impl<F: PrimeField> AlgebraicSponge<F> for PoseidonSponge<F> {
++impl<F: PrimeField + PoseidonMDSField> AlgebraicSponge<F> for PoseidonSponge<F> {
+     fn new() -> Self {
+-        // Requires F to be Alt_Bn128Fr
+-        let full_rounds = 8;
+-        let partial_rounds = 31;
+-        let alpha = 17;
+-
+-        let mds = vec![
+-            vec![F::one(), F::zero(), F::one()],
+-            vec![F::one(), F::one(), F::zero()],
+-            vec![F::zero(), F::one(), F::one()],
+-        ];
++        // The parameters are checked for BLS12-377's Fq field (where the Marlin sponge actually runs over)
++        let full_rounds = F::poseidon_number_full_rounds();
++        let partial_rounds = F::poseidon_number_partial_rounds();
++        let alpha = F::poseidon_alpha();
++
++        // This MDS matrix passes the checks in the reference implementation.
++        let mds = F::poseidon_mds_matrix();
+ 
+         let mut ark = Vec::new();
+         let mut ark_rng = rand_chacha::ChaChaRng::seed_from_u64(123456789u64);
+diff --git a/marlin/src/fiat_shamir/fiat_shamir_poseidon_sponge_gadget.rs b/marlin/src/fiat_shamir/fiat_shamir_poseidon_sponge_gadget.rs
+index 8cbb94071..534a2e6ed 100644
+--- a/marlin/src/fiat_shamir/fiat_shamir_poseidon_sponge_gadget.rs
++++ b/marlin/src/fiat_shamir/fiat_shamir_poseidon_sponge_gadget.rs
+@@ -23,7 +23,7 @@
+ 
+ use rand_core::SeedableRng;
+ 
+-use snarkvm_fields::PrimeField;
++use snarkvm_fields::{PoseidonMDSField, PrimeField};
+ use snarkvm_gadgets::{
+     fields::FpGadget,
+     traits::{alloc::AllocGadget, fields::FieldGadget},
+@@ -37,7 +37,7 @@ use crate::fiat_shamir::{
+ 
+ #[derive(Clone)]
+ /// the gadget for Poseidon sponge
+-pub struct PoseidonSpongeVar<F: PrimeField> {
++pub struct PoseidonSpongeVar<F: PrimeField + PoseidonMDSField> {
+     /// number of rounds in a full-round operation
+     pub(super) full_rounds: u32,
+     /// number of rounds in a partial-round operation
+@@ -60,7 +60,7 @@ pub struct PoseidonSpongeVar<F: PrimeField> {
+     mode: PoseidonSpongeState,
+ }
+ 
+-impl<F: PrimeField> PoseidonSpongeVar<F> {
++impl<F: PrimeField + PoseidonMDSField> PoseidonSpongeVar<F> {
+     fn apply_s_box<CS: ConstraintSystem<F>>(
+         &self,
+         mut cs: CS,
+@@ -190,18 +190,14 @@ impl<F: PrimeField> PoseidonSpongeVar<F> {
+     }
+ }
+ 
+-impl<F: PrimeField> AlgebraicSpongeVar<F, PoseidonSponge<F>> for PoseidonSpongeVar<F> {
++impl<F: PrimeField + PoseidonMDSField> AlgebraicSpongeVar<F, PoseidonSponge<F>> for PoseidonSpongeVar<F> {
+     fn new<CS: ConstraintSystem<F>>(mut cs: CS) -> Self {
+         // Requires F to be Alt_Bn128Fr
+-        let full_rounds = 8;
+-        let partial_rounds = 31;
+-        let alpha = 17;
++        let full_rounds = F::poseidon_number_full_rounds();
++        let partial_rounds = F::poseidon_number_partial_rounds();
++        let alpha = F::poseidon_alpha();
+ 
+-        let mds = vec![
+-            vec![F::one(), F::zero(), F::one()],
+-            vec![F::one(), F::one(), F::zero()],
+-            vec![F::zero(), F::one(), F::one()],
+-        ];
++        let mds = F::poseidon_mds_matrix();
+ 
+         let mut ark = Vec::new();
+         let mut ark_rng = rand_chacha::ChaChaRng::seed_from_u64(123456789u64);
+@@ -308,7 +304,7 @@ mod tests {
+     use rand::Rng;
+     use rand_chacha::ChaChaRng;
+ 
+-    use snarkvm_curves::bls12_377::Fr;
++    use snarkvm_curves::bls12_377::Fq;
+     use snarkvm_gadgets::traits::eq::EqGadget;
+     use snarkvm_r1cs::TestConstraintSystem;
+     use snarkvm_utilities::rand::UniformRand;
+@@ -317,8 +313,8 @@ mod tests {
+ 
+     use super::*;
+ 
+-    type Sponge = PoseidonSponge<Fr>;
+-    type SpongeVar = PoseidonSpongeVar<Fr>;
++    type Sponge = PoseidonSponge<Fq>;
++    type SpongeVar = PoseidonSpongeVar<Fq>;
+ 
+     const MAX_ELEMENTS: usize = 100;
+     const ITERATIONS: usize = 100;
+@@ -328,14 +324,14 @@ mod tests {
+         let mut rng = ChaChaRng::seed_from_u64(123456789u64);
+ 
+         for i in 0..ITERATIONS {
+-            let mut cs = TestConstraintSystem::<Fr>::new();
++            let mut cs = TestConstraintSystem::<Fq>::new();
+ 
+             // Create a new algebraic sponge.
+             let mut sponge = Sponge::new();
+ 
+             // Generate random elements to absorb.
+             let num_elements: usize = rng.gen_range(0..MAX_ELEMENTS);
+-            let elements: Vec<_> = (0..num_elements).map(|_| Fr::rand(&mut rng)).collect();
++            let elements: Vec<_> = (0..num_elements).map(|_| Fq::rand(&mut rng)).collect();
+ 
+             // Absorb the random elements.
+             sponge.absorb(&elements);
+@@ -368,7 +364,7 @@ mod tests {
+         let mut rng = ChaChaRng::seed_from_u64(123456789u64);
+ 
+         for i in 0..ITERATIONS {
+-            let mut cs = TestConstraintSystem::<Fr>::new();
++            let mut cs = TestConstraintSystem::<Fq>::new();
+ 
+             // Create a new algebraic sponge.
+             let mut sponge = Sponge::new();
+@@ -378,7 +374,7 @@ mod tests {
+ 
+             // Generate random elements to absorb.
+             let num_elements: usize = rng.gen_range(0..MAX_ELEMENTS);
+-            let elements: Vec<_> = (0..num_elements).map(|_| Fr::rand(&mut rng)).collect();
++            let elements: Vec<_> = (0..num_elements).map(|_| Fq::rand(&mut rng)).collect();
+ 
+             let mut element_gadgets = vec![];
+             for (j, element) in elements.iter().enumerate() {

@@ -1,0 +1,410 @@
+diff --git a/compiler/tests/integers/i128/mod.rs b/compiler/tests/integers/i128/mod.rs
+index 2471881dea..0c3574755d 100644
+--- a/compiler/tests/integers/i128/mod.rs
++++ b/compiler/tests/integers/i128/mod.rs
+@@ -81,6 +81,11 @@ fn test_i128_eq() {
+     TestI128::test_eq();
+ }
+ 
++#[test]
++fn test_i128_ne() {
++    TestI128::test_ne();
++}
++
+ #[test]
+ fn test_i128_ge() {
+     TestI128::test_ge();
+diff --git a/compiler/tests/integers/i128/ne.leo b/compiler/tests/integers/i128/ne.leo
+new file mode 100644
+index 0000000000..b97b3c2dbe
+--- /dev/null
++++ b/compiler/tests/integers/i128/ne.leo
+@@ -0,0 +1,3 @@
++function main(a: i128, b: i128, c: bool) {
++    assert_eq!(a != b, c);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/integers/i16/mod.rs b/compiler/tests/integers/i16/mod.rs
+index 33bc5de78e..7f419c37c6 100644
+--- a/compiler/tests/integers/i16/mod.rs
++++ b/compiler/tests/integers/i16/mod.rs
+@@ -80,6 +80,11 @@ fn test_i16_eq() {
+     TestI16::test_eq();
+ }
+ 
++#[test]
++fn test_i16_ne() {
++    TestI16::test_ne();
++}
++
+ #[test]
+ fn test_i16_ge() {
+     TestI16::test_ge();
+diff --git a/compiler/tests/integers/i16/ne.leo b/compiler/tests/integers/i16/ne.leo
+new file mode 100644
+index 0000000000..ead2f5f3fe
+--- /dev/null
++++ b/compiler/tests/integers/i16/ne.leo
+@@ -0,0 +1,3 @@
++function main(a: i16, b: i16, c: bool) {
++    assert_eq!(a != b, c);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/integers/i32/mod.rs b/compiler/tests/integers/i32/mod.rs
+index 07137d6528..96c0e4abf9 100644
+--- a/compiler/tests/integers/i32/mod.rs
++++ b/compiler/tests/integers/i32/mod.rs
+@@ -80,6 +80,11 @@ fn test_i32_eq() {
+     TestI32::test_eq();
+ }
+ 
++#[test]
++fn test_i32_ne() {
++    TestI32::test_ne();
++}
++
+ #[test]
+ fn test_i32_ge() {
+     TestI32::test_ge();
+diff --git a/compiler/tests/integers/i32/ne.leo b/compiler/tests/integers/i32/ne.leo
+new file mode 100644
+index 0000000000..6b797872d7
+--- /dev/null
++++ b/compiler/tests/integers/i32/ne.leo
+@@ -0,0 +1,3 @@
++function main(a: i32, b: i32, c: bool) {
++    assert_eq!(a != b, c);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/integers/i64/mod.rs b/compiler/tests/integers/i64/mod.rs
+index 9c24af7892..8f18f85c09 100644
+--- a/compiler/tests/integers/i64/mod.rs
++++ b/compiler/tests/integers/i64/mod.rs
+@@ -81,6 +81,11 @@ fn test_i64_eq() {
+     TestI64::test_eq();
+ }
+ 
++#[test]
++fn test_i64_ne() {
++    TestI64::test_ne();
++}
++
+ #[test]
+ fn test_i64_ge() {
+     TestI64::test_ge();
+diff --git a/compiler/tests/integers/i64/ne.leo b/compiler/tests/integers/i64/ne.leo
+new file mode 100644
+index 0000000000..e45941e8cc
+--- /dev/null
++++ b/compiler/tests/integers/i64/ne.leo
+@@ -0,0 +1,3 @@
++function main(a: i64, b: i64, c: bool) {
++    assert_eq!(a != b, c);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/integers/i8/mod.rs b/compiler/tests/integers/i8/mod.rs
+index 55ea6a2bd5..37dd327545 100644
+--- a/compiler/tests/integers/i8/mod.rs
++++ b/compiler/tests/integers/i8/mod.rs
+@@ -80,6 +80,11 @@ fn test_i8_eq() {
+     TestI8::test_eq();
+ }
+ 
++#[test]
++fn test_i8_ne() {
++    TestI8::test_ne();
++}
++
+ #[test]
+ fn test_i8_ge() {
+     TestI8::test_ge();
+diff --git a/compiler/tests/integers/i8/ne.leo b/compiler/tests/integers/i8/ne.leo
+new file mode 100644
+index 0000000000..9bbb8b3cb1
+--- /dev/null
++++ b/compiler/tests/integers/i8/ne.leo
+@@ -0,0 +1,3 @@
++function main(a: i8, b: i8, c: bool) {
++    assert_eq!(a != b, c);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/integers/int_macro.rs b/compiler/tests/integers/int_macro.rs
+index 8b3fb95830..6ad1dd3b56 100644
+--- a/compiler/tests/integers/int_macro.rs
++++ b/compiler/tests/integers/int_macro.rs
+@@ -257,6 +257,44 @@ macro_rules! test_int {
+                 }
+             }
+ 
++            fn test_ne() {
++                for _ in 0..10 {
++                    let a: $type_ = rand::random();
++                    let b: $type_ = rand::random();
++
++                    // test a != a == false
++
++                    let bytes = include_bytes!("ne.leo");
++                    let mut program = parse_program(bytes).unwrap();
++
++                    let main_input = generate_main_input(vec![
++                        ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
++                        ("b", Some(InputValue::Integer($integer_type, a.to_string()))),
++                        ("c", Some(InputValue::Boolean(false))),
++                    ]);
++
++                    program.set_main_input(main_input);
++
++                    assert_satisfied(program);
++
++                    // test not equal
++
++                    let c = a.ne(&b);
++
++                    let mut program = parse_program(bytes).unwrap();
++
++                    let main_input = generate_main_input(vec![
++                        ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
++                        ("b", Some(InputValue::Integer($integer_type, b.to_string()))),
++                        ("c", Some(InputValue::Boolean(c))),
++                    ]);
++
++                    program.set_main_input(main_input);
++
++                    assert_satisfied(program);
++                }
++            }
++
+             fn test_ge() {
+                 for _ in 0..10 {
+                     let a: $type_ = rand::random();
+diff --git a/compiler/tests/integers/integer_tester.rs b/compiler/tests/integers/integer_tester.rs
+index 713bfc34e0..8539798ef2 100644
+--- a/compiler/tests/integers/integer_tester.rs
++++ b/compiler/tests/integers/integer_tester.rs
+@@ -32,6 +32,9 @@ pub trait IntegerTester {
+     /// Tests == evaluation
+     fn test_eq();
+ 
++    /// Tests != evaluation
++    fn test_ne();
++
+     /// Tests >= evaluation
+     fn test_ge();
+ 
+diff --git a/compiler/tests/integers/mod.rs b/compiler/tests/integers/mod.rs
+index 2abbeacf2e..5b76da6e08 100644
+--- a/compiler/tests/integers/mod.rs
++++ b/compiler/tests/integers/mod.rs
+@@ -8,7 +8,7 @@ pub mod integer_tester;
+ pub use self::integer_tester::*;
+ 
+ // must be below macro definitions!
+-pub mod u128;
++// pub mod u128;
+ pub mod u16;
+ pub mod u32;
+ pub mod u64;
+diff --git a/compiler/tests/integers/u128/mod.rs b/compiler/tests/integers/u128/mod.rs
+index 5c2ffd074a..a0e79a6026 100644
+--- a/compiler/tests/integers/u128/mod.rs
++++ b/compiler/tests/integers/u128/mod.rs
+@@ -65,6 +65,11 @@ fn test_u128_eq() {
+     TestU128::test_eq();
+ }
+ 
++#[test]
++fn test_u128_ne() {
++    TestU128::test_ne();
++}
++
+ #[test]
+ fn test_u128_ge() {
+     TestU128::test_ge();
+diff --git a/compiler/tests/integers/u128/ne.leo b/compiler/tests/integers/u128/ne.leo
+new file mode 100644
+index 0000000000..60c104d701
+--- /dev/null
++++ b/compiler/tests/integers/u128/ne.leo
+@@ -0,0 +1,3 @@
++function main(a: u128, b: u128, c: bool) {
++    assert_eq!(a != b, c);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/integers/u16/mod.rs b/compiler/tests/integers/u16/mod.rs
+index b771164e4b..f321e5771a 100644
+--- a/compiler/tests/integers/u16/mod.rs
++++ b/compiler/tests/integers/u16/mod.rs
+@@ -65,6 +65,11 @@ fn test_u16_eq() {
+     TestU16::test_eq();
+ }
+ 
++#[test]
++fn test_u16_ne() {
++    TestU16::test_ne();
++}
++
+ #[test]
+ fn test_u16_ge() {
+     TestU16::test_ge();
+diff --git a/compiler/tests/integers/u16/ne.leo b/compiler/tests/integers/u16/ne.leo
+new file mode 100644
+index 0000000000..1509e0874e
+--- /dev/null
++++ b/compiler/tests/integers/u16/ne.leo
+@@ -0,0 +1,3 @@
++function main(a: u16, b: u16, c: bool) {
++    assert_eq!(a != b, c);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/integers/u32/mod.rs b/compiler/tests/integers/u32/mod.rs
+index dc837706d9..a7db6b97c2 100644
+--- a/compiler/tests/integers/u32/mod.rs
++++ b/compiler/tests/integers/u32/mod.rs
+@@ -65,6 +65,11 @@ fn test_u32_eq() {
+     TestU32::test_eq();
+ }
+ 
++#[test]
++fn test_u32_ne() {
++    TestU32::test_ne();
++}
++
+ #[test]
+ fn test_u32_ge() {
+     TestU32::test_ge();
+diff --git a/compiler/tests/integers/u32/ne.leo b/compiler/tests/integers/u32/ne.leo
+new file mode 100644
+index 0000000000..f75c0e97d3
+--- /dev/null
++++ b/compiler/tests/integers/u32/ne.leo
+@@ -0,0 +1,3 @@
++function main(a: u32, b: u32, c: bool) {
++    assert_eq!(a != b, c);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/integers/u64/mod.rs b/compiler/tests/integers/u64/mod.rs
+index d3880f7c91..e58dd64693 100644
+--- a/compiler/tests/integers/u64/mod.rs
++++ b/compiler/tests/integers/u64/mod.rs
+@@ -65,6 +65,11 @@ fn test_u64_eq() {
+     TestU64::test_eq();
+ }
+ 
++#[test]
++fn test_u64_ne() {
++    TestU64::test_ne();
++}
++
+ #[test]
+ fn test_u64_ge() {
+     TestU64::test_ge();
+diff --git a/compiler/tests/integers/u64/ne.leo b/compiler/tests/integers/u64/ne.leo
+new file mode 100644
+index 0000000000..b85cb73b34
+--- /dev/null
++++ b/compiler/tests/integers/u64/ne.leo
+@@ -0,0 +1,3 @@
++function main(a: u64, b: u64, c: bool) {
++    assert_eq!(a != b, c);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/integers/u8/mod.rs b/compiler/tests/integers/u8/mod.rs
+index 22c4caca74..c13a63e29e 100644
+--- a/compiler/tests/integers/u8/mod.rs
++++ b/compiler/tests/integers/u8/mod.rs
+@@ -65,6 +65,11 @@ fn test_u8_eq() {
+     TestU8::test_eq();
+ }
+ 
++#[test]
++fn test_u8_ne() {
++    TestU8::test_ne();
++}
++
+ #[test]
+ fn test_u8_ge() {
+     TestU8::test_ge();
+diff --git a/compiler/tests/integers/u8/ne.leo b/compiler/tests/integers/u8/ne.leo
+new file mode 100644
+index 0000000000..70864bd246
+--- /dev/null
++++ b/compiler/tests/integers/u8/ne.leo
+@@ -0,0 +1,3 @@
++function main(a: u8, b: u8, c: bool) {
++    assert_eq!(a != b, c);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/integers/uint_macro.rs b/compiler/tests/integers/uint_macro.rs
+index 30597baf4f..3600372173 100644
+--- a/compiler/tests/integers/uint_macro.rs
++++ b/compiler/tests/integers/uint_macro.rs
+@@ -195,6 +195,44 @@ macro_rules! test_uint {
+                 }
+             }
+ 
++            fn test_ne() {
++                for _ in 0..10 {
++                    let a: $type_ = rand::random();
++                    let b: $type_ = rand::random();
++
++                    // test a != a == false
++
++                    let bytes = include_bytes!("ne.leo");
++                    let mut program = parse_program(bytes).unwrap();
++
++                    let main_input = generate_main_input(vec![
++                        ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
++                        ("b", Some(InputValue::Integer($integer_type, a.to_string()))),
++                        ("c", Some(InputValue::Boolean(false))),
++                    ]);
++
++                    program.set_main_input(main_input);
++
++                    assert_satisfied(program);
++
++                    // test not equal
++
++                    let c = a.ne(&b);
++
++                    let mut program = parse_program(bytes).unwrap();
++
++                    let main_input = generate_main_input(vec![
++                        ("a", Some(InputValue::Integer($integer_type, a.to_string()))),
++                        ("b", Some(InputValue::Integer($integer_type, b.to_string()))),
++                        ("c", Some(InputValue::Boolean(c))),
++                    ]);
++
++                    program.set_main_input(main_input);
++
++                    assert_satisfied(program);
++                }
++            }
++
+             fn test_ge() {
+                 for _ in 0..10 {
+                     let a: $type_ = rand::random();
+diff --git a/typed/src/expression.rs b/typed/src/expression.rs
+index 2a6af69ce2..27d366bb25 100644
+--- a/typed/src/expression.rs
++++ b/typed/src/expression.rs
+@@ -361,10 +361,16 @@ impl<'ast> From<BinaryExpression<'ast>> for Expression {
+                 Box::new(Expression::from(*expression.right)),
+                 Span::from(expression.span),
+             ),
+-            BinaryOperation::Ne => Expression::Not(
+-                Box::new(Expression::from(expression.clone())),
+-                Span::from(expression.span),
+-            ),
++            BinaryOperation::Ne => {
++                let span = Span::from(expression.span);
++                let negated = Expression::Eq(
++                    Box::new(Expression::from(*expression.left)),
++                    Box::new(Expression::from(*expression.right)),
++                    span.clone(),
++                );
++
++                Expression::Not(Box::new(negated), span)
++            }
+             BinaryOperation::Ge => Expression::Ge(
+                 Box::new(Expression::from(*expression.left)),
+                 Box::new(Expression::from(*expression.right)),

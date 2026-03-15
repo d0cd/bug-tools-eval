@@ -1,0 +1,77 @@
+diff --git a/leo/cli/cli.rs b/leo/cli/cli.rs
+index ada4024fa1..d176e2b8a5 100644
+--- a/leo/cli/cli.rs
++++ b/leo/cli/cli.rs
+@@ -65,7 +65,7 @@ enum Commands {
+     #[clap(about = "Deploy a program")]
+     Deploy {
+         #[clap(flatten)]
+-        command: Deploy,
++        command: LeoDeploy,
+     },
+     #[clap(about = "Query live data from the Aleo network")]
+     Query {
+diff --git a/leo/cli/commands/deploy.rs b/leo/cli/commands/deploy.rs
+index 4a7704182d..917ff84794 100644
+--- a/leo/cli/commands/deploy.rs
++++ b/leo/cli/commands/deploy.rs
+@@ -41,7 +41,7 @@ use text_tables;
+ 
+ /// Deploys an Aleo program.
+ #[derive(Parser, Debug)]
+-pub struct Deploy {
++pub struct LeoDeploy {
+     #[clap(flatten)]
+     pub(crate) fee_options: FeeOptions,
+     #[clap(long, help = "Disables building of the project before deployment.", default_value = "false")]
+@@ -58,7 +58,7 @@ pub struct Deploy {
+     pub(crate) options: BuildOptions,
+ }
+ 
+-impl Command for Deploy {
++impl Command for LeoDeploy {
+     type Input = ();
+     type Output = ();
+ 
+@@ -97,11 +97,11 @@ impl Command for Deploy {
+ 
+ // A helper function to handle deployment logic.
+ fn handle_deploy<A: Aleo<Network = N, BaseField = N::Field>, N: Network>(
+-    command: &Deploy,
++    command: &LeoDeploy,
+     context: Context,
+     network: NetworkName,
+     endpoint: &str,
+-) -> Result<<Deploy as Command>::Output> {
++) -> Result<<LeoDeploy as Command>::Output> {
+     // Get the program name.
+     let project_name = context.open_manifest::<N>()?.program_id().to_string();
+ 
+diff --git a/leo/cli/commands/mod.rs b/leo/cli/commands/mod.rs
+index ce2a4d3e78..0c2c14bf5b 100644
+--- a/leo/cli/commands/mod.rs
++++ b/leo/cli/commands/mod.rs
+@@ -30,7 +30,7 @@ pub mod debug;
+ pub use debug::LeoDebug;
+ 
+ pub mod deploy;
+-pub use deploy::Deploy;
++pub use deploy::LeoDeploy;
+ 
+ pub mod execute;
+ pub use execute::LeoExecute;
+diff --git a/leo/cli/commands/run.rs b/leo/cli/commands/run.rs
+index 552fc3531d..339d89cc5b 100644
+--- a/leo/cli/commands/run.rs
++++ b/leo/cli/commands/run.rs
+@@ -66,7 +66,9 @@ fn handle_run<N: Network>(command: LeoRun, context: Context) -> Result<<LeoRun a
+     let mut inputs = command.inputs;
+ 
+     // Compose the `run` command.
+-    let mut arguments = vec![SNARKVM_COMMAND.to_string(), command.name];
++    // The argument "--" is the separator, used to make sure snarkvm doesn't try to parse negative
++    // values as CLI flags.
++    let mut arguments = vec![SNARKVM_COMMAND.to_string(), command.name, "--".to_string()];
+ 
+     // Add the inputs to the arguments.
+     match command.file {

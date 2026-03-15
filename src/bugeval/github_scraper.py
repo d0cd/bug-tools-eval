@@ -31,7 +31,10 @@ class GhError(Exception):
 def run_gh(*args: str) -> str:
     """Run a gh CLI command and return stdout. Raises GhError on failure."""
     cmd = ["gh", *args]
-    result = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+    except subprocess.TimeoutExpired:
+        raise GhError(cmd, "command timed out after 60 seconds")
     if result.returncode != 0:
         raise GhError(cmd, result.stderr)
     return result.stdout

@@ -263,3 +263,188 @@ def test_run_agent_api_parses_findings_on_max_tokens(tmp_path: Path) -> None:
 
     assert len(result.findings) == 1
     assert result.findings[0]["file"] == "c.rs"
+
+
+# ---------------------------------------------------------------------------
+# New tools: git_blame + read_file_range
+# ---------------------------------------------------------------------------
+
+
+def test_agent_tools_includes_git_blame() -> None:
+    """AGENT_TOOLS must include the git_blame tool definition."""
+    from bugeval.agent_api_runner import AGENT_TOOLS
+
+    names = [t["name"] for t in AGENT_TOOLS]
+    assert "git_blame" in names
+
+
+def test_agent_tools_includes_read_file_range() -> None:
+    """AGENT_TOOLS must include the read_file_range tool definition."""
+    from bugeval.agent_api_runner import AGENT_TOOLS
+
+    names = [t["name"] for t in AGENT_TOOLS]
+    assert "read_file_range" in names
+
+
+def test_execute_tool_read_file_range_returns_lines(tmp_path: Path) -> None:
+    """read_file_range returns only the requested line range (1-indexed, inclusive)."""
+    f = tmp_path / "sample.rs"
+    f.write_text("line1\nline2\nline3\nline4\nline5\n")
+    result = execute_tool(
+        "read_file_range", {"path": "sample.rs", "start_line": 2, "end_line": 4}, tmp_path
+    )
+    assert "line2" in result
+    assert "line3" in result
+    assert "line4" in result
+    assert "line1" not in result
+    assert "line5" not in result
+
+
+def test_execute_tool_read_file_range_path_traversal_blocked(tmp_path: Path) -> None:
+    """read_file_range rejects path traversal."""
+    with pytest.raises(ValueError, match="Path traversal"):
+        execute_tool(
+            "read_file_range",
+            {"path": "../../etc/passwd", "start_line": 1, "end_line": 5},
+            tmp_path,
+        )
+
+
+def test_execute_tool_git_blame_path_traversal_blocked(tmp_path: Path) -> None:
+    """git_blame rejects path traversal."""
+    with pytest.raises(ValueError, match="Path traversal"):
+        execute_tool(
+            "git_blame",
+            {"path": "../../etc/passwd", "start_line": 1, "end_line": 5},
+            tmp_path,
+        )
+
+
+def test_execute_tool_git_blame_returns_output(tmp_path: Path) -> None:
+    """git_blame runs git blame -L and returns stdout (mocked subprocess)."""
+    import subprocess as sp
+
+    blame_output = "abc1234 (Author 2024-01-01  1) fn foo() {}"
+    with patch(
+        "subprocess.run",
+        return_value=sp.CompletedProcess(args=[], returncode=0, stdout=blame_output, stderr=""),
+    ):
+        result = execute_tool(
+            "git_blame", {"path": "src/main.rs", "start_line": 1, "end_line": 1}, tmp_path
+        )
+    assert "abc1234" in result or blame_output[:10] in result
+
+
+def test_execute_tool_git_blame_timeout(tmp_path: Path) -> None:
+    """git_blame timeout returns a readable error string."""
+    import subprocess as sp
+
+    with patch("subprocess.run", side_effect=sp.TimeoutExpired(cmd="git", timeout=30)):
+        result = execute_tool(
+            "git_blame", {"path": "src/main.rs", "start_line": 1, "end_line": 5}, tmp_path
+        )
+    assert "timed out" in result.lower() or "timeout" in result.lower()
+
+
+# ---------------------------------------------------------------------------
+# Retry logic: _retry_call unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_retry_call_returns_on_first_success() -> None:
+    """_retry_call returns immediately when fn succeeds on first try."""
+    from bugeval.agent_api_runner import _retry_call
+
+    result = _retry_call(lambda: 42, retryable=(ValueError,))
+    assert result == 42
+
+
+def test_retry_call_retries_on_retryable_error() -> None:
+    """_retry_call retries when fn raises a retryable exception."""
+    from bugeval.agent_api_runner import _retry_call
+
+    calls: list[int] = []
+
+    def fn() -> str:
+        calls.append(1)
+        if len(calls) < 2:
+            raise ValueError("transient")
+        return "ok"
+
+    with patch("bugeval.agent_api_runner.time") as mock_time:
+        mock_time.monotonic.side_effect = [0.0, 1.0, 2.0, 3.0]
+        result = _retry_call(fn, retryable=(ValueError,), max_retries=3, base_delay=0.0)
+
+    assert result == "ok"
+    assert len(calls) == 2
+
+
+def test_retry_call_raises_after_max_retries() -> None:
+    """_retry_call re-raises after max_retries attempts."""
+    from bugeval.agent_api_runner import _retry_call
+
+    def fn() -> None:
+        raise ValueError("always fails")
+
+    with patch("bugeval.agent_api_runner.time"):
+        with pytest.raises(ValueError, match="always fails"):
+            _retry_call(fn, retryable=(ValueError,), max_retries=2, base_delay=0.0)
+
+
+def test_retry_call_does_not_retry_non_retryable() -> None:
+    """Non-retryable exceptions propagate immediately without retry."""
+    from bugeval.agent_api_runner import _retry_call
+
+    calls: list[int] = []
+
+    def fn() -> None:
+        calls.append(1)
+        raise TypeError("fatal")
+
+    with pytest.raises(TypeError, match="fatal"):
+        _retry_call(fn, retryable=(ValueError,), max_retries=3)
+
+    assert len(calls) == 1
+
+
+def test_run_agent_api_wraps_api_call_with_retry(tmp_path: Path) -> None:
+    """run_agent_api delegates each create() call through _retry_call."""
+    from bugeval import agent_api_runner
+
+    success_response = _make_response(
+        content=[_make_text_block("[]")],
+        stop_reason="end_turn",
+    )
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = success_response
+
+    retry_invocations: list[bool] = []
+    real_retry = agent_api_runner._retry_call
+
+    def spy_retry(fn, retryable, **kwargs):  # type: ignore[no-untyped-def]
+        retry_invocations.append(True)
+        return real_retry(fn, retryable, max_retries=0)
+
+    with patch.object(agent_api_runner, "_retry_call", side_effect=spy_retry):
+        with patch("bugeval.agent_api_runner.Anthropic", return_value=mock_client):
+            run_agent_api(tmp_path, "system", "user")
+
+    assert len(retry_invocations) >= 1
+
+
+def test_run_agent_api_cost_usd(tmp_path: Path) -> None:
+    """cost_usd should be computed from token usage when model is in default pricing."""
+    response = _make_response(
+        content=[_make_text_block("[]")],
+        stop_reason="end_turn",
+        input_tokens=1_000_000,
+        output_tokens=1_000_000,
+    )
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = response
+
+    with patch("bugeval.agent_api_runner.Anthropic", return_value=mock_client):
+        result = run_agent_api(tmp_path, "system", "user", model="claude-sonnet-4-6")
+
+    # claude-sonnet-4-6: 3.0/1M input + 15.0/1M output = 18.0 per 1M each
+    assert result.cost_usd == pytest.approx(18.0)

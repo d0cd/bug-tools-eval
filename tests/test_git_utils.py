@@ -12,6 +12,7 @@ from bugeval.git_utils import (
     clone_repo,
     commit_exists,
     format_patch,
+    get_changed_files,
     get_diff_stats,
     is_repo,
     run_git,
@@ -74,6 +75,50 @@ class TestCommitExists:
     def test_nonexistent_commit(self, tmp_path: Path) -> None:
         repo = make_repo(tmp_path / "repo")
         assert commit_exists("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef", repo) is False
+
+
+class TestGetChangedFiles:
+    def test_returns_changed_file(self, tmp_path: Path) -> None:
+        repo = make_repo(tmp_path / "repo")
+        base = run_git("rev-parse", "HEAD", cwd=repo).strip()
+        add_commit(repo, "new.txt", "content\n", "add new file")
+        head = run_git("rev-parse", "HEAD", cwd=repo).strip()
+
+        files = get_changed_files(base, head, repo)
+        assert "new.txt" in files
+
+    def test_empty_when_same_commit(self, tmp_path: Path) -> None:
+        repo = make_repo(tmp_path / "repo")
+        sha = run_git("rev-parse", "HEAD", cwd=repo).strip()
+
+        files = get_changed_files(sha, sha, repo)
+        assert files == []
+
+    def test_multiple_files(self, tmp_path: Path) -> None:
+        repo = make_repo(tmp_path / "repo")
+        base = run_git("rev-parse", "HEAD", cwd=repo).strip()
+        # Add two files in one commit
+        (repo / "a.txt").write_text("a\n")
+        (repo / "b.txt").write_text("b\n")
+        subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "add two files"], cwd=repo, check=True, capture_output=True
+        )
+        head = run_git("rev-parse", "HEAD", cwd=repo).strip()
+
+        files = get_changed_files(base, head, repo)
+        assert "a.txt" in files
+        assert "b.txt" in files
+
+    def test_returns_list_of_strings(self, tmp_path: Path) -> None:
+        repo = make_repo(tmp_path / "repo")
+        base = run_git("rev-parse", "HEAD", cwd=repo).strip()
+        add_commit(repo, "x.txt", "x\n", "add x")
+        head = run_git("rev-parse", "HEAD", cwd=repo).strip()
+
+        files = get_changed_files(base, head, repo)
+        assert isinstance(files, list)
+        assert all(isinstance(f, str) for f in files)
 
 
 class TestGetDiffStats:

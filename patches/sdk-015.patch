@@ -1,0 +1,117 @@
+diff --git a/sdk/docs/aleo_network_client.ts.html b/sdk/docs/aleo_network_client.ts.html
+index 1dbb95ff..84e5eb6d 100644
+--- a/sdk/docs/aleo_network_client.ts.html
++++ b/sdk/docs/aleo_network_client.ts.html
+@@ -113,7 +113,7 @@ export class AleoNetworkClient {
+    */
+   async getLatestBlock(): Promise&lt;Block | Error> {
+     try {
+-      return await this.fetchData&lt;Block>("/latest/block") as Block;
++      return await this.fetchData&lt;Block>("/block/latest") as Block;
+     } catch (error) {
+       throw new Error("Error fetching latest block.");
+     }
+@@ -127,7 +127,7 @@ export class AleoNetworkClient {
+    */
+   async getLatestHash(): Promise&lt;string | Error> {
+     try {
+-      return await this.fetchData&lt;string>("/latest/hash");
++      return await this.fetchData&lt;string>("/block/hash/latest");
+     } catch (error) {
+       throw new Error("Error fetching latest hash.");
+     }
+@@ -141,7 +141,7 @@ export class AleoNetworkClient {
+    */
+   async getLatestHeight(): Promise&lt;number | Error> {
+     try {
+-      return await this.fetchData&lt;number>("/latest/height");
++      return await this.fetchData&lt;number>("/block/height/latest");
+     } catch (error) {
+       throw new Error("Error fetching latest height.");
+     }
+@@ -155,7 +155,7 @@ export class AleoNetworkClient {
+    */
+   async getStateRoot(): Promise&lt;string | Error> {
+     try {
+-      return await this.fetchData&lt;string>("/latest/stateRoot");
++      return await this.fetchData&lt;string>("/stateRoot/latest");
+     } catch (error) {
+       throw new Error("Error fetching Aleo state root");
+     }
+@@ -393,4 +393,4 @@ export class AleoNetworkClient {
+     return records;
+   }
+ }
+-</code></pre></article></section></div></div></div><div class="search-container" id="PkfLWpAbet" style="display:none"><div class="wrapper" id="iCxFxjkHbP"><button class="icon-button search-close-button" id="VjLlGakifb" aria-label="close search"><svg><use xlink:href="#close-icon"></use></svg></button><div class="search-box-c"><svg><use xlink:href="#search-icon"></use></svg> <input type="text" id="vpcKVYIppa" class="search-input" placeholder="Search..." autofocus></div><div class="search-result-c" id="fWwVHRuDuN"><span class="search-result-c-text">Type anything to view search result</span></div></div></div><div class="mobile-menu-icon-container"><button class="icon-button" id="mobile-menu" data-isopen="false" aria-label="menu"><svg><use xlink:href="#menu-icon"></use></svg></button></div><div id="mobile-sidebar" class="mobile-sidebar-container"><div class="mobile-sidebar-wrapper"><a href="/" class="sidebar-title sidebar-title-anchor">Home</a><div class="mobile-nav-links"></div><div class="mobile-sidebar-items-c"><div class="sidebar-section-title with-arrow" data-isopen="false" id="tqriknrB0NRMr4Yoe_vAE"><div>Classes</div><svg><use xlink:href="#down-icon"></use></svg></div><div class="sidebar-section-children-container"><div class="sidebar-section-children"><a href="Account.html">Account</a></div><div class="sidebar-section-children"><a href="AleoNetworkClient.html">AleoNetworkClient</a></div><div class="sidebar-section-children"><a href="DevelopmentClient_DevelopmentClient.html">DevelopmentClient</a></div></div></div><div class="mobile-navbar-actions"><div class="navbar-right-item"><button class="icon-button search-button" aria-label="open-search"><svg><use xlink:href="#search-icon"></use></svg></button></div><div class="navbar-right-item"><button class="icon-button theme-toggle" aria-label="toggle-theme"><svg><use class="theme-svg-use" xlink:href="#light-theme-icon"></use></svg></button></div><div class="navbar-right-item"><button class="icon-button font-size" aria-label="change-font-size"><svg><use xlink:href="#font-size-icon"></use></svg></button></div></div></div></div><script type="text/javascript" src="scripts/core.min.js"></script><script src="scripts/search.min.js" defer="defer"></script><script src="scripts/third-party/fuse.js" defer="defer"></script><script type="text/javascript">var tocbotInstance=tocbot.init({tocSelector:"#eed4d2a0bfd64539bb9df78095dec881",contentSelector:".main-content",headingSelector:"h1, h2, h3",hasInnerContainers:!0,scrollContainer:".main-content",headingsOffset:130,onClick:bringLinkToView})</script></body></html>
+\ No newline at end of file
++</code></pre></article></section></div></div></div><div class="search-container" id="PkfLWpAbet" style="display:none"><div class="wrapper" id="iCxFxjkHbP"><button class="icon-button search-close-button" id="VjLlGakifb" aria-label="close search"><svg><use xlink:href="#close-icon"></use></svg></button><div class="search-box-c"><svg><use xlink:href="#search-icon"></use></svg> <input type="text" id="vpcKVYIppa" class="search-input" placeholder="Search..." autofocus></div><div class="search-result-c" id="fWwVHRuDuN"><span class="search-result-c-text">Type anything to view search result</span></div></div></div><div class="mobile-menu-icon-container"><button class="icon-button" id="mobile-menu" data-isopen="false" aria-label="menu"><svg><use xlink:href="#menu-icon"></use></svg></button></div><div id="mobile-sidebar" class="mobile-sidebar-container"><div class="mobile-sidebar-wrapper"><a href="/" class="sidebar-title sidebar-title-anchor">Home</a><div class="mobile-nav-links"></div><div class="mobile-sidebar-items-c"><div class="sidebar-section-title with-arrow" data-isopen="false" id="tqriknrB0NRMr4Yoe_vAE"><div>Classes</div><svg><use xlink:href="#down-icon"></use></svg></div><div class="sidebar-section-children-container"><div class="sidebar-section-children"><a href="Account.html">Account</a></div><div class="sidebar-section-children"><a href="AleoNetworkClient.html">AleoNetworkClient</a></div><div class="sidebar-section-children"><a href="DevelopmentClient_DevelopmentClient.html">DevelopmentClient</a></div></div></div><div class="mobile-navbar-actions"><div class="navbar-right-item"><button class="icon-button search-button" aria-label="open-search"><svg><use xlink:href="#search-icon"></use></svg></button></div><div class="navbar-right-item"><button class="icon-button theme-toggle" aria-label="toggle-theme"><svg><use class="theme-svg-use" xlink:href="#light-theme-icon"></use></svg></button></div><div class="navbar-right-item"><button class="icon-button font-size" aria-label="change-font-size"><svg><use xlink:href="#font-size-icon"></use></svg></button></div></div></div></div><script type="text/javascript" src="scripts/core.min.js"></script><script src="scripts/search.min.js" defer="defer"></script><script src="scripts/third-party/fuse.js" defer="defer"></script><script type="text/javascript">var tocbotInstance=tocbot.init({tocSelector:"#eed4d2a0bfd64539bb9df78095dec881",contentSelector:".main-content",headingSelector:"h1, h2, h3",hasInnerContainers:!0,scrollContainer:".main-content",headingsOffset:130,onClick:bringLinkToView})</script></body></html>
+diff --git a/sdk/src/network-client.ts b/sdk/src/network-client.ts
+index 9dc27f0b..39b6515e 100644
+--- a/sdk/src/network-client.ts
++++ b/sdk/src/network-client.ts
+@@ -364,7 +364,7 @@ class AleoNetworkClient {
+    */
+   async getLatestBlock(): Promise<Block> {
+     try {
+-      return await this.fetchData<Block>("/latest/block") as Block;
++      return await this.fetchData<Block>("/block/latest") as Block;
+     } catch (error) {
+       throw new Error("Error fetching latest block.");
+     }
+@@ -391,7 +391,7 @@ class AleoNetworkClient {
+    */
+   async getLatestHeight(): Promise<number> {
+     try {
+-      return Number(await this.fetchData<bigint>("/latest/height"));
++      return Number(await this.fetchData<bigint>("/block/height/latest"));
+     } catch (error) {
+       throw new Error("Error fetching latest height.");
+     }
+@@ -567,7 +567,7 @@ class AleoNetworkClient {
+    */
+   async getStateRoot(): Promise<string> {
+     try {
+-      return await this.fetchData<string>("/latest/stateRoot");
++      return await this.fetchData<string>("/stateRoot/latest");
+     } catch (error) {
+       throw new Error("Error fetching Aleo state root");
+     }
+diff --git a/sdk/tests/network-client.test.ts b/sdk/tests/network-client.test.ts
+index 5a898a5e..3c4535dc 100644
+--- a/sdk/tests/network-client.test.ts
++++ b/sdk/tests/network-client.test.ts
+@@ -105,7 +105,7 @@ describe('NodeConnection', () => {
+ 
+             expect(windowFetchSpy.args).deep.equal([
+                 [
+-                    "https://api.explorer.provable.com/v1/%%NETWORK%%/latest/block",
++                    "https://api.explorer.provable.com/v1/%%NETWORK%%/block/latest",
+                     {
+                         "headers": {
+                             // @TODO: Run the Jest tests on the compiled Rollup code,
+diff --git a/website/src/tabs/rest/GetLatestBlock.jsx b/website/src/tabs/rest/GetLatestBlock.jsx
+index 83e988f9..7eefb05c 100644
+--- a/website/src/tabs/rest/GetLatestBlock.jsx
++++ b/website/src/tabs/rest/GetLatestBlock.jsx
+@@ -10,7 +10,7 @@ export const GetLatestBlock = () => {
+         setLatestBlock(null);
+         try {
+             axios
+-                .get(`https://api.explorer.provable.com/v1/testnet/latest/block`)
++                .get(`https://api.explorer.provable.com/v1/testnet/block/latest`)
+                 .then((response) =>
+                     setLatestBlock(JSON.stringify(response.data, null, 2)),
+                 );
+diff --git a/website/src/tabs/rest/GetLatestBlockHeight.jsx b/website/src/tabs/rest/GetLatestBlockHeight.jsx
+index eae88256..1e01a5e7 100644
+--- a/website/src/tabs/rest/GetLatestBlockHeight.jsx
++++ b/website/src/tabs/rest/GetLatestBlockHeight.jsx
+@@ -10,7 +10,7 @@ export const GetLatestBlockHeight = () => {
+         setLatestHeight(null);
+         try {
+             axios
+-                .get(`https://api.explorer.provable.com/v1/testnet/latest/height`)
++                .get(`https://api.explorer.provable.com/v1/testnet/block/height/latest`)
+                 .then((response) =>
+                     setLatestHeight(JSON.stringify(response.data, null, 2)),
+                 );

@@ -1,0 +1,13 @@
+diff --git a/synthesizer/process/src/stack/authorize.rs b/synthesizer/process/src/stack/authorize.rs
+index 630c119ba..88cadeb52 100644
+--- a/synthesizer/process/src/stack/authorize.rs
++++ b/synthesizer/process/src/stack/authorize.rs
+@@ -127,7 +127,7 @@ impl<N: Network> Stack<N> {
+         Ok(authorization)
+     }
+ 
+-    /// Authorizes calls to public credits.aleo functions for the given request.
++    /// Authorizes a call to a public function for the given request.
+     /// Compared to `authorize`, no private key is needed, but this only works for single public requests.
+     #[inline]
+     pub fn authorize_request<A: circuit::Aleo<Network = N>, R: Rng + CryptoRng>(

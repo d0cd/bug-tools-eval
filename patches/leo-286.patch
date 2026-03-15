@@ -1,0 +1,30 @@
+diff --git a/tests/tests/compiler/definition/define_multiple_variables_fail.leo b/tests/tests/compiler/definition/define_multiple_variables_fail.leo
+index adcc7b4880..69a001e6d8 100644
+--- a/tests/tests/compiler/definition/define_multiple_variables_fail.leo
++++ b/tests/tests/compiler/definition/define_multiple_variables_fail.leo
+@@ -7,6 +7,7 @@ program test.aleo {
+     function main(y: bool) -> bool {
+         let (a,b,c): (u8,u8) = (2u8,3u8);
+         let (d,e): (u8,u8,u8) = (1u8,2u8,3u8);
++        let (g,h,i): (u8,u8,u8) = (1u8);
+         return y;
+     }
+ }
+diff --git a/tests/tests/compiler/definition/tuple_def_fail.leo b/tests/tests/compiler/definition/tuple_def_fail.leo
+new file mode 100644
+index 0000000000..7f5c56b0d1
+--- /dev/null
++++ b/tests/tests/compiler/definition/tuple_def_fail.leo
+@@ -0,0 +1,11 @@
++/*
++namespace: Compile
++expectation: Pass
++*/
++
++program test.aleo {
++    function main(y: bool) -> bool {
++        let (1u8+1u8,1u8+1u8): (u8,u8) = (1u8,2u8);
++        return y;
++    }
++}
+\ No newline at end of file

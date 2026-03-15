@@ -1,0 +1,277 @@
+diff --git a/interpreter/src/test.rs b/interpreter/src/test.rs
+index 87a7b7740d..4aeb50dd63 100644
+--- a/interpreter/src/test.rs
++++ b/interpreter/src/test.rs
+@@ -31,6 +31,23 @@ pub static TEST_PRIVATE_KEY: &str = "APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6y
+ /// A special token used to separate modules in test input source code.
+ const MODULE_SEPARATOR: &str = "// --- Next Module:";
+ 
++fn run_and_format_output(interpreter: &mut Interpreter) -> String {
++    let action_result = interpreter.action(InterpreterAction::LeoInterpretOver("test.aleo/main()".into()));
++
++    let futures =
++        interpreter.cursor.futures.iter().map(|f| format!(" async call to {f}")).collect::<Vec<_>>().join("\n");
++
++    let futures_section = if futures.is_empty() { "# Futures".to_string() } else { format!("# Futures\n{futures}") };
++
++    let output_section = match action_result {
++        Err(e) => format!("# Output\n{e}"),
++        Ok(None) => "# Output\nno value received".to_string(),
++        Ok(Some(v)) => format!("# Output\n{v}"),
++    };
++
++    format!("{futures_section}\n\n{output_section}\n")
++}
++
+ /// Runs a Leo test case provided as a string, with optional inlined module definitions.
+ ///
+ /// # Behavior
+@@ -69,11 +86,7 @@ fn runner_leo_test(test: &str) -> String {
+                 Interpreter::new(&[(filename, vec![])], empty, address.into(), 0, NetworkName::TestnetV0)
+                     .expect("creating interpreter");
+ 
+-            match interpreter.action(InterpreterAction::LeoInterpretOver("test.aleo/main()".into())) {
+-                Err(e) => format!("{e}\n"),
+-                Ok(None) => "no value received\n".to_string(),
+-                Ok(Some(v)) => format!("{v}\n"),
+-            }
++            run_and_format_output(&mut interpreter)
+         })
+     } else {
+         // === Multi-module case ===
+@@ -146,11 +159,7 @@ fn runner_leo_test(test: &str) -> String {
+                 Interpreter::new(&[(main_path, module_paths)], empty, address.into(), 0, NetworkName::TestnetV0)
+                     .expect("creating interpreter");
+ 
+-            match interpreter.action(InterpreterAction::LeoInterpretOver("test.aleo/main()".into())) {
+-                Err(e) => format!("{e}\n"),
+-                Ok(None) => "no value received\n".to_string(),
+-                Ok(Some(v)) => format!("{v}\n"),
+-            }
++            run_and_format_output(&mut interpreter)
+         })
+     }
+ }
+diff --git a/tests/expectations/interpreter-leo/arithmetic.out b/tests/expectations/interpreter-leo/arithmetic.out
+index 4394a7e2fc..f5c0d9de07 100644
+--- a/tests/expectations/interpreter-leo/arithmetic.out
++++ b/tests/expectations/interpreter-leo/arithmetic.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ 1712u32
+diff --git a/tests/expectations/interpreter-leo/array_index.out b/tests/expectations/interpreter-leo/array_index.out
+index cb97ca9209..d512c8aa62 100644
+--- a/tests/expectations/interpreter-leo/array_index.out
++++ b/tests/expectations/interpreter-leo/array_index.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ 30field
+diff --git a/tests/expectations/interpreter-leo/basic_dep.out b/tests/expectations/interpreter-leo/basic_dep.out
+index 7c9c6fe737..46e4c3f476 100644
+--- a/tests/expectations/interpreter-leo/basic_dep.out
++++ b/tests/expectations/interpreter-leo/basic_dep.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ 2240u32
+diff --git a/tests/expectations/interpreter-leo/basic_inference.out b/tests/expectations/interpreter-leo/basic_inference.out
+index a0739766fb..98e284fb35 100644
+--- a/tests/expectations/interpreter-leo/basic_inference.out
++++ b/tests/expectations/interpreter-leo/basic_inference.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ (test.aleo/S {x: 0u32, y: 1u32}, test.aleo/S {x: 0u32, y: 1u32}, 42u64, 1u32, 3u32, true, 1u32, 8u32)
+diff --git a/tests/expectations/interpreter-leo/basic_inference_2.out b/tests/expectations/interpreter-leo/basic_inference_2.out
+index 6a452c185a..c0ff38e4e4 100644
+--- a/tests/expectations/interpreter-leo/basic_inference_2.out
++++ b/tests/expectations/interpreter-leo/basic_inference_2.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ ()
+diff --git a/tests/expectations/interpreter-leo/binary_ops.out b/tests/expectations/interpreter-leo/binary_ops.out
+index 6a452c185a..c0ff38e4e4 100644
+--- a/tests/expectations/interpreter-leo/binary_ops.out
++++ b/tests/expectations/interpreter-leo/binary_ops.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ ()
+diff --git a/tests/expectations/interpreter-leo/complex_dep.out b/tests/expectations/interpreter-leo/complex_dep.out
+index 9068a1856f..2dd7e0b8cd 100644
+--- a/tests/expectations/interpreter-leo/complex_dep.out
++++ b/tests/expectations/interpreter-leo/complex_dep.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ 20u32
+diff --git a/tests/expectations/interpreter-leo/const_generics.out b/tests/expectations/interpreter-leo/const_generics.out
+index bb2202e2a1..922a91d2d3 100644
+--- a/tests/expectations/interpreter-leo/const_generics.out
++++ b/tests/expectations/interpreter-leo/const_generics.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ 145u32
+diff --git a/tests/expectations/interpreter-leo/const_generics_with_array.out b/tests/expectations/interpreter-leo/const_generics_with_array.out
+index 54b5e26fae..5f7d8de1d6 100644
+--- a/tests/expectations/interpreter-leo/const_generics_with_array.out
++++ b/tests/expectations/interpreter-leo/const_generics_with_array.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ 3u32
+diff --git a/tests/expectations/interpreter-leo/deep_dep.out b/tests/expectations/interpreter-leo/deep_dep.out
+index d76978f9da..3bbe4f8396 100644
+--- a/tests/expectations/interpreter-leo/deep_dep.out
++++ b/tests/expectations/interpreter-leo/deep_dep.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ 77u32
+diff --git a/tests/expectations/interpreter-leo/flat_dep.out b/tests/expectations/interpreter-leo/flat_dep.out
+index e71dc3cdde..efcd777d6a 100644
+--- a/tests/expectations/interpreter-leo/flat_dep.out
++++ b/tests/expectations/interpreter-leo/flat_dep.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ 147u32
+diff --git a/tests/expectations/interpreter-leo/generic_matrix.out b/tests/expectations/interpreter-leo/generic_matrix.out
+index 27ba77ddaf..0af7ee3465 100644
+--- a/tests/expectations/interpreter-leo/generic_matrix.out
++++ b/tests/expectations/interpreter-leo/generic_matrix.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ true
+diff --git a/tests/expectations/interpreter-leo/generics_dep.out b/tests/expectations/interpreter-leo/generics_dep.out
+index 145c590b4b..5ecea3e38f 100644
+--- a/tests/expectations/interpreter-leo/generics_dep.out
++++ b/tests/expectations/interpreter-leo/generics_dep.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ 2000562u32
+diff --git a/tests/expectations/interpreter-leo/hash.out b/tests/expectations/interpreter-leo/hash.out
+index 3f31c25f0e..c1b7b172e7 100644
+--- a/tests/expectations/interpreter-leo/hash.out
++++ b/tests/expectations/interpreter-leo/hash.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ 7649508962193807282860816486231709561414143880166292770947785297592281622433field
+diff --git a/tests/expectations/interpreter-leo/mapping_async_block.out b/tests/expectations/interpreter-leo/mapping_async_block.out
+index 690b81e8c6..a2af2778d4 100644
+--- a/tests/expectations/interpreter-leo/mapping_async_block.out
++++ b/tests/expectations/interpreter-leo/mapping_async_block.out
+@@ -1 +1,5 @@
++# Futures
++ async call to  async call to test.aleo/main/<async block>
++
++# Output
+ (7u32, Future)
+diff --git a/tests/expectations/interpreter-leo/mapping_async_call.out b/tests/expectations/interpreter-leo/mapping_async_call.out
+index ac0f6c0ad2..d638da5a8a 100644
+--- a/tests/expectations/interpreter-leo/mapping_async_call.out
++++ b/tests/expectations/interpreter-leo/mapping_async_call.out
+@@ -1 +1,5 @@
++# Futures
++ async call to  async call to test.aleo/finalize
++
++# Output
+ (6u32, Future)
+diff --git a/tests/expectations/interpreter-leo/repeat_in_loop.out b/tests/expectations/interpreter-leo/repeat_in_loop.out
+index fbb0d8cf5b..78b066099d 100644
+--- a/tests/expectations/interpreter-leo/repeat_in_loop.out
++++ b/tests/expectations/interpreter-leo/repeat_in_loop.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ 570u32
+diff --git a/tests/expectations/interpreter-leo/token.out b/tests/expectations/interpreter-leo/token.out
+new file mode 100644
+index 0000000000..5a14fff7bd
+--- /dev/null
++++ b/tests/expectations/interpreter-leo/token.out
+@@ -0,0 +1,5 @@
++# Futures
++ async call to  async call to test.aleo/finalize
++
++# Output
++Future
+diff --git a/tests/expectations/interpreter-leo/unary_ops.out b/tests/expectations/interpreter-leo/unary_ops.out
+index 6a452c185a..c0ff38e4e4 100644
+--- a/tests/expectations/interpreter-leo/unary_ops.out
++++ b/tests/expectations/interpreter-leo/unary_ops.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ ()
+diff --git a/tests/expectations/interpreter-leo/unsuffixed_literal_array_index.out b/tests/expectations/interpreter-leo/unsuffixed_literal_array_index.out
+index 42abf6883d..e0d7212a61 100644
+--- a/tests/expectations/interpreter-leo/unsuffixed_literal_array_index.out
++++ b/tests/expectations/interpreter-leo/unsuffixed_literal_array_index.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ 6u32
+diff --git a/tests/expectations/interpreter-leo/unsuffixed_literals.out b/tests/expectations/interpreter-leo/unsuffixed_literals.out
+index 6a452c185a..c0ff38e4e4 100644
+--- a/tests/expectations/interpreter-leo/unsuffixed_literals.out
++++ b/tests/expectations/interpreter-leo/unsuffixed_literals.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ ()
+diff --git a/tests/expectations/interpreter-leo/unsuffixed_literals_in_aggregates.out b/tests/expectations/interpreter-leo/unsuffixed_literals_in_aggregates.out
+index 6a452c185a..c0ff38e4e4 100644
+--- a/tests/expectations/interpreter-leo/unsuffixed_literals_in_aggregates.out
++++ b/tests/expectations/interpreter-leo/unsuffixed_literals_in_aggregates.out
+@@ -1 +1,4 @@
++# Futures
++
++# Output
+ ()
+diff --git a/tests/tests/interpreter-leo/token.leo b/tests/tests/interpreter-leo/token.leo
+new file mode 100644
+index 0000000000..cb3095dddb
+--- /dev/null
++++ b/tests/tests/interpreter-leo/token.leo
+@@ -0,0 +1,15 @@
++program test.aleo {
++    mapping account: address => u64;
++
++    async transition main() -> Future {
++        return finalize(aleo1rhgdu77hgyqd3xjj8ucu3jj9r2krwz6mnzyd80gncr5fxcwlh5rsvzp9px, 200);
++    }
++
++    async function finalize(public receiver: address, public amount: u64) {
++        let current_amount: u64 = Mapping::get_or_use(account, receiver, 0u64);
++        Mapping::set(account, receiver, current_amount + amount);
++    }
++
++    @noupgrade
++    async constructor() {}
++}

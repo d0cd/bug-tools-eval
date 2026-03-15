@@ -1,0 +1,702 @@
+diff --git a/network/src/external/channel.rs b/network/src/external/channel.rs
+index aec2b9e86..d2a9018ce 100644
+--- a/network/src/external/channel.rs
++++ b/network/src/external/channel.rs
+@@ -22,8 +22,8 @@ use crate::external::message::{
+ };
+ use snarkos_errors::network::ConnectError;
+ 
+-use std::{net::SocketAddr, sync::Arc, time::Duration};
+-use tokio::{io::AsyncWriteExt, net::TcpStream, sync::Mutex, task};
++use std::{net::SocketAddr, sync::Arc};
++use tokio::{io::AsyncWriteExt, net::TcpStream, sync::Mutex};
+ 
+ /// A channel for reading and writing messages to a peer.
+ /// The channel manages two streams to allow for simultaneous reading and writing.
+@@ -50,11 +50,7 @@ impl Channel {
+ 
+     /// Returns a new channel with a writer only stream.
+     pub async fn new_write_only(address: SocketAddr) -> Result<Self, ConnectError> {
+-        // Attempt to create a TcpStream with a timeout duration of 2 seconds.
+-        let std_stream = std::net::TcpStream::connect_timeout(&address, Duration::from_secs(2))?;
+-        let tokio_tcp_stream = TcpStream::from_std(std_stream)?;
+-
+-        let stream = Arc::new(Mutex::new(tokio_tcp_stream));
++        let stream = Arc::new(Mutex::new(TcpStream::connect(address).await?));
+ 
+         Ok(Self {
+             address,
+@@ -106,29 +102,12 @@ impl Channel {
+     pub async fn write<M: Message>(&self, message: &M) -> Result<(), ConnectError> {
+         debug!("Message {:?}, Sent to {:?}", M::name().to_string(), self.address);
+ 
+-        let serialized_message = message.serialize()?;
+-        let header = MessageHeader::new(M::name(), serialized_message.len() as u32);
+-        let header_bytes = header.serialize()?;
+-
+-        let writer = self.writer.clone();
+-
+-        // Spawn a tokio task to send the message.
+-        task::spawn(async move {
+-            let mut writer = writer.lock().await;
+-
+-            match writer.write_all(&header_bytes).await {
+-                Ok(_) => {
+-                    if let Err(error) = writer.write_all(&serialized_message).await {
+-                        error!(
+-                            "Failed to send message body {} (error {})",
+-                            M::name().to_string(),
+-                            error
+-                        )
+-                    }
+-                }
+-                Err(error) => error!("Failed to send message header {} (error {})", M::name(), error),
+-            }
+-        });
++        let serialized = message.serialize()?;
++        let header = MessageHeader::new(M::name(), serialized.len() as u32);
++
++        let mut writer = self.writer.lock().await;
++        writer.write_all(&header.serialize()?).await?;
++        writer.write_all(&serialized).await?;
+ 
+         Ok(())
+     }
+diff --git a/network/src/external/propagate.rs b/network/src/external/propagate.rs
+index 1d9507a51..3a3c87595 100644
+--- a/network/src/external/propagate.rs
++++ b/network/src/external/propagate.rs
+@@ -5,7 +5,6 @@ use crate::{
+ use snarkos_errors::network::SendError;
+ 
+ use std::{net::SocketAddr, sync::Arc};
+-use tokio::task;
+ 
+ /// Broadcast transaction to connected peers
+ pub async fn propagate_transaction(
+@@ -13,31 +12,28 @@ pub async fn propagate_transaction(
+     transaction_bytes: Vec<u8>,
+     transaction_sender: SocketAddr,
+ ) -> Result<(), SendError> {
+-    // Spawn a new transaction propagation task to help prevent deadlock conditions.
+-    task::spawn(async move {
+-        debug!("Propagating a transaction to peers");
++    debug!("Propagating a transaction to peers");
+ 
+-        let peer_book = context.peer_book.read().await;
+-        let local_address = *context.local_address.read().await;
+-        let connections = context.connections.read().await;
+-        let mut num_peers = 0;
++    let peer_book = context.peer_book.read().await;
++    let local_address = *context.local_address.read().await;
++    let connections = context.connections.read().await;
++    let mut num_peers = 0;
+ 
+-        for (socket, _) in &peer_book.get_connected() {
+-            if *socket != transaction_sender && *socket != local_address {
+-                if let Some(channel) = connections.get(socket) {
+-                    match channel.write(&Transaction::new(transaction_bytes.clone())).await {
+-                        Ok(_) => num_peers += 1,
+-                        Err(error) => warn!(
+-                            "Failed to propagate transaction to peer {}. (error message: {})",
+-                            channel.address, error
+-                        ),
+-                    }
++    for (socket, _) in &peer_book.get_connected() {
++        if *socket != transaction_sender && *socket != local_address {
++            if let Some(channel) = connections.get(socket) {
++                match channel.write(&Transaction::new(transaction_bytes.clone())).await {
++                    Ok(_) => num_peers += 1,
++                    Err(error) => warn!(
++                        "Failed to propagate transaction to peer {}. (error message: {})",
++                        channel.address, error
++                    ),
+                 }
+             }
+         }
++    }
+ 
+-        debug!("Transaction propagated to {} peers", num_peers);
+-    });
++    debug!("Transaction propagated to {} peers", num_peers);
+ 
+     Ok(())
+ }
+@@ -48,31 +44,28 @@ pub async fn propagate_block(
+     block_bytes: Vec<u8>,
+     block_miner: SocketAddr,
+ ) -> Result<(), SendError> {
+-    // Spawn a new block propagation task to help prevent deadlock conditions.
+-    task::spawn(async move {
+-        debug!("Propagating a block to peers");
++    debug!("Propagating a block to peers");
+ 
+-        let peer_book = context.peer_book.read().await;
+-        let local_address = *context.local_address.read().await;
+-        let connections = context.connections.read().await;
+-        let mut num_peers = 0;
++    let peer_book = context.peer_book.read().await;
++    let local_address = *context.local_address.read().await;
++    let connections = context.connections.read().await;
++    let mut num_peers = 0;
+ 
+-        for (socket, _) in &peer_book.get_connected() {
+-            if *socket != block_miner && *socket != local_address {
+-                if let Some(channel) = connections.get(socket) {
+-                    match channel.write(&Block::new(block_bytes.clone())).await {
+-                        Ok(_) => num_peers += 1,
+-                        Err(error) => warn!(
+-                            "Failed to propagate block to peer {}. (error message: {})",
+-                            channel.address, error
+-                        ),
+-                    }
++    for (socket, _) in &peer_book.get_connected() {
++        if *socket != block_miner && *socket != local_address {
++            if let Some(channel) = connections.get(socket) {
++                match channel.write(&Block::new(block_bytes.clone())).await {
++                    Ok(_) => num_peers += 1,
++                    Err(error) => warn!(
++                        "Failed to propagate block to peer {}. (error message: {})",
++                        channel.address, error
++                    ),
+                 }
+             }
+         }
++    }
+ 
+-        debug!("Block propagated to {} peers", num_peers);
+-    });
++    debug!("Block propagated to {} peers", num_peers);
+ 
+     Ok(())
+ }
+diff --git a/network/src/external/protocol/sync/sync.rs b/network/src/external/protocol/sync/sync.rs
+index a212a10c7..70af40cda 100644
+--- a/network/src/external/protocol/sync/sync.rs
++++ b/network/src/external/protocol/sync/sync.rs
+@@ -74,7 +74,7 @@ impl SyncHandler {
+     }
+ 
+     /// Remove the blocks that are now included in the chain.
+-    pub fn update_pending_blocks<T: Transaction, P: LoadableMerkleParameters>(&mut self, storage: Arc<Ledger<T, P>>) {
++    pub fn clear_pending<T: Transaction, P: LoadableMerkleParameters>(&mut self, storage: Arc<Ledger<T, P>>) {
+         for (block_hash, _time_sent) in &self.pending_blocks.clone() {
+             if !storage.block_hash_exists(&block_hash) {
+                 self.pending_blocks.remove(block_hash);
+@@ -83,7 +83,7 @@ impl SyncHandler {
+     }
+ 
+     /// Set the SyncState to syncing and update the latest block height.
+-    pub fn update_sync_state(&mut self, block_height: u32) {
++    pub fn update_syncing(&mut self, block_height: u32) {
+         match self.sync_state {
+             SyncState::Idle => {
+                 info!("Syncing blocks");
+@@ -103,18 +103,16 @@ impl SyncHandler {
+                 if !self.block_headers.contains(&block_hash) && self.pending_blocks.get(&block_hash).is_none() {
+                     self.block_headers.push(block_hash.clone());
+                 }
+-                self.update_sync_state(height);
++                self.update_syncing(height);
+             }
+         } else if self.pending_blocks.is_empty() {
+-            if self.sync_state != SyncState::Idle {
+-                info!("Sync state is set to Idle");
+-                self.sync_state = SyncState::Idle;
+-            }
++            info!("Sync state is set to Idle");
++            self.sync_state = SyncState::Idle;
+         }
+     }
+ 
+-    /// Poll the sync handler to finish syncing or ask for the next block from the sync node.
+-    pub async fn poll<T: Transaction, P: LoadableMerkleParameters>(
++    /// Finish syncing or ask for the next block from the sync node.
++    pub async fn increment<T: Transaction, P: LoadableMerkleParameters>(
+         &mut self,
+         channel: Arc<Channel>,
+         storage: Arc<Ledger<T, P>>,
+@@ -126,7 +124,7 @@ impl SyncHandler {
+                     storage.get_latest_block_height() - height,
+                     (Utc::now() - date_time).num_milliseconds() as f64 / 1000.
+                 );
+-                self.update_sync_state(storage.get_latest_block_height());
++                self.update_syncing(storage.get_latest_block_height());
+             }
+ 
+             // Sync up to 3 blocks at once
+@@ -168,9 +166,11 @@ impl SyncHandler {
+                     }
+                 }
+             }
+-        }
+ 
+-        self.update_pending_blocks(Arc::clone(&storage));
++            self.clear_pending(Arc::clone(&storage));
++        } else {
++            self.clear_pending(Arc::clone(&storage));
++        }
+ 
+         Ok(())
+     }
+diff --git a/network/src/internal/connection_handler.rs b/network/src/internal/connection_handler.rs
+index 84f0cf1cd..152b08d29 100644
+--- a/network/src/internal/connection_handler.rs
++++ b/network/src/internal/connection_handler.rs
+@@ -23,7 +23,7 @@ use crate::{
+ };
+ 
+ use chrono::{Duration as ChronoDuration, Utc};
+-use std::{net::SocketAddr, time::Duration};
++use std::time::Duration;
+ use tokio::{task, time::delay_for};
+ 
+ impl Server {
+@@ -80,46 +80,28 @@ impl Server {
+                             }
+                         }
+ 
+-                        // Create a list of gossiped peers and bootnodes to connect to.
+-                        let mut gossiped_peers = vec![];
+-
+-                        // Add gossiped peers.
++                        // Try and connect to our gossiped peers.
+                         for (remote_address, _last_seen) in peer_book.get_gossiped() {
+                             if remote_address != local_address && !peer_book.connected_contains(&remote_address) {
+-                                gossiped_peers.push(remote_address);
+-                            }
+-                        }
+-
+-                        // Add unconnected bootnodes to the list of gossiped peers.
+-                        for bootnode in context.bootnodes.iter() {
+-                            if let Ok(bootnode_address) = bootnode.parse::<SocketAddr>() {
+-                                if bootnode_address != local_address && !peer_book.connected_contains(&bootnode_address)
++                                // Create a non-blocking handshake request
+                                 {
+-                                    gossiped_peers.push(bootnode_address);
+-                                }
+-                            }
+-                        }
++                                    let new_context = context.clone();
++                                    let latest_block_height = storage.get_latest_block_height();
+ 
+-                        // Try and connect to gossiped peers and unconnected bootnodes.
+-                        for remote_address in gossiped_peers {
+-                            // Create a non-blocking handshake request
+-                            {
+-                                let new_context = context.clone();
+-                                let latest_block_height = storage.get_latest_block_height();
+-
+-                                task::spawn(async move {
+-                                    // TODO (raychu86) Establish a formal node version
+-                                    let version =
+-                                        Version::new(1u64, latest_block_height, remote_address, local_address);
+-
+-                                    let mut handshakes = new_context.handshakes.write().await; // Acquire the handshake lock
+-                                    if let Err(_) = handshakes.send_request(&version).await {
+-                                        debug!("Could not connect to gossiped peer {}", remote_address);
+-                                    }
+-                                });
++                                    task::spawn(async move {
++                                        // TODO (raychu86) Establish a formal node version
++                                        let version =
++                                            Version::new(1u64, latest_block_height, remote_address, local_address);
+ 
+-                                peer_book.remove_gossiped(remote_address);
++                                        let mut handshakes = new_context.handshakes.write().await; // Acquire the handshake lock
++                                        if let Err(_) = handshakes.send_request(&version).await {
++                                            debug!("Could not connect to gossiped peer {}", remote_address);
++                                        }
++                                    });
++                                }
+                             }
++
++                            peer_book.remove_gossiped(remote_address);
+                         }
+                     }
+ 
+@@ -169,9 +151,9 @@ impl Server {
+                     }
+ 
+                     // Store connected peers in database.
+-                    if let Err(error) = peer_book.store(&storage) {
+-                        debug!("Failed to store connected peers in database {}", error);
+-                    }
++                    peer_book
++                        .store(&storage)
++                        .unwrap_or_else(|error| debug!("Failed to store connected peers in database {}", error));
+ 
+                     // Every two frequency loops, send a version message to all peers for periodic syncs.
+                     if interval_ticker % 2 == 1 {
+@@ -207,16 +189,12 @@ impl Server {
+ 
+                     // Update our memory pool after memory_pool_interval frequency loops.
+                     if interval_ticker >= context.memory_pool_interval {
+-                        // Ask our sync node for their memory pool transactions
+-                        {
+-                            if let Ok(sync_handler) = sync_handler_lock.try_lock() {
+-                                // Ask our sync node for more transactions.
+-                                if local_address != sync_handler.sync_node {
+-                                    if let Some(channel) = connections.get(&sync_handler.sync_node) {
+-                                        // Disconnect from the peer if the GetMemoryPool message was not sent properly
+-                                        if let Err(_) = channel.write(&GetMemoryPool).await {
+-                                            peer_book.disconnect_peer(sync_handler.sync_node);
+-                                        }
++                        if let Ok(sync_handler) = sync_handler_lock.try_lock() {
++                            // Ask our sync node for more transactions.
++                            if local_address != sync_handler.sync_node {
++                                if let Some(channel) = connections.get(&sync_handler.sync_node) {
++                                    if let Err(_) = channel.write(&GetMemoryPool).await {
++                                        peer_book.disconnect_peer(sync_handler.sync_node);
+                                     }
+                                 }
+                             }
+@@ -229,13 +207,13 @@ impl Server {
+                             _ => continue,
+                         };
+ 
+-                        if let Err(error) = memory_pool.cleanse(&storage) {
++                        memory_pool.cleanse(&storage).unwrap_or_else(|error| {
+                             debug!("Failed to cleanse memory pool transactions in database {}", error)
+-                        };
++                        });
+ 
+-                        if let Err(error) = memory_pool.store(&storage) {
++                        memory_pool.store(&storage).unwrap_or_else(|error| {
+                             debug!("Failed to store memory pool transaction in database {}", error)
+-                        };
++                        });
+ 
+                         interval_ticker = 0;
+                     } else {
+diff --git a/network/src/internal/message_handler.rs b/network/src/internal/message_handler.rs
+index a7eceb9e2..ada38ca20 100644
+--- a/network/src/internal/message_handler.rs
++++ b/network/src/internal/message_handler.rs
+@@ -37,7 +37,6 @@ use snarkos_utilities::{
+ 
+ use chrono::Utc;
+ use std::{net::SocketAddr, sync::Arc};
+-use tokio::task;
+ 
+ impl Server {
+     /// This method handles all messages sent from connected peers.
+@@ -223,18 +222,13 @@ impl Server {
+ 
+                     propagate_block(self.context.clone(), message.data, channel.address).await?;
+                 } else if !propagate {
+-                    // Poll the sync handler to continue the sync
+-                    {
+-                        if let Ok(mut sync_handler) = self.sync_handler_lock.try_lock() {
+-                            sync_handler.update_pending_blocks(Arc::clone(&self.storage));
+-
+-                            if sync_handler.is_syncing() {
+-                                // We are currently syncing with a node. Poll the sync handler to continue syncing.
+-                                if let Some(channel) =
+-                                    self.context.connections.read().await.get(&sync_handler.sync_node)
+-                                {
+-                                    sync_handler.poll(channel, Arc::clone(&self.storage)).await?;
+-                                }
++                    if let Ok(mut sync_handler) = self.sync_handler_lock.try_lock() {
++                        sync_handler.clear_pending(Arc::clone(&self.storage));
++
++                        if sync_handler.sync_state != SyncState::Idle {
++                            // We are currently syncing with a node, ask for the next block.
++                            if let Some(channel) = self.context.connections.read().await.get(&sync_handler.sync_node) {
++                                sync_handler.increment(channel, Arc::clone(&self.storage)).await?;
+                             }
+                         }
+                     }
+@@ -408,22 +402,14 @@ impl Server {
+     /// A peer has sent us their chain state.
+     async fn receive_sync(&mut self, message: Sync) -> Result<(), ServerError> {
+         let height = self.storage.get_latest_block_height();
+-        let context = self.context.clone();
+-        let sync_handler_lock = self.sync_handler_lock.clone();
+-        let storage = self.storage.clone();
++        let mut sync_handler = self.sync_handler_lock.lock().await;
+ 
+-        task::spawn(async move {
+-            let mut sync_handler = sync_handler_lock.lock().await;
++        sync_handler.receive_hashes(message.block_hashes, height);
+ 
+-            sync_handler.receive_hashes(message.block_hashes, height);
+-
+-            // Received block headers
+-            if let Some(channel) = context.connections.read().await.get(&sync_handler.sync_node) {
+-                if let Err(error) = sync_handler.poll(channel, Arc::clone(&storage)).await {
+-                    error!("Error polling sync handler (error {})", error);
+-                }
+-            }
+-        });
++        // Received block headers
++        if let Some(channel) = self.context.connections.read().await.get(&sync_handler.sync_node) {
++            sync_handler.increment(channel, Arc::clone(&self.storage)).await?;
++        }
+ 
+         Ok(())
+     }
+@@ -448,13 +434,21 @@ impl Server {
+     /// Check if the Verack matches the last handshake message we sent.
+     /// Update our peer book and send a request for more peers.
+     async fn receive_verack(&mut self, message: Verack, channel: Arc<Channel>) -> Result<(), ServerError> {
+-        let mut handshakes = self.context.handshakes.write().await; // Acquire the handshake lock
+-
+-        match handshakes.accept_response(channel.address, message).await {
++        match self
++            .context
++            .handshakes
++            .write()
++            .await
++            .accept_response(channel.address, message)
++            .await
++        {
+             Ok(()) => {
+                 // Add connected peer.
+-                let mut peer_book = self.context.peer_book.write().await; // Acquire the peerbook lock
+-                peer_book.update_connected(channel.address, Utc::now());
++                self.context
++                    .peer_book
++                    .write()
++                    .await
++                    .update_connected(channel.address, Utc::now());
+ 
+                 // Ask connected peer for more peers.
+                 channel.write(&GetPeers).await?;
+@@ -483,8 +477,12 @@ impl Server {
+ 
+         if *self.context.local_address.read().await != peer_address {
+             if peer_book.connected_total() < self.context.max_peers {
+-                let mut handshakes = self.context.handshakes.write().await; // Acquire the handshake lock
+-                handshakes.receive_request(message.clone(), peer_address).await?;
++                self.context
++                    .handshakes
++                    .write()
++                    .await
++                    .receive_request(message.clone(), peer_address)
++                    .await?;
+             }
+ 
+             // If our peer has a longer chain, send a sync message
+@@ -492,44 +490,23 @@ impl Server {
+                 debug!("Received a version message with a greater height {}", message.height);
+                 // Update the sync node if the sync_handler is Idle and there are no requested block headers
+                 if let Ok(mut sync_handler) = self.sync_handler_lock.try_lock() {
+-                    let mut swap_sync_nodes = false;
+-
+-                    match sync_handler.sync_state {
+-                        SyncState::Idle => swap_sync_nodes = true,
+-                        SyncState::Syncing(last_updated, _height) => {
+-                            // If the node is currently syncing and the sync_node has not responded in 15 seconds,
+-                            // attempt to connect to a new sync node
+-                            let last_sync_response = Utc::now().timestamp() - last_updated.timestamp();
+-                            if last_sync_response > 15 {
+-                                debug!(
+-                                    "Current sync node has not responded in {} seconds. Attempting to find new sync node.",
+-                                    last_sync_response
+-                                );
+-                                swap_sync_nodes = true;
+-                            } else {
+-                                // We are currently syncing with a node. Poll the sync handler to continue syncing.
+-                                if let Some(channel) =
+-                                    self.context.connections.read().await.get(&sync_handler.sync_node)
+-                                {
+-                                    sync_handler.poll(channel, Arc::clone(&self.storage)).await?;
+-                                }
+-                            }
+-                        }
+-                    }
+-
+-                    // If the node should swap sync nodes, then update the sync node and restart the sync
+-                    if swap_sync_nodes {
++                    if !sync_handler.is_syncing()
++                        && (sync_handler.block_headers.len() == 0 && sync_handler.pending_blocks.is_empty())
++                    {
+                         debug!("Attempting to sync with peer {}", peer_address);
+                         sync_handler.sync_node = peer_address;
+ 
+                         if let Ok(block_locator_hashes) = self.storage.get_block_locator_hashes() {
+                             channel.write(&GetSync::new(block_locator_hashes)).await?;
+                         }
++                    } else {
++                        if let Some(channel) = self.context.connections.read().await.get(&sync_handler.sync_node) {
++                            sync_handler.increment(channel, Arc::clone(&self.storage)).await?;
++                        }
+                     }
+                 }
+             }
+         }
+-
+         Ok(channel)
+     }
+ }
+diff --git a/network/src/server.rs b/network/src/server.rs
+index 29e64ab7d..b407075f5 100644
+--- a/network/src/server.rs
++++ b/network/src/server.rs
+@@ -30,13 +30,11 @@ use std::{
+     collections::HashMap,
+     net::{Shutdown, SocketAddr},
+     sync::Arc,
+-    time::Duration,
+ };
+ use tokio::{
+     net::TcpListener,
+     sync::{mpsc, oneshot, Mutex},
+     task,
+-    time::delay_for,
+ };
+ 
+ /// The main networking component of a node.
+@@ -155,20 +153,18 @@ impl Server {
+                         // If our peer has a longer chain, send a sync message
+                         if version.height > storage.get_latest_block_height() {
+                             // Update the sync node if the sync_handler is Idle
+-                            {
+-                                if let Ok(mut sync_handler) = sync_handler_lock.try_lock() {
+-                                    if !sync_handler.is_syncing() {
+-                                        sync_handler.sync_node = handshake.channel.address;
+-
+-                                        if let Ok(block_locator_hashes) = storage.get_block_locator_hashes() {
+-                                            if let Err(err) =
+-                                                handshake.channel.write(&GetSync::new(block_locator_hashes)).await
+-                                            {
+-                                                error!(
+-                                                    "Error sending GetSync message to {}, {}",
+-                                                    handshake.channel.address, err
+-                                                );
+-                                            }
++                            if let Ok(mut sync_handler) = sync_handler_lock.try_lock() {
++                                if !sync_handler.is_syncing() {
++                                    sync_handler.sync_node = handshake.channel.address;
++
++                                    if let Ok(block_locator_hashes) = storage.get_block_locator_hashes() {
++                                        if let Err(err) =
++                                            handshake.channel.write(&GetSync::new(block_locator_hashes)).await
++                                        {
++                                            error!(
++                                                "Error sending GetSync message to {}, {}",
++                                                handshake.channel.address, err
++                                            );
+                                         }
+                                     }
+                                 }
+@@ -243,7 +239,7 @@ impl Server {
+                 }
+ 
+                 // Sleep for 10 seconds
+-                delay_for(Duration::from_secs(10)).await;
++                tokio::time::delay_for(std::time::Duration::from_secs(10)).await;
+             }
+ 
+             let mut failure_count = 0u8;
+@@ -298,38 +294,34 @@ impl Server {
+     }
+ 
+     /// Send a handshake request to a node at address without blocking the server listener.
+-    fn send_handshake_non_blocking(context: Arc<Context>, storage: Arc<MerkleTreeLedger>, remote_address: SocketAddr) {
++    fn send_handshake_non_blocking(&self, remote_address: SocketAddr) {
++        let context = self.context.clone();
++        let storage = self.storage.clone();
++
+         task::spawn(async move {
+             let height = storage.get_latest_block_height();
+             let version = Version::new(1u64, height, remote_address, *context.local_address.read().await);
+ 
+             let mut handshakes = context.handshakes.write().await;
+-            if let Err(error) = handshakes.send_request(&version).await {
+-                debug!("Failed to connect to peer {} (error {})", remote_address, error);
+-            }
++            handshakes.send_request(&version).await.unwrap_or_else(|error| {
++                info!("Failed to connect to {:?}", error);
++                ()
++            });
+         });
+     }
+ 
+     /// Send a handshake request the first bootnode and store the rest as gossipped peers
+     async fn connect_bootnodes(&mut self) {
+         let local_address = *self.context.local_address.read().await;
+-        let bootnodes = self.context.bootnodes.clone();
+-        let context = self.context.clone();
+-        let storage = self.storage.clone();
+-
+-        // Create a thread to send handshake requests to bootnodes
+-        task::spawn(async move {
+-            for bootnode in bootnodes.iter() {
+-                if let Ok(bootnode_address) = bootnode.parse::<SocketAddr>() {
+-                    // This node should not attempt to connect to itself.
+-                    if local_address != bootnode_address {
+-                        info!("Connecting to {:?} (bootnode)...", bootnode_address);
+-                        Server::send_handshake_non_blocking(context.clone(), storage.clone(), bootnode_address);
+-                        delay_for(Duration::from_millis(500)).await;
+-                    }
++        for bootnode in self.context.bootnodes.iter() {
++            if let Ok(bootnode_address) = bootnode.parse::<SocketAddr>() {
++                // This node should not attempt to connect to itself.
++                if local_address != bootnode_address {
++                    info!("Connecting to {:?} (bootnode)...", bootnode_address);
++                    self.send_handshake_non_blocking(bootnode_address);
+                 }
+             }
+-        });
++        }
+     }
+ 
+     /// Send a handshake request to every peer this server previously connected to.
+@@ -339,20 +331,13 @@ impl Server {
+                 bincode::deserialize::<HashMap<SocketAddr, DateTime<Utc>>>(&serialized_peers)
+             {
+                 let local_address = *self.context.local_address.read().await;
+-                let context = self.context.clone();
+-                let storage = self.storage.clone();
+-
+-                // Create a thread to send handshake requests to stored peers
+-                task::spawn(async move {
+-                    for (saved_address, _old_time) in stored_connected_peers {
+-                        // This node should not attempt to connect to itself.
+-                        if local_address != saved_address {
+-                            info!("Connecting to {:?} (saved peer)...", saved_address);
+-                            Server::send_handshake_non_blocking(context.clone(), storage.clone(), saved_address);
+-                            delay_for(Duration::from_millis(500)).await;
+-                        }
++                for (saved_address, _old_time) in stored_connected_peers {
++                    // This node should not attempt to connect to itself.
++                    if local_address != saved_address {
++                        info!("Connecting to {:?} (saved peer)...", saved_address);
++                        self.send_handshake_non_blocking(saved_address);
+                     }
+-                });
++                }
+             }
+         }
+     }
+diff --git a/network/tests/sync_integration.rs b/network/tests/sync_integration.rs
+index fbfce63c1..8d37525c6 100644
+--- a/network/tests/sync_integration.rs
++++ b/network/tests/sync_integration.rs
+@@ -48,7 +48,7 @@ mod sync_integration {
+             let (tx, rx) = oneshot::channel();
+             tokio::spawn(async move {
+                 sync_handler
+-                    .poll(
++                    .increment(
+                         Arc::new(Channel::new_write_only(bootnode_address).await.unwrap()),
+                         storage,
+                     )
+@@ -83,13 +83,13 @@ mod sync_integration {
+             // 1. Set syncing to true
+ 
+             let mut sync_handler = SyncHandler::new(bootnode_address);
+-            sync_handler.update_sync_state(0);
++            sync_handler.update_syncing(0);
+ 
+             // 2. Call increment_sync_handler_internally
+             let (tx, rx) = oneshot::channel();
+             tokio::spawn(async move {
+                 sync_handler
+-                    .poll(
++                    .increment(
+                         Arc::new(Channel::new_write_only(bootnode_address).await.unwrap()),
+                         storage,
+                     )

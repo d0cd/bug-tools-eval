@@ -1,0 +1,53 @@
+diff --git a/scripts/change-version.js b/scripts/change-version.js
+index 71a1df4f..604c5092 100644
+--- a/scripts/change-version.js
++++ b/scripts/change-version.js
+@@ -37,6 +37,17 @@ async function updateVersions(newVersion) {
+ }
+ 
+ 
++// Updates the version in `Cargo.toml`
++async function updateCargo(newVersion) {
++    const toml = await readFile("wasm/Cargo.toml", { encoding: "utf8" });
++
++    const replaced = toml
++        .replace(/(\[package\]\s+name *= *"aleo-wasm"\s+version *= *)"[^"]+"/, `$1"${newVersion}"`);
++
++    await writeFile("wasm/Cargo.toml", replaced);
++}
++
++
+ // Updates all of the `package.json` files so they use the correct
+ // version of `@provablehq/wasm` and `@provablehq/sdk`
+ async function updateDependencies(newVersion) {
+@@ -51,4 +62,5 @@ async function updateDependencies(newVersion) {
+ const newVersion = process.argv[2];
+ 
+ await updateVersions(newVersion);
++await updateCargo(newVersion);
+ await updateDependencies(newVersion);
+diff --git a/sdk/rollup.config.js b/sdk/rollup.config.js
+index b430f4a7..585e85f9 100644
+--- a/sdk/rollup.config.js
++++ b/sdk/rollup.config.js
+@@ -1,6 +1,6 @@
+ import typescript from "rollup-plugin-typescript2";
+ import replace from "@rollup/plugin-replace";
+-import $package from "./package.json" assert { type: "json" };
++import $package from "./package.json" with { type: "json" };
+ 
+ const networks = [
+     "testnet",
+diff --git a/sdk/rollup.test.js b/sdk/rollup.test.js
+index 57d7bb08..5af466a1 100644
+--- a/sdk/rollup.test.js
++++ b/sdk/rollup.test.js
+@@ -1,7 +1,7 @@
+ import typescript from "rollup-plugin-typescript2";
+ import replace from "@rollup/plugin-replace";
+ import { globSync } from "glob";
+-import $package from "./package.json" assert { type: "json" };
++import $package from "./package.json" with { type: "json" };
+ 
+ const networks = [
+     "testnet",

@@ -1,0 +1,171 @@
+diff --git a/compiler/src/statement/assign/assignee/array_index.rs b/compiler/src/statement/assign/assignee/array_index.rs
+index c7f218527a..ecf6796486 100644
+--- a/compiler/src/statement/assign/assignee/array_index.rs
++++ b/compiler/src/statement/assign/assignee/array_index.rs
+@@ -89,19 +89,33 @@ impl<'a, F: PrimeField, G: GroupType<F>> ConstrainedProgram<'a, F, G> {
+                     .evaluate_equal(eq_namespace, &Integer::new(&const_index))
+                     .map_err(|_| ExpressionError::cannot_evaluate("==".to_string(), &span))?;
+ 
+-                let unique_namespace = cs.ns(|| {
++                let mut unique_namespace = cs.ns(|| {
+                     format!(
+                         "select array dyn assignment {} {}:{}",
+                         i, span.line_start, span.col_start
+                     )
+                 });
+-                let value = ConstrainedValue::conditionally_select(
+-                    unique_namespace,
+-                    &index_comparison,
+-                    &context.target_value,
+-                    &item,
+-                )
+-                .map_err(|e| ExpressionError::cannot_enforce("conditional select".to_string(), e, &span))?;
++                let temp_item = {
++                    let mut item = item.clone();
++                    let mut new_context = ResolverContext {
++                        input: vec![&mut item],
++                        span: context.span.clone(),
++                        target_value: context.target_value.clone(),
++                        remaining_accesses: context.remaining_accesses,
++                        indicator: context.indicator,
++                        operation: context.operation,
++                    };
++                    if context.remaining_accesses.is_empty() {
++                        let item = new_context.input.remove(0);
++                        self.enforce_assign_context(&mut unique_namespace, &new_context, item)?;
++                    } else {
++                        self.resolve_target_access(&mut unique_namespace, new_context)?;
++                    }
++                    item
++                };
++                let value =
++                    ConstrainedValue::conditionally_select(unique_namespace, &index_comparison, &temp_item, &item)
++                        .map_err(|e| ExpressionError::cannot_enforce("conditional select".to_string(), e, &span))?;
+                 *item = value;
+             }
+             Ok(())
+diff --git a/compiler/src/statement/assign/assignee/mod.rs b/compiler/src/statement/assign/assignee/mod.rs
+index ed11f5323b..ca81ccc4ab 100644
+--- a/compiler/src/statement/assign/assignee/mod.rs
++++ b/compiler/src/statement/assign/assignee/mod.rs
+@@ -32,7 +32,7 @@ struct ResolverContext<'a, 'b, F: PrimeField, G: GroupType<F>> {
+     input: Vec<&'b mut ConstrainedValue<'a, F, G>>,
+     span: Span,
+     target_value: ConstrainedValue<'a, F, G>,
+-    remaining_accesses: Vec<&'b AssignAccess<'a>>,
++    remaining_accesses: &'b [&'b AssignAccess<'a>],
+     indicator: &'b Boolean,
+     operation: AssignOperation,
+ }
+@@ -68,7 +68,9 @@ impl<'a, F: PrimeField, G: GroupType<F>> ConstrainedProgram<'a, F, G> {
+             self.enforce_assign_context(cs, &context, input)?;
+             return Ok(());
+         }
+-        match context.remaining_accesses.pop().unwrap() {
++        let access = context.remaining_accesses[context.remaining_accesses.len() - 1];
++        context.remaining_accesses = &context.remaining_accesses[..context.remaining_accesses.len() - 1];
++        match access {
+             AssignAccess::ArrayRange(start, stop) => {
+                 self.resolve_target_access_array_range(cs, context, start.get(), stop.get())
+             }
+@@ -89,11 +91,12 @@ impl<'a, F: PrimeField, G: GroupType<F>> ConstrainedProgram<'a, F, G> {
+         let variable = assignee.target_variable.get().borrow();
+ 
+         let mut target = self.get(variable.id).unwrap().clone();
++        let accesses: Vec<_> = assignee.target_accesses.iter().rev().collect();
+         self.resolve_target_access(cs, ResolverContext {
+             input: vec![&mut target],
+             span,
+             target_value,
+-            remaining_accesses: assignee.target_accesses.iter().rev().collect(),
++            remaining_accesses: &accesses[..],
+             indicator,
+             operation: assignee.operation,
+         })?;
+diff --git a/compiler/src/value/integer/integer.rs b/compiler/src/value/integer/integer.rs
+index 306e845e4c..b9ccf614a9 100644
+--- a/compiler/src/value/integer/integer.rs
++++ b/compiler/src/value/integer/integer.rs
+@@ -90,25 +90,11 @@ impl Integer {
+         match_integer!(integer => integer.to_bits_le())
+     }
+ 
+-    // pub fn get_bits_typed(&self) -> (Vec<Boolean>, IntegerType) {
+-    //     let integer = self;
+-    //     (match_integer!(integer => integer.to_bits_le()), self.get_type())
+-    // }
+-
+-    // pub fn from_bits_typed(type_: &IntegerType, bits: &[Boolean]) -> Integer {
+-    //     match type_ {
+-    //         IntegerType::U8 => Integer::U8(UInt8::from_bits_le(bits)),
+-    //         IntegerType::U16 => Integer::U16(UInt16::from_bits_le(bits)),
+-    //         IntegerType::U32 => Integer::U32(UInt32::from_bits_le(bits)),
+-    //         IntegerType::U64 => Integer::U64(UInt64::from_bits_le(bits)),
+-    //         IntegerType::U128 => Integer::U128(UInt128::from_bits_le(bits)),
+-    //         IntegerType::I8 => Integer::I8(Int8::from_bits_le(bits)),
+-    //         IntegerType::I16 => Integer::I16(Int16::from_bits_le(bits)),
+-    //         IntegerType::I32 => Integer::I32(Int32::from_bits_le(bits)),
+-    //         IntegerType::I64 => Integer::I64(Int64::from_bits_le(bits)),
+-    //         IntegerType::I128 => Integer::I128(Int128::from_bits_le(bits)),
+-    //     }
+-    // }
++    pub fn is_allocated(&self) -> bool {
++        self.get_bits()
++            .into_iter()
++            .any(|b| matches!(b, Boolean::Is(_) | Boolean::Not(_)))
++    }
+ 
+     pub fn get_value(&self) -> Option<String> {
+         let integer = self;
+@@ -116,6 +102,9 @@ impl Integer {
+     }
+ 
+     pub fn to_usize(&self) -> Option<usize> {
++        if self.is_allocated() {
++            return None;
++        }
+         let unsigned_integer = self;
+         match_unsigned_integer!(unsigned_integer => unsigned_integer.value.map(|num| num.try_into().ok()).flatten())
+     }
+diff --git a/tests/expectations/compiler/compiler/mutability/array_dyn_mut.leo.out b/tests/expectations/compiler/compiler/mutability/array_dyn_mut.leo.out
+index b766490e0c..3e44d8556b 100644
+--- a/tests/expectations/compiler/compiler/mutability/array_dyn_mut.leo.out
++++ b/tests/expectations/compiler/compiler/mutability/array_dyn_mut.leo.out
+@@ -4,11 +4,11 @@ expectation: Pass
+ outputs:
+   - circuit:
+       num_public_variables: 0
+-      num_private_variables: 65
+-      num_constraints: 66
+-      at: 0c8cb242ee3815f5ea6fdd08873577a6cc51fcfbda8cb5671f0b4dc851939d07
+-      bt: 32bbce55a7ed95a5b0277ef5ddfa171ad065c5c7c743031d8b0bd8e50e51b0af
+-      ct: b0a68f3915594800e43cb144dc499a002fd302374532313e835dfa163d38f0f1
++      num_private_variables: 1087
++      num_constraints: 1350
++      at: aae29cb6b4a71a5cf49d3de006b415b9a7818a2e23191819692e8d2ee69d8be2
++      bt: 11262f31fcaa7950be43eded328287305e7cbcb73c19455808f08f38116cfdd6
++      ct: 01dfba9e0754ad9890117694c9b03f4646642140aa7b6c393b2e264e701c323e
+     output:
+       - input_file: input/index1.in
+         output:
+diff --git a/tests/expectations/compiler/compiler/mutability/array_dyn_mut_indirect.leo.out b/tests/expectations/compiler/compiler/mutability/array_dyn_mut_indirect.leo.out
+index 7c7f624238..bd396d450f 100644
+--- a/tests/expectations/compiler/compiler/mutability/array_dyn_mut_indirect.leo.out
++++ b/tests/expectations/compiler/compiler/mutability/array_dyn_mut_indirect.leo.out
+@@ -4,11 +4,11 @@ expectation: Pass
+ outputs:
+   - circuit:
+       num_public_variables: 0
+-      num_private_variables: 32
+-      num_constraints: 32
+-      at: 4f36fe54f989d60bb9c279120800f4f44596c2efb7ba703669d4c4d591569780
+-      bt: d378030968a64801f66d95699329086ca17e676d8bffcf73f6b431cbda7c7005
+-      ct: dbd098af6556ed79650d149b1691be336a46f8bad6f327e942508dd11342575e
++      num_private_variables: 924
++      num_constraints: 1310
++      at: f4c2d999e3cfce5433bbde762d8c826c8df8764b9223dd5d7147cd09810f25b7
++      bt: fa02e90dd0bde30bc5feab46c3ea4fae0493dc6808d56bc6a1d937eb17297981
++      ct: 8f6f484310918a186286820e4efd1e7494774c314e9e5c6f78bb60bdeae948f4
+     output:
+       - input_file: input/index1_tuple.in
+         output:

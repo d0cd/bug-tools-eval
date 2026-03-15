@@ -1,0 +1,41 @@
+diff --git a/website/src/tabs/algebra/FieldArithmetic.jsx b/website/src/tabs/algebra/FieldArithmetic.jsx
+index ed47e64f..0e4b4330 100644
+--- a/website/src/tabs/algebra/FieldArithmetic.jsx
++++ b/website/src/tabs/algebra/FieldArithmetic.jsx
+@@ -47,8 +47,8 @@ export const FieldArithmetic = () => {
+     };
+ 
+     const calculateResult = (num1, num2, op) => {
+-        if ((op === "inv" && num1 === "") || 
+-            (op !== "inv" && (num1 === "" || num2 === ""))) {
++        if (((op === "inv" || op === "mulinv") && num1 === "") ||
++            ((op !== "inv" && op !== "mulinv") && (num1 === "" || num2 === ""))) {
+             setResult("");
+             return;
+         }
+diff --git a/website/src/tabs/algebra/GroupArithmetic.jsx b/website/src/tabs/algebra/GroupArithmetic.jsx
+index 4b83e943..e79cfcab 100644
+--- a/website/src/tabs/algebra/GroupArithmetic.jsx
++++ b/website/src/tabs/algebra/GroupArithmetic.jsx
+@@ -152,6 +152,12 @@ export const GroupArithmetic = () => {
+         calculateResult(groupValueOne, newValue, operation);
+     };
+ 
++    const onScalarRandom = () => {
++        const newValue = generateRandomScalar();
++        setScalarValue(newValue);
++        calculateResult(groupValueOne, groupValueTwo, operation, newValue);
++    }
++
+     const layout = { 
+         labelCol: { span: 6 }, 
+         wrapperCol: { span: 18 },
+@@ -264,7 +270,7 @@ export const GroupArithmetic = () => {
+                             />
+                             <Button 
+                                 size="large"
+-                                onClick={() => setScalarValue(generateRandomScalar())}
++                                onClick={onScalarRandom}
+                                 style={{ width: '110px' }}
+                             >
+                                 Random

@@ -1,0 +1,10 @@
+diff --git a/examples/hackers-delight/ntzdebruijn/src/main.leo b/examples/hackers-delight/ntzdebruijn/src/main.leo
+index 8b958cf3a9..4b7a748940 100644
+--- a/examples/hackers-delight/ntzdebruijn/src/main.leo
++++ b/examples/hackers-delight/ntzdebruijn/src/main.leo
+@@ -1,4 +1,4 @@
+-program ntzdebrujin.aleo {
++program ntzdebruijn.aleo {
+     // The 'ntzdebruijn' main function.
+     // From Hacker's Delight 2nd ed. figure 5-26
+     transition main(public x: u32) -> u8 {

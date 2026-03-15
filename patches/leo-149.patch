@@ -1,0 +1,86 @@
+diff --git a/compiler/src/statement/statement.rs b/compiler/src/statement/statement.rs
+index 5156df84b3..b97235d226 100644
+--- a/compiler/src/statement/statement.rs
++++ b/compiler/src/statement/statement.rs
+@@ -137,9 +137,10 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+     }
+ }
+ 
+-/// Returns the indicator boolean gadget value.
+-/// We can directly compare a boolean constant to the indicator since we are not enforcing any
+-/// constraints
++/// Unwraps the indicator boolean gadget value or `false` if `None`.
++/// This method is used by logging methods only.
++/// We can directly get the boolean value of the indicator since we are not enforcing any
++/// constraints.
+ pub fn get_indicator_value(indicator: &Boolean) -> bool {
+-    indicator.eq(&Boolean::constant(true))
++    indicator.get_value().unwrap_or(false)
+ }
+diff --git a/compiler/tests/console/input/input_equal.in b/compiler/tests/console/input/input_equal.in
+new file mode 100644
+index 0000000000..c147902071
+--- /dev/null
++++ b/compiler/tests/console/input/input_equal.in
+@@ -0,0 +1,3 @@
++[main]
++a: u32 = 1;
++b: u32 = 1;
+diff --git a/compiler/tests/console/input/input_unequal.in b/compiler/tests/console/input/input_unequal.in
+new file mode 100644
+index 0000000000..37e9e6a578
+--- /dev/null
++++ b/compiler/tests/console/input/input_unequal.in
+@@ -0,0 +1,3 @@
++[main]
++a: u32 = 1;
++b: u32 = 0;
+diff --git a/compiler/tests/console/log_conditional.leo b/compiler/tests/console/log_conditional.leo
+new file mode 100644
+index 0000000000..a9fdb6e698
+--- /dev/null
++++ b/compiler/tests/console/log_conditional.leo
+@@ -0,0 +1,6 @@
++// Conditionally add two u32 integers and log the result to the console.
++function main(a: u32, b: u32) {
++    if a == b {
++        console.log("{}=={}",a,b); // This line should not fail.
++    }
++}
+\ No newline at end of file
+diff --git a/compiler/tests/console/mod.rs b/compiler/tests/console/mod.rs
+index 15b7c309a9..7741c9034c 100644
+--- a/compiler/tests/console/mod.rs
++++ b/compiler/tests/console/mod.rs
+@@ -14,7 +14,7 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{assert_satisfied, expect_compiler_error, generate_main_input, parse_program};
++use crate::{assert_satisfied, expect_compiler_error, generate_main_input, parse_program, parse_program_with_input};
+ use leo_ast::InputValue;
+ 
+ #[test]
+@@ -84,6 +84,22 @@ fn test_log_input() {
+     assert_satisfied(program);
+ }
+ 
++#[test]
++fn test_log_conditional() {
++    let program_string = include_str!("log_conditional.leo");
++    let input_equal_string = include_str!("input/input_equal.in");
++
++    let program = parse_program_with_input(program_string.clone(), input_equal_string).unwrap();
++
++    assert_satisfied(program);
++
++    let input_unequal_string = include_str!("input/input_unequal.in");
++
++    let program = parse_program_with_input(program_string, input_unequal_string).unwrap();
++
++    assert_satisfied(program);
++}
++
+ // Debug
+ 
+ #[test]

@@ -1,0 +1,409 @@
+diff --git a/asg/src/expression/circuit_init.rs b/asg/src/expression/circuit_init.rs
+index 6a199eaf62..377142cbc3 100644
+--- a/asg/src/expression/circuit_init.rs
++++ b/asg/src/expression/circuit_init.rs
+@@ -166,7 +166,7 @@ impl Into<leo_ast::CircuitInitExpression> for &CircuitInitExpression {
+             members: self
+                 .values
+                 .iter()
+-                .map(|(name, value)| leo_ast::CircuitVariableDefinition {
++                .map(|(name, value)| leo_ast::CircuitImpliedVariableDefinition {
+                     identifier: name.clone(),
+                     expression: value.as_ref().into(),
+                 })
+diff --git a/ast/src/circuits/circuit_implied_variable_definition.rs b/ast/src/circuits/circuit_implied_variable_definition.rs
+new file mode 100644
+index 0000000000..963c153bec
+--- /dev/null
++++ b/ast/src/circuits/circuit_implied_variable_definition.rs
+@@ -0,0 +1,41 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the Leo library.
++
++// The Leo library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The Leo library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
++
++use crate::{Expression, Identifier};
++use leo_grammar::circuits::CircuitImpliedVariable;
++
++use serde::{Deserialize, Serialize};
++
++#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
++pub struct CircuitImpliedVariableDefinition {
++    pub identifier: Identifier,
++    pub expression: Expression,
++}
++
++impl<'ast> From<CircuitImpliedVariable<'ast>> for CircuitImpliedVariableDefinition {
++    fn from(member: CircuitImpliedVariable<'ast>) -> Self {
++        match member {
++            CircuitImpliedVariable::CircuitVariable(circuit_variable) => Self {
++                identifier: Identifier::from(circuit_variable.identifier),
++                expression: Expression::from(circuit_variable.expression),
++            },
++            CircuitImpliedVariable::Identifier(identifier) => Self {
++                identifier: Identifier::from(identifier.clone()),
++                expression: Expression::from(identifier),
++            },
++        }
++    }
++}
+diff --git a/ast/src/circuits/mod.rs b/ast/src/circuits/mod.rs
+index 8d0db90cfa..b77c90dbbd 100644
+--- a/ast/src/circuits/mod.rs
++++ b/ast/src/circuits/mod.rs
+@@ -20,5 +20,8 @@ pub use circuit::*;
+ pub mod circuit_variable_definition;
+ pub use circuit_variable_definition::*;
+ 
++pub mod circuit_implied_variable_definition;
++pub use circuit_implied_variable_definition::*;
++
+ pub mod circuit_member;
+ pub use circuit_member::*;
+diff --git a/ast/src/expression/circuit_init.rs b/ast/src/expression/circuit_init.rs
+index d189d3521f..9f79f3c9ba 100644
+--- a/ast/src/expression/circuit_init.rs
++++ b/ast/src/expression/circuit_init.rs
+@@ -19,7 +19,7 @@ use super::*;
+ #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+ pub struct CircuitInitExpression {
+     pub name: Identifier,
+-    pub members: Vec<CircuitVariableDefinition>,
++    pub members: Vec<CircuitImpliedVariableDefinition>,
+     pub span: Span,
+ }
+ 
+@@ -28,6 +28,7 @@ impl fmt::Display for CircuitInitExpression {
+         write!(f, "{} {{", self.name)?;
+         for (i, member) in self.members.iter().enumerate() {
+             write!(f, "{}: {}", member.identifier, member.expression)?;
++
+             if i < self.members.len() - 1 {
+                 write!(f, ", ")?;
+             }
+diff --git a/ast/src/expression/mod.rs b/ast/src/expression/mod.rs
+index b276079099..f629d9d0d4 100644
+--- a/ast/src/expression/mod.rs
++++ b/ast/src/expression/mod.rs
+@@ -16,7 +16,7 @@
+ 
+ use crate::{
+     ArrayDimensions,
+-    CircuitVariableDefinition,
++    CircuitImpliedVariableDefinition,
+     GroupValue,
+     Identifier,
+     IntegerType,
+@@ -181,8 +181,8 @@ impl<'ast> From<CircuitInlineExpression<'ast>> for Expression {
+         let members = expression
+             .members
+             .into_iter()
+-            .map(CircuitVariableDefinition::from)
+-            .collect::<Vec<CircuitVariableDefinition>>();
++            .map(CircuitImpliedVariableDefinition::from)
++            .collect::<Vec<CircuitImpliedVariableDefinition>>();
+ 
+         Expression::CircuitInit(CircuitInitExpression {
+             name: circuit_name,
+@@ -485,3 +485,9 @@ impl<'ast> From<GrammarIdentifier<'ast>> for Expression {
+         Expression::Identifier(Identifier::from(identifier))
+     }
+ }
++
++impl From<Identifier> for Expression {
++    fn from(identifier: Identifier) -> Self {
++        Expression::Identifier(identifier)
++    }
++}
+diff --git a/compiler/tests/circuits/inline_member_fail.leo b/compiler/tests/circuits/inline_member_fail.leo
+new file mode 100644
+index 0000000000..7f0b8f7889
+--- /dev/null
++++ b/compiler/tests/circuits/inline_member_fail.leo
+@@ -0,0 +1,8 @@
++circuit Foo {
++    x: u8
++}
++
++function main() {
++    let y: u8 = 1;
++    let a = Foo { y };
++}
+\ No newline at end of file
+diff --git a/compiler/tests/circuits/inline_member_pass.leo b/compiler/tests/circuits/inline_member_pass.leo
+new file mode 100644
+index 0000000000..5541a65638
+--- /dev/null
++++ b/compiler/tests/circuits/inline_member_pass.leo
+@@ -0,0 +1,13 @@
++circuit Foo {
++    x: u8
++
++    function new(x: u8) -> Self {
++        return Self { x }
++    }
++}
++
++function main() {
++    let x: u8 = 1;
++    let a = Foo { x };
++    let b = Foo::new(x);
++}
+\ No newline at end of file
+diff --git a/compiler/tests/circuits/mod.rs b/compiler/tests/circuits/mod.rs
+index dbed6c7e41..488b639d0b 100644
+--- a/compiler/tests/circuits/mod.rs
++++ b/compiler/tests/circuits/mod.rs
+@@ -248,6 +248,24 @@ fn test_self_member_undefined() {
+     expect_asg_error(error);
+ }
+ 
++// Inline circuit member
++
++#[test]
++fn test_inline_member_pass() {
++    let program_string = include_str!("inline_member_pass.leo");
++    let program = parse_program(program_string).unwrap();
++
++    assert_satisfied(program);
++}
++
++#[test]
++fn test_inline_member_fail() {
++    let program_string = include_str!("inline_member_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
++
++    expect_asg_error(error);
++}
++
+ // All
+ 
+ #[test]
+diff --git a/grammar/src/circuits/circuit_implied_variable.rs b/grammar/src/circuits/circuit_implied_variable.rs
+new file mode 100644
+index 0000000000..eeb9aee4bb
+--- /dev/null
++++ b/grammar/src/circuits/circuit_implied_variable.rs
+@@ -0,0 +1,27 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the Leo library.
++
++// The Leo library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The Leo library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
++
++use crate::{ast::Rule, circuits::CircuitVariable, common::Identifier};
++
++use pest_ast::FromPest;
++use serde::Serialize;
++
++#[derive(Clone, Debug, FromPest, PartialEq, Serialize)]
++#[pest_ast(rule(Rule::circuit_implied_variable))]
++pub enum CircuitImpliedVariable<'ast> {
++    CircuitVariable(CircuitVariable<'ast>),
++    Identifier(Identifier<'ast>),
++}
+diff --git a/grammar/src/circuits/mod.rs b/grammar/src/circuits/mod.rs
+index ddbe004951..7b9a25eed6 100644
+--- a/grammar/src/circuits/mod.rs
++++ b/grammar/src/circuits/mod.rs
+@@ -17,6 +17,9 @@
+ pub mod circuit;
+ pub use circuit::*;
+ 
++pub mod circuit_implied_variable;
++pub use circuit_implied_variable::*;
++
+ pub mod circuit_variable;
+ pub use circuit_variable::*;
+ 
+diff --git a/grammar/src/expressions/circuit_inline_expression.rs b/grammar/src/expressions/circuit_inline_expression.rs
+index bfb3a5bac8..6a51792bae 100644
+--- a/grammar/src/expressions/circuit_inline_expression.rs
++++ b/grammar/src/expressions/circuit_inline_expression.rs
+@@ -14,7 +14,7 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{ast::Rule, circuits::CircuitVariable, common::Identifier, types::SelfType, SpanDef};
++use crate::{ast::Rule, circuits::CircuitImpliedVariable, common::Identifier, types::SelfType, SpanDef};
+ 
+ use pest::Span;
+ use pest_ast::FromPest;
+@@ -24,7 +24,7 @@ use serde::Serialize;
+ #[pest_ast(rule(Rule::expression_circuit_inline))]
+ pub struct CircuitInlineExpression<'ast> {
+     pub name: CircuitName<'ast>,
+-    pub members: Vec<CircuitVariable<'ast>>,
++    pub members: Vec<CircuitImpliedVariable<'ast>>,
+     #[pest_ast(outer())]
+     #[serde(with = "SpanDef")]
+     pub span: Span<'ast>,
+diff --git a/grammar/src/leo.pest b/grammar/src/leo.pest
+index a5748cedbf..8b8eabd4e3 100644
+--- a/grammar/src/leo.pest
++++ b/grammar/src/leo.pest
+@@ -327,6 +327,12 @@ circuit = { "circuit " ~ identifier ~ "{" ~ circuit_member* ~ "}" }
+ // Declared in circuits/circuit_variable.rs
+ circuit_variable = { identifier ~ ":" ~ expression }
+ 
++// Declared in circuits/circuit_implied_variable.rs
++circuit_implied_variable = {
++    circuit_variable
++    | identifier
++}
++
+ // Declared in circuits/circuit_variable_definition.rs
+ circuit_variable_definition = { identifier ~ ":" ~ type_ ~ ","?}
+ 
+@@ -376,7 +382,7 @@ circuit_name = {
+ }
+ 
+ // Declared in expressions/circuit_inline_expression.rs
+-circuit_variable_list = _{ (circuit_variable ~ ("," ~ circuit_variable)*)? ~ ","? }
++circuit_variable_list = _{ (circuit_implied_variable ~ ("," ~ circuit_implied_variable)*)? ~ ","? }
+ 
+ // Declared in expressions/unary_expression.rs
+ expression_unary = { operation_unary ~ expression_term }
+diff --git a/grammar/tests/circuits.rs b/grammar/tests/circuits.rs
+new file mode 100644
+index 0000000000..33c77151ca
+--- /dev/null
++++ b/grammar/tests/circuits.rs
+@@ -0,0 +1,116 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the Leo library.
++
++// The Leo library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The Leo library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
++
++use leo_grammar::ast::{LanguageParser, Rule};
++
++use pest::*;
++
++#[test]
++fn circuit_definition() {
++    parses_to! {
++        parser: LanguageParser,
++        input:  "circuit Foo { a: u32, }",
++        rule:   Rule::circuit,
++        tokens: [
++            circuit(0, 23, [
++                identifier(8, 11, []),
++                circuit_member(14, 21,
++                    [circuit_variable_definition(14, 21, [
++                        identifier(14, 15, []),
++                        type_(17, 20, [type_data(17, 20, [type_integer(17, 20, [type_integer_unsigned(17, 20, [type_u32(17, 20, [])])])])])
++                    ])
++                ])
++            ])
++        ]
++    }
++}
++
++#[test]
++fn circuit_instantiation() {
++    parses_to! {
++        parser: LanguageParser,
++        input:  r#"circuit Foo { a: u32, }
++    function main() { let foo = Foo { a, b: 1u32 }; }"#,
++        rule:   Rule::file,
++        tokens: [
++            file(0, 77, [
++                definition(0, 23, [
++                    circuit(0, 23, [
++                        identifier(8, 11, []),
++                        circuit_member(14, 21,
++                            [circuit_variable_definition(14, 21, [
++                                identifier(14, 15, []),
++                                type_(17, 20, [type_data(17, 20, [type_integer(17, 20, [type_integer_unsigned(17, 20, [type_u32(17, 20, [])])])])])
++                            ])
++                        ])
++                    ]),
++                ]),
++                definition(28, 77, [
++                    function(28, 77, [
++                        identifier(37, 41, []),
++                        block(44, 77, [
++                            statement(46, 75, [
++                                statement_definition(46, 75, [
++                                    declare(46, 50, [
++                                        let_(46, 50, []),
++                                    ]),
++                                    variables(50, 54, [
++                                        variable_name(50, 53, [
++                                            identifier(50, 53, [])
++                                        ])
++                                    ]),
++                                    expression(56, 74, [
++                                        expression_term(56, 74, [
++                                            expression_circuit_inline(56, 74, [
++                                                circuit_name(56, 59, [
++                                                    identifier(56, 59, [])
++                                                ]),
++                                                circuit_implied_variable(62, 63, [
++                                                    identifier(62, 63, [])
++                                                ]),
++                                                circuit_implied_variable(65, 73, [
++                                                    circuit_variable(65, 73, [
++                                                        identifier(65, 66, []),
++                                                        expression(68, 73, [
++                                                            expression_term(68, 72, [
++                                                                value(68, 72, [
++                                                                    value_integer(68, 72, [
++                                                                        value_integer_unsigned(68, 72, [
++                                                                            number_positive(68, 69, []),
++                                                                            type_integer_unsigned(69, 72, [
++                                                                                type_u32(69, 72, [])
++                                                                            ])
++                                                                        ]),
++                                                                    ])
++                                                                ])
++                                                            ])
++                                                        ])
++                                                    ])
++                                                ])
++                                            ])
++                                        ])
++                                    ]),
++                                    LINE_END(74, 75, [])
++                                ])
++                            ])
++                        ])
++                    ])
++                ]),
++                EOI(77, 77, [])
++            ])
++        ]
++    }
++}

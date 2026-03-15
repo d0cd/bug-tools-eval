@@ -1,0 +1,46 @@
+diff --git a/synthesizer/program/src/logic/instruction/operation/hash.rs b/synthesizer/program/src/logic/instruction/operation/hash.rs
+index 8133bfb5f..6a320b2ab 100644
+--- a/synthesizer/program/src/logic/instruction/operation/hash.rs
++++ b/synthesizer/program/src/logic/instruction/operation/hash.rs
+@@ -379,8 +379,10 @@ impl<N: Network, const VARIANT: u8> Parser for HashInstruction<N, VARIANT> {
+             let mut string = string;
+ 
+             for _ in 0..num_operands {
++                // Parse the whitespace from the string.
++                let (next_string, _) = Sanitizer::parse_whitespaces(string)?;
+                 // Parse the operand from the string.
+-                let (next_string, operand) = Operand::parse(string)?;
++                let (next_string, operand) = Operand::parse(next_string)?;
+                 // Update the string.
+                 string = next_string;
+                 // Push the operand.
+@@ -392,8 +394,6 @@ impl<N: Network, const VARIANT: u8> Parser for HashInstruction<N, VARIANT> {
+ 
+         // Parse the opcode from the string.
+         let (string, _) = tag(*Self::opcode())(string)?;
+-        // Parse the whitespace from the string.
+-        let (string, _) = Sanitizer::parse_whitespaces(string)?;
+         // Parse the operands from the string.
+         let (string, operands) = parse_operands(string, expected_num_operands(VARIANT))?;
+         // Parse the whitespace from the string.
+diff --git a/synthesizer/tests/expectations/parser/instruction/instruction_pass.out b/synthesizer/tests/expectations/parser/instruction/instruction_pass.out
+index dd6cd3daf..7de1861e4 100644
+--- a/synthesizer/tests/expectations/parser/instruction/instruction_pass.out
++++ b/synthesizer/tests/expectations/parser/instruction/instruction_pass.out
+@@ -61,3 +61,4 @@
+ - Parsing was successful.
+ - Parsing was successful.
+ - Parsing was successful.
++- Parsing was successful.
+diff --git a/synthesizer/tests/tests/parser/instruction/instruction_pass.aleo b/synthesizer/tests/tests/parser/instruction/instruction_pass.aleo
+index 86b95fa6a..f5d2aafa1 100644
+--- a/synthesizer/tests/tests/parser/instruction/instruction_pass.aleo
++++ b/synthesizer/tests/tests/parser/instruction/instruction_pass.aleo
+@@ -33,6 +33,7 @@ hash.ped128 r0 into r1 as u32;
+ hash.psd2 r0 into r1 as scalar;
+ hash.psd4 r0 into r1 as group;
+ hash.psd8 r0 into r1 as address;
++hash_many.psd2 r1 r2 into r3 as field;
+ inv r0 into r1;
+ is.eq r0 r1 into r2;
+ is.neq r0 r1 into r2;

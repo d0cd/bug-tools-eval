@@ -1,0 +1,539 @@
+diff --git a/.github/ISSUE_TEMPLATE/config.yml b/.github/ISSUE_TEMPLATE/config.yml
+index e98fce12..4b8d7453 100644
+--- a/.github/ISSUE_TEMPLATE/config.yml
++++ b/.github/ISSUE_TEMPLATE/config.yml
+@@ -1,5 +1,5 @@
+ blank_issues_enabled: true
+ contact_links:
+   - name: ❓ Q&A Technical Support Channel
+-    url: https://discord.gg/dTw3wk9
++    url: https://discord.gg/WYQNdbHzZR
+     about: For quick questions or technical troubleshooting, please ask them on our dedicated Discord channel.
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 1bd29db8..80bc1584 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -7,6 +7,9 @@ on:
+     paths-ignore:
+       - 'docs/**'
+       - 'documentation/**'
++      - '*.md'
++      - '**/*.md'
++
+ env:
+   RUST_BACKTRACE: 1
+ 
+@@ -28,8 +31,6 @@ jobs:
+ 
+       - name: cargo fmt --check
+         uses: actions-rs/cargo@v1
+-        env:
+-          CARGO_NET_GIT_FETCH_WITH_CLI: true
+         with:
+           command: fmt
+           args: --all -- --check
+@@ -37,8 +38,8 @@ jobs:
+   clippy:
+     name: Clippy
+     runs-on: ubuntu-latest
+-    env:
+-      RUSTFLAGS: -Dwarnings
++#    env:
++#      RUSTFLAGS: -Dwarnings
+     strategy:
+       matrix:
+         rust:
+@@ -124,34 +125,6 @@ jobs:
+           command: test
+           args: --all --no-fail-fast
+ 
+-  test-package:
+-    name: Test Package
+-    runs-on: ubuntu-latest
+-    strategy:
+-      matrix:
+-        rust:
+-          - stable
+-          - nightly
+-    steps:
+-      - name: Checkout
+-        uses: actions/checkout@v2
+-
+-      - name: Install Rust (${{ matrix.rust }})
+-        uses: actions-rs/toolchain@v1
+-        with:
+-          profile: minimal
+-          toolchain: ${{ matrix.rust }}
+-          override: true
+-
+-      - name: Install cargo-all-features
+-        run: |
+-          cargo install cargo-all-features
+-
+-      - name: Test
+-        run: |
+-          cd package
+-          cargo test-all-features
+-
+   codecov:
+     name: Code Coverage
+     runs-on: ubuntu-latest
+@@ -171,30 +144,19 @@ jobs:
+         uses: actions-rs/cargo@v1
+         with:
+           command: test
+-          args: --all --features ci_skip
++          args: --all-features --examples --all --benches --no-fail-fast
+         env:
+-          CARGO_NET_GIT_FETCH_WITH_CLI: true
+           CARGO_INCREMENTAL: "0"
++          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=unwind -Zpanic_abort_tests"
+ 
+-      - name: Install dependencies for code coverage
+-        run: |
+-          sudo apt-get update
+-          sudo apt-get -y install binutils-dev libcurl4-openssl-dev zlib1g-dev libdw-dev libiberty-dev
+-
+-      - name: Generate coverage report
+-        run: |
+-          wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz
+-          tar xzf master.tar.gz
+-          cd kcov-master
+-          mkdir build && cd build
+-          cmake .. && make
+-          make install DESTDIR=../../kcov-build
+-          cd ../..
+-          rm -rf kcov-master
+-          for file in target/debug/deps/*-*; do if [[ "$file" != *\.* ]]; then mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --exclude-region='@kcov_skip(start):@kcov_skip(end)' --verify "target/cov/$(basename $file)" "$file"; fi done
++      - name: grcov
++        uses: actions-rs/grcov@v0.1
+ 
+       - name: Upload coverage to Codecov
+         uses: codecov/codecov-action@v1
+         with:
+           github-token: ${{ secrets.GITHUB_TOKEN }}
+           token: ${{ secrets.CODECOV_TOKEN }}
++          file: ${{ steps.coverage.outputs.report }}
++          yml: ./codecov.yml
++          fail_ci_if_error: true
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+index 22bbaea1..69482b19 100644
+--- a/.github/workflows/release.yml
++++ b/.github/workflows/release.yml
+@@ -1,4 +1,4 @@
+-name: Leo Release
++name: Aleo Release
+ on:
+   push:
+     tags:
+@@ -23,11 +23,9 @@ jobs:
+           override: true
+           components: rustfmt
+ 
+-      - name: Build Leo
++      - name: Build Aleo
+         run: |
+-          cargo build --all --release && strip target/release/leo
+-        env:
+-          CARGO_NET_GIT_FETCH_WITH_CLI: true
++          cargo build --all --release && strip target/release/aleo
+ 
+       - id: get_version
+         uses: battila7/get-version-action@v2
+@@ -35,18 +33,18 @@ jobs:
+       - name: Zip
+         run: |
+           mkdir tempdir
+-          mv target/release/leo tempdir
++          mv target/release/aleo tempdir
+           cd tempdir
+-          zip -r leo-${{ steps.get_version.outputs.version }}-x86_64-unknown-linux-gnu.zip leo
++          zip -r aleo-${{ steps.get_version.outputs.version }}-x86_64-unknown-linux-gnu.zip aleo
+           cd ..
+-          mv tempdir/leo-${{ steps.get_version.outputs.version }}-x86_64-unknown-linux-gnu.zip .
++          mv tempdir/aleo-${{ steps.get_version.outputs.version }}-x86_64-unknown-linux-gnu.zip .
+ 
+       - name: Release
+         uses: softprops/action-gh-release@v1
+         if: startsWith(github.ref, 'refs/tags/')
+         with:
+           files: |
+-            leo-${{ steps.get_version.outputs.version }}-x86_64-unknown-linux-gnu.zip
++            aleo-${{ steps.get_version.outputs.version }}-x86_64-unknown-linux-gnu.zip
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 
+@@ -65,9 +63,9 @@ jobs:
+           override: true
+           components: rustfmt
+ 
+-      - name: Build Leo
++      - name: Build Aleo
+         run: |
+-          cargo build --all --release && strip target/release/leo
++          cargo build --all --release && strip target/release/aleo
+         env:
+           CARGO_NET_GIT_FETCH_WITH_CLI: true
+ 
+@@ -77,18 +75,18 @@ jobs:
+       - name: Zip
+         run: |
+           mkdir tempdir
+-          mv target/release/leo tempdir
++          mv target/release/aleo tempdir
+           cd tempdir
+-          zip -r leo-${{ steps.get_version.outputs.version }}-x86_64-apple-darwin.zip leo
++          zip -r aleo-${{ steps.get_version.outputs.version }}-x86_64-apple-darwin.zip aleo
+           cd ..
+-          mv tempdir/leo-${{ steps.get_version.outputs.version }}-x86_64-apple-darwin.zip .
++          mv tempdir/aleo-${{ steps.get_version.outputs.version }}-x86_64-apple-darwin.zip .
+ 
+       - name: Release
+         uses: softprops/action-gh-release@v1
+         if: startsWith(github.ref, 'refs/tags/')
+         with:
+           files: |
+-            leo-${{ steps.get_version.outputs.version }}-x86_64-apple-darwin.zip
++            aleo-${{ steps.get_version.outputs.version }}-x86_64-apple-darwin.zip
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+ 
+@@ -114,7 +112,7 @@ jobs:
+           version: "10.0"
+           directory: ~ / .clang
+ 
+-      - name: Build Leo
++      - name: Build Aleo
+         run: |
+           cargo build --all --release
+         env:
+@@ -126,17 +124,17 @@ jobs:
+       - name: Zip
+         run: |
+           mkdir tempdir
+-          mv target/release/leo tempdir
++          mv target/release/aleo tempdir
+           cd tempdir
+-          Compress-Archive leo-${{ steps.get_version.outputs.version }}-x86_64-pc-windows-gnu leo
++          Compress-Archive aleo-${{ steps.get_version.outputs.version }}-x86_64-pc-windows-gnu aleo
+           cd ..
+-          mv leo-${{ steps.get_version.outputs.version }}-x86_64-pc-windows-gnu .
++          mv aleo-${{ steps.get_version.outputs.version }}-x86_64-pc-windows-gnu .
+ 
+       - name: Release
+         uses: softprops/action-gh-release@v1
+         if: startsWith(github.ref, 'refs/tags/')
+         with:
+           files: |
+-            leo-${{ steps.get_version.outputs.version }}-x86_64-pc-windows-gnu.zip
++            aleo-${{ steps.get_version.outputs.version }}-x86_64-pc-windows-gnu.zip
+         env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+diff --git a/Cargo.lock b/Cargo.lock
+index 5a0fbae6..f5e0a81a 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -18,7 +18,7 @@ dependencies = [
+  "criterion",
+  "hex",
+  "rand",
+- "rand_chacha 0.3.0",
++ "rand_chacha",
+  "rusty-hook",
+  "snarkvm-dpc",
+  "snarkvm-errors",
+@@ -952,8 +952,8 @@ checksum = "6a6b1679d49b24bbfe0c803429aa1874472f50d9b363131f0e89fc356b544d03"
+ dependencies = [
+  "getrandom",
+  "libc",
+- "rand_chacha 0.2.2",
+- "rand_core 0.5.1",
++ "rand_chacha",
++ "rand_core",
+  "rand_hc",
+ ]
+ 
+@@ -964,17 +964,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "f4c8ed856279c9737206bf725bf36935d8666ead7aa69b52be55af369d193402"
+ dependencies = [
+  "ppv-lite86",
+- "rand_core 0.5.1",
+-]
+-
+-[[package]]
+-name = "rand_chacha"
+-version = "0.3.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "e12735cf05c9e10bf21534da50a147b924d555dc7a547c42e6bb2d5b6017ae0d"
+-dependencies = [
+- "ppv-lite86",
+- "rand_core 0.6.1",
++ "rand_core",
+ ]
+ 
+ [[package]]
+@@ -986,19 +976,13 @@ dependencies = [
+  "getrandom",
+ ]
+ 
+-[[package]]
+-name = "rand_core"
+-version = "0.6.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "c026d7df8b298d90ccbbc5190bd04d85e159eaf5576caeacf8741da93ccbd2e5"
+-
+ [[package]]
+ name = "rand_hc"
+ version = "0.2.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ca3129af7b92a17112d59ad498c6f81eaf463253766b90396d39ea7a39d6613c"
+ dependencies = [
+- "rand_core 0.5.1",
++ "rand_core",
+ ]
+ 
+ [[package]]
+@@ -1007,7 +991,7 @@ version = "0.2.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "77d416b86801d23dde1aa643023b775c3a462efc0ed96443add11546cdf1dca8"
+ dependencies = [
+- "rand_core 0.5.1",
++ "rand_core",
+ ]
+ 
+ [[package]]
+@@ -1234,7 +1218,7 @@ dependencies = [
+  "digest 0.8.1",
+  "itertools",
+  "rand",
+- "rand_chacha 0.2.2",
++ "rand_chacha",
+  "rayon",
+  "sha2",
+  "smallvec",
+diff --git a/Cargo.toml b/Cargo.toml
+index 586f4932..ce5887d5 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -38,7 +38,7 @@ anyhow = { version = "1.0.38" }
+ colored = { version = "2" }
+ hex = { version = "0.4.2" }
+ rand = { version = "0.7", default-features = false, features = ["wasm-bindgen"] }
+-rand_chacha = { version = "0.3", default-features = false }
++rand_chacha = { version = "0.2", default-features = false }
+ structopt = { version = "0.3" }
+ thiserror = { version = "1.0" }
+ wasm-bindgen = { version = "0.2.68" }
+@@ -63,12 +63,12 @@ debug-assertions = false
+ rpath = false
+ 
+ [profile.dev]
+-opt-level = 3
++opt-level = 2
+ lto = "thin"
+ incremental = true
+ 
+ [profile.test]
+-opt-level = 3
++opt-level = 2
+ lto = "thin"
+ incremental = true
+ debug = true
+diff --git a/README.md b/README.md
+index 7a602c0d..35259384 100644
+--- a/README.md
++++ b/README.md
+@@ -1,8 +1,90 @@
+-# aleo
++<h1 align="center">Aleo SDK</h1>
++
++<p align="center">
++    <a href="https://github.com/AleoHQ/aleo/actions"><img src="https://github.com/AleoHQ/aleo/workflows/CI/badge.svg"></a>
++    <a href="https://codecov.io/gh/AleoHQ/aleo"><img src="https://codecov.io/gh/AleoHQ/aleo/branch/master/graph/badge.svg?token=HIVCMHYMTZ"/></a>
++    <a href="https://discord.gg/WYQNdbHzZR"><img src="https://img.shields.io/discord/700454073459015690?logo=discord"/></a>
++</p>
++
++The Aleo SDK is a developer framework to make it simple to create a new account, craft a transaction,
++and broadcast it to the network.
++
++## Table of Contents
++
++* [1. Overview](#1-overview)
++* [2. Build Guide](#2-build-guide)
++* [3. Usage Guide](#3-usage-guide)
++
++## 1. Overview
+ 
+ ** ATTENTION: This codebase is in active development. **
+ 
+-Visit [Welcome to Aleo](https://github.com/AleoHQ/welcome) to get started.
++For more information, visit [Welcome to Aleo](https://github.com/AleoHQ/welcome) to get started.
++
++## 2. Build Guide
++
++### 2.1 Install Rust
++
++We recommend installing Rust using [rustup](https://www.rustup.rs/). You can install `rustup` as follows:
++
++- macOS or Linux:
++  ```bash
++  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
++  ```
++
++- Windows (64-bit):  
++  
++  Download the [Windows 64-bit executable](https://win.rustup.rs/x86_64) or
++  [Windows 32-bit executable](https://win.rustup.rs/i686) and follow the on-screen instructions.
++
++### 2.2a Build from Crates.io
++
++We recommend installing `aleo` this way. In your terminal, run:
++
++```bash
++cargo install aleo
++```
++
++Now to use `aleo`, in your terminal, run:
++```bash
++aleo
++```
++ 
++### 2.2b Build from Source Code
++
++Alternatively, you can install `aleo` by building from the source code as follows:
++
++```bash
++# Download the source code
++git clone https://github.com/AleoHQ/aleo && cd aleo
++
++# Install Aleo
++$ cargo install --path .
++```
++
++Now to use `aleo`, in your terminal, run:
++```bash
++aleo
++```
++
++## 3. Usage Guide
++
++### 3.1 Generate a new Aleo account.
++
++To generate a new Aleo account, run:
++```bash
++aleo new [FLAGS] [OPTIONS]
++```
++
++The command can be run with the following optional parameters:
++```
++FLAGS:
++    -h, --help       Prints help information
++    -V, --version    Prints version information
++
++OPTIONS:
++    -s, --seed <seed> 
++```
+ 
+ ## Development
+ 
+diff --git a/examples/dummy_transaction.rs b/examples/dummy_transaction.rs
+index 2681384c..047ec3c0 100644
+--- a/examples/dummy_transaction.rs
++++ b/examples/dummy_transaction.rs
+@@ -19,13 +19,17 @@ use snarkvm_utilities::{to_bytes, ToBytes};
+ 
+ use rand::thread_rng;
+ 
+-pub fn main() {
++/// Creates a new dummy transaction.
++pub fn main() -> anyhow::Result<()> {
++    // Initialize the parameters.
++    let network_id = 1;
+     let rng = &mut thread_rng();
+ 
+-    let network_id = 1;
++    // Create the dummy transaction.
++    let (transaction, _records) = create_dummy_transaction(network_id, rng)?;
+ 
+-    let (transaction, _records) = create_dummy_transaction(network_id, rng).unwrap();
++    // Hexify and print it out.
++    println!("{}", hex::encode(to_bytes![transaction]?));
+ 
+-    let encoded_transaction = hex::encode(to_bytes![transaction].unwrap());
+-    println!("{}", encoded_transaction);
++    Ok(())
+ }
+diff --git a/src/cli.rs b/src/cli.rs
+index 7ff7ccb3..d077bedf 100644
+--- a/src/cli.rs
++++ b/src/cli.rs
+@@ -23,7 +23,7 @@ pub struct CLI {
+     #[structopt(short, long)]
+     pub debug: bool,
+ 
+-    /// Verbose mode (-v, -vv, -vvv, etc.)
++    /// Enable verbose mode
+     #[structopt(short, long, parse(from_occurrences))]
+     pub verbose: u8,
+ 
+@@ -55,6 +55,7 @@ pub struct CLI {
+ pub enum Command {
+     /// Generates a new Aleo account
+     New {
++        /// Seed the RNG with a numeric value
+         #[structopt(short = "s", long)]
+         seed: Option<u64>,
+     },
+diff --git a/src/commands.rs b/src/commands.rs
+index e90523e2..376e3ce8 100644
+--- a/src/commands.rs
++++ b/src/commands.rs
+@@ -19,7 +19,6 @@ use crate::{
+     cli::Command,
+ };
+ 
+-use anyhow::anyhow;
+ use colored::*;
+ use rand::SeedableRng;
+ use rand_chacha::ChaChaRng;
+diff --git a/src/main.rs b/src/main.rs
+index b66d5e4d..f57b9d70 100644
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -14,10 +14,7 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Aleo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use aleo::{
+-    cli::{Command, CLI},
+-    commands::parse,
+-};
++use aleo::{cli::CLI, commands::parse};
+ 
+ use structopt::StructOpt;
+ 
+diff --git a/src/transaction/transaction.rs b/src/transaction/delegate.rs
+similarity index 100%
+rename from src/transaction/transaction.rs
+rename to src/transaction/delegate.rs
+diff --git a/src/transaction/dummy_transaction.rs b/src/transaction/dummy.rs
+similarity index 100%
+rename from src/transaction/dummy_transaction.rs
+rename to src/transaction/dummy.rs
+diff --git a/src/transaction/mod.rs b/src/transaction/mod.rs
+index 4d28af42..5304b5ce 100644
+--- a/src/transaction/mod.rs
++++ b/src/transaction/mod.rs
+@@ -14,8 +14,8 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Aleo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-pub mod dummy_transaction;
+-pub use dummy_transaction::*;
++pub mod dummy;
++pub use dummy::*;
+ 
+-pub mod transaction;
+-pub use transaction::*;
++pub mod delegate;
++pub use delegate::*;

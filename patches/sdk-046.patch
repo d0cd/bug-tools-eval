@@ -1,0 +1,407 @@
+diff --git a/website/index.html b/website/index.html
+index 3425a982..ff1da19c 100644
+--- a/website/index.html
++++ b/website/index.html
+@@ -12,10 +12,68 @@
+         <link rel="apple-touch-icon" href="public/logo129.png" />
+         <link rel="manifest" href="public/manifest.json" />
+         <title>Aleo SDK</title>
++        <style>
++            body {
++                background: #000000;
++            }
++            .spinner {
++                margin: 150px auto 50px auto;
++                width: 40px;
++                height: 40px;
++                position: relative;
++                text-align: center;
++
++                -webkit-animation: sk-rotate 2.0s infinite linear;
++                animation: sk-rotate 2.0s infinite linear;
++            }
++
++            .dot1, .dot2 {
++                width: 60%;
++                height: 60%;
++                display: inline-block;
++                position: absolute;
++                top: 0;
++                background-color: #18e48f;
++                border-radius: 100%;
++
++                -webkit-animation: sk-bounce 2.0s infinite ease-in-out;
++                animation: sk-bounce 2.0s infinite ease-in-out;
++            }
++
++            .dot2 {
++                top: auto;
++                bottom: 0;
++                -webkit-animation-delay: -1.0s;
++                animation-delay: -1.0s;
++            }
++
++            @-webkit-keyframes sk-rotate { 100% { -webkit-transform: rotate(360deg) }}
++            @keyframes sk-rotate { 100% { transform: rotate(360deg); -webkit-transform: rotate(360deg) }}
++
++            @-webkit-keyframes sk-bounce {
++                0%, 100% { -webkit-transform: scale(0.0) }
++                50% { -webkit-transform: scale(1.0) }
++            }
++
++            @keyframes sk-bounce {
++                0%, 100% {
++                    transform: scale(0.0);
++                    -webkit-transform: scale(0.0);
++                } 50% {
++                      transform: scale(1.0);
++                      -webkit-transform: scale(1.0);
++                  }
++            }
++        </style>
+     </head>
+     <body>
+         <noscript>You need to enable JavaScript to run this app.</noscript>
+-        <div id="root"></div>
++        <div id="root">
++            <div class="spinner">
++                <div class="dot1"></div>
++                <div class="dot2"></div>
++            </div>
++        </div>
+         <script type="module" src="/src/index.jsx"></script>
+     </body>
+ </html>
+diff --git a/website/src/aleo-wasm-hook.js b/website/src/aleo-wasm-hook.js
+index 43b8c4fc..02a9028b 100644
+--- a/website/src/aleo-wasm-hook.js
++++ b/website/src/aleo-wasm-hook.js
+@@ -1,12 +1,14 @@
+ import { useEffect, useState } from "react";
++import init, * as aleo from "@aleohq/wasm";
+ 
++await init();
+ export const useAleoWASM = () => {
+-    const [aleo, setAleo] = useState(null);
++    const [aleoInstance, setAleoInstance] = useState(null);
+ 
+     useEffect(() => {
+-        if (aleo === null) {
+-            import("@aleohq/wasm").then((module) => setAleo(module));
++        if (aleoInstance === null) {
++            setAleoInstance(aleo);
+         }
+     }, []); // eslint-disable-line react-hooks/exhaustive-deps
+-    return aleo;
++    return aleoInstance;
+ };
+diff --git a/website/src/index.jsx b/website/src/index.jsx
+index 8219f17a..89e72b3d 100644
+--- a/website/src/index.jsx
++++ b/website/src/index.jsx
+@@ -3,12 +3,15 @@ import "./index.css";
+ import { createRoot } from "react-dom/client";
+ import { RouterProvider } from "react-router-dom";
+ import { router } from "./routing.jsx";
++import WorkerProvider from "./workers/WorkerProvider.jsx";
+ 
+ const container = document.getElementById("root");
+ const root = createRoot(container);
+ root.render(
+     <React.StrictMode>
+-        <RouterProvider router={router} />
++        <WorkerProvider>
++            <RouterProvider router={router} />
++        </WorkerProvider>
+     </React.StrictMode>,
+ );
+ 
+diff --git a/website/src/tabs/develop/Deploy.jsx b/website/src/tabs/develop/Deploy.jsx
+index 69e04677..080cc797 100644
+--- a/website/src/tabs/develop/Deploy.jsx
++++ b/website/src/tabs/develop/Deploy.jsx
+@@ -10,12 +10,9 @@ import {
+     Row,
+     Result,
+     Spin,
+-    Space
++    Space,
+ } from "antd";
+ import axios from "axios";
+-import init, * as aleo from "@aleohq/wasm";
+-
+-await init();
+ 
+ export const Deploy = () => {
+     const [deploymentFeeRecord, setDeploymentFeeRecord] = useState(null);
+@@ -132,7 +129,9 @@ export const Deploy = () => {
+         setLoading(false);
+         setTransactionID(null);
+         setDeploymentError(null);
+-        messageApi.info("Disclaimer: Fee estimation is experimental and may not represent a correct estimate on any current or future network");
++        messageApi.info(
++            "Disclaimer: Fee estimation is experimental and may not represent a correct estimate on any current or future network",
++        );
+         await postMessagePromise(worker, {
+             type: "ALEO_ESTIMATE_DEPLOYMENT_FEE",
+             program: programString(),
+diff --git a/website/src/tabs/develop/ExecuteLegacy.jsx b/website/src/tabs/develop/ExecuteLegacy.jsx
+index 9f0ac7e3..ec99cf5d 100644
+--- a/website/src/tabs/develop/ExecuteLegacy.jsx
++++ b/website/src/tabs/develop/ExecuteLegacy.jsx
+@@ -15,9 +15,7 @@ import {
+ } from "antd";
+ import { FormGenerator } from "../../components/InputForm";
+ import axios from "axios";
+-import init, * as aleo from "@aleohq/wasm";
+-
+-await init();
++import { useAleoWASM } from "../../aleo-wasm-hook";
+ 
+ export const ExecuteLegacy = () => {
+     const [executionFeeRecord, setExecutionFeeRecord] = useState(null);
+@@ -39,6 +37,7 @@ export const ExecuteLegacy = () => {
+     const [executeOnline, setExecuteOnline] = useState(false);
+     const [programInputs, setProgramInputs] = useState(null);
+     const [tip, setTip] = useState("Executing Program...");
++    const aleo = useAleoWASM();
+ 
+     const getProgramInputs = () => {
+         const programManifest = [];
+diff --git a/website/src/utils.js b/website/src/utils.js
+deleted file mode 100644
+index 3eaae345..00000000
+--- a/website/src/utils.js
++++ /dev/null
+@@ -1,38 +0,0 @@
+-import init, * as aleo from "@aleohq/wasm";
+-
+-await init();
+-
+-// Get program source code from the Aleo network
+-async function getProgram(name) {
+-    const response = await fetch(`https://vm.aleo.org/api/testnet3/program/${name}`);
+-    if (response.ok) {
+-        return response.json();
+-    }
+-    throw new Error("Unable to get program");
+-}
+-
+-// Recursively resolve imports for programs and return a map of program_id to program
+-// in the form of { "program name": "program source code" }. The object returned from
+-// this function should be passed to the "imports" parameter of the aleo-wasm program
+-// execution and deployment functions.
+-async function resolveImports(program_code) {
+-    let program = aleo.Program.fromString(program_code);
+-    const imports = {};
+-    let importList = program.getImports();
+-    for (let i = 0; i < importList.length; i++) {
+-        const import_id = importList[i];
+-        if (!imports[import_id]) {
+-            const importedProgram = await getProgram(import_id);
+-            const nestedImports = await resolveImports(importedProgram);
+-            for (const key in nestedImports) {
+-                if (!imports[key]) {
+-                    imports[key] = nestedImports[key];
+-                }
+-            }
+-            imports[import_id] = importedProgram;
+-        }
+-    }
+-    return imports;
+-}
+-
+-export { getProgram, resolveImports };
+\ No newline at end of file
+diff --git a/website/src/workers/WorkerContext.js b/website/src/workers/WorkerContext.js
+new file mode 100644
+index 00000000..78df7dfd
+--- /dev/null
++++ b/website/src/workers/WorkerContext.js
+@@ -0,0 +1,5 @@
++import React from "react";
++
++const WorkerContext = React.createContext(null);
++
++export default WorkerContext;
+diff --git a/website/src/workers/WorkerProvider.jsx b/website/src/workers/WorkerProvider.jsx
+new file mode 100644
+index 00000000..0cbdee49
+--- /dev/null
++++ b/website/src/workers/WorkerProvider.jsx
+@@ -0,0 +1,42 @@
++import { useEffect, useState } from "react";
++import WorkerContext from "./WorkerContext";
++
++const WorkerProvider = ({ children }) => {
++    const [worker, setWorker] = useState(null);
++    const [workerReady, setWorkerReady] = useState(false);
++
++    useEffect(() => {
++        let worker = new Worker(new URL("./worker.js", import.meta.url), {
++            type: "module",
++        });
++        setWorker(worker);
++
++        worker.onmessage = (event) => {
++            if (event.data.type === "ALEO_WORKER_READY") {
++                setWorkerReady(true);
++            }
++        };
++
++        return () => {
++            worker.terminate();
++        };
++    }, []);
++
++    if (!workerReady) {
++        return (
++            <>
++                <div className="spinner">
++                    <div className="dot1"></div>
++                </div>
++            </>
++        );
++    }
++
++    return (
++        <WorkerContext.Provider value={worker}>
++            {children}
++        </WorkerContext.Provider>
++    );
++};
++
++export default WorkerProvider;
+diff --git a/website/src/workers/worker.js b/website/src/workers/worker.js
+index ace7984f..05007b1d 100644
+--- a/website/src/workers/worker.js
++++ b/website/src/workers/worker.js
+@@ -1,5 +1,4 @@
+ import init, * as aleo from "@aleohq/wasm";
+-import { resolveImports } from "../utils.js";
+ import {
+     FEE_PROVER_URL,
+     FEE_VERIFIER_URL,
+@@ -36,6 +35,10 @@ await init();
+ await aleo.initThreadPool(10);
+ const aleoProgramManager = new aleo.ProgramManager();
+ 
++self.postMessage({
++    type: "ALEO_WORKER_READY",
++});
++
+ const getFunctionKeys = async (proverUrl, verifierUrl) => {
+     console.log(
+         "Downloading proving and verifying keys from: ",
+@@ -113,7 +116,7 @@ self.addEventListener("message", (ev) => {
+                     aleoFunction,
+                     inputs,
+                     true,
+-                    imports
++                    imports,
+                 );
+ 
+                 console.log(
+@@ -123,10 +126,16 @@ self.addEventListener("message", (ev) => {
+                 );
+                 let outputs = response.getOutputs();
+                 console.log(`Function execution response: ${outputs}`);
+-                self.postMessage({ type: "OFFLINE_EXECUTION_COMPLETED", outputs });
++                self.postMessage({
++                    type: "OFFLINE_EXECUTION_COMPLETED",
++                    outputs,
++                });
+             } catch (error) {
+                 console.log(error);
+-                self.postMessage({ type: "ERROR", errorMessage: error.toString() });
++                self.postMessage({
++                    type: "ERROR",
++                    errorMessage: error.toString(),
++                });
+             }
+         })();
+     } else if (ev.data.type === "ALEO_EXECUTE_PROGRAM_ON_CHAIN") {
+@@ -179,7 +188,7 @@ self.addEventListener("message", (ev) => {
+                     aleo.RecordPlaintext.fromString(feeRecord),
+                     url,
+                     true,
+-                    imports
++                    imports,
+                 );
+ 
+                 console.log(
+@@ -274,7 +283,7 @@ self.addEventListener("message", (ev) => {
+                     await aleoProgramManager.estimateDeploymentFee(
+                         program,
+                         false,
+-                        imports
++                        imports,
+                     );
+ 
+                 console.log(
+@@ -307,7 +316,9 @@ self.addEventListener("message", (ev) => {
+             url,
+         } = ev.data;
+ 
+-        console.log(`Web worker: Creating transfer of type ${transfer_type}...`);
++        console.log(
++            `Web worker: Creating transfer of type ${transfer_type}...`,
++        );
+         let startTime = performance.now();
+ 
+         (async function () {
+@@ -434,7 +445,10 @@ self.addEventListener("message", (ev) => {
+                     );
+                 }
+ 
+-                let transferAmountRecord = amountRecord !== undefined ? aleo.RecordPlaintext.fromString(amountRecord) : undefined;
++                let transferAmountRecord =
++                    amountRecord !== undefined
++                        ? aleo.RecordPlaintext.fromString(amountRecord)
++                        : undefined;
+ 
+                 let transferTransaction = await aleoProgramManager.transfer(
+                     aleo.PrivateKey.from_string(privateKey),
+@@ -512,7 +526,7 @@ self.addEventListener("message", (ev) => {
+                     aleo.RecordPlaintext.fromString(feeRecord),
+                     url,
+                     true,
+-                    imports
++                    imports,
+                 );
+ 
+                 console.log(
+@@ -656,3 +670,33 @@ self.addEventListener("message", (ev) => {
+         })();
+     }
+ });
++
++async function resolveImports(program_code) {
++    let program = aleo.Program.fromString(program_code);
++    const imports = {};
++    let importList = program.getImports();
++    for (let i = 0; i < importList.length; i++) {
++        const import_id = importList[i];
++        if (!imports[import_id]) {
++            const importedProgram = await getProgram(import_id);
++            const nestedImports = await resolveImports(importedProgram);
++            for (const key in nestedImports) {
++                if (!imports[key]) {
++                    imports[key] = nestedImports[key];
++                }
++            }
++            imports[import_id] = importedProgram;
++        }
++    }
++    return imports;
++}
++
++async function getProgram(name) {
++    const response = await fetch(
++        `https://vm.aleo.org/api/testnet3/program/${name}`,
++    );
++    if (response.ok) {
++        return response.json();
++    }
++    throw new Error("Unable to get program");
++}

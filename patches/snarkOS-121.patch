@@ -1,0 +1,225 @@
+diff --git a/.ci/bench_bft_sync.sh b/.ci/bench_bft_sync.sh
+index 513e52ed7..be7cf5f51 100755
+--- a/.ci/bench_bft_sync.sh
++++ b/.ci/bench_bft_sync.sh
+@@ -53,6 +53,7 @@ common_flags=(
+   --nobanner --noupdater --nodisplay \
+   "--network=$network_id"
+   --nocdn
++  "--dev-num-clients=0"
+   "--dev-num-validators=$num_validators"
+   --no-dev-txs
+   "--log-filter=$log_filter"
+@@ -125,12 +126,6 @@ while (( SECONDS < max_wait )); do
+ done
+ 
+ echo "❌ Benchmark failed! Validators did not sync within 30 minutes."
+-
+-# Print logs for debugging
+-echo "Last 20 lines of validators logs:"
+-for ((node_index = 0; node_index <= num_nodes; node_index++)); do
+-  echo "=== Node $node_index logs ==="
+-  tail -n 20 "$log_dir/validator-$node_index.log"
+-done
++print_client_logs "$log_dir" "$num_validators" "$num_nodes"
+ 
+ exit 1
+diff --git a/.ci/bench_p2p_sync.sh b/.ci/bench_p2p_sync.sh
+index 26ea1e714..d40d19438 100755
+--- a/.ci/bench_p2p_sync.sh
++++ b/.ci/bench_p2p_sync.sh
+@@ -14,6 +14,8 @@ min_height=250
+ num_validators=40
+ 
+ # The number of clients that are syncing
++# Note: Because the first indexes 0-39 are resevered for validators, the first client will have index 40.
++# The script works around this by manually setting the storage, ports, and log files for the clients. 
+ num_clients=1
+ 
+ # Adjust this to show more/less log messages
+@@ -104,22 +106,26 @@ common_flags=(
+ 
+ # The client that has the ledger
+ # (runs on the first two cores)
+-$TASKSET1 snarkos start --dev 0 --client "${common_flags[@]}" \
+-  --logfile="$log_dir/client-0.log" &
++$TASKSET1 snarkos start "--dev=$num_validators" --client "${common_flags[@]}" \
++  "--logfile=$log_dir/client-0.log" "--storage=.ledger-$network_id-0" \
++  "--node=127.0.0.1:4130" "--rest=127.0.0.1:3030" &
+ PIDS[0]=$!
+ 
+ # Spawn the clients that will sync the ledger
+ # (running on the other two cores)
+ for client_index in $(seq 1 "$num_clients"); do
++  node_index=$((num_validators + client_index))
+   prev_port=$((4130+client_index-1))
++  node_addr="127.0.0.1:$((4130+client_index))"
+   name="client-$client_index"
+ 
+   # Ensure there are no old ledger files and the node syncs from scratch
+-  snarkos clean "--dev=$client_index" "--network=$network_id" || true
++  snarkos clean "--dev=$node_index" "--network=$network_id" "--path=.ledger-$network_id-$client_index" || true
+ 
+-  $TASKSET2 snarkos start "--dev=$client_index" --client \
+-    "${common_flags[@]}" "--peers=127.0.0.1:$prev_port" \
+-    "--logfile=$log_dir/$name.log" &
++  $TASKSET2 snarkos start "--dev=$node_index" --client \
++    "${common_flags[@]}" "--peers=127.0.0.1:$prev_port" "--node=$node_addr" \
++    "--rest=127.0.0.1:$((3030+client_index))" \
++    "--logfile=$log_dir/$name.log" "--storage=.ledger-$network_id-$client_index" &
+   PIDS[client_index]=$!
+ 
+   # Add 1-second delay between starting nodes to avoid hitting rate limits
+@@ -127,7 +133,7 @@ for client_index in $(seq 1 "$num_clients"); do
+ done
+ 
+ # Block until nodes are running and connected to each other.
+-wait_for_nodes 0 $((num_clients+1))
++wait_for_nodes $((num_clients+1)) 0
+ 
+ # It takes about 30s for nodes to connect. Do not measure this time.
+ SECONDS=0
+@@ -149,6 +155,8 @@ while (( SECONDS < 30 )); do
+     has_blocks=true
+     break
+   fi
++
++  sleep $poll_interval
+ done
+ 
+ if ! $has_blocks; then
+@@ -196,10 +204,6 @@ done
+ echo "❌ Benchmark failed! Clients did not sync within 40 minutes."
+ 
+ # Print logs for debugging
+-echo "Last 20 lines of client logs:"
+-for ((client_index = 0; client_index < num_clients; client_index++)); do
+-  echo "=== Client $client_index logs ==="
+-  tail -n 20 "$log_dir/client-$client_index.log"
+-done
++print_client_logs "$log_dir" "$num_validators" "$num_clients"
+ 
+ exit 1
+diff --git a/.ci/bench_rest_api.sh b/.ci/bench_rest_api.sh
+index 62b2bb935..2aee8f772 100755
+--- a/.ci/bench_rest_api.sh
++++ b/.ci/bench_rest_api.sh
+@@ -8,6 +8,9 @@ set -eo pipefail # error on any command failure
+ 
+ network_id=1
+ 
++# The size of the validator set.
++num_validators=40
++
+ # Adjust this to show more/less log messages
+ log_filter="info,snarkos_node_sync=debug,snarkos_node_tcp=warn,snarkos_node_rest=warn"
+ 
+@@ -39,14 +42,15 @@ common_flags=(
+   "--log-filter=$log_filter" # only show the logs we care about
+   "--network=$network_id"
+   --nocdn # don't sync from CDN, so we only benchmark p2p sync
+-  --dev-num-validators=40 --no-dev-txs
++  "--dev-num-validators=$num_validators"
++  "--dev-num-clients=0" # no clients, so no need to populate the validators list
++  "--no-dev-txs" # disable developemnt transaction generation
+   --rest-rps=1000000 # ensure benchmarks don't fail due to rate limiting
+ )
+ 
+-# The client that has the ledger
+-# (runs on the first two cores)
+-$TASKSET1 snarkos start --dev 0 --client "${common_flags[@]}" \
+-  --logfile="$log_dir/client-0.log" &
++# The node that has the ledger (runs on the first two cores)
++$TASKSET1 snarkos start --dev 0 --validator "${common_flags[@]}" \
++  --logfile="$log_dir/validator-0.log" --validators="127.0.0.1:5001"& # the node will populate the validators list, if not at least one is set.
+ PIDS[0]=$!
+ 
+ # Block until node is running.
+diff --git a/.ci/devnet_ci.sh b/.ci/devnet_ci.sh
+index a62f8d742..1c3033c24 100755
+--- a/.ci/devnet_ci.sh
++++ b/.ci/devnet_ci.sh
+@@ -409,17 +409,7 @@ while (( total_wait < 600 )); do  # 10 minutes max
+ done
+ 
+ echo "❌ Test failed! Not all nodes reached minimum height within 15 minutes."
+-
+-# Print logs for debugging
+-echo "Last 20 lines of node logs:"
+-for ((validator_index = 0; validator_index < total_validators; validator_index++)); do
+-  echo "=== Validator $validator_index logs ==="
+-  tail -n 20 "$log_dir/validator-$validator_index.log"
+-done
+-for ((client_index = 0; client_index < total_clients; client_index++)); do
+-  echo "=== Validator $validator_index logs ==="
+-  tail -n 20 "$log_dir/validator-$validator_index.log"
+-done
+-
++print_validator_logs "$log_dir" "$total_validators" "$total_clients"
++print_client_logs "$log_dir" "$total_validators" "$total_clients"
+ 
+ exit 1
+diff --git a/.ci/utils.sh b/.ci/utils.sh
+index 5cdf2ace5..a79045e71 100644
+--- a/.ci/utils.sh
++++ b/.ci/utils.sh
+@@ -98,6 +98,8 @@ function check_logs() {
+ 
+     if grep -q "ERROR" "$log_dir/validator-${validator_index}.log"; then
+       echo "❌ Test failed! Validator #${validator_index} logs contain errors."
++      # Print the errors to the console.
++      grep "ERROR" "$log_dir/validator-${validator_index}.log"
+       return 1
+     fi
+   done
+@@ -110,6 +112,8 @@ function check_logs() {
+ 
+     if grep -q "ERROR" "$log_dir/client-${client_index}.log"; then
+       echo "❌ Test failed! Client #${client_index} logs contain errors."
++      # Print the errors to the console.
++      grep "ERROR" "$log_dir/client-${client_index}.log"
+       return 1
+     fi
+  
+@@ -272,3 +276,28 @@ function compute_throughput {
+ 
+   echo "$result"
+ }
++
++# Print the last 20 lines of logs for all nodes.
++function print_validator_logs() {
++  local log_dir=$1
++  local total_validators=$2
++  local total_clients=$3
++
++  echo "Last 20 lines of node logs:"
++  for ((validator_index = 0; validator_index < total_validators; validator_index++)); do
++    echo "=== Validator $validator_index logs ==="
++    tail -n 20 "$log_dir/validator-$validator_index.log"
++  done
++}
++
++function print_client_logs() {
++  local log_dir=$1
++  local total_validators=$2
++  local total_clients=$3
++
++  for ((client_index = 0; client_index < total_clients; client_index++)); do
++    echo "=== Client $client_index logs ==="
++    node_index=$((total_validators + client_index))
++    tail -n 20 "$log_dir/client-$client_index.log"
++  done
++}
+diff --git a/cli/src/commands/start.rs b/cli/src/commands/start.rs
+index ca44cb4c8..6e6a03531 100644
+--- a/cli/src/commands/start.rs
++++ b/cli/src/commands/start.rs
+@@ -664,7 +664,7 @@ impl Start {
+         }
+ 
+         // Parse the development configurations.
+-        self.parse_development(&mut trusted_peers, &mut trusted_validators).unwrap();
++        self.parse_development(&mut trusted_peers, &mut trusted_validators)?;
+ 
+         // Parse the CDN.
+         let cdn = self.parse_cdn::<N>().with_context(|| "Failed to parse given CDN URL")?;

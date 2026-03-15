@@ -1,0 +1,73 @@
+diff --git a/errors/README.md b/errors/README.md
+index ce05b1ed5d..aa15119ea8 100644
+--- a/errors/README.md
++++ b/errors/README.md
+@@ -13,7 +13,7 @@ The common section of this crate contains a few sub files:
+ - [Backtraced Error](./src/common/backtraced.rs): Which contains the information needed to create a backtraceable error for Leo.
+ - [Formatted Error](./src/common/formatted.rs): Which contains the information needed to create a formatted error for Leo.
+ - [Macros](./src/common/macros.rs): Which contains the logic to make creating errors easy through a DSL. It also figures out the error codes for each error via a **top down** method. Meaning all new errors should be added to the bottom of the file. You can specify whether an error is formatted or backtraced through a decorator above a function name, where the formatted ones require a Span as an argument by default. The body takes any additional arguments you want provided to the function, the message, and the optional help message for the error. The additional arguments are just specified to implement traits to avoid as many type conversions in other Leo crates.
+-- [Span](./src/common/span.rs): Which contains the span object used throughout the other Leo crates(with the exception of the Input crate see more [below](#input)).
++- [Span](./src/common/span.rs): Which contains the span object used throughout the other Leo crates (with the exception of the Input crate see more [below](#input)).
+ - [Tendril JSON](./src/common/tendril_json.rs): Which contains the common logic for how to searlize a StrTendril from the tendril crate.
+ - [Traits](./src/common/traits.rs): Which contains the common traits in errors to make defining errors easier.
+ 
+diff --git a/span/src/span.rs b/span/src/span.rs
+index 0003518e10..45e9a6da8d 100644
+--- a/span/src/span.rs
++++ b/span/src/span.rs
+@@ -38,18 +38,18 @@ pub struct Span {
+     /// The path to the Leo file containing the error.
+     pub path: Arc<String>,
+     #[serde(with = "crate::tendril_json")]
+-    /// The content of the file between the above boundries.
++    /// The content of the file between the above boundaries.
+     pub content: StrTendril,
+ }
+ 
+ impl Span {
+-    /// Generate a new span from where:
+-    /// - the Leo line starts.
+-    /// - the Leo line stops.
+-    /// - the Leo column starts.
+-    /// - the Leo column stops.
+-    /// - the path to the Leo file.
+-    /// - the content of those specified bounds.
++    /// Generate a new span from:
++    /// - Where the Leo line starts.
++    /// - Where the Leo line stops.
++    /// - Where the Leo column starts.
++    /// - Where the Leo column stops.
++    /// - The path to the Leo file.
++    /// - The content of those specified bounds.
+     pub fn new(
+         line_start: usize,
+         line_stop: usize,
+@@ -96,7 +96,6 @@ impl Serialize for Span {
+     }
+ }
+ 
+-/// Conversion from a pest span where the leo-input library uses these.
+ impl fmt::Display for Span {
+     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+         if self.line_start == self.line_stop {
+@@ -111,6 +110,7 @@ impl fmt::Display for Span {
+     }
+ }
+ 
++/// Conversion from a pest span where the leo-input library uses these.
+ impl<'ast> From<PestSpan<'ast>> for Span {
+     fn from(span: PestSpan) -> Self {
+         let start = span.start_pos().line_col();
+diff --git a/span/src/span_json.rs b/span/src/span_json.rs
+index 8a6d1262ec..7befdb4cb8 100644
+--- a/span/src/span_json.rs
++++ b/span/src/span_json.rs
+@@ -23,7 +23,7 @@ use serde::ser::SerializeMap;
+ use serde::{Deserializer, Serializer};
+ use std::fmt;
+ 
+-/// The AST contains a few tuple-like enum variants the contain spans
++/// The AST contains a few tuple-like enum variants that contain spans.
+ /// #[derive(Serialize, Deserialize)] outputs these fields as anonmyous
+ /// mappings, which makes them difficult to remove from the JSON AST.
+ /// This function provides a custom serialization that maps the keyword

@@ -1,0 +1,34 @@
+diff --git a/ast/src/circuits/circuit_member.rs b/ast/src/circuits/circuit_member.rs
+index c86ae4156b..c63f3f0403 100644
+--- a/ast/src/circuits/circuit_member.rs
++++ b/ast/src/circuits/circuit_member.rs
+@@ -58,12 +58,8 @@ impl<'ast> From<GrammarCircuitMember<'ast>> for CircuitMember {
+ impl fmt::Display for CircuitMember {
+     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+         match self {
+-            CircuitMember::CircuitVariable(ref identifier, ref type_) => {
+-                write!(f, "{}: {}", identifier, type_)
+-            }
+-            CircuitMember::CircuitFunction(ref function) => {
+-                write!(f, "{}", function)
+-            }
++            CircuitMember::CircuitVariable(ref identifier, ref type_) => write!(f, "{}: {}", identifier, type_),
++            CircuitMember::CircuitFunction(ref function) => write!(f, "{}", function),
+         }
+     }
+ }
+diff --git a/compiler/src/function/main_function.rs b/compiler/src/function/main_function.rs
+index 1d3f5d1380..a229025fa0 100644
+--- a/compiler/src/function/main_function.rs
++++ b/compiler/src/function/main_function.rs
+@@ -52,9 +52,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+                     (input_id, value)
+                 }
+                 FunctionInput::SelfKeyword(_) => unimplemented!("cannot access self keyword in main function"),
+-                FunctionInput::MutSelfKeyword(_) => {
+-                    unimplemented!("cannot access mut self keyword in main function")
+-                }
++                FunctionInput::MutSelfKeyword(_) => unimplemented!("cannot access mut self keyword in main function"),
+                 FunctionInput::Variable(input_model) => {
+                     let name = input_model.identifier.name.clone();
+                     let input_option = input

@@ -1,0 +1,111 @@
+diff --git a/compiler/passes/src/type_checking/check_program.rs b/compiler/passes/src/type_checking/check_program.rs
+index 3d22178c00..921995c230 100644
+--- a/compiler/passes/src/type_checking/check_program.rs
++++ b/compiler/passes/src/type_checking/check_program.rs
+@@ -243,13 +243,14 @@ impl<'a> ProgramVisitor<'a> for TypeChecker<'a> {
+                 }
+                 Output::Internal(function_output) => {
+                     // Check that the type of output is defined.
+-                    self.assert_type_is_defined(&function_output.type_, function_output.span);
+-                    // If the function is not a transition function, then it cannot output a record.
+-                    if let Type::Identifier(identifier) = function_output.type_ {
+-                        if !matches!(function.variant, Variant::Transition)
+-                            && self.symbol_table.borrow().lookup_struct(identifier.name).unwrap().is_record
+-                        {
+-                            self.emit_err(TypeCheckerError::function_cannot_output_record(function_output.span));
++                    if self.assert_type_is_defined(&function_output.type_, function_output.span) {
++                        // If the function is not a transition function, then it cannot output a record.
++                        if let Type::Identifier(identifier) = function_output.type_ {
++                            if !matches!(function.variant, Variant::Transition)
++                                && self.symbol_table.borrow().lookup_struct(identifier.name).unwrap().is_record
++                            {
++                                self.emit_err(TypeCheckerError::function_cannot_output_record(function_output.span));
++                            }
+                         }
+                     }
+                     // Check that the type of the output is not a tuple. This is necessary to forbid nested tuples.
+diff --git a/compiler/passes/src/type_checking/check_statements.rs b/compiler/passes/src/type_checking/check_statements.rs
+index cbd499cba1..9fc2ba54b4 100644
+--- a/compiler/passes/src/type_checking/check_statements.rs
++++ b/compiler/passes/src/type_checking/check_statements.rs
+@@ -201,7 +201,9 @@ impl<'a> StatementVisitor<'a> for TypeChecker<'a> {
+                     }
+                 }
+             },
+-            Type::Mapping(_) | Type::Err => unreachable!(),
++            Type::Mapping(_) | Type::Err => unreachable!(
++                "Parsing guarantees that `mapping` and `err` types are not present at this location in the AST."
++            ),
+             // Otherwise, the type is valid.
+             _ => (), // Do nothing
+         }
+diff --git a/compiler/passes/src/type_checking/checker.rs b/compiler/passes/src/type_checking/checker.rs
+index 290a75f920..91f7896557 100644
+--- a/compiler/passes/src/type_checking/checker.rs
++++ b/compiler/passes/src/type_checking/checker.rs
+@@ -352,29 +352,33 @@ impl<'a> TypeChecker<'a> {
+     }
+ 
+     /// Emits an error if the type or its constituent types are not defined.
+-    pub(crate) fn assert_type_is_defined(&self, type_: &Type, span: Span) {
++    pub(crate) fn assert_type_is_defined(&self, type_: &Type, span: Span) -> bool {
++        let mut is_defined = true;
+         match type_ {
+             // String types are temporarily disabled.
+             Type::String => {
++                is_defined = false;
+                 self.emit_err(TypeCheckerError::strings_are_not_supported(span));
+             }
+             // Check that the named composite type has been defined.
+             Type::Identifier(identifier) if self.symbol_table.borrow().lookup_struct(identifier.name).is_none() => {
++                is_defined = false;
+                 self.emit_err(TypeCheckerError::undefined_type(identifier.name, span));
+             }
+             // Check that the constituent types of the tuple are valid.
+             Type::Tuple(tuple_type) => {
+                 for type_ in tuple_type.iter() {
+-                    self.assert_type_is_defined(type_, span)
++                    is_defined &= self.assert_type_is_defined(type_, span)
+                 }
+             }
+             // Check that the constituent types of mapping are valid.
+             Type::Mapping(mapping_type) => {
+-                self.assert_type_is_defined(&mapping_type.key, span);
+-                self.assert_type_is_defined(&mapping_type.value, span);
++                is_defined &= self.assert_type_is_defined(&mapping_type.key, span);
++                is_defined &= self.assert_type_is_defined(&mapping_type.value, span);
+             }
+             _ => {} // Do nothing.
+         }
++        is_defined
+     }
+ 
+     /// Emits an error if the type is not a mapping.
+diff --git a/tests/expectations/compiler/function/undefined_data_type_fail.out b/tests/expectations/compiler/function/undefined_data_type_fail.out
+new file mode 100644
+index 0000000000..33c4a6bbe9
+--- /dev/null
++++ b/tests/expectations/compiler/function/undefined_data_type_fail.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [ETYC0372017]: The type `Board` is not found in the current scope.\n    --> compiler-test:4:35\n     |\n   4 |     function aria192check_for_win(b: Board, p: u8) -> u128bool {\n     |                                   ^\nError [ETYC0372017]: The type `u128bool` is not found in the current scope.\n    --> compiler-test:4:55\n     |\n   4 |     function aria192check_for_win(b: Board, p: u8) -> u128bool {\n     |                                                       ^^^^^^^^\nError [ETYC0372005]: Unknown variable `test`\n    --> compiler-test:5:16\n     |\n   5 |         return test;\n     |                ^^^^\n"
+diff --git a/tests/tests/compiler/function/undefined_data_type_fail.leo b/tests/tests/compiler/function/undefined_data_type_fail.leo
+new file mode 100644
+index 0000000000..03df7d6b16
+--- /dev/null
++++ b/tests/tests/compiler/function/undefined_data_type_fail.leo
+@@ -0,0 +1,10 @@
++/*
++namespace: Compile
++expectation: Fail
++*/
++
++program test.aleo {
++    function aria192check_for_win(b: Board, p: u8) -> u128bool {
++        return test;
++    }
++}
+\ No newline at end of file

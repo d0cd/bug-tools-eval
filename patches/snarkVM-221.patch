@@ -1,0 +1,913 @@
+diff --git a/circuits/environment/src/traits/integers.rs b/circuits/environment/src/traits/integers.rs
+index eae0dfc2c..1f55d519f 100644
+--- a/circuits/environment/src/traits/integers.rs
++++ b/circuits/environment/src/traits/integers.rs
+@@ -128,6 +128,7 @@ pub(super) mod integer_type {
+     /// Trait bound for integer values. Common to both signed and unsigned integers.
+     pub trait IntegerType:
+         'static
++        + CheckedAbs
+         + CheckedNeg
+         + CheckedPow
+         + CheckedShl
+@@ -142,6 +143,7 @@ pub(super) mod integer_type {
+         + ToBytes
+         + ToPrimitive
+         + UniformRand
++        + WrappingAbs
+         + WrappingAdd
+         + WrappingMul
+         + WrappingNeg
+@@ -167,117 +169,117 @@ pub(super) mod integer_type {
+     impl IntegerType for u64 {}
+     impl IntegerType for u128 {}
+ 
+-    macro_rules! checked_impl {
+-        ($trait_name:ident, $method:ident, $t:ty) => {
++    macro_rules! binary_impl {
++        ($trait_name:ident, $t:ty, $method:ident, $arg1: ident, $argname:ident, $arg2: ident, $rt:ty, $body:expr) => {
+             impl $trait_name for $t {
+                 #[inline]
+-                fn $method(&self, rhs: u32) -> Option<$t> {
+-                    <$t>::$method(*self, rhs)
+-                }
+-            }
+-        };
+-    }
+-
+-    macro_rules! wrapping_impl {
+-        ($trait_name:ident, $method:ident, $t:ty) => {
+-            impl $trait_name for $t {
+-                #[inline]
+-                fn $method(&self, v: &Self) -> Self {
+-                    <$t>::$method(*self, *v)
+-                }
+-            }
+-        };
+-        ($trait_name:ident, $method:ident, $t:ty, $rhs:ty) => {
+-            impl $trait_name for $t {
+-                #[inline]
+-                fn $method(&self, v: $rhs) -> Self {
+-                    <$t>::$method(*self, v)
+-                }
+-            }
+-        };
+-    }
+-
+-    macro_rules! integer_properties_impl {
+-        ($t:ty, $dual:ty, $is_signed:expr) => {
+-            impl IntegerProperties for $t {
+-                type Dual = $dual;
+-
+-                const BITS: usize = <$t>::BITS as usize;
+-                const MAX: $t = <$t>::MAX;
+-                const MIN: $t = <$t>::MIN;
+-
+-                #[inline]
+-                fn is_signed() -> bool {
+-                    $is_signed
+-                }
+-
+-                #[inline]
+-                fn type_name() -> &'static str {
+-                    std::any::type_name::<$t>()
++                fn $method(&$arg1, $argname: &$arg2) -> $rt {
++                    $body
+                 }
+             }
+         };
+     }
+ 
+     pub trait CheckedPow: Sized {
+-        fn checked_pow(&self, v: u32) -> Option<Self>;
++        fn checked_pow(&self, v: &u32) -> Option<Self>;
+     }
+ 
+-    checked_impl!(CheckedPow, checked_pow, u8);
+-    checked_impl!(CheckedPow, checked_pow, u16);
+-    checked_impl!(CheckedPow, checked_pow, u32);
+-    checked_impl!(CheckedPow, checked_pow, u64);
+-    checked_impl!(CheckedPow, checked_pow, u128);
+-    checked_impl!(CheckedPow, checked_pow, i8);
+-    checked_impl!(CheckedPow, checked_pow, i16);
+-    checked_impl!(CheckedPow, checked_pow, i32);
+-    checked_impl!(CheckedPow, checked_pow, i64);
+-    checked_impl!(CheckedPow, checked_pow, i128);
++    binary_impl!(CheckedPow, u8, checked_pow, self, v, u32, Option<u8>, u8::checked_pow(*self, *v));
++    binary_impl!(CheckedPow, u16, checked_pow, self, v, u32, Option<u16>, u16::checked_pow(*self, *v));
++    binary_impl!(CheckedPow, u32, checked_pow, self, v, u32, Option<u32>, u32::checked_pow(*self, *v));
++    binary_impl!(CheckedPow, u64, checked_pow, self, v, u32, Option<u64>, u64::checked_pow(*self, *v));
++    binary_impl!(CheckedPow, u128, checked_pow, self, v, u32, Option<u128>, u128::checked_pow(*self, *v));
++    binary_impl!(CheckedPow, i8, checked_pow, self, v, u32, Option<i8>, i8::checked_pow(*self, *v));
++    binary_impl!(CheckedPow, i16, checked_pow, self, v, u32, Option<i16>, i16::checked_pow(*self, *v));
++    binary_impl!(CheckedPow, i32, checked_pow, self, v, u32, Option<i32>, i32::checked_pow(*self, *v));
++    binary_impl!(CheckedPow, i64, checked_pow, self, v, u32, Option<i64>, i64::checked_pow(*self, *v));
++    binary_impl!(CheckedPow, i128, checked_pow, self, v, u32, Option<i128>, i128::checked_pow(*self, *v));
+ 
+     pub trait WrappingDiv: Sized + Div<Self, Output = Self> {
+         fn wrapping_div(&self, v: &Self) -> Self;
+     }
+ 
+-    wrapping_impl!(WrappingDiv, wrapping_div, u8);
+-    wrapping_impl!(WrappingDiv, wrapping_div, u16);
+-    wrapping_impl!(WrappingDiv, wrapping_div, u32);
+-    wrapping_impl!(WrappingDiv, wrapping_div, u64);
+-    wrapping_impl!(WrappingDiv, wrapping_div, u128);
+-    wrapping_impl!(WrappingDiv, wrapping_div, i8);
+-    wrapping_impl!(WrappingDiv, wrapping_div, i16);
+-    wrapping_impl!(WrappingDiv, wrapping_div, i32);
+-    wrapping_impl!(WrappingDiv, wrapping_div, i64);
+-    wrapping_impl!(WrappingDiv, wrapping_div, i128);
++    binary_impl!(WrappingDiv, u8, wrapping_div, self, v, Self, u8, u8::wrapping_div(*self, *v));
++    binary_impl!(WrappingDiv, u16, wrapping_div, self, v, Self, u16, u16::wrapping_div(*self, *v));
++    binary_impl!(WrappingDiv, u32, wrapping_div, self, v, Self, u32, u32::wrapping_div(*self, *v));
++    binary_impl!(WrappingDiv, u64, wrapping_div, self, v, Self, u64, u64::wrapping_div(*self, *v));
++    binary_impl!(WrappingDiv, u128, wrapping_div, self, v, Self, u128, u128::wrapping_div(*self, *v));
++    binary_impl!(WrappingDiv, i8, wrapping_div, self, v, Self, i8, i8::wrapping_div(*self, *v));
++    binary_impl!(WrappingDiv, i16, wrapping_div, self, v, Self, i16, i16::wrapping_div(*self, *v));
++    binary_impl!(WrappingDiv, i32, wrapping_div, self, v, Self, i32, i32::wrapping_div(*self, *v));
++    binary_impl!(WrappingDiv, i64, wrapping_div, self, v, Self, i64, i64::wrapping_div(*self, *v));
++    binary_impl!(WrappingDiv, i128, wrapping_div, self, v, Self, i128, i128::wrapping_div(*self, *v));
+ 
+     pub trait WrappingRem: Sized + Rem<Self, Output = Self> {
+         fn wrapping_rem(&self, v: &Self) -> Self;
+     }
+ 
+-    wrapping_impl!(WrappingRem, wrapping_rem, u8);
+-    wrapping_impl!(WrappingRem, wrapping_rem, u16);
+-    wrapping_impl!(WrappingRem, wrapping_rem, u32);
+-    wrapping_impl!(WrappingRem, wrapping_rem, u64);
+-    wrapping_impl!(WrappingRem, wrapping_rem, u128);
+-    wrapping_impl!(WrappingRem, wrapping_rem, i8);
+-    wrapping_impl!(WrappingRem, wrapping_rem, i16);
+-    wrapping_impl!(WrappingRem, wrapping_rem, i32);
+-    wrapping_impl!(WrappingRem, wrapping_rem, i64);
+-    wrapping_impl!(WrappingRem, wrapping_rem, i128);
++    binary_impl!(WrappingRem, u8, wrapping_rem, self, v, Self, u8, u8::wrapping_rem(*self, *v));
++    binary_impl!(WrappingRem, u16, wrapping_rem, self, v, Self, u16, u16::wrapping_rem(*self, *v));
++    binary_impl!(WrappingRem, u32, wrapping_rem, self, v, Self, u32, u32::wrapping_rem(*self, *v));
++    binary_impl!(WrappingRem, u64, wrapping_rem, self, v, Self, u64, u64::wrapping_rem(*self, *v));
++    binary_impl!(WrappingRem, u128, wrapping_rem, self, v, Self, u128, u128::wrapping_rem(*self, *v));
++    binary_impl!(WrappingRem, i8, wrapping_rem, self, v, Self, i8, i8::wrapping_rem(*self, *v));
++    binary_impl!(WrappingRem, i16, wrapping_rem, self, v, Self, i16, i16::wrapping_rem(*self, *v));
++    binary_impl!(WrappingRem, i32, wrapping_rem, self, v, Self, i32, i32::wrapping_rem(*self, *v));
++    binary_impl!(WrappingRem, i64, wrapping_rem, self, v, Self, i64, i64::wrapping_rem(*self, *v));
++    binary_impl!(WrappingRem, i128, wrapping_rem, self, v, Self, i128, i128::wrapping_rem(*self, *v));
+ 
+     pub trait WrappingPow: Sized {
+-        fn wrapping_pow(&self, v: u32) -> Self;
++        fn wrapping_pow(&self, v: &u32) -> Self;
+     }
+ 
+-    wrapping_impl!(WrappingPow, wrapping_pow, u8, u32);
+-    wrapping_impl!(WrappingPow, wrapping_pow, u16, u32);
+-    wrapping_impl!(WrappingPow, wrapping_pow, u32, u32);
+-    wrapping_impl!(WrappingPow, wrapping_pow, u64, u32);
+-    wrapping_impl!(WrappingPow, wrapping_pow, u128, u32);
+-    wrapping_impl!(WrappingPow, wrapping_pow, i8, u32);
+-    wrapping_impl!(WrappingPow, wrapping_pow, i16, u32);
+-    wrapping_impl!(WrappingPow, wrapping_pow, i32, u32);
+-    wrapping_impl!(WrappingPow, wrapping_pow, i64, u32);
+-    wrapping_impl!(WrappingPow, wrapping_pow, i128, u32);
++    binary_impl!(WrappingPow, u8, wrapping_pow, self, v, u32, u8, u8::wrapping_pow(*self, *v));
++    binary_impl!(WrappingPow, u16, wrapping_pow, self, v, u32, u16, u16::wrapping_pow(*self, *v));
++    binary_impl!(WrappingPow, u32, wrapping_pow, self, v, u32, u32, u32::wrapping_pow(*self, *v));
++    binary_impl!(WrappingPow, u64, wrapping_pow, self, v, u32, u64, u64::wrapping_pow(*self, *v));
++    binary_impl!(WrappingPow, u128, wrapping_pow, self, v, u32, u128, u128::wrapping_pow(*self, *v));
++    binary_impl!(WrappingPow, i8, wrapping_pow, self, v, u32, i8, i8::wrapping_pow(*self, *v));
++    binary_impl!(WrappingPow, i16, wrapping_pow, self, v, u32, i16, i16::wrapping_pow(*self, *v));
++    binary_impl!(WrappingPow, i32, wrapping_pow, self, v, u32, i32, i32::wrapping_pow(*self, *v));
++    binary_impl!(WrappingPow, i64, wrapping_pow, self, v, u32, i64, i64::wrapping_pow(*self, *v));
++    binary_impl!(WrappingPow, i128, wrapping_pow, self, v, u32, i128, i128::wrapping_pow(*self, *v));
++
++    macro_rules! unary_impl {
++        ($trait_name:ident, $t:ty, $method:ident, $arg: ident, $rt:ty, $body:expr) => {
++            impl $trait_name for $t {
++                #[inline]
++                fn $method(&$arg) -> $rt {
++                    $body
++                }
++            }
++        };
++    }
++
++    pub trait CheckedAbs: Sized {
++        fn checked_abs(&self) -> Option<Self>;
++    }
++
++    unary_impl!(CheckedAbs, u8, checked_abs, self, Option<u8>, Some(*self));
++    unary_impl!(CheckedAbs, u16, checked_abs, self, Option<u16>, Some(*self));
++    unary_impl!(CheckedAbs, u32, checked_abs, self, Option<u32>, Some(*self));
++    unary_impl!(CheckedAbs, u64, checked_abs, self, Option<u64>, Some(*self));
++    unary_impl!(CheckedAbs, u128, checked_abs, self, Option<u128>, Some(*self));
++    unary_impl!(CheckedAbs, i8, checked_abs, self, Option<i8>, i8::checked_abs(*self));
++    unary_impl!(CheckedAbs, i16, checked_abs, self, Option<i16>, i16::checked_abs(*self));
++    unary_impl!(CheckedAbs, i32, checked_abs, self, Option<i32>, i32::checked_abs(*self));
++    unary_impl!(CheckedAbs, i64, checked_abs, self, Option<i64>, i64::checked_abs(*self));
++    unary_impl!(CheckedAbs, i128, checked_abs, self, Option<i128>, i128::checked_abs(*self));
++
++    pub trait WrappingAbs: Sized {
++        fn wrapping_abs(&self) -> Self;
++    }
++
++    unary_impl!(WrappingAbs, u8, wrapping_abs, self, u8, *self);
++    unary_impl!(WrappingAbs, u16, wrapping_abs, self, u16, *self);
++    unary_impl!(WrappingAbs, u32, wrapping_abs, self, u32, *self);
++    unary_impl!(WrappingAbs, u64, wrapping_abs, self, u64, *self);
++    unary_impl!(WrappingAbs, u128, wrapping_abs, self, u128, *self);
++    unary_impl!(WrappingAbs, i8, wrapping_abs, self, i8, i8::wrapping_abs(*self));
++    unary_impl!(WrappingAbs, i16, wrapping_abs, self, i16, i16::wrapping_abs(*self));
++    unary_impl!(WrappingAbs, i32, wrapping_abs, self, i32, i32::wrapping_abs(*self));
++    unary_impl!(WrappingAbs, i64, wrapping_abs, self, i64, i64::wrapping_abs(*self));
++    unary_impl!(WrappingAbs, i128, wrapping_abs, self, i128, i128::wrapping_abs(*self));
+ 
+     /// Properties common to all integer types.
+     pub trait IntegerProperties: PrimInt + Debug + Display {
+@@ -296,6 +298,28 @@ pub(super) mod integer_type {
+         fn type_name() -> &'static str;
+     }
+ 
++    macro_rules! integer_properties_impl {
++        ($t:ty, $dual:ty, $is_signed:expr) => {
++            impl IntegerProperties for $t {
++                type Dual = $dual;
++
++                const BITS: usize = <$t>::BITS as usize;
++                const MAX: $t = <$t>::MAX;
++                const MIN: $t = <$t>::MIN;
++
++                #[inline]
++                fn is_signed() -> bool {
++                    $is_signed
++                }
++
++                #[inline]
++                fn type_name() -> &'static str {
++                    std::any::type_name::<$t>()
++                }
++            }
++        };
++    }
++
+     integer_properties_impl!(u8, i8, false);
+     integer_properties_impl!(u16, i16, false);
+     integer_properties_impl!(u32, i32, false);
+diff --git a/circuits/environment/src/traits/operators.rs b/circuits/environment/src/traits/operators.rs
+index d274972bb..af6393229 100644
+--- a/circuits/environment/src/traits/operators.rs
++++ b/circuits/environment/src/traits/operators.rs
+@@ -199,6 +199,27 @@ pub trait SubWrapped<Rhs: ?Sized = Self> {
+     fn sub_wrapped(&self, rhs: &Rhs) -> Self::Output;
+ }
+ 
++/// Unary operator for retrieving the absolute value, enforcing an overflow never occurs.
++pub trait AbsChecked {
++    type Output;
++
++    fn abs_checked(self) -> Self::Output;
++}
++
++/// Unary operator for retrieving the absolute value, bounding the difference to `MAX` if an overflow occurs.
++pub trait AbsSaturating {
++    type Output;
++
++    fn abs_saturating(self) -> Self::Output;
++}
++
++/// Unary operator for retrieving the absolute value, wrapping the result if an overflow occurs.
++pub trait AbsWrapped {
++    type Output;
++
++    fn abs_wrapped(self) -> Self::Output;
++}
++
+ /// Unary operator for retrieving the doubled value.
+ pub trait Double {
+     type Output;
+diff --git a/circuits/types/integers/src/abs_checked.rs b/circuits/types/integers/src/abs_checked.rs
+new file mode 100644
+index 000000000..848e61841
+--- /dev/null
++++ b/circuits/types/integers/src/abs_checked.rs
+@@ -0,0 +1,206 @@
++// Copyright (C) 2019-2022 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use super::*;
++
++impl<E: Environment, I: IntegerType> AbsChecked for Integer<E, I> {
++    type Output = Integer<E, I>;
++
++    fn abs_checked(self) -> Self::Output {
++        (&self).abs_checked()
++    }
++}
++
++impl<E: Environment, I: IntegerType> AbsChecked for &Integer<E, I> {
++    type Output = Integer<E, I>;
++
++    fn abs_checked(self) -> Self::Output {
++        match I::is_signed() {
++            true => Integer::ternary(self.msb(), &Integer::zero().sub_checked(self), self),
++            false => self.clone(),
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use snarkvm_circuits_environment::Circuit;
++    use snarkvm_utilities::{test_rng, UniformRand};
++    use test_utilities::*;
++
++    const ITERATIONS: usize = 128;
++
++    #[rustfmt::skip]
++    fn check_abs<I: IntegerType + std::panic::UnwindSafe>(
++        name: &str,
++        value: I,
++        mode: Mode,
++        num_constants: usize,
++        num_public: usize,
++        num_private: usize,
++        num_constraints: usize,
++    ) {
++        let a = Integer::<Circuit, I>::new(mode, value);
++        let case = format!("(!{})", a.eject_value());
++        match value.checked_abs() {
++            Some(expected) => check_unary_operation_passes(name, &case, expected, a, |a: Integer<Circuit, I>| a.abs_checked(), num_constants, num_public, num_private, num_constraints),
++            None => match mode {
++                Mode::Constant => check_unary_operation_halts(a, |a: Integer<Circuit, I>| a.abs_checked()),
++                _ => check_unary_operation_fails(name, &case, a, |a: Integer<Circuit, I>| a.abs_checked(), num_constants, num_public, num_private, num_constraints)
++            }
++        }
++
++    }
++
++    fn run_test<I: IntegerType + std::panic::UnwindSafe>(
++        mode: Mode,
++        num_constants: usize,
++        num_public: usize,
++        num_private: usize,
++        num_constraints: usize,
++    ) {
++        for i in 0..ITERATIONS {
++            let name = format!("Abs: {} {}", mode, i);
++            let value: I = UniformRand::rand(&mut test_rng());
++            check_abs(&name, value, mode, num_constants, num_public, num_private, num_constraints);
++        }
++
++        // Check the 0 case.
++        let name = format!("Abs: {} zero", mode);
++        check_abs(&name, I::zero(), mode, num_constants, num_public, num_private, num_constraints);
++
++        // Check the 1 case.
++        let name = format!("Abs: {} one", mode);
++        check_abs(&name, I::one(), mode, num_constants, num_public, num_private, num_constraints);
++
++        // Check the I::MIN (checked) case.
++        let name = format!("Abs: {} one", mode);
++        check_abs(&name, I::MIN, mode, num_constants, num_public, num_private, num_constraints);
++    }
++
++    #[test]
++    fn test_u8_abs() {
++        type I = u8;
++        run_test::<I>(Mode::Constant, 0, 0, 0, 0);
++        run_test::<I>(Mode::Public, 0, 0, 0, 0);
++        run_test::<I>(Mode::Private, 0, 0, 0, 0);
++    }
++
++    #[test]
++    fn test_i8_abs() {
++        type I = i8;
++        run_test::<I>(Mode::Constant, 16, 0, 0, 0);
++        run_test::<I>(Mode::Public, 8, 0, 19, 21);
++        run_test::<I>(Mode::Private, 8, 0, 19, 21);
++    }
++
++    #[test]
++    fn test_u16_abs() {
++        type I = u16;
++        run_test::<I>(Mode::Constant, 0, 0, 0, 0);
++        run_test::<I>(Mode::Public, 0, 0, 0, 0);
++        run_test::<I>(Mode::Private, 0, 0, 0, 0);
++    }
++
++    #[test]
++    fn test_i16_abs() {
++        type I = i16;
++        run_test::<I>(Mode::Constant, 32, 0, 0, 0);
++        run_test::<I>(Mode::Public, 16, 0, 35, 37);
++        run_test::<I>(Mode::Private, 16, 0, 35, 37);
++    }
++
++    #[test]
++    fn test_u32_abs() {
++        type I = u32;
++        run_test::<I>(Mode::Constant, 0, 0, 0, 0);
++        run_test::<I>(Mode::Public, 0, 0, 0, 0);
++        run_test::<I>(Mode::Private, 0, 0, 0, 0);
++    }
++
++    #[test]
++    fn test_i32_abs() {
++        type I = i32;
++        run_test::<I>(Mode::Constant, 64, 0, 0, 0);
++        run_test::<I>(Mode::Public, 32, 0, 67, 69);
++        run_test::<I>(Mode::Private, 32, 0, 67, 69);
++    }
++
++    #[test]
++    fn test_u64_abs() {
++        type I = u64;
++        run_test::<I>(Mode::Constant, 0, 0, 0, 0);
++        run_test::<I>(Mode::Public, 0, 0, 0, 0);
++        run_test::<I>(Mode::Private, 0, 0, 0, 0);
++    }
++
++    #[test]
++    fn test_i64_abs() {
++        type I = i64;
++        run_test::<I>(Mode::Constant, 128, 0, 0, 0);
++        run_test::<I>(Mode::Public, 64, 0, 131, 133);
++        run_test::<I>(Mode::Private, 64, 0, 131, 133);
++    }
++
++    #[test]
++    fn test_u128_abs() {
++        type I = u128;
++        run_test::<I>(Mode::Constant, 0, 0, 0, 0);
++        run_test::<I>(Mode::Public, 0, 0, 0, 0);
++        run_test::<I>(Mode::Private, 0, 0, 0, 0);
++    }
++
++    #[test]
++    fn test_i128_abs() {
++        type I = i128;
++        run_test::<I>(Mode::Constant, 256, 0, 0, 0);
++        run_test::<I>(Mode::Public, 128, 0, 259, 261);
++        run_test::<I>(Mode::Private, 128, 0, 259, 261);
++    }
++
++    #[test]
++    #[ignore]
++    fn test_exhaustive_u8_abs() {
++        type I = u8;
++        for value in I::MIN..=I::MAX {
++            let name = format!("Abs: {}", Mode::Constant);
++            check_abs(&name, value, Mode::Constant, 0, 0, 0, 0);
++
++            let name = format!("Abs: {}", Mode::Public);
++            check_abs(&name, value, Mode::Public, 0, 0, 0, 0);
++
++            let name = format!("Abs: {}", Mode::Private);
++            check_abs(&name, value, Mode::Private, 0, 0, 0, 0);
++        }
++    }
++
++    #[test]
++    #[ignore]
++    fn test_exhaustive_i8_abs() {
++        type I = i8;
++        for value in I::MIN..=I::MAX {
++            let name = format!("Abs: {}", Mode::Constant);
++            check_abs(&name, value, Mode::Constant, 16, 0, 0, 0);
++
++            let name = format!("Abs: {}", Mode::Public);
++            check_abs(&name, value, Mode::Public, 8, 0, 19, 21);
++
++            let name = format!("Abs: {}", Mode::Private);
++            check_abs(&name, value, Mode::Private, 8, 0, 19, 21);
++        }
++    }
++}
+diff --git a/circuits/types/integers/src/abs_wrapped.rs b/circuits/types/integers/src/abs_wrapped.rs
+new file mode 100644
+index 000000000..248bc80c1
+--- /dev/null
++++ b/circuits/types/integers/src/abs_wrapped.rs
+@@ -0,0 +1,200 @@
++// Copyright (C) 2019-2022 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use super::*;
++
++impl<E: Environment, I: IntegerType> AbsWrapped for Integer<E, I> {
++    type Output = Integer<E, I>;
++
++    fn abs_wrapped(self) -> Self::Output {
++        (&self).abs_wrapped()
++    }
++}
++
++impl<E: Environment, I: IntegerType> AbsWrapped for &Integer<E, I> {
++    type Output = Integer<E, I>;
++
++    fn abs_wrapped(self) -> Self::Output {
++        match I::is_signed() {
++            true => Integer::ternary(self.msb(), &Integer::zero().sub_wrapped(self), self),
++            false => self.clone(),
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use snarkvm_circuits_environment::Circuit;
++    use snarkvm_utilities::{test_rng, UniformRand};
++    use test_utilities::*;
++
++    const ITERATIONS: usize = 128;
++
++    #[rustfmt::skip]
++    fn check_abs<I: IntegerType + std::panic::UnwindSafe>(
++        name: &str,
++        value: I,
++        mode: Mode,
++        num_constants: usize,
++        num_public: usize,
++        num_private: usize,
++        num_constraints: usize,
++    ) {
++        let a = Integer::<Circuit, I>::new(mode, value);
++        let case = format!("(!{})", a.eject_value());
++        let expected = value.wrapping_abs();
++        check_unary_operation_passes(name, &case, expected, a, |a: Integer<Circuit, I> | a.abs_wrapped(), num_constants, num_public, num_private, num_constraints);
++    }
++
++    fn run_test<I: IntegerType + std::panic::UnwindSafe>(
++        mode: Mode,
++        num_constants: usize,
++        num_public: usize,
++        num_private: usize,
++        num_constraints: usize,
++    ) {
++        for i in 0..ITERATIONS {
++            let name = format!("Abs: {} {}", mode, i);
++            let value: I = UniformRand::rand(&mut test_rng());
++            check_abs(&name, value, mode, num_constants, num_public, num_private, num_constraints);
++        }
++
++        // Check the 0 case.
++        let name = format!("Abs: {} zero", mode);
++        check_abs(&name, I::zero(), mode, num_constants, num_public, num_private, num_constraints);
++
++        // Check the 1 case.
++        let name = format!("Abs: {} one", mode);
++        check_abs(&name, I::one(), mode, num_constants, num_public, num_private, num_constraints);
++
++        // Check the I::MIN (wrapped) case.
++        let name = format!("Abs: {} one", mode);
++        check_abs(&name, I::MIN, mode, num_constants, num_public, num_private, num_constraints);
++    }
++
++    #[test]
++    fn test_u8_abs() {
++        type I = u8;
++        run_test::<I>(Mode::Constant, 0, 0, 0, 0);
++        run_test::<I>(Mode::Public, 0, 0, 0, 0);
++        run_test::<I>(Mode::Private, 0, 0, 0, 0);
++    }
++
++    #[test]
++    fn test_i8_abs() {
++        type I = i8;
++        run_test::<I>(Mode::Constant, 16, 0, 0, 0);
++        run_test::<I>(Mode::Public, 8, 0, 17, 18);
++        run_test::<I>(Mode::Private, 8, 0, 17, 18);
++    }
++
++    #[test]
++    fn test_u16_abs() {
++        type I = u16;
++        run_test::<I>(Mode::Constant, 0, 0, 0, 0);
++        run_test::<I>(Mode::Public, 0, 0, 0, 0);
++        run_test::<I>(Mode::Private, 0, 0, 0, 0);
++    }
++
++    #[test]
++    fn test_i16_abs() {
++        type I = i16;
++        run_test::<I>(Mode::Constant, 32, 0, 0, 0);
++        run_test::<I>(Mode::Public, 16, 0, 33, 34);
++        run_test::<I>(Mode::Private, 16, 0, 33, 34);
++    }
++
++    #[test]
++    fn test_u32_abs() {
++        type I = u32;
++        run_test::<I>(Mode::Constant, 0, 0, 0, 0);
++        run_test::<I>(Mode::Public, 0, 0, 0, 0);
++        run_test::<I>(Mode::Private, 0, 0, 0, 0);
++    }
++
++    #[test]
++    fn test_i32_abs() {
++        type I = i32;
++        run_test::<I>(Mode::Constant, 64, 0, 0, 0);
++        run_test::<I>(Mode::Public, 32, 0, 65, 66);
++        run_test::<I>(Mode::Private, 32, 0, 65, 66);
++    }
++
++    #[test]
++    fn test_u64_abs() {
++        type I = u64;
++        run_test::<I>(Mode::Constant, 0, 0, 0, 0);
++        run_test::<I>(Mode::Public, 0, 0, 0, 0);
++        run_test::<I>(Mode::Private, 0, 0, 0, 0);
++    }
++
++    #[test]
++    fn test_i64_abs() {
++        type I = i64;
++        run_test::<I>(Mode::Constant, 128, 0, 0, 0);
++        run_test::<I>(Mode::Public, 64, 0, 129, 130);
++        run_test::<I>(Mode::Private, 64, 0, 129, 130);
++    }
++
++    #[test]
++    fn test_u128_abs() {
++        type I = u128;
++        run_test::<I>(Mode::Constant, 0, 0, 0, 0);
++        run_test::<I>(Mode::Public, 0, 0, 0, 0);
++        run_test::<I>(Mode::Private, 0, 0, 0, 0);
++    }
++
++    #[test]
++    fn test_i128_abs() {
++        type I = i128;
++        run_test::<I>(Mode::Constant, 256, 0, 0, 0);
++        run_test::<I>(Mode::Public, 128, 0, 257, 258);
++        run_test::<I>(Mode::Private, 128, 0, 257, 258);
++    }
++
++    #[test]
++    #[ignore]
++    fn test_exhaustive_u8_abs() {
++        type I = u8;
++        for value in I::MIN..=I::MAX {
++            let name = format!("Abs: {}", Mode::Constant);
++            check_abs(&name, value, Mode::Constant, 0, 0, 0, 0);
++
++            let name = format!("Abs: {}", Mode::Public);
++            check_abs(&name, value, Mode::Public, 0, 0, 0, 0);
++
++            let name = format!("Abs: {}", Mode::Private);
++            check_abs(&name, value, Mode::Private, 0, 0, 0, 0);
++        }
++    }
++
++    #[test]
++    #[ignore]
++    fn test_exhaustive_i8_abs() {
++        type I = i8;
++        for value in I::MIN..=I::MAX {
++            let name = format!("Abs: {}", Mode::Constant);
++            check_abs(&name, value, Mode::Constant, 16, 0, 0, 0);
++
++            let name = format!("Abs: {}", Mode::Public);
++            check_abs(&name, value, Mode::Public, 8, 0, 17, 18);
++
++            let name = format!("Abs: {}", Mode::Private);
++            check_abs(&name, value, Mode::Private, 8, 0, 17, 18);
++        }
++    }
++}
+diff --git a/circuits/types/integers/src/div_checked.rs b/circuits/types/integers/src/div_checked.rs
+index 2c9630b7d..4c2b3a98e 100644
+--- a/circuits/types/integers/src/div_checked.rs
++++ b/circuits/types/integers/src/div_checked.rs
+@@ -89,8 +89,9 @@ impl<E: Environment, I: IntegerType> DivChecked<Self> for Integer<E, I> {
+             E::assert_eq(overflows, E::zero());
+ 
+             // Divide the absolute value of `self` and `other` in the base field.
+-            let unsigned_dividend = Self::ternary(self.msb(), &Self::zero().sub_wrapped(self), self).cast_as_dual();
+-            let unsigned_divisor = Self::ternary(other.msb(), &Self::zero().sub_wrapped(other), other).cast_as_dual();
++            // Note that it is safe to use `abs_wrapped`, since the case for I::MIN is handled above.
++            let unsigned_dividend = self.abs_wrapped().cast_as_dual();
++            let unsigned_divisor = other.abs_wrapped().cast_as_dual();
+             let unsigned_quotient = unsigned_dividend.div_wrapped(&unsigned_divisor);
+ 
+             // TODO (@pranav) Do we need to check that the quotient cannot exceed abs(I::MIN)?
+diff --git a/circuits/types/integers/src/div_wrapped.rs b/circuits/types/integers/src/div_wrapped.rs
+index d1d967e10..f34dc0175 100644
+--- a/circuits/types/integers/src/div_wrapped.rs
++++ b/circuits/types/integers/src/div_wrapped.rs
+@@ -33,8 +33,8 @@ impl<E: Environment, I: IntegerType> DivWrapped<Self> for Integer<E, I> {
+             Integer::new(Mode::Constant, self.eject_value().wrapping_div(&other.eject_value()))
+         } else if I::is_signed() {
+             // Divide the absolute value of `self` and `other` in the base field.
+-            let unsigned_dividend = Self::ternary(self.msb(), &Self::zero().sub_wrapped(self), self).cast_as_dual();
+-            let unsigned_divisor = Self::ternary(other.msb(), &Self::zero().sub_wrapped(other), other).cast_as_dual();
++            let unsigned_dividend = self.abs_wrapped().cast_as_dual();
++            let unsigned_divisor = other.abs_wrapped().cast_as_dual();
+             let unsigned_quotient = unsigned_dividend.div_wrapped(&unsigned_divisor);
+ 
+             // TODO (@pranav) Do we need to check that the quotient cannot exceed abs(I::MIN)?
+diff --git a/circuits/types/integers/src/lib.rs b/circuits/types/integers/src/lib.rs
+index c3b7292c9..a9385e226 100644
+--- a/circuits/types/integers/src/lib.rs
++++ b/circuits/types/integers/src/lib.rs
+@@ -17,6 +17,8 @@
+ #![forbid(unsafe_code)]
+ #![allow(clippy::too_many_arguments)]
+ 
++pub mod abs_checked;
++pub mod abs_wrapped;
+ pub mod add_checked;
+ pub mod add_wrapped;
+ pub mod and;
+@@ -440,4 +442,9 @@ mod test_utilities {
+         });
+         Circuit::reset();
+     }
++
++    pub fn check_unary_operation_halts<IN: UnwindSafe, OUT>(input: IN, operation: impl FnOnce(IN) -> OUT + UnwindSafe) {
++        let result = std::panic::catch_unwind(|| operation(input));
++        assert!(result.is_err());
++    }
+ }
+diff --git a/circuits/types/integers/src/mul_checked.rs b/circuits/types/integers/src/mul_checked.rs
+index 7b072a3cb..a48dfee11 100644
+--- a/circuits/types/integers/src/mul_checked.rs
++++ b/circuits/types/integers/src/mul_checked.rs
+@@ -77,9 +77,8 @@ impl<E: Environment, I: IntegerType> MulChecked<Self> for Integer<E, I> {
+             }
+         } else if I::is_signed() {
+             // Multiply the absolute value of `self` and `other` in the base field.
+-            let absolute_self = Self::ternary(self.msb(), &Self::zero().sub_wrapped(self), self);
+-            let absolute_other = Self::ternary(other.msb(), &Self::zero().sub_wrapped(other), other);
+-            let (product, carry) = Self::mul_with_carry(&absolute_self, &absolute_other, true);
++            // Note that it is safe to use abs_wrapped since we want I::MIN to be interpreted as an unsigned number.
++            let (product, carry) = Self::mul_with_carry(&self.abs_wrapped(), &other.abs_wrapped(), true);
+ 
+             // We need to check that the abs(a) * abs(b) did not exceed the unsigned maximum.
+             let carry_bits_nonzero = carry.iter().fold(Boolean::constant(false), |a, b| a | b);
+diff --git a/circuits/types/integers/src/neg.rs b/circuits/types/integers/src/neg.rs
+index e7efab700..4ad364eae 100644
+--- a/circuits/types/integers/src/neg.rs
++++ b/circuits/types/integers/src/neg.rs
+@@ -47,12 +47,6 @@ mod tests {
+ 
+     const ITERATIONS: usize = 128;
+ 
+-    fn check_unsigned_neg_halts<I: IntegerType + std::panic::UnwindSafe>(mode: Mode, value: I) {
+-        let candidate = Integer::<Circuit, I>::new(mode, value);
+-        let operation = std::panic::catch_unwind(|| candidate.neg());
+-        assert!(operation.is_err());
+-    }
+-
+     #[rustfmt::skip]
+     fn check_neg<I: IntegerType + std::panic::UnwindSafe + Neg<Output = I> >(
+         name: &str,
+@@ -66,11 +60,11 @@ mod tests {
+         let a = Integer::<Circuit, I>::new(mode, value);
+         let case = format!("(-{})", a.eject_value());
+         match value.checked_neg() {
+-            Some(value) => check_unary_operation_passes(name, &case, value, &a, |a: &Integer<Circuit, I> | { a.neg() }, num_constants, num_public, num_private, num_constraints),
++            Some(value) => check_unary_operation_passes(name, &case, value, a, |a: Integer::<Circuit, I> | a.neg(), num_constants, num_public, num_private, num_constraints),
+             None => {
+                 match mode {
+-                    Mode::Constant => check_unsigned_neg_halts(mode, value),
+-                    _ => check_unary_operation_fails(name, &case, &a, |a: &Integer<Circuit, I> | { a.neg() }, num_constants, num_public, num_private, num_constraints),
++                    Mode::Constant => check_unary_operation_halts(a, |a: Integer::<Circuit, I> | a.neg()),
++                    _ => check_unary_operation_fails(name, &case, a, |a: Integer::<Circuit, I> | a.neg(), num_constants, num_public, num_private, num_constraints),
+                 }
+             }
+         }
+diff --git a/circuits/types/integers/src/pow_checked.rs b/circuits/types/integers/src/pow_checked.rs
+index df5bc8286..f9d1fac27 100644
+--- a/circuits/types/integers/src/pow_checked.rs
++++ b/circuits/types/integers/src/pow_checked.rs
+@@ -25,7 +25,7 @@ impl<E: Environment, I: IntegerType, M: Magnitude> PowChecked<Integer<E, M>> for
+         if self.is_constant() && other.is_constant() {
+             // Compute the result and return the new constant.
+             // This cast is safe since `Magnitude`s can only be `u8`, `u16`, or `u32`.
+-            match self.eject_value().checked_pow(other.eject_value().to_u32().unwrap()) {
++            match self.eject_value().checked_pow(&other.eject_value().to_u32().unwrap()) {
+                 Some(value) => Integer::new(Mode::Constant, value),
+                 None => E::halt("Integer overflow on exponentiation of two constants"),
+             }
+@@ -41,9 +41,8 @@ impl<E: Environment, I: IntegerType, M: Magnitude> PowChecked<Integer<E, M>> for
+ 
+                 let result_times_self = if I::is_signed() {
+                     // Multiply the absolute value of `self` and `other` in the base field.
+-                    let absolute_result = Self::ternary(result.msb(), &Self::zero().sub_wrapped(&result), &result);
+-                    let absolute_self = Self::ternary(self.msb(), &Self::zero().sub_wrapped(self), self);
+-                    let (product, carry) = Self::mul_with_carry(&absolute_result, &absolute_self, true);
++                    // Note that it is safe to use abs_wrapped since we want I::MIN to be interpreted as an unsigned number.
++                    let (product, carry) = Self::mul_with_carry(&(&result).abs_wrapped(), &self.abs_wrapped(), true);
+ 
+                     // We need to check that the abs(a) * abs(b) did not exceed the unsigned maximum.
+                     let carry_bits_nonzero = carry.iter().fold(Boolean::constant(false), |a, b| a | b);
+@@ -107,7 +106,7 @@ mod tests {
+         let a = Integer::<Circuit, I>::new(mode_a, first);
+         let b = Integer::<Circuit, M>::new(mode_b, second);
+         let case = format!("({} ** {})", a.eject_value(), b.eject_value());
+-        match first.checked_pow(second.to_u32().unwrap()) {
++        match first.checked_pow(&second.to_u32().unwrap()) {
+             Some(value) => check_operation_passes_without_counts(name, &case, value, &a, &b, Integer::pow_checked),
+             None => {
+                 match (mode_a, mode_b) {
+diff --git a/circuits/types/integers/src/pow_wrapped.rs b/circuits/types/integers/src/pow_wrapped.rs
+index a4d6650a5..c7352ef21 100644
+--- a/circuits/types/integers/src/pow_wrapped.rs
++++ b/circuits/types/integers/src/pow_wrapped.rs
+@@ -25,7 +25,7 @@ impl<E: Environment, I: IntegerType, M: Magnitude> PowWrapped<Integer<E, M>> for
+         if self.is_constant() && other.is_constant() {
+             // Compute the result and return the new constant.
+             // This cast is safe since Magnitude other can only be `u8`, `u16`, or `u32`.
+-            witness!(|self, other| self.wrapping_pow(other.to_u32().unwrap()))
++            witness!(|self, other| self.wrapping_pow(&other.to_u32().unwrap()))
+         } else {
+             let mut result = Self::one();
+             for bit in other.bits_le.iter().rev() {
+@@ -60,7 +60,7 @@ mod tests {
+         let a = Integer::<Circuit, I>::new(mode_a, first);
+         let b = Integer::<Circuit, M>::new(mode_b, second);
+         let case = format!("({} ** {})", a.eject_value(), b.eject_value());
+-        let expected = first.wrapping_pow(second.to_u32().unwrap());
++        let expected = first.wrapping_pow(&second.to_u32().unwrap());
+         check_operation_passes_without_counts(name, &case, expected, &a, &b, Integer::pow_wrapped);
+     }
+ 
+diff --git a/circuits/types/integers/src/shl_wrapped.rs b/circuits/types/integers/src/shl_wrapped.rs
+index d456f2c33..e6a189adc 100644
+--- a/circuits/types/integers/src/shl_wrapped.rs
++++ b/circuits/types/integers/src/shl_wrapped.rs
+@@ -55,7 +55,7 @@ impl<E: Environment, I: IntegerType, M: Magnitude> ShlWrapped<Integer<E, M>> for
+                 let two = Field::one() + Field::one();
+                 let mut shift_in_field = Field::one();
+                 for bit in rhs.bits_le[..first_upper_bit_index].iter().rev() {
+-                    shift_in_field = &shift_in_field * &shift_in_field;
++                    shift_in_field = shift_in_field.square();
+                     shift_in_field = Field::ternary(bit, &(&shift_in_field * &two), &shift_in_field);
+                 }
+                 // TODO (@pranav) Avoid initializing the integer.
+diff --git a/circuits/types/integers/src/shr_wrapped.rs b/circuits/types/integers/src/shr_wrapped.rs
+index c5c4c6a5f..a20392eb9 100644
+--- a/circuits/types/integers/src/shr_wrapped.rs
++++ b/circuits/types/integers/src/shr_wrapped.rs
+@@ -64,7 +64,7 @@ impl<E: Environment, I: IntegerType, M: Magnitude> ShrWrapped<Integer<E, M>> for
+                 let two = Field::one() + Field::one();
+                 let mut shift_in_field = Field::one();
+                 for bit in rhs.bits_le[..first_upper_bit_index].iter().rev() {
+-                    shift_in_field = &shift_in_field * &shift_in_field;
++                    shift_in_field = shift_in_field.square();
+                     shift_in_field = Field::ternary(bit, &(&shift_in_field * &two), &shift_in_field);
+                 }
+ 
+@@ -74,19 +74,15 @@ impl<E: Environment, I: IntegerType, M: Magnitude> ShrWrapped<Integer<E, M>> for
+ 
+                 if I::is_signed() {
+                     // Divide the absolute value of `self` and `shift` (as a divisor) in the base field.
+-                    let dividend_unsigned =
+-                        Self::ternary(self.msb(), &(!self).add_wrapped(&Self::one()), self).cast_as_dual();
++                    let dividend_unsigned = self.abs_wrapped().cast_as_dual();
+                     let divisor_unsigned = shift_as_divisor.cast_as_dual();
+ 
+-                    let dividend_unsigned_value = dividend_unsigned.eject_value();
+-                    let divisor_unsigned_value = divisor_unsigned.eject_value();
++                    let dividend = dividend_unsigned.eject_value();
++                    let divisor = divisor_unsigned.eject_value();
+ 
+                     // Wrapping operations are safe since unsigned division never overflows.
+-                    let quotient_unsigned_value = dividend_unsigned_value.wrapping_div(&divisor_unsigned_value);
+-                    let remainder_unsigned_value = dividend_unsigned_value.wrapping_rem(&divisor_unsigned_value);
+-
+-                    let quotient_unsigned = Integer::<E, I::Dual>::new(Mode::Private, quotient_unsigned_value);
+-                    let remainder_unsigned = Integer::<E, I::Dual>::new(Mode::Private, remainder_unsigned_value);
++                    let quotient_unsigned = Integer::<E, I::Dual>::new(Mode::Private, dividend.wrapping_div(&divisor));
++                    let remainder_unsigned = Integer::<E, I::Dual>::new(Mode::Private, dividend.wrapping_rem(&divisor));
+ 
+                     // Ensure that Euclidean division holds for these values in the base field.
+                     let remainder_field = remainder_unsigned.to_field();

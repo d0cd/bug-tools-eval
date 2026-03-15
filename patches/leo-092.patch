@@ -1,0 +1,94 @@
+diff --git a/errors/src/common/formatted.rs b/errors/src/common/formatted.rs
+index 79b0576f2b..92f32a37ce 100644
+--- a/errors/src/common/formatted.rs
++++ b/errors/src/common/formatted.rs
+@@ -88,12 +88,6 @@ impl Formatted {
+ 
+ impl fmt::Display for Formatted {
+     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+-        let Some(source_file) = with_session_globals(|s| s.source_map.find_source_file(self.span.lo)) else {
+-            return write!(f, "Can't find source file");
+-        };
+-
+-        let line_contents = source_file.line_contents(self.span);
+-
+         let (kind, code) =
+             if self.backtrace.error { ("Error", self.error_code()) } else { ("Warning", self.warning_code()) };
+ 
+@@ -110,19 +104,23 @@ impl fmt::Display for Formatted {
+             writeln!(f, "{message}")?;
+         };
+ 
+-        writeln!(
+-            f,
+-            "{indent     }--> {path}:{line_start}:{start}",
+-            indent = INDENT,
+-            path = &source_file.name,
+-            // Report lines starting from line 1.
+-            line_start = line_contents.line + 1,
+-            // And columns - comments in some old code claims to report columns indexing from 0,
+-            // but that doesn't appear to have been true.
+-            start = line_contents.start + 1,
+-        )?;
+-
+-        write!(f, "{line_contents}")?;
++        if let Some(source_file) = with_session_globals(|s| s.source_map.find_source_file(self.span.lo)) {
++            let line_contents = source_file.line_contents(self.span);
++
++            writeln!(
++                f,
++                "{indent     }--> {path}:{line_start}:{start}",
++                indent = INDENT,
++                path = &source_file.name,
++                // Report lines starting from line 1.
++                line_start = line_contents.line + 1,
++                // And columns - comments in some old code claims to report columns indexing from 0,
++                // but that doesn't appear to have been true.
++                start = line_contents.start + 1,
++            )?;
++
++            write!(f, "{line_contents}")?;
++        };
+ 
+         if let Some(help) = &self.backtrace.help {
+             writeln!(
+diff --git a/errors/src/errors/utils/util_errors.rs b/errors/src/errors/utils/util_errors.rs
+index 4e00dc1a66..66927d0ff8 100644
+--- a/errors/src/errors/utils/util_errors.rs
++++ b/errors/src/errors/utils/util_errors.rs
+@@ -61,7 +61,7 @@ create_messages!(
+         help: None,
+     }
+ 
+-    @formatted
++    @backtraced
+     network_error {
+         args: (url: impl Display, status: impl Display),
+         msg: format!("Failed network request to {url}. Status: {status}"),
+@@ -138,7 +138,7 @@ create_messages!(
+         help: None,
+     }
+ 
+-    @formatted
++    @backtraced
+     failed_to_retrieve_from_endpoint {
+         args: (error: impl ErrorArg),
+         msg: format!("{error}"),
+diff --git a/leo/package/src/lib.rs b/leo/package/src/lib.rs
+index 85ea8b4b82..fcfdf74c41 100644
+--- a/leo/package/src/lib.rs
++++ b/leo/package/src/lib.rs
+@@ -158,11 +158,11 @@ pub fn fetch_from_network(url: &str) -> Result<String, UtilError> {
+         .get(url)
+         .set("X-Leo-Version", env!("CARGO_PKG_VERSION"))
+         .call()
+-        .map_err(|err| UtilError::failed_to_retrieve_from_endpoint(err, Default::default()))?;
++        .map_err(UtilError::failed_to_retrieve_from_endpoint)?;
+     match response.status() {
+         200 => Ok(response.into_string().unwrap().replace("\\n", "\n").replace('\"', "")),
+         301 => Err(UtilError::endpoint_moved_error(url)),
+-        _ => Err(UtilError::network_error(url, response.status(), Default::default())),
++        _ => Err(UtilError::network_error(url, response.status())),
+     }
+ }
+ 

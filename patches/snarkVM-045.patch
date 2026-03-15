@@ -1,0 +1,147 @@
+diff --git a/ledger/src/tests.rs b/ledger/src/tests.rs
+index af9510219..ea5ab8b8d 100644
+--- a/ledger/src/tests.rs
++++ b/ledger/src/tests.rs
+@@ -567,3 +567,72 @@ fn test_bond_and_unbond_validator() {
+     let committee = ledger.latest_committee().unwrap();
+     assert!(!committee.is_committee_member(new_member_address));
+ }
++
++#[test]
++fn test_aborted_transaction_indexing() {
++    let rng = &mut TestRng::default();
++
++    // Initialize the test environment.
++    let crate::test_helpers::TestEnv { ledger, private_key, .. } = crate::test_helpers::sample_test_env(rng);
++
++    // Sample a recipient account.
++    let recipient_private_key = PrivateKey::<CurrentNetwork>::new(rng).unwrap();
++    let recipient_address = Address::try_from(&recipient_private_key).unwrap();
++
++    // Sample another recipient account.
++    let recipient_private_key_2 = PrivateKey::<CurrentNetwork>::new(rng).unwrap();
++    let recipient_address_2 = Address::try_from(&recipient_private_key_2).unwrap();
++
++    // Fund a new address.
++    let inputs = [Value::from_str(&format!("{recipient_address}")).unwrap(), Value::from_str("185000u64").unwrap()];
++    let transfer_transaction = ledger
++        .vm
++        .execute(&private_key, ("credits.aleo", "transfer_public"), inputs.iter(), None, 0, None, rng)
++        .unwrap();
++
++    // Construct the next block.
++    let transfer_block = ledger
++        .prepare_advance_to_next_beacon_block(&private_key, vec![], vec![], vec![transfer_transaction], rng)
++        .unwrap();
++
++    // Check that the next block is valid.
++    ledger.check_next_block(&transfer_block).unwrap();
++
++    // Add the deployment block to the ledger.
++    ledger.advance_to_next_block(&transfer_block).unwrap();
++
++    // Send a transaction that will be aborted due to insufficient fee.
++    let inputs = [Value::from_str(&format!("{recipient_address_2}")).unwrap(), Value::from_str("1u64").unwrap()];
++    let transfer_transaction = ledger
++        .vm
++        .execute(&recipient_private_key_2, ("credits.aleo", "transfer_public"), inputs.iter(), None, 0, None, rng)
++        .unwrap();
++    let aborted_transaction_id = transfer_transaction.id();
++
++    // Create another arbitrary transaction.
++    let inputs = [Value::from_str(&format!("{recipient_address_2}")).unwrap(), Value::from_str("1u64").unwrap()];
++    let transfer_transaction_2 = ledger
++        .vm
++        .execute(&private_key, ("credits.aleo", "transfer_public"), inputs.iter(), None, 0, None, rng)
++        .unwrap();
++
++    // Create a block.
++    let block = ledger
++        .prepare_advance_to_next_beacon_block(
++            &private_key,
++            vec![],
++            vec![],
++            vec![transfer_transaction, transfer_transaction_2],
++            rng,
++        )
++        .unwrap();
++
++    // Check that the block contains the aborted transaction.
++    assert_eq!(block.aborted_transaction_ids(), &[aborted_transaction_id]);
++
++    // Check that the next block is valid.
++    ledger.check_next_block(&block).unwrap();
++
++    // Add the deployment block to the ledger.
++    ledger.advance_to_next_block(&block).unwrap();
++}
+diff --git a/synthesizer/src/vm/finalize.rs b/synthesizer/src/vm/finalize.rs
+index c30166343..fe367d94d 100644
+--- a/synthesizer/src/vm/finalize.rs
++++ b/synthesizer/src/vm/finalize.rs
+@@ -204,13 +204,11 @@ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+             let mut confirmed = Vec::with_capacity(num_transactions);
+             // Initialize a list of the aborted transactions.
+             let mut aborted = Vec::new();
++            // Initialize a counter for the confirmed transaction index.
++            let mut counter = 0u32;
+ 
+             // Finalize the transactions.
+-            'outer: for (index, transaction) in transactions.enumerate() {
+-                // Convert the transaction index to a u32.
+-                // Note: On failure, this will abort the entire atomic batch.
+-                let index = u32::try_from(index).map_err(|_| "Failed to convert transaction index".to_string())?;
+-
++            'outer: for transaction in transactions {
+                 // Process the transaction in an isolated atomic batch.
+                 // - If the transaction succeeds, the finalize operations are stored.
+                 // - If the transaction fails, the atomic batch is aborted and no finalize operations are stored.
+@@ -221,7 +219,7 @@ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+                         match process.finalize_deployment(state, store, deployment, fee) {
+                             // Construct the accepted deploy transaction.
+                             Ok((_, finalize)) => {
+-                                ConfirmedTransaction::accepted_deploy(index, transaction.clone(), finalize)
++                                ConfirmedTransaction::accepted_deploy(counter, transaction.clone(), finalize)
+                                     .map_err(|e| e.to_string())
+                             }
+                             // Construct the rejected deploy transaction.
+@@ -234,7 +232,7 @@ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+                                         // Construct the rejected deployment.
+                                         let rejected = Rejected::new_deployment(*program_owner, *deployment.clone());
+                                         // Construct the rejected deploy transaction.
+-                                        ConfirmedTransaction::rejected_deploy(index, fee_tx, rejected, finalize)
++                                        ConfirmedTransaction::rejected_deploy(counter, fee_tx, rejected, finalize)
+                                             .map_err(|e| e.to_string())
+                                     }
+                                     Err(error) => {
+@@ -256,7 +254,7 @@ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+                         match process.finalize_execution(state, store, execution, fee.as_ref()) {
+                             // Construct the accepted execute transaction.
+                             Ok(finalize) => {
+-                                ConfirmedTransaction::accepted_execute(index, transaction.clone(), finalize)
++                                ConfirmedTransaction::accepted_execute(counter, transaction.clone(), finalize)
+                                     .map_err(|e| e.to_string())
+                             }
+                             // Construct the rejected execute transaction.
+@@ -270,7 +268,7 @@ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+                                             // Construct the rejected execution.
+                                             let rejected = Rejected::new_execution(execution.clone());
+                                             // Construct the rejected execute transaction.
+-                                            ConfirmedTransaction::rejected_execute(index, fee_tx, rejected, finalize)
++                                            ConfirmedTransaction::rejected_execute(counter, fee_tx, rejected, finalize)
+                                                 .map_err(|e| e.to_string())
+                                         }
+                                         Err(error) => {
+@@ -298,7 +296,11 @@ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+ 
+                 match outcome {
+                     // If the transaction succeeded, store it and continue to the next transaction.
+-                    Ok(confirmed_transaction) => confirmed.push(confirmed_transaction),
++                    Ok(confirmed_transaction) => {
++                        confirmed.push(confirmed_transaction);
++                        // Increment the transaction index counter.
++                        counter = counter.saturating_add(1);
++                    }
+                     // If the transaction failed, abort the entire batch.
+                     Err(error) => {
+                         eprintln!("Critical bug in speculate: {error}\n\n{transaction}");

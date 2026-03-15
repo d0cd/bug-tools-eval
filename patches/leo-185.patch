@@ -1,0 +1,11 @@
+diff --git a/tests/parser/expression/literal/int_fail.leo b/tests/parser/expression/literal/int_fail.leo
+index b1bd6f4b43..88802af063 100644
+--- a/tests/parser/expression/literal/int_fail.leo
++++ b/tests/parser/expression/literal/int_fail.leo
+@@ -1,5 +1,5 @@
+ /*
+-namespace: Token
++namespace: ParseExpression
+ expectation: Fail
+ */
+ 

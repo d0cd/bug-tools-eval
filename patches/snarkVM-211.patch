@@ -1,0 +1,587 @@
+diff --git a/.circleci/config.yml b/.circleci/config.yml
+index a3937f633..f55a916ec 100644
+--- a/.circleci/config.yml
++++ b/.circleci/config.yml
+@@ -702,7 +702,7 @@ jobs:
+     resource_class: << pipeline.parameters.twoxlarge >>
+     steps:
+       - run_serial:
+-          flags: --test '*' -- --test-threads=8
++          flags: --test '*' --features test -- --test-threads=8
+           workspace_member: synthesizer
+           cache_key: v1.0.0-rust-1.81.0-snarkvm-synthesizer-integration-cache
+ 
+diff --git a/synthesizer/Cargo.toml b/synthesizer/Cargo.toml
+index 228ee20bb..b9fcecb1d 100644
+--- a/synthesizer/Cargo.toml
++++ b/synthesizer/Cargo.toml
+@@ -44,7 +44,7 @@ serial = [
+   "synthesizer-snark/serial"
+ ]
+ setup = [ ]
+-test = [ "console/test" ]
++test = [ "console/test", "ledger-block/test", "ledger-store/test" ]
+ timer = [ "aleo-std/timer" ]
+ wasm = [
+   "process",
+diff --git a/synthesizer/process/src/finalize.rs b/synthesizer/process/src/finalize.rs
+index 6606d2d15..f5b7e18c0 100644
+--- a/synthesizer/process/src/finalize.rs
++++ b/synthesizer/process/src/finalize.rs
+@@ -104,7 +104,11 @@ impl<N: Network> Process<N> {
+         lap!(timer, "Verify the number of transitions");
+ 
+         // Construct the call graph.
+-        let call_graph = self.construct_call_graph(execution)?;
++        // If the height is greater than or equal to `CONSENSUS_V3_HEIGHT`, then provide an empty call graph, as it is no longer used during finalization.
++        let call_graph = match state.block_height() < N::CONSENSUS_V3_HEIGHT {
++            true => self.construct_call_graph(execution)?,
++            false => HashMap::new(),
++        };
+ 
+         atomic_batch_scope!(store, {
+             // Finalize the root transition.
+@@ -160,9 +164,11 @@ fn finalize_fee_transition<N: Network, P: FinalizeStorage<N>>(
+     fee: &Fee<N>,
+ ) -> Result<Vec<FinalizeOperation<N>>> {
+     // Construct the call graph.
+-    let mut call_graph = HashMap::new();
+-    // Insert the fee transition.
+-    call_graph.insert(*fee.transition_id(), Vec::new());
++    // If the height is greater than or equal to `CONSENSUS_V3_HEIGHT`, then provide an empty call graph, as it is no longer used during finalization.
++    let call_graph = match state.block_height() < N::CONSENSUS_V3_HEIGHT {
++        true => HashMap::from([(*fee.transition_id(), Vec::new())]),
++        false => HashMap::new(),
++    };
+ 
+     // Finalize the transition.
+     match finalize_transition(state, store, stack, fee, call_graph) {
+@@ -208,8 +214,12 @@ fn finalize_transition<N: Network, P: FinalizeStorage<N>>(
+     // Initialize a stack of active finalize states.
+     let mut states = Vec::new();
+ 
++    // Initialize a nonce for the finalize registers.
++    // Note that this nonce must be unique for each sub-transition being finalized.
++    let mut nonce = 0;
++
+     // Initialize the top-level finalize state.
+-    states.push(initialize_finalize_state(state, future, stack, *transition.id())?);
++    states.push(initialize_finalize_state(state, future, stack, *transition.id(), nonce)?);
+ 
+     // While there are active finalize states, finalize them.
+     'outer: while let Some(FinalizeState {
+@@ -263,20 +273,31 @@ fn finalize_transition<N: Network, P: FinalizeStorage<N>>(
+                         await_.register()
+                     );
+ 
+-                    // Get the current transition ID.
+-                    let transition_id = registers.transition_id();
+-                    // Get the child transition ID.
+-                    let child_transition_id = match call_graph.get(transition_id) {
+-                        Some(transitions) => match transitions.get(call_counter) {
+-                            Some(transition_id) => *transition_id,
+-                            None => bail!("Child transition ID not found."),
+-                        },
+-                        None => bail!("Transition ID '{transition_id}' not found in call graph"),
++                    // Get the transition ID used to initialize the finalize registers.
++                    // If the block height is greater than or equal to `CONSENSUS_V3_HEIGHT`, then use the top-level transition ID.
++                    // Otherwise, query the call graph for the child transition ID corresponding to the future that is being awaited.
++                    let transition_id = match state.block_height() < N::CONSENSUS_V3_HEIGHT {
++                        true => {
++                            // Get the current transition ID.
++                            let transition_id = registers.transition_id();
++                            // Get the child transition ID.
++                            match call_graph.get(transition_id) {
++                                Some(transitions) => match transitions.get(call_counter) {
++                                    Some(transition_id) => *transition_id,
++                                    None => bail!("Child transition ID not found."),
++                                },
++                                None => bail!("Transition ID '{transition_id}' not found in call graph"),
++                            }
++                        }
++                        false => *transition.id(),
+                     };
+ 
++                    // Increment the nonce.
++                    nonce += 1;
++
+                     // Set up the finalize state for the await.
+                     let callee_state =
+-                        match try_vm_runtime!(|| setup_await(state, await_, stack, &registers, child_transition_id)) {
++                        match try_vm_runtime!(|| setup_await(state, await_, stack, &registers, transition_id, nonce)) {
+                             Ok(Ok(callee_state)) => callee_state,
+                             // If the evaluation fails, bail and return the error.
+                             Ok(Err(error)) => bail!("'finalize' failed to evaluate command ({command}): {error}"),
+@@ -357,6 +378,7 @@ fn initialize_finalize_state<'a, N: Network>(
+     future: &Future<N>,
+     stack: &'a Stack<N>,
+     transition_id: N::TransitionID,
++    nonce: u64,
+ ) -> Result<FinalizeState<'a, N>> {
+     // Get the finalize logic and the stack.
+     let (finalize, stack) = match stack.program_id() == future.program_id() {
+@@ -381,6 +403,7 @@ fn initialize_finalize_state<'a, N: Network>(
+         transition_id,
+         *future.function_name(),
+         stack.get_finalize_types(future.function_name())?.clone(),
++        nonce,
+     );
+ 
+     // Store the inputs.
+@@ -402,6 +425,7 @@ fn setup_await<'a, N: Network>(
+     stack: &'a Stack<N>,
+     registers: &FinalizeRegisters<N>,
+     transition_id: N::TransitionID,
++    nonce: u64,
+ ) -> Result<FinalizeState<'a, N>> {
+     // Retrieve the input as a future.
+     let future = match registers.load(stack, &Operand::Register(await_.register().clone()))? {
+@@ -409,7 +433,7 @@ fn setup_await<'a, N: Network>(
+         _ => bail!("The input to 'await' is not a future"),
+     };
+     // Initialize the state.
+-    initialize_finalize_state(state, &future, stack, transition_id)
++    initialize_finalize_state(state, &future, stack, transition_id, nonce)
+ }
+ 
+ // A helper function that returns the index to branch to.
+diff --git a/synthesizer/process/src/stack/finalize_registers/mod.rs b/synthesizer/process/src/stack/finalize_registers/mod.rs
+index ccc02fd42..c86a1d35c 100644
+--- a/synthesizer/process/src/stack/finalize_registers/mod.rs
++++ b/synthesizer/process/src/stack/finalize_registers/mod.rs
+@@ -46,6 +46,8 @@ pub struct FinalizeRegisters<N: Network> {
+     finalize_types: FinalizeTypes<N>,
+     /// The mapping of assigned registers to their values.
+     registers: IndexMap<u64, Value<N>>,
++    /// A nonce for finalize registers.
++    nonce: u64,
+     /// The tracker for the last register locator.
+     last_register: Option<u64>,
+ }
+@@ -58,8 +60,17 @@ impl<N: Network> FinalizeRegisters<N> {
+         transition_id: N::TransitionID,
+         function_name: Identifier<N>,
+         finalize_types: FinalizeTypes<N>,
++        nonce: u64,
+     ) -> Self {
+-        Self { state, transition_id, finalize_types, function_name, registers: IndexMap::new(), last_register: None }
++        Self {
++            state,
++            transition_id,
++            finalize_types,
++            function_name,
++            registers: IndexMap::new(),
++            nonce,
++            last_register: None,
++        }
+     }
+ }
+ 
+@@ -81,4 +92,10 @@ impl<N: Network> FinalizeRegistersState<N> for FinalizeRegisters<N> {
+     fn function_name(&self) -> &Identifier<N> {
+         &self.function_name
+     }
++
++    /// Returns the nonce for the finalize registers.
++    #[inline]
++    fn nonce(&self) -> u64 {
++        self.nonce
++    }
+ }
+diff --git a/synthesizer/process/src/stack/register_types/initialize.rs b/synthesizer/process/src/stack/register_types/initialize.rs
+index 3714852a3..82bb47422 100644
+--- a/synthesizer/process/src/stack/register_types/initialize.rs
++++ b/synthesizer/process/src/stack/register_types/initialize.rs
+@@ -158,7 +158,7 @@ impl<N: Network> RegisterTypes<N> {
+         }
+ 
+         /* Additional checks. */
+-        // - All futures produces before the `async` call must be consumed by the `async` call.
++        // - All futures produced before the `async` call must be consumed by the `async` call.
+ 
+         // Get all registers containing futures.
+         let mut future_registers: IndexSet<(Register<N>, Locator<N>)> = register_types
+diff --git a/synthesizer/program/src/logic/command/rand_chacha.rs b/synthesizer/program/src/logic/command/rand_chacha.rs
+index 44aa938c9..3bd3c3a0f 100644
+--- a/synthesizer/program/src/logic/command/rand_chacha.rs
++++ b/synthesizer/program/src/logic/command/rand_chacha.rs
+@@ -89,15 +89,29 @@ impl<N: Network> RandChaCha<N> {
+         let seeds: Vec<_> = self.operands.iter().map(|operand| registers.load(stack, operand)).try_collect()?;
+ 
+         // Construct the random seed.
+-        let preimage = to_bits_le![
+-            registers.state().random_seed(),
+-            **registers.transition_id(),
+-            stack.program_id(),
+-            registers.function_name(),
+-            self.destination.locator(),
+-            self.destination_type.type_id(),
+-            seeds
+-        ];
++        // If the height is greater than or equal to `CONSENSUS_V3_HEIGHT`, then use the new preimage definition.
++        // The difference is that a nonce is also included in the new definition.
++        let preimage = match registers.state().block_height() < N::CONSENSUS_V3_HEIGHT {
++            true => to_bits_le![
++                registers.state().random_seed(),
++                **registers.transition_id(),
++                stack.program_id(),
++                registers.function_name(),
++                self.destination.locator(),
++                self.destination_type.type_id(),
++                seeds
++            ],
++            false => to_bits_le![
++                registers.state().random_seed(),
++                **registers.transition_id(),
++                stack.program_id(),
++                registers.function_name(),
++                registers.nonce(),
++                self.destination.locator(),
++                self.destination_type.type_id(),
++                seeds
++            ],
++        };
+ 
+         // Hash the preimage.
+         let digest = N::hash_bhp1024(&preimage)?.to_bytes_le()?;
+diff --git a/synthesizer/program/src/traits/stack_and_registers.rs b/synthesizer/program/src/traits/stack_and_registers.rs
+index 508e619d9..73a785967 100644
+--- a/synthesizer/program/src/traits/stack_and_registers.rs
++++ b/synthesizer/program/src/traits/stack_and_registers.rs
+@@ -123,6 +123,9 @@ pub trait FinalizeRegistersState<N: Network> {
+ 
+     /// Returns the function name for the finalize scope.
+     fn function_name(&self) -> &Identifier<N>;
++
++    /// Returns the nonce for the finalize registers.
++    fn nonce(&self) -> u64;
+ }
+ 
+ pub trait RegistersSigner<N: Network> {
+diff --git a/synthesizer/program/tests/helpers/sample.rs b/synthesizer/program/tests/helpers/sample.rs
+index 4f6395125..c6a11031a 100644
+--- a/synthesizer/program/tests/helpers/sample.rs
++++ b/synthesizer/program/tests/helpers/sample.rs
+@@ -73,6 +73,7 @@ pub fn sample_finalize_registers(
+         <CurrentNetwork as Network>::TransitionID::default(),
+         *function_name,
+         stack.get_finalize_types(function_name)?.clone(),
++        0u64,
+     );
+ 
+     // For each literal,
+diff --git a/synthesizer/tests/expectations/vm/execute_and_finalize/interleave_async_and_non_async.out b/synthesizer/tests/expectations/vm/execute_and_finalize/interleave_async_and_non_async.out
+new file mode 100644
+index 000000000..370ae0871
+--- /dev/null
++++ b/synthesizer/tests/expectations/vm/execute_and_finalize/interleave_async_and_non_async.out
+@@ -0,0 +1,144 @@
++errors: []
++outputs:
++- verified: true
++  execute:
++    mid.aleo/save_mid_rand_2:
++      outputs:
++      - '{"type":"future","id":"8133252294099058744569698548841506104644319254713927471060413341001678088866field","value":"{\n  program_id: mid.aleo,\n  function_name: save_mid_rand_2,\n  arguments: [\n    {\n      program_id: inner.aleo,\n      function_name: save_inner_rand,\n      arguments: [\n        0field\n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was accepted
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    outer.aleo/call_mid_3:
++      outputs:
++      - '{"type":"future","id":"3943339733672692638395740341671994092158484825516042860641043685177097488932field","value":"{\n  program_id: outer.aleo,\n  function_name: call_mid_3,\n  arguments: [\n    {\n      program_id: mid.aleo,\n      function_name: save_mid_rand,\n      arguments: [\n        {\n          program_id: inner.aleo,\n          function_name: save_inner_rand,\n          arguments: [\n            0field\n          ]\n        }\n      \n      ]\n    },\n    {\n      program_id: mid.aleo,\n      function_name: save_mid_rand,\n      arguments: [\n        {\n          program_id: inner.aleo,\n          function_name: save_inner_rand,\n          arguments: [\n            0field\n          ]\n        }\n      \n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was accepted
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    outer.aleo/call_mid:
++      outputs:
++      - '{"type":"future","id":"3234621292740822058818055697198799540048108651323455396840123946866280290387field","value":"{\n  program_id: outer.aleo,\n  function_name: call_mid,\n  arguments: [\n    {\n      program_id: mid.aleo,\n      function_name: save_mid_rand,\n      arguments: [\n        {\n          program_id: inner.aleo,\n          function_name: save_inner_rand,\n          arguments: [\n            0field\n          ]\n        }\n      \n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was rejected
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    outer.aleo/call_mid_2:
++      outputs:
++      - '{"type":"future","id":"6256136872031781770553816141201857256304896691884762229618319303437235049235field","value":"{\n  program_id: outer.aleo,\n  function_name: call_mid_2,\n  arguments: [\n    {\n      program_id: mid.aleo,\n      function_name: save_mid_rand,\n      arguments: [\n        {\n          program_id: inner.aleo,\n          function_name: save_inner_rand,\n          arguments: [\n            0field\n          ]\n        }\n      \n      ]\n    },\n    {\n      program_id: mid.aleo,\n      function_name: save_mid_rand,\n      arguments: [\n        {\n          program_id: inner.aleo,\n          function_name: save_inner_rand,\n          arguments: [\n            0field\n          ]\n        }\n      \n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was rejected
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    outer.aleo/dummy:
++      outputs: []
++  speculate: the execution was accepted
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    outer.aleo/dummy:
++      outputs: []
++  speculate: the execution was accepted
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    outer.aleo/dummy:
++      outputs: []
++  speculate: the execution was accepted
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    outer.aleo/call_mid:
++      outputs:
++      - '{"type":"future","id":"1442432016017783473506018231162631985706673203904773748822729317313361172014field","value":"{\n  program_id: outer.aleo,\n  function_name: call_mid,\n  arguments: [\n    {\n      program_id: mid.aleo,\n      function_name: save_mid_rand,\n      arguments: [\n        {\n          program_id: inner.aleo,\n          function_name: save_inner_rand,\n          arguments: [\n            0field\n          ]\n        }\n      \n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was accepted
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    outer.aleo/call_mid_2:
++      outputs:
++      - '{"type":"future","id":"5992337061564037613503594922642940602038279609368168204573599540929191074383field","value":"{\n  program_id: outer.aleo,\n  function_name: call_mid_2,\n  arguments: [\n    {\n      program_id: mid.aleo,\n      function_name: save_mid_rand,\n      arguments: [\n        {\n          program_id: inner.aleo,\n          function_name: save_inner_rand,\n          arguments: [\n            0field\n          ]\n        }\n      \n      ]\n    },\n    {\n      program_id: mid.aleo,\n      function_name: save_mid_rand,\n      arguments: [\n        {\n          program_id: inner.aleo,\n          function_name: save_inner_rand,\n          arguments: [\n            0field\n          ]\n        }\n      \n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was accepted
++  add_next_block: succeeded.
++additional:
++- child_outputs:
++    inner.aleo/dummy:
++      outputs: []
++    inner.aleo/save_inner_rand:
++      outputs:
++      - '{"type":"future","id":"2491454043368457724827856328992492378252414844160971129371068949933787800327field","value":"{\n  program_id: inner.aleo,\n  function_name: save_inner_rand,\n  arguments: [\n    0field\n  ]\n}"}'
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"8364085965948136284430782264975904513362941894972177369414604763679081824990field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo1dg8dpzx0d53ajd87nhppq79z9vrvhelhh45frsqkusndtaasgcxqqs0ay8,\n    76697u64\n  ]\n}"}'
++- child_outputs:
++    inner.aleo/save_inner_rand:
++      outputs:
++      - '{"type":"future","id":"5529824764130005030074933219733459982343596117334741286429948259175211128460field","value":"{\n  program_id: inner.aleo,\n  function_name: save_inner_rand,\n  arguments: [\n    0field\n  ]\n}"}'
++    mid.aleo/save_mid_rand:
++      outputs:
++      - '{"type":"future","id":"4360736171399918590300263879039970750359601853381250666126605518412297988622field","value":"{\n  program_id: mid.aleo,\n  function_name: save_mid_rand,\n  arguments: [\n    {\n      program_id: inner.aleo,\n      function_name: save_inner_rand,\n      arguments: [\n        0field\n      ]\n    }\n  \n  ]\n}"}'
++    mid.aleo/dummy:
++      outputs: []
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"115907321802783128984566810198532384178634534374658674607472564056856197283field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo1dg8dpzx0d53ajd87nhppq79z9vrvhelhh45frsqkusndtaasgcxqqs0ay8,\n    153515u64\n  ]\n}"}'
++- child_outputs:
++    mid.aleo/dummy:
++      outputs: []
++    inner.aleo/save_inner_rand:
++      outputs:
++      - '{"type":"future","id":"4614422449220197915414605795206400101815072983960277710851966783861356960406field","value":"{\n  program_id: inner.aleo,\n  function_name: save_inner_rand,\n  arguments: [\n    0field\n  ]\n}"}'
++    mid.aleo/save_mid_rand:
++      outputs:
++      - '{"type":"future","id":"2508191276062236001575741846287485044265199754282255664177008646882560557252field","value":"{\n  program_id: mid.aleo,\n  function_name: save_mid_rand,\n  arguments: [\n    {\n      program_id: inner.aleo,\n      function_name: save_inner_rand,\n      arguments: [\n        0field\n      ]\n    }\n  \n  ]\n}"}'
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"1073608049274464266751816702008249392786653692342830056680162189620354498415field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo1dg8dpzx0d53ajd87nhppq79z9vrvhelhh45frsqkusndtaasgcxqqs0ay8,\n    78340u64\n  ]\n}"}'
++- child_outputs:
++    inner.aleo/save_inner_rand:
++      outputs:
++      - '{"type":"future","id":"5225218680008854881439125057672129573587587270307645239381393215803081422716field","value":"{\n  program_id: inner.aleo,\n  function_name: save_inner_rand,\n  arguments: [\n    0field\n  ]\n}"}'
++    mid.aleo/save_mid_rand:
++      outputs:
++      - '{"type":"future","id":"4178750000665019990650488851451367780305518344784410337482918142723400529474field","value":"{\n  program_id: mid.aleo,\n  function_name: save_mid_rand,\n  arguments: [\n    {\n      program_id: inner.aleo,\n      function_name: save_inner_rand,\n      arguments: [\n        0field\n      ]\n    }\n  \n  ]\n}"}'
++    mid.aleo/dummy:
++      outputs: []
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"4292470820134718797108426369632556448016220649849044091832458381384800389195field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo1dg8dpzx0d53ajd87nhppq79z9vrvhelhh45frsqkusndtaasgcxqqs0ay8,\n    153515u64\n  ]\n}"}'
++- child_outputs:
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"2175759062123847325921919658496101458036093092082217212502708037221890199855field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo1dg8dpzx0d53ajd87nhppq79z9vrvhelhh45frsqkusndtaasgcxqqs0ay8,\n    1140u64\n  ]\n}"}'
++- child_outputs:
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"6194763244383380375407778496857186996903616164599482246071751164326478513956field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo1dg8dpzx0d53ajd87nhppq79z9vrvhelhh45frsqkusndtaasgcxqqs0ay8,\n    1140u64\n  ]\n}"}'
++- child_outputs:
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"3151232768265173099533482325200135082196611776899131767046189738654148288813field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo1dg8dpzx0d53ajd87nhppq79z9vrvhelhh45frsqkusndtaasgcxqqs0ay8,\n    1140u64\n  ]\n}"}'
++- child_outputs:
++    mid.aleo/dummy:
++      outputs: []
++    inner.aleo/save_inner_rand:
++      outputs:
++      - '{"type":"future","id":"3781138230531216134803918113073564019590837492666786203651760435560048390574field","value":"{\n  program_id: inner.aleo,\n  function_name: save_inner_rand,\n  arguments: [\n    0field\n  ]\n}"}'
++    mid.aleo/save_mid_rand:
++      outputs:
++      - '{"type":"future","id":"1854222538487907081019921151742727624945465976988156169205987233789227119336field","value":"{\n  program_id: mid.aleo,\n  function_name: save_mid_rand,\n  arguments: [\n    {\n      program_id: inner.aleo,\n      function_name: save_inner_rand,\n      arguments: [\n        0field\n      ]\n    }\n  \n  ]\n}"}'
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"980755046892470614607368500543837612430909182049571628417208493317193054184field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo1dg8dpzx0d53ajd87nhppq79z9vrvhelhh45frsqkusndtaasgcxqqs0ay8,\n    78340u64\n  ]\n}"}'
++- child_outputs:
++    inner.aleo/save_inner_rand:
++      outputs:
++      - '{"type":"future","id":"1830717585596798770552682302518960343184861438855342797877280317303603466513field","value":"{\n  program_id: inner.aleo,\n  function_name: save_inner_rand,\n  arguments: [\n    0field\n  ]\n}"}'
++    mid.aleo/save_mid_rand:
++      outputs:
++      - '{"type":"future","id":"7936932634716586129080809761782643240019726776810406151200679219592309609450field","value":"{\n  program_id: mid.aleo,\n  function_name: save_mid_rand,\n  arguments: [\n    {\n      program_id: inner.aleo,\n      function_name: save_inner_rand,\n      arguments: [\n        0field\n      ]\n    }\n  \n  ]\n}"}'
++    mid.aleo/dummy:
++      outputs: []
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"6344729803713548482408907680045723475400123463965072084769348280630820289540field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo1dg8dpzx0d53ajd87nhppq79z9vrvhelhh45frsqkusndtaasgcxqqs0ay8,\n    153515u64\n  ]\n}"}'
+diff --git a/synthesizer/tests/expectations/vm/execute_and_finalize/test_rand.out b/synthesizer/tests/expectations/vm/execute_and_finalize/test_rand.out
+index 6380117c0..0af538e48 100644
+--- a/synthesizer/tests/expectations/vm/execute_and_finalize/test_rand.out
++++ b/synthesizer/tests/expectations/vm/execute_and_finalize/test_rand.out
+@@ -26,7 +26,7 @@ outputs:
+     test_rand.aleo/rand_chacha_check:
+       outputs:
+       - '{"type":"future","id":"818878742790741579153893179075772445872751227433677932822653185952935999557field","value":"{\n  program_id: test_rand.aleo,\n  function_name: rand_chacha_check,\n  arguments: [\n    1field,\n    true\n  ]\n}"}'
+-  speculate: the execution was rejected
++  speculate: the execution was accepted
+   add_next_block: succeeded.
+ additional:
+ - child_outputs:
+diff --git a/synthesizer/tests/tests/vm/execute_and_finalize/interleave_async_and_non_async.aleo b/synthesizer/tests/tests/vm/execute_and_finalize/interleave_async_and_non_async.aleo
+new file mode 100644
+index 000000000..a06d369a3
+--- /dev/null
++++ b/synthesizer/tests/tests/vm/execute_and_finalize/interleave_async_and_non_async.aleo
+@@ -0,0 +1,146 @@
++/*
++randomness: 402893173
++cases:
++  - program: mid.aleo
++    function: save_mid_rand_2
++    inputs: [0field]
++  - program: outer.aleo
++    function: call_mid_3
++    inputs: [0field]
++  - program: outer.aleo
++    function: call_mid
++    inputs: [0field]
++  - program: outer.aleo
++    function: call_mid_2
++    inputs: [0field]
++  - program: outer.aleo
++    function: dummy
++    inputs: []
++  - program: outer.aleo
++    function: dummy
++    inputs: []
++  - program: outer.aleo
++    function: dummy
++    inputs: []
++  - program: outer.aleo
++    function: call_mid
++    inputs: [0field]
++  - program: outer.aleo
++    function: call_mid_2
++    inputs: [0field]
++*/
++
++program inner.aleo;
++
++mapping rand_store:
++    key as u8.public;
++    value as u128.public;
++
++function save_inner_rand:
++    input r0 as field.public;
++    async save_inner_rand r0 into r1;
++    output r1 as inner.aleo/save_inner_rand.future;
++
++finalize save_inner_rand:
++    input r0 as field.public;
++    rand.chacha r0 into r1 as u128;
++    set r1 into rand_store[0u8];
++
++function dummy:
++
++/////////////////////////////////////////////////
++
++import inner.aleo;
++
++program mid.aleo;
++
++mapping rand_store:
++    key as u8.public;
++    value as u128.public;
++
++
++function save_mid_rand:
++    input r0 as field.public;
++    call inner.aleo/save_inner_rand r0 into r1;
++    async save_mid_rand r1 into r2;
++    output r2 as mid.aleo/save_mid_rand.future;
++
++finalize save_mid_rand:
++    input r0 as inner.aleo/save_inner_rand.future;
++    await r0;
++    rand.chacha into r1 as u128;
++    set r1 into rand_store[0u8];
++
++// A call to `save_mid_rand_2` should be accepted because the non-async call is not a complex one.
++function save_mid_rand_2:
++    input r0 as field.public;
++    call inner.aleo/dummy;
++    call inner.aleo/save_inner_rand r0 into r1;
++    async save_mid_rand_2 r1 into r2;
++    output r2 as mid.aleo/save_mid_rand_2.future;
++
++finalize save_mid_rand_2:
++    input r0 as inner.aleo/save_inner_rand.future;
++    await r0;
++    rand.chacha into r1 as u128;
++    set r1 into rand_store[0u8];
++
++function dummy:
++
++
++/////////////////////////////////////////////////
++
++import inner.aleo;
++import mid.aleo;
++
++program outer.aleo;
++
++// A call to `call_mid` will be rejected if called before the `CONSENSUS_V3_HEIGHT` because the complex non-async call
++// is before the async ones, triggering a known failure.
++// If it is called after the `CONSENSUS_V3_HEIGHT`, then it should be accepted.
++function call_mid:
++    input r0 as field.public;
++    call mid.aleo/dummy;
++    call mid.aleo/save_mid_rand r0 into r1;
++    call mid.aleo/dummy;
++    async call_mid r1 into r2;
++    output r2 as outer.aleo/call_mid.future;
++
++finalize call_mid:
++    input r0 as mid.aleo/save_mid_rand.future;
++    await r0;
++
++// A call to `call_mid_2` will be rejected if called before the `CONSENSUS_V3_HEIGHT` because the complex non-async call
++// is before the async ones, triggering a known failure.
++// If it is called after the `CONSENSUS_V3_HEIGHT`, then it should be accepted.
++function call_mid_2:
++    input r0 as field.public;
++    call mid.aleo/save_mid_rand r0 into r1;
++    call mid.aleo/dummy;
++    call mid.aleo/save_mid_rand r0 into r2;
++    async call_mid_2 r1 r2 into r3;
++    output r3 as outer.aleo/call_mid_2.future;
++
++finalize call_mid_2:
++    input r0 as mid.aleo/save_mid_rand.future;
++    input r1 as mid.aleo/save_mid_rand.future;
++    await r1;
++    await r0;
++
++// A call to `call_mid_3` should be accepted because the non-async call is after the async ones.
++function call_mid_3:
++    input r0 as field.public;
++    call mid.aleo/save_mid_rand r0 into r1;
++    call mid.aleo/save_mid_rand r0 into r2;
++    call mid.aleo/dummy;
++    async call_mid_3 r1 r2 into r3;
++    output r3 as outer.aleo/call_mid_3.future;
++
++finalize call_mid_3:
++    input r0 as mid.aleo/save_mid_rand.future;
++    input r1 as mid.aleo/save_mid_rand.future;
++    await r1;
++    await r0;
++
++function dummy:
++

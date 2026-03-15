@@ -1,0 +1,35 @@
+diff --git a/node/narwhal/events/src/worker_ping.rs b/node/narwhal/events/src/worker_ping.rs
+index 83c53f395..8f651a82f 100644
+--- a/node/narwhal/events/src/worker_ping.rs
++++ b/node/narwhal/events/src/worker_ping.rs
+@@ -54,7 +54,7 @@ impl<N: Network> ToBytes for WorkerPing<N> {
+ impl<N: Network> FromBytes for WorkerPing<N> {
+     fn read_le<R: Read>(mut reader: R) -> IoResult<Self> {
+         let num_transmissions = u32::read_le(&mut reader)?;
+-        let mut transmission_ids = IndexSet::with_capacity(num_transmissions as usize);
++        let mut transmission_ids = IndexSet::new();
+         for _ in 0..num_transmissions {
+             transmission_ids.insert(TransmissionID::read_le(&mut reader)?);
+         }
+diff --git a/node/sync/locators/src/block_locators.rs b/node/sync/locators/src/block_locators.rs
+index 492296de4..486b98e68 100644
+--- a/node/sync/locators/src/block_locators.rs
++++ b/node/sync/locators/src/block_locators.rs
+@@ -264,7 +264,7 @@ impl<N: Network> FromBytes for BlockLocators<N> {
+         // Read the number of recent block hashes.
+         let num_recents = u32::read_le(&mut reader)?;
+         // Read the recent block hashes.
+-        let mut recents = IndexMap::with_capacity(num_recents as usize);
++        let mut recents = IndexMap::new();
+         for _ in 0..num_recents {
+             let height = u32::read_le(&mut reader)?;
+             let hash = N::BlockHash::read_le(&mut reader)?;
+@@ -274,7 +274,7 @@ impl<N: Network> FromBytes for BlockLocators<N> {
+         // Read the number of checkpoints.
+         let num_checkpoints = u32::read_le(&mut reader)?;
+         // Read the checkpoints.
+-        let mut checkpoints = IndexMap::with_capacity(num_checkpoints as usize);
++        let mut checkpoints = IndexMap::new();
+         for _ in 0..num_checkpoints {
+             let height = u32::read_le(&mut reader)?;
+             let hash = N::BlockHash::read_le(&mut reader)?;

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import click
 
-from bugeval.git_utils import commit_exists, format_patch, get_diff_stats
+from bugeval.git_utils import commit_exists, format_patch, get_changed_files, get_diff_stats
 from bugeval.io import load_all_cases, save_case
 
 
@@ -72,11 +72,17 @@ def validate_cases(
                 errors.append(f"{attr} not found: {sha[:12]}")
 
         # Check diff is non-empty (catches base_commit == head_commit)
+        warnings: list[str] = []
         if not errors:
             try:
                 diff = format_patch(case.base_commit, case.head_commit, repo_dir)
                 if not diff.strip():
                     errors.append("empty diff between base_commit and head_commit")
+                else:
+                    changed = get_changed_files(case.base_commit, case.head_commit, repo_dir)
+                    for finding in case.expected_findings:
+                        if finding.file not in changed:
+                            warnings.append(f"expected finding file '{finding.file}' not in diff")
             except Exception as exc:
                 errors.append(f"could not compute diff: {exc}")
 
@@ -90,6 +96,9 @@ def validate_cases(
             click.echo(f"  FAIL {case.id}: {'; '.join(errors)}")
             all_passed = False
             continue
+
+        for w in warnings:
+            click.echo(f"  WARN {case.id}: {w}")
 
         # Auto-populate stats
         if update_stats and not dry_run:

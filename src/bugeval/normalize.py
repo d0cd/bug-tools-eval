@@ -81,6 +81,11 @@ def normalize_agent_result(case_id: str, tool: str, raw_dir: Path) -> Normalized
             file=item.get("file", ""),
             line=int(item.get("line") or 0),
             body=item.get("summary") or item.get("body", ""),
+            confidence=item.get("confidence"),
+            severity=item.get("severity"),
+            category=item.get("category"),
+            suggested_fix=item.get("suggested_fix"),
+            reasoning=item.get("reasoning"),
         )
         for item in raw
     ]
@@ -113,6 +118,16 @@ def discover_raw_dirs(run_dir: Path) -> list[Path]:
 
 # Known tool name suffixes listed longest-first so the most specific match wins.
 _KNOWN_TOOLS = [
+    "google-api-flash-lite",
+    "google-api-flash",
+    "openai-api-mini",
+    "openai-api-o4",
+    "gemini-cli-flash-lite",
+    "gemini-cli-flash",
+    "claude-cli-sonnet",
+    "claude-cli-haiku",
+    "codex-cli-mini",
+    "codex-cli-o4",
     "claude-code-cli",
     "anthropic-api",
     "graphite-diamond",

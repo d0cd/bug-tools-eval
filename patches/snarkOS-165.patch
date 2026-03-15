@@ -1,0 +1,65 @@
+diff --git a/node/narwhal/src/gateway.rs b/node/narwhal/src/gateway.rs
+index cda7595e5..e61129568 100644
+--- a/node/narwhal/src/gateway.rs
++++ b/node/narwhal/src/gateway.rs
+@@ -418,6 +418,7 @@ impl<N: Network> Gateway<N> {
+     }
+ 
+     /// Inserts the given peer into the connected peers.
++    #[cfg(not(test))]
+     fn insert_connected_peer(&self, peer_ip: SocketAddr, peer_addr: SocketAddr, address: Address<N>) {
+         // Adds a bidirectional map between the listener address and (ambiguous) peer address.
+         self.resolver.insert_peer(peer_ip, peer_addr, address);
+@@ -425,6 +426,16 @@ impl<N: Network> Gateway<N> {
+         self.connected_peers.write().insert(peer_ip);
+     }
+ 
++    /// Inserts the given peer into the connected peers.
++    #[cfg(test)]
++    // For unit tests, we need to make this public so we can inject peers.
++    pub fn insert_connected_peer(&self, peer_ip: SocketAddr, peer_addr: SocketAddr, address: Address<N>) {
++        // Adds a bidirectional map between the listener address and (ambiguous) peer address.
++        self.resolver.insert_peer(peer_ip, peer_addr, address);
++        // Add an transmission for this peer in the connected peers.
++        self.connected_peers.write().insert(peer_ip);
++    }
++
+     /// Removes the connected peer and adds them to the candidate peers.
+     fn remove_connected_peer(&self, peer_ip: SocketAddr) {
+         // If a sync sender was provided, remove the peer from the sync module.
+diff --git a/node/narwhal/src/primary.rs b/node/narwhal/src/primary.rs
+index 13ee908bb..aad39539d 100644
+--- a/node/narwhal/src/primary.rs
++++ b/node/narwhal/src/primary.rs
+@@ -1290,6 +1290,9 @@ mod tests {
+             primary.proposed_batch.clone(),
+         )
+         .unwrap()]);
++        for a in accounts.iter() {
++            primary.gateway.insert_connected_peer(a.0, a.0, a.1.address());
++        }
+ 
+         (primary, accounts)
+     }
+@@ -1469,10 +1472,7 @@ mod tests {
+         }
+     }
+ 
+-    /// FIXME: This test is no longer valid, as `propose_batch` now checks that it is connected to sufficient validators
+-    ///  before proposing a batch. This is a safety mechanism to ensure the primary behaves according to the protocol.
+     #[tokio::test]
+-    #[ignore]
+     async fn test_propose_batch() {
+         let mut rng = TestRng::default();
+         let (primary, _) = primary_without_handlers(&mut rng).await;
+@@ -1498,10 +1498,7 @@ mod tests {
+         assert!(primary.proposed_batch.read().is_some());
+     }
+ 
+-    /// FIXME: This test is no longer valid, as `propose_batch` now checks that it is connected to sufficient validators
+-    ///  before proposing a batch. This is a safety mechanism to ensure the primary behaves according to the protocol.
+     #[tokio::test]
+-    #[ignore]
+     async fn test_propose_batch_in_round() {
+         let round = 3;
+         let mut rng = TestRng::default();

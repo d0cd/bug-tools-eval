@@ -1,0 +1,18 @@
+diff --git a/node/cdn/src/blocks.rs b/node/cdn/src/blocks.rs
+index 228e3789c..5cc0da03c 100644
+--- a/node/cdn/src/blocks.rs
++++ b/node/cdn/src/blocks.rs
+@@ -72,9 +72,11 @@ pub async fn sync_ledger_with_cdn<N: Network, C: ConsensusStorage<N>>(
+                 return Err((*completed_height, err));
+             }
+         }
+-    }
+ 
+-    result
++        Ok(*completed_height)
++    } else {
++        result
++    }
+ }
+ 
+ /// Loads blocks from a CDN and process them with the given function.

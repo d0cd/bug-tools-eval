@@ -1,0 +1,12 @@
+diff --git a/package/src/root/zip.rs b/package/src/root/zip.rs
+index cc21099b7c..1236672577 100644
+--- a/package/src/root/zip.rs
++++ b/package/src/root/zip.rs
+@@ -118,6 +118,7 @@ fn is_excluded(path: &Path) -> bool {
+     if path.ends_with(INPUTS_DIRECTORY_NAME.trim_end_matches("/"))
+         | path.ends_with(OUTPUTS_DIRECTORY_NAME.trim_end_matches("/"))
+         | path.ends_with(IMPORTS_DIRECTORY_NAME.trim_end_matches("/"))
++        | path.starts_with(INPUTS_DIRECTORY_NAME)
+     {
+         return true;
+     }

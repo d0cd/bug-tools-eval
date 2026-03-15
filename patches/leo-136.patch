@@ -1,0 +1,78 @@
+diff --git a/parser/src/parser/file.rs b/parser/src/parser/file.rs
+index cda0e84112..289167e58f 100644
+--- a/parser/src/parser/file.rs
++++ b/parser/src/parser/file.rs
+@@ -173,7 +173,18 @@ impl ParserContext {
+         if let Some(SpannedToken { span, .. }) = self.eat(Token::Mul) {
+             Ok(PackageAccess::Star { span })
+         } else {
+-            let name = self.expect_ident()?;
++            let mut name = self.expect_ident()?;
++
++            // Allow dashes in the accessed members (should only be used for directories).
++            // If imported member does not exist, code will fail on ASG level.
++            if let Token::Minus = self.peek_token().as_ref() {
++                let span = self.expect(Token::Minus)?;
++                name.span = name.span + span;
++                let next = self.expect_ident()?;
++                name.span = name.span + next.span;
++                name.name = format_tendril!("{}-{}", name.name, next.name);
++            }
++
+             if self.peek_token().as_ref() == &Token::Dot {
+                 self.backtrack(SpannedToken {
+                     token: Token::Ident(name.name),
+diff --git a/tests/compiler/import_local/import_weird_names_nested.leo b/tests/compiler/import_local/import_weird_names_nested.leo
+new file mode 100644
+index 0000000000..303035844d
+--- /dev/null
++++ b/tests/compiler/import_local/import_weird_names_nested.leo
+@@ -0,0 +1,12 @@
++/*
++namespace: Compile
++expectation: Pass
++input_file: input/dummy.in
++cwd: local_imports
++*/
++
++import a-9.nested.c-d.*;
++
++function main(y: bool) -> bool {
++    return y == cd();
++}
+diff --git a/tests/compiler/import_local/local_imports/nested/c-d.leo b/tests/compiler/import_local/local_imports/nested/c-d.leo
+new file mode 100644
+index 0000000000..99a62646ee
+--- /dev/null
++++ b/tests/compiler/import_local/local_imports/nested/c-d.leo
+@@ -0,0 +1,3 @@
++function cd() -> bool {
++    return true;
++}
+diff --git a/tests/expectations/compiler/compiler/import_local/import_weird_names_nested.leo.out b/tests/expectations/compiler/compiler/import_local/import_weird_names_nested.leo.out
+new file mode 100644
+index 0000000000..e34d9e527a
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/import_local/import_weird_names_nested.leo.out
+@@ -0,0 +1,21 @@
++---
++namespace: Compile
++expectation: Pass
++outputs:
++  - circuit:
++      num_public_variables: 0
++      num_private_variables: 1
++      num_constraints: 1
++      at: 042610d0fd1fe6d6ac112138f8755752f44c7d2a00f1b5960574d6da5cda393f
++      bt: e97756698880ab7555a959a5fb5c6b4e15bd64612aa677adbfe2d0bd91f0a83c
++      ct: cf1cbb66a638b4860a516671fb74850e6ccf787fe6c4c8d29e9c04efe880bd05
++    output:
++      - input_file: input/dummy.in
++        output:
++          registers:
++            r0:
++              type: bool
++              value: "true"
++    initial_ast: 98debe360fb6fbede5a9db625cbc2e4e4dfddcb23f40e3914e909157334e1d70
++    canonicalized_ast: 98debe360fb6fbede5a9db625cbc2e4e4dfddcb23f40e3914e909157334e1d70
++    type_inferenced_ast: 50c06c3666a830c7f1fd533c412a4e8054fdb494845f4f5d85414b08f1c1a8dd

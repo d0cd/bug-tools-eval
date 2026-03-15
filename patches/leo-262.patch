@@ -1,0 +1,976 @@
+diff --git a/compiler/passes/src/storage_lowering/ast.rs b/compiler/passes/src/storage_lowering/ast.rs
+index 9bef68a905..63c2235e49 100644
+--- a/compiler/passes/src/storage_lowering/ast.rs
++++ b/compiler/passes/src/storage_lowering/ast.rs
+@@ -135,7 +135,7 @@ impl leo_ast::AstReconstructor for StorageLoweringVisitor<'_> {
+                 //   Vector::len(v)
+                 //
+                 // Lowered reconstruction:
+-                //   Mapping::get_or_use(len_map, false, 0u32);
++                //   Mapping::get_or_use(len_map, false, 0u32)
+ 
+                 //  Unpack arguments
+                 let [vector_expr] = &mut input.arguments[..] else {
+@@ -160,7 +160,7 @@ impl leo_ast::AstReconstructor for StorageLoweringVisitor<'_> {
+                 // Lowered reconstruction:
+                 //   let $len_var = Mapping::get_or_use(len_map, false, 0u32);
+                 //   Mapping::set(len_map, false, $len_var > 0 ? $len_var - 1 : $len_var);
+-                //   $len_var > 0 ? Mapping::get_or_use(vec_map, $len_var - 1, zero_value) : None;
++                //   $len_var > 0 ? Mapping::get_or_use(vec_map, $len_var - 1, zero_value) : None
+ 
+                 // Unpack argument
+                 let [vector_expr] = &mut input.arguments[..] else {
+@@ -248,7 +248,7 @@ impl leo_ast::AstReconstructor for StorageLoweringVisitor<'_> {
+                         //   let $len_var = Mapping::get_or_use(len_map, false, 0u32);
+                         //   index < $len_var
+                         //       ? Mapping::get_or_use(vec_map, index, zero_value)
+-                        //       : None;
++                        //       : None
+ 
+                         let (vec_values_mapping_name, vec_length_mapping_name) =
+                             self.generate_mapping_names_for_vector(container_expr);
+@@ -424,13 +424,11 @@ impl leo_ast::AstReconstructor for StorageLoweringVisitor<'_> {
+                 // Lowered reconstruction (conceptually):
+                 //   let $len_var = Mapping::get_or_use(len_map, false, 0u32);
+                 //   assert(index < $len_var);
++                //   let $removed = Mapping::get(vec_map, index);
++                //   Mapping::set(vec_map, index, Mapping::get(vec_map, $len_var - 1));
+                 //   Mapping::set(len_map, false, $len_var - 1);
+-                //   let element = Mapping::get(vec_map, index);
+-                //   let last_elem = Mapping::get(vec_map, $len_var - 1);
+-                //   Mapping::set(vec_map, index, last_elem);
+-                //   index < $len_var ? element : None;
++                //   $removed
+ 
+-                // Unpack arguments (vector, index)
+                 let [vector_expr, index_expr] = &mut input.arguments[..] else {
+                     panic!("Vector::swap_remove should have 2 arguments");
+                 };
+@@ -459,59 +457,65 @@ impl leo_ast::AstReconstructor for StorageLoweringVisitor<'_> {
+                 );
+                 let len_var_expr: Expression = len_var_ident.into();
+ 
+-                // condition: index < len
++                // assert(index < $len_var);
+                 let index_lt_len_expr =
+                     self.binary_expr(reconstructed_index_expr.clone(), BinaryOperation::Lt, len_var_expr.clone());
+-
+-                // len - 1
+-                let literal_one = self.literal_one_u32();
+-                let len_minus_one_expr = self.binary_expr(len_var_expr.clone(), BinaryOperation::Sub, literal_one);
+-
+-                // Mapping::set(len_map, false, len - 1)
+-                let literal_false = self.literal_false();
+-                let set_len_stmt = Statement::Expression(ExpressionStatement {
+-                    expression: self.set_mapping_expr(
+-                        len_path_expr.clone(),
+-                        literal_false,
+-                        len_minus_one_expr.clone(),
+-                        input.span,
+-                    ),
++                let assert_stmt = Statement::Assert(AssertStatement {
++                    variant: AssertVariant::Assert(index_lt_len_expr.clone()),
+                     span: input.span,
+                     id: self.state.node_builder.next_id(),
+                 });
+ 
+-                // Mapping::get(vec_map, index)  // the element to return (old element)
++                // let $removed = Mapping::get(vec_map, index); // the element to return
+                 let get_elem_expr =
+                     self.get_mapping_expr(vec_path_expr.clone(), reconstructed_index_expr.clone(), input.span);
++                let removed_sym = self.state.assigner.unique_symbol("$removed", "$");
++                let removed_ident =
++                    Identifier { name: removed_sym, span: Default::default(), id: self.state.node_builder.next_id() };
++                let removed_stmt = Statement::Definition(DefinitionStatement {
++                    place: DefinitionPlace::Single(removed_ident),
++                    type_: None,
++                    value: get_elem_expr,
++                    span: input.span,
++                    id: self.state.node_builder.next_id(),
++                });
+ 
+-                // Mapping::get(vec_map, len - 1)  // last_elem
++                // len - 1
++                let literal_one = self.literal_one_u32();
++                let len_minus_one_expr = self.binary_expr(len_var_expr.clone(), BinaryOperation::Sub, literal_one);
++
++                // Mapping::set(vec_map, index, Mapping::get(vec_map, len - 1));
+                 let get_last_expr =
+                     self.get_mapping_expr(vec_path_expr.clone(), len_minus_one_expr.clone(), input.span);
+-
+-                // Mapping::set(vec_map, index, last_elem)
+                 let set_swap_stmt = Statement::Expression(ExpressionStatement {
+                     expression: self.set_mapping_expr(
+                         vec_path_expr.clone(),
+                         reconstructed_index_expr.clone(),
+-                        get_last_expr.clone(),
++                        get_last_expr,
+                         input.span,
+                     ),
+                     span: input.span,
+                     id: self.state.node_builder.next_id(),
+                 });
+ 
+-                // assert(index < len)
+-                let assert_stmt = Statement::Assert(AssertStatement {
+-                    variant: AssertVariant::Assert(index_lt_len_expr.clone()),
+-                    span: Span::default(),
++                // Mapping::set(len_map, false, len - 1);
++                let literal_false = self.literal_false();
++                let set_len_stmt = Statement::Expression(ExpressionStatement {
++                    expression: self.set_mapping_expr(
++                        len_path_expr.clone(),
++                        literal_false,
++                        len_minus_one_expr,
++                        input.span,
++                    ),
++                    span: input.span,
+                     id: self.state.node_builder.next_id(),
+                 });
+ 
+-                // ternary: index < len ? get(vec, index) : None
+-                let none_expr: Expression = Literal::none(Span::default(), self.state.node_builder.next_id()).into();
+-                let ternary_expr = self.ternary_expr(index_lt_len_expr, get_elem_expr, none_expr, input.span);
+-
+-                (ternary_expr, [index_stmts, vec![len_stmt, assert_stmt, set_len_stmt, set_swap_stmt]].concat())
++                // Return `$removed` as the resulting expression
++                (
++                    removed_ident.into(),
++                    [index_stmts, vec![len_stmt, assert_stmt, removed_stmt, set_swap_stmt, set_len_stmt]].concat(),
++                )
+             }
+ 
+             _ => {
+diff --git a/compiler/passes/src/type_checking/visitor.rs b/compiler/passes/src/type_checking/visitor.rs
+index 2b85018e3d..8b107d209c 100644
+--- a/compiler/passes/src/type_checking/visitor.rs
++++ b/compiler/passes/src/type_checking/visitor.rs
+@@ -992,7 +992,7 @@ impl TypeCheckingVisitor<'_> {
+                 self.check_access_allowed("Vector::swap_remove", true, function_span);
+ 
+                 if let Type::Vector(VectorType { element_type }) = &arguments[0].0 {
+-                    Type::Optional(OptionalType { inner: Box::new(*element_type.clone()) })
++                    *element_type.clone()
+                 } else {
+                     self.assert_vector_type(&arguments[0].0, arguments[0].1.span());
+                     Type::Err
+diff --git a/tests/expectations/compiler/storage/vector_ops.out b/tests/expectations/compiler/storage/vector_ops.out
+index 90b2e992ca..c265246264 100644
+--- a/tests/expectations/compiler/storage/vector_ops.out
++++ b/tests/expectations/compiler/storage/vector_ops.out
+@@ -88,10 +88,13 @@ finalize swap_remove:
+     get.or_use vec__len__[false] 0u32 into r0;
+     lt 3u32 r0 into r1;
+     assert.eq r1 true;
+-    sub r0 1u32 into r2;
+-    set r2 into vec__len__[false];
+-    get vec__[r2] into r3;
+-    set r3 into vec__[3u32];
++    get vec__[3u32] into r2;
++    sub r0 1u32 into r3;
++    get vec__[r3] into r4;
++    set r4 into vec__[3u32];
++    set r3 into vec__len__[false];
++    gte r2 0u8 into r5;
++    assert.eq r5 true;
+ 
+ constructor:
+     assert.eq edition 0u16;
+diff --git a/tests/expectations/execution/complex_vector.out b/tests/expectations/execution/complex_vector.out
+index fd8cea8920..686a80f3f0 100644
+--- a/tests/expectations/execution/complex_vector.out
++++ b/tests/expectations/execution/complex_vector.out
+@@ -53,6 +53,7 @@ function test_vector_primitives_behavior:
+ finalize test_vector_primitives_behavior:
+     input r0 as u32.public;
+     input r1 as u32.public;
++    set 0u32 into ids__len__[false];
+     get.or_use ids__len__[false] 0u32 into r2;
+     is.eq r2 0u32 into r3;
+     assert.eq r3 true;
+@@ -80,87 +81,72 @@ finalize test_vector_primitives_behavior:
+     ternary r13 r15.val r16.val into r18;
+     cast r17 r18 into r19 as Optional__EsDmm5O6sv6;
+     assert.eq r19.is_some true;
+-    get.or_use ids__[r0] 0u32 into r20;
+-    cast true r20 into r21 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r22 as Optional__EsDmm5O6sv6;
+-    ternary r13 r21.is_some r22.is_some into r23;
+-    ternary r13 r21.val r22.val into r24;
+-    cast r23 r24 into r25 as Optional__EsDmm5O6sv6;
+-    is.eq r25.val 20u32 into r26;
+-    assert.eq r26 true;
+-    get.or_use ids__len__[false] 0u32 into r27;
+-    lt r0 r27 into r28;
+-    assert.eq r28 true;
++    is.eq r19.val 20u32 into r20;
++    assert.eq r20 true;
++    assert.eq r19.is_some true;
++    is.eq r19.val 20u32 into r21;
++    assert.eq r21 true;
++    get.or_use ids__len__[false] 0u32 into r22;
++    lt r0 r22 into r23;
++    assert.eq r23 true;
+     set r1 into ids__[r0];
+-    get.or_use ids__len__[false] 0u32 into r29;
+-    lt r0 r29 into r30;
+-    get.or_use ids__[r0] 0u32 into r31;
+-    cast true r31 into r32 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r33 as Optional__EsDmm5O6sv6;
+-    ternary r30 r32.is_some r33.is_some into r34;
+-    ternary r30 r32.val r33.val into r35;
+-    cast r34 r35 into r36 as Optional__EsDmm5O6sv6;
+-    assert.eq r36.is_some true;
+-    get.or_use ids__[r0] 0u32 into r37;
+-    cast true r37 into r38 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r39 as Optional__EsDmm5O6sv6;
+-    ternary r30 r38.is_some r39.is_some into r40;
+-    ternary r30 r38.val r39.val into r41;
+-    cast r40 r41 into r42 as Optional__EsDmm5O6sv6;
+-    is.eq r42.val r1 into r43;
+-    assert.eq r43 true;
+-    get.or_use ids__len__[false] 0u32 into r44;
+-    lt 2u32 r44 into r45;
+-    assert.eq r45 true;
+-    sub r44 1u32 into r46;
+-    set r46 into ids__len__[false];
+-    get ids__[r46] into r47;
+-    set r47 into ids__[2u32];
+-    get ids__[2u32] into r48;
+-    cast true r48 into r49 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r50 as Optional__EsDmm5O6sv6;
+-    ternary r45 r49.is_some r50.is_some into r51;
+-    ternary r45 r49.val r50.val into r52;
+-    cast r51 r52 into r53 as Optional__EsDmm5O6sv6;
+-    assert.eq r53.is_some true;
+-    get ids__[2u32] into r54;
+-    cast true r54 into r55 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r56 as Optional__EsDmm5O6sv6;
+-    ternary r45 r55.is_some r56.is_some into r57;
+-    ternary r45 r55.val r56.val into r58;
+-    cast r57 r58 into r59 as Optional__EsDmm5O6sv6;
+-    is.eq r59.val 30u32 into r60;
+-    assert.eq r60 true;
+-    get.or_use ids__len__[false] 0u32 into r61;
+-    is.eq r61 2u32 into r62;
+-    assert.eq r62 true;
+-    get.or_use ids__len__[false] 0u32 into r63;
+-    gt r63 0u32 into r64;
+-    sub.w r63 1u32 into r65;
+-    ternary r64 r65 r63 into r66;
+-    set r66 into ids__len__[false];
+-    get.or_use ids__[r65] 0u32 into r67;
+-    cast true r67 into r68 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r69 as Optional__EsDmm5O6sv6;
+-    ternary r64 r68.is_some r69.is_some into r70;
+-    ternary r64 r68.val r69.val into r71;
+-    cast r70 r71 into r72 as Optional__EsDmm5O6sv6;
+-    assert.eq r72.is_some true;
+-    get.or_use ids__[r65] 0u32 into r73;
+-    cast true r73 into r74 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r75 as Optional__EsDmm5O6sv6;
+-    ternary r64 r74.is_some r75.is_some into r76;
+-    ternary r64 r74.val r75.val into r77;
+-    cast r76 r77 into r78 as Optional__EsDmm5O6sv6;
+-    is.eq r78.val r1 into r79;
+-    assert.eq r79 true;
+-    get.or_use ids__len__[false] 0u32 into r80;
+-    is.eq r80 1u32 into r81;
+-    assert.eq r81 true;
++    get.or_use ids__len__[false] 0u32 into r24;
++    lt r0 r24 into r25;
++    get.or_use ids__[r0] 0u32 into r26;
++    cast true r26 into r27 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r28 as Optional__EsDmm5O6sv6;
++    ternary r25 r27.is_some r28.is_some into r29;
++    ternary r25 r27.val r28.val into r30;
++    cast r29 r30 into r31 as Optional__EsDmm5O6sv6;
++    assert.eq r31.is_some true;
++    get.or_use ids__[r0] 0u32 into r32;
++    cast true r32 into r33 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r34 as Optional__EsDmm5O6sv6;
++    ternary r25 r33.is_some r34.is_some into r35;
++    ternary r25 r33.val r34.val into r36;
++    cast r35 r36 into r37 as Optional__EsDmm5O6sv6;
++    is.eq r37.val r1 into r38;
++    assert.eq r38 true;
++    get.or_use ids__len__[false] 0u32 into r39;
++    lt 2u32 r39 into r40;
++    assert.eq r40 true;
++    get ids__[2u32] into r41;
++    sub r39 1u32 into r42;
++    get ids__[r42] into r43;
++    set r43 into ids__[2u32];
++    set r42 into ids__len__[false];
++    is.eq r41 30u32 into r44;
++    assert.eq r44 true;
++    get.or_use ids__len__[false] 0u32 into r45;
++    is.eq r45 2u32 into r46;
++    assert.eq r46 true;
++    get.or_use ids__len__[false] 0u32 into r47;
++    gt r47 0u32 into r48;
++    sub.w r47 1u32 into r49;
++    ternary r48 r49 r47 into r50;
++    set r50 into ids__len__[false];
++    get.or_use ids__[r49] 0u32 into r51;
++    cast true r51 into r52 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r53 as Optional__EsDmm5O6sv6;
++    ternary r48 r52.is_some r53.is_some into r54;
++    ternary r48 r52.val r53.val into r55;
++    cast r54 r55 into r56 as Optional__EsDmm5O6sv6;
++    assert.eq r56.is_some true;
++    get.or_use ids__[r49] 0u32 into r57;
++    cast true r57 into r58 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r59 as Optional__EsDmm5O6sv6;
++    ternary r48 r58.is_some r59.is_some into r60;
++    ternary r48 r58.val r59.val into r61;
++    cast r60 r61 into r62 as Optional__EsDmm5O6sv6;
++    is.eq r62.val r1 into r63;
++    assert.eq r63 true;
++    get.or_use ids__len__[false] 0u32 into r64;
++    is.eq r64 1u32 into r65;
++    assert.eq r65 true;
+     set 0u32 into ids__len__[false];
+-    get.or_use ids__len__[false] 0u32 into r82;
+-    is.eq r82 0u32 into r83;
+-    assert.eq r83 true;
++    get.or_use ids__len__[false] 0u32 into r66;
++    is.eq r66 0u32 into r67;
++    assert.eq r67 true;
+ 
+ function test_vector_structs_behavior:
+     input r0 as u32.private;
+diff --git a/tests/expectations/execution/simple_vector.out b/tests/expectations/execution/simple_vector.out
+index 6132ab5301..d9fb97f4c7 100644
+--- a/tests/expectations/execution/simple_vector.out
++++ b/tests/expectations/execution/simple_vector.out
+@@ -74,103 +74,113 @@ finalize test_vector_ops:
+     is.eq r40.val 25u32 into r41;
+     assert.eq r41 true;
+     get.or_use vec__len__[false] 0u32 into r42;
+-    lt 2u32 r42 into r43;
++    lt 0u32 r42 into r43;
+     assert.eq r43 true;
+-    sub r42 1u32 into r44;
+-    set r44 into vec__len__[false];
+-    get vec__[r44] into r45;
+-    set r45 into vec__[2u32];
+-    get vec__[2u32] into r46;
+-    cast true r46 into r47 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r48 as Optional__EsDmm5O6sv6;
+-    ternary r43 r47.is_some r48.is_some into r49;
+-    ternary r43 r47.val r48.val into r50;
+-    cast r49 r50 into r51 as Optional__EsDmm5O6sv6;
+-    assert.eq r51.is_some true;
+-    get vec__[2u32] into r52;
++    get vec__[0u32] into r44;
++    sub r42 1u32 into r45;
++    get vec__[r45] into r46;
++    set r46 into vec__[0u32];
++    set r45 into vec__len__[false];
++    is.eq r44 10u32 into r47;
++    assert.eq r47 true;
++    get.or_use vec__len__[false] 0u32 into r48;
++    is.eq r48 2u32 into r49;
++    assert.eq r49 true;
++    get.or_use vec__len__[false] 0u32 into r50;
++    lt 0u32 r50 into r51;
++    get.or_use vec__[0u32] 0u32 into r52;
+     cast true r52 into r53 as Optional__EsDmm5O6sv6;
+     cast false 0u32 into r54 as Optional__EsDmm5O6sv6;
+-    ternary r43 r53.is_some r54.is_some into r55;
+-    ternary r43 r53.val r54.val into r56;
++    ternary r51 r53.is_some r54.is_some into r55;
++    ternary r51 r53.val r54.val into r56;
+     cast r55 r56 into r57 as Optional__EsDmm5O6sv6;
+-    is.eq r57.val 30u32 into r58;
+-    assert.eq r58 true;
+-    get.or_use vec__len__[false] 0u32 into r59;
+-    is.eq r59 2u32 into r60;
+-    assert.eq r60 true;
+-    get.or_use vec__len__[false] 0u32 into r61;
+-    gt r61 0u32 into r62;
+-    sub.w r61 1u32 into r63;
+-    ternary r62 r63 r61 into r64;
+-    set r64 into vec__len__[false];
+-    get.or_use vec__[r63] 0u32 into r65;
+-    cast true r65 into r66 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r67 as Optional__EsDmm5O6sv6;
+-    ternary r62 r66.is_some r67.is_some into r68;
+-    ternary r62 r66.val r67.val into r69;
+-    cast r68 r69 into r70 as Optional__EsDmm5O6sv6;
+-    assert.eq r70.is_some true;
+-    get.or_use vec__[r63] 0u32 into r71;
+-    cast true r71 into r72 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r73 as Optional__EsDmm5O6sv6;
+-    ternary r62 r72.is_some r73.is_some into r74;
+-    ternary r62 r72.val r73.val into r75;
+-    cast r74 r75 into r76 as Optional__EsDmm5O6sv6;
+-    is.eq r76.val 25u32 into r77;
+-    assert.eq r77 true;
+-    get.or_use vec__len__[false] 0u32 into r78;
+-    is.eq r78 1u32 into r79;
++    assert.eq r57.is_some true;
++    get.or_use vec__[0u32] 0u32 into r58;
++    cast true r58 into r59 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r60 as Optional__EsDmm5O6sv6;
++    ternary r51 r59.is_some r60.is_some into r61;
++    ternary r51 r59.val r60.val into r62;
++    cast r61 r62 into r63 as Optional__EsDmm5O6sv6;
++    is.eq r63.val 30u32 into r64;
++    assert.eq r64 true;
++    get.or_use vec__len__[false] 0u32 into r65;
++    lt 1u32 r65 into r66;
++    get.or_use vec__[1u32] 0u32 into r67;
++    cast true r67 into r68 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r69 as Optional__EsDmm5O6sv6;
++    ternary r66 r68.is_some r69.is_some into r70;
++    ternary r66 r68.val r69.val into r71;
++    cast r70 r71 into r72 as Optional__EsDmm5O6sv6;
++    assert.eq r72.is_some true;
++    get.or_use vec__[1u32] 0u32 into r73;
++    cast true r73 into r74 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r75 as Optional__EsDmm5O6sv6;
++    ternary r66 r74.is_some r75.is_some into r76;
++    ternary r66 r74.val r75.val into r77;
++    cast r76 r77 into r78 as Optional__EsDmm5O6sv6;
++    is.eq r78.val 25u32 into r79;
+     assert.eq r79 true;
+-    set 0u32 into vec__len__[false];
+     get.or_use vec__len__[false] 0u32 into r80;
+-    is.eq r80 0u32 into r81;
+-    assert.eq r81 true;
+-    get.or_use vec__len__[false] 0u32 into r82;
+-    gt r82 0u32 into r83;
+-    sub.w r82 1u32 into r84;
+-    ternary r83 r84 r82 into r85;
+-    set r85 into vec__len__[false];
+-    get.or_use vec__[r84] 0u32 into r86;
+-    cast true r86 into r87 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r88 as Optional__EsDmm5O6sv6;
+-    ternary r83 r87.is_some r88.is_some into r89;
+-    ternary r83 r87.val r88.val into r90;
+-    cast r89 r90 into r91 as Optional__EsDmm5O6sv6;
++    gt r80 0u32 into r81;
++    sub.w r80 1u32 into r82;
++    ternary r81 r82 r80 into r83;
++    set r83 into vec__len__[false];
++    get.or_use vec__[r82] 0u32 into r84;
++    cast true r84 into r85 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r86 as Optional__EsDmm5O6sv6;
++    ternary r81 r85.is_some r86.is_some into r87;
++    ternary r81 r85.val r86.val into r88;
++    cast r87 r88 into r89 as Optional__EsDmm5O6sv6;
++    assert.eq r89.is_some true;
++    get.or_use vec__[r82] 0u32 into r90;
++    cast true r90 into r91 as Optional__EsDmm5O6sv6;
+     cast false 0u32 into r92 as Optional__EsDmm5O6sv6;
+-    is.eq r91 r92 into r93;
+-    assert.eq r93 true;
+-    get.or_use vec__len__[false] 0u32 into r94;
+-    add r94 1u32 into r95;
+-    set r95 into vec__len__[false];
+-    set 99u32 into vec__[r94];
+-    get.or_use vec__len__[false] 0u32 into r96;
+-    is.eq r96 1u32 into r97;
+-    assert.eq r97 true;
+-    get.or_use vec__len__[false] 0u32 into r98;
+-    lt 0u32 r98 into r99;
+-    assert.eq r99 true;
+-    sub r98 1u32 into r100;
+-    set r100 into vec__len__[false];
+-    get vec__[r100] into r101;
+-    set r101 into vec__[0u32];
+-    get vec__[0u32] into r102;
+-    cast true r102 into r103 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r104 as Optional__EsDmm5O6sv6;
+-    ternary r99 r103.is_some r104.is_some into r105;
+-    ternary r99 r103.val r104.val into r106;
+-    cast r105 r106 into r107 as Optional__EsDmm5O6sv6;
+-    assert.eq r107.is_some true;
+-    get vec__[0u32] into r108;
+-    cast true r108 into r109 as Optional__EsDmm5O6sv6;
+-    cast false 0u32 into r110 as Optional__EsDmm5O6sv6;
+-    ternary r99 r109.is_some r110.is_some into r111;
+-    ternary r99 r109.val r110.val into r112;
+-    cast r111 r112 into r113 as Optional__EsDmm5O6sv6;
+-    is.eq r113.val 99u32 into r114;
+-    assert.eq r114 true;
++    ternary r81 r91.is_some r92.is_some into r93;
++    ternary r81 r91.val r92.val into r94;
++    cast r93 r94 into r95 as Optional__EsDmm5O6sv6;
++    is.eq r95.val 25u32 into r96;
++    assert.eq r96 true;
++    get.or_use vec__len__[false] 0u32 into r97;
++    is.eq r97 1u32 into r98;
++    assert.eq r98 true;
++    set 0u32 into vec__len__[false];
++    get.or_use vec__len__[false] 0u32 into r99;
++    is.eq r99 0u32 into r100;
++    assert.eq r100 true;
++    get.or_use vec__len__[false] 0u32 into r101;
++    gt r101 0u32 into r102;
++    sub.w r101 1u32 into r103;
++    ternary r102 r103 r101 into r104;
++    set r104 into vec__len__[false];
++    get.or_use vec__[r103] 0u32 into r105;
++    cast true r105 into r106 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r107 as Optional__EsDmm5O6sv6;
++    ternary r102 r106.is_some r107.is_some into r108;
++    ternary r102 r106.val r107.val into r109;
++    cast r108 r109 into r110 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r111 as Optional__EsDmm5O6sv6;
++    is.eq r110 r111 into r112;
++    assert.eq r112 true;
++    get.or_use vec__len__[false] 0u32 into r113;
++    add r113 1u32 into r114;
++    set r114 into vec__len__[false];
++    set 99u32 into vec__[r113];
+     get.or_use vec__len__[false] 0u32 into r115;
+-    is.eq r115 0u32 into r116;
++    is.eq r115 1u32 into r116;
+     assert.eq r116 true;
++    get.or_use vec__len__[false] 0u32 into r117;
++    lt 0u32 r117 into r118;
++    assert.eq r118 true;
++    get vec__[0u32] into r119;
++    sub r117 1u32 into r120;
++    get vec__[r120] into r121;
++    set r121 into vec__[0u32];
++    set r120 into vec__len__[false];
++    is.eq r119 99u32 into r122;
++    assert.eq r122 true;
++    get.or_use vec__len__[false] 0u32 into r123;
++    is.eq r123 0u32 into r124;
++    assert.eq r124 true;
+ 
+ constructor:
+     assert.eq edition 0u16;
+diff --git a/tests/expectations/execution/vector_oob.out b/tests/expectations/execution/vector_oob.out
+new file mode 100644
+index 0000000000..da752ccdbf
+--- /dev/null
++++ b/tests/expectations/execution/vector_oob.out
+@@ -0,0 +1,197 @@
++program test_oob.aleo;
++
++struct Optional__EsDmm5O6sv6:
++    is_some as boolean;
++    val as u32;
++
++mapping vec__:
++    key as u32.public;
++    value as u32.public;
++
++mapping vec__len__:
++    key as boolean.public;
++    value as u32.public;
++
++function oob_get:
++    async oob_get into r0;
++    output r0 as test_oob.aleo/oob_get.future;
++
++finalize oob_get:
++    set 0u32 into vec__len__[false];
++    get.or_use vec__len__[false] 0u32 into r0;
++    is.eq r0 0u32 into r1;
++    assert.eq r1 true;
++    get.or_use vec__len__[false] 0u32 into r2;
++    lt 0u32 r2 into r3;
++    get.or_use vec__[0u32] 0u32 into r4;
++    cast true r4 into r5 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r6 as Optional__EsDmm5O6sv6;
++    ternary r3 r5.is_some r6.is_some into r7;
++    ternary r3 r5.val r6.val into r8;
++    cast r7 r8 into r9 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r10 as Optional__EsDmm5O6sv6;
++    is.eq r9 r10 into r11;
++    assert.eq r11 true;
++
++function oob_set:
++    async oob_set into r0;
++    output r0 as test_oob.aleo/oob_set.future;
++
++finalize oob_set:
++    set 0u32 into vec__len__[false];
++    get.or_use vec__len__[false] 0u32 into r0;
++    is.eq r0 0u32 into r1;
++    assert.eq r1 true;
++    get.or_use vec__len__[false] 0u32 into r2;
++    lt 0u32 r2 into r3;
++    assert.eq r3 true;
++    set 123u32 into vec__[0u32];
++
++function oob_swap_remove:
++    async oob_swap_remove into r0;
++    output r0 as test_oob.aleo/oob_swap_remove.future;
++
++finalize oob_swap_remove:
++    set 0u32 into vec__len__[false];
++    get.or_use vec__len__[false] 0u32 into r0;
++    is.eq r0 0u32 into r1;
++    assert.eq r1 true;
++    get.or_use vec__len__[false] 0u32 into r2;
++    lt 0u32 r2 into r3;
++    assert.eq r3 true;
++    get vec__[0u32] into r4;
++    sub r2 1u32 into r5;
++    get vec__[r5] into r6;
++    set r6 into vec__[0u32];
++    set r5 into vec__len__[false];
++
++function oob_pop:
++    async oob_pop into r0;
++    output r0 as test_oob.aleo/oob_pop.future;
++
++finalize oob_pop:
++    set 0u32 into vec__len__[false];
++    get.or_use vec__len__[false] 0u32 into r0;
++    is.eq r0 0u32 into r1;
++    assert.eq r1 true;
++    get.or_use vec__len__[false] 0u32 into r2;
++    gt r2 0u32 into r3;
++    sub.w r2 1u32 into r4;
++    ternary r3 r4 r2 into r5;
++    set r5 into vec__len__[false];
++    get.or_use vec__[r4] 0u32 into r6;
++    cast true r6 into r7 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r8 as Optional__EsDmm5O6sv6;
++    ternary r3 r7.is_some r8.is_some into r9;
++    ternary r3 r7.val r8.val into r10;
++    cast r9 r10 into r11 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r12 as Optional__EsDmm5O6sv6;
++    is.eq r11 r12 into r13;
++    assert.eq r13 true;
++
++constructor:
++    assert.eq edition 0u16;
++verified: true
++status: accepted
++errors:
++warnings:
++{
++  "transitions": [
++    {
++      "id": "au19fpt4zw3efpkk6h7q3fhwt3ygnh0rfp3yp94z7qdw8jf00640cyq099xkc",
++      "program": "test_oob.aleo",
++      "function": "oob_get",
++      "inputs": [],
++      "outputs": [
++        {
++          "type": "future",
++          "id": "5731236878452207723013327020032677030311481754208491666975077923570611197812field",
++          "value": "{\n  program_id: test_oob.aleo,\n  function_name: oob_get,\n  arguments: []\n}"
++        }
++      ],
++      "tpk": "3624323403681901343598936873162095754730183994733191464570438014739528535008group",
++      "tcm": "8026203841700191376238532538224025813107545641164319720703859520165390186410field",
++      "scm": "8111960946564644093806049080368640250465700351145129603686771509712125953784field"
++    }
++  ],
++  "global_state_root": "sr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq6gk0xu"
++}
++
++verified: true
++status: rejected
++errors:
++warnings:
++{
++  "transitions": [
++    {
++      "id": "au1mk8rz8kdyl2s6aqyegj2kdx7km8722mxwy7ucagrxu2utx3zmcxsml9l7a",
++      "program": "test_oob.aleo",
++      "function": "oob_set",
++      "inputs": [],
++      "outputs": [
++        {
++          "type": "future",
++          "id": "3084372646656352154386021029975669844871419101934868738592978512838741027738field",
++          "value": "{\n  program_id: test_oob.aleo,\n  function_name: oob_set,\n  arguments: []\n}"
++        }
++      ],
++      "tpk": "400812782568195639516329277224501285789970750488543866531779058014165881522group",
++      "tcm": "7526198462873088570248167433339267185457490371331812664054957953360345622695field",
++      "scm": "2771105956429082324621928901173889972492135582642565056291749840109780838399field"
++    }
++  ],
++  "global_state_root": "sr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq6gk0xu"
++}
++
++verified: true
++status: rejected
++errors:
++warnings:
++{
++  "transitions": [
++    {
++      "id": "au1v4msxgtcghkrxckz5xydycz57zlvpywgwafxsljtjvddgql3j5yqa5jxm2",
++      "program": "test_oob.aleo",
++      "function": "oob_swap_remove",
++      "inputs": [],
++      "outputs": [
++        {
++          "type": "future",
++          "id": "2453578089359433043444411541301644333516589980017298958387602317033411630376field",
++          "value": "{\n  program_id: test_oob.aleo,\n  function_name: oob_swap_remove,\n  arguments: []\n}"
++        }
++      ],
++      "tpk": "6391520642900957007179861346929854585582237374908426201126737378047496289808group",
++      "tcm": "7186253704433632951446902606866199469774293810685911560184664495473933469756field",
++      "scm": "4253146435129910350904226225849096049229979348376537827238912416479652512103field"
++    }
++  ],
++  "global_state_root": "sr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq6gk0xu"
++}
++
++verified: true
++status: accepted
++errors:
++warnings:
++{
++  "transitions": [
++    {
++      "id": "au1gwmkgyjs79prc4avhv4xyewpp9gqxsjgeddceazww6gcs6dkyggsfhkmxm",
++      "program": "test_oob.aleo",
++      "function": "oob_pop",
++      "inputs": [],
++      "outputs": [
++        {
++          "type": "future",
++          "id": "1813102599485495876799781152863176423240825511882716175707150543130600029238field",
++          "value": "{\n  program_id: test_oob.aleo,\n  function_name: oob_pop,\n  arguments: []\n}"
++        }
++      ],
++      "tpk": "5554347281219211935554922593863866828516568901206525108098751846506574401168group",
++      "tcm": "3261327963017627577931781756983646162517606910157576873473161535805673767250field",
++      "scm": "4329527014580250744951242912448572211006929100476245838357352280912332831880field"
++    }
++  ],
++  "global_state_root": "sr1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq6gk0xu"
++}
++
+diff --git a/tests/tests/compiler/storage/vector_ops.leo b/tests/tests/compiler/storage/vector_ops.leo
+index 2277d55c78..7c8a958fdb 100644
+--- a/tests/tests/compiler/storage/vector_ops.leo
++++ b/tests/tests/compiler/storage/vector_ops.leo
+@@ -37,7 +37,8 @@ program singleton_storage.aleo {
+ 
+     async transition swap_remove() -> Future {
+         return async {
+-            vec.swap_remove(3u32);
++            let x = vec.swap_remove(3u32);
++            assert(x >= 0);
+         };
+     }
+ 
+diff --git a/tests/tests/execution/complex_vector.leo b/tests/tests/execution/complex_vector.leo
+index 4b3e53e167..f2ad2738c4 100644
+--- a/tests/tests/execution/complex_vector.leo
++++ b/tests/tests/execution/complex_vector.leo
+@@ -53,29 +53,38 @@ program vector_structs.aleo {
+     //
+     async transition test_vector_primitives_behavior(index: u32, new_value: u32) -> Future {
+         return async {
++            // Ensure empty at start
++            ids.clear();
+             assert(ids.len() == 0u32);
+ 
++            // Push initial elements
+             ids.push(10u32);
+             ids.push(20u32);
+             ids.push(30u32);
+             assert(ids.len() == 3u32);
+ 
+-            // Dynamic index from input
+-            let val = ids.get(index).unwrap();
++            // Dynamic index from input 
++            let val_opt = ids.get(index);
++            assert(val_opt.unwrap() == 20u32);
++
++            let val = val_opt.unwrap();
+             assert(val == 20u32);
+ 
+             // Use input to set a new value dynamically
+             ids.set(index, new_value);
+             assert(ids.get(index).unwrap() == new_value);
+ 
+-            let removed = ids.swap_remove(2u32).unwrap();
++            // Swap remove last element
++            let removed = ids.swap_remove(2u32);
+             assert(removed == 30u32);
+             assert(ids.len() == 2u32);
+ 
++            // Pop last element
+             let popped = ids.pop().unwrap();
+             assert(popped == new_value);
+             assert(ids.len() == 1u32);
+ 
++            // Clear vector
+             ids.clear();
+             assert(ids.len() == 0u32);
+         };
+diff --git a/tests/tests/execution/simple_vector.leo b/tests/tests/execution/simple_vector.leo
+index f1ce251096..07adab7ddb 100644
+--- a/tests/tests/execution/simple_vector.leo
++++ b/tests/tests/execution/simple_vector.leo
+@@ -15,48 +15,55 @@ program test.aleo {
+     async transition test_vector_ops() -> Future {
+         return async {
+             // Initialize: ensure empty
+-            assert(vec.len() == 0u32);
++            assert(vec.len() == 0);
+ 
+             // Push elements
+-            vec.push(10u32);
+-            vec.push(20u32);
+-            vec.push(30u32);
+-            assert(vec.len() == 3u32);
++            vec.push(10);
++            vec.push(20);
++            vec.push(30);
++            assert(vec.len() == 3);
+ 
+             // Get element at index 1 (should be 20)
+-            let val = vec.get(1u32).unwrap();
+-            assert(val == 20u32);
++            let val = vec.get(1).unwrap();
++            assert(val == 20);
+ 
+             // Set index 1 to 25
+-            vec.set(1u32, 25u32);
+-            let updated_val = vec.get(1u32).unwrap();
+-            assert(updated_val == 25u32);
++            vec.set(1, 25);
++            let updated_val = vec.get(1).unwrap();
++            assert(updated_val == 25);
+ 
+-            // Swap remove last element (should be 30)
+-            let removed = vec.swap_remove(2u32).unwrap();
+-            assert(removed == 30u32);
+-            assert(vec.len() == 2u32);
++            // Before: vec = [10, 25, 30]
++            // After:  vec = [30, 25] and removed = 10
++            let removed_non_last = vec.swap_remove(0);
++            assert(removed_non_last == 10);
++            assert(vec.len() == 2);
++
++            // Verify that the last element (30) replaced index 0
++            let first_elem = vec.get(0).unwrap();
++            assert(first_elem == 30);
++            let second_elem = vec.get(1).unwrap();
++            assert(second_elem == 25);
+ 
+             // Pop last element (should be 25 now)
+             let popped = vec.pop().unwrap();
+-            assert(popped == 25u32);
+-            assert(vec.len() == 1u32);
++            assert(popped == 25);
++            assert(vec.len() == 1);
+ 
+             // Clear
+             vec.clear();
+-            assert(vec.len() == 0u32);
++            assert(vec.len() == 0);
+ 
+             // Pop an empty vector
+             assert(vec.pop() == none);
+ 
+-            vec.push(99u32);
+-            assert(vec.len() == 1u32);
++            vec.push(99);
++            assert(vec.len() == 1);
+ 
+             // Single-element swap_remove(0)
+             // Should remove the only element, returning 99
+-            let removed_single = vec.swap_remove(0u32).unwrap();
+-            assert(removed_single == 99u32);
+-            assert(vec.len() == 0u32);
++            let removed_single = vec.swap_remove(0);
++            assert(removed_single == 99);
++            assert(vec.len() == 0);
+         };
+     }
+ 
+diff --git a/tests/tests/execution/vector_oob.leo b/tests/tests/execution/vector_oob.leo
+new file mode 100644
+index 0000000000..0bc42e6291
+--- /dev/null
++++ b/tests/tests/execution/vector_oob.leo
+@@ -0,0 +1,77 @@
++/*
++seed = 987654321
++min_height = 16
++
++[case]
++program = "test_oob.aleo"
++function = "oob_get"
++input = []
++private_key = "APrivateKey1zkpH5Ne1Xfd79t61VhK7b6yaYz92yW5dbuVkiFheR7rwCDE"
++
++[case]
++program = "test_oob.aleo"
++function = "oob_set"
++input = []
++private_key = "APrivateKey1zkpH5Ne1Xfd79t61VhK7b6yaYz92yW5dbuVkiFheR7rwCDE"
++
++[case]
++program = "test_oob.aleo"
++function = "oob_swap_remove"
++input = []
++private_key = "APrivateKey1zkpH5Ne1Xfd79t61VhK7b6yaYz92yW5dbuVkiFheR7rwCDE"
++
++[case]
++program = "test_oob.aleo"
++function = "oob_pop"
++input = []
++private_key = "APrivateKey1zkpH5Ne1Xfd79t61VhK7b6yaYz92yW5dbuVkiFheR7rwCDE"
++*/
++
++program test_oob.aleo {
++    storage vec: [u32];
++
++    // OOB get: should return None
++    async transition oob_get() -> Future {
++        return async {
++            vec.clear();
++            assert(vec.len() == 0u32);
++
++            let result = vec.get(0u32);
++            assert(result == none);
++        };
++    }
++
++    // OOB set: should panic (transition rejected)
++    async transition oob_set() -> Future {
++        return async {
++            vec.clear();
++            assert(vec.len() == 0u32);
++
++            vec.set(0u32, 123u32);
++        };
++    }
++
++    // OOB swap_remove: should panic (transition rejected)
++    async transition oob_swap_remove() -> Future {
++        return async {
++            vec.clear();
++            assert(vec.len() == 0u32);
++
++            vec.swap_remove(0u32);
++        };
++    }
++
++    // Pop empty vector: should return None
++    async transition oob_pop() -> Future {
++        return async {
++            vec.clear();
++            assert(vec.len() == 0u32);
++
++            let popped = vec.pop();
++            assert(popped == none);
++        };
++    }
++
++    @noupgrade
++    async constructor() {}
++}

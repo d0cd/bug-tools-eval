@@ -1,0 +1,182 @@
+diff --git a/rust/src/api/blocking.rs b/rust/src/api/blocking.rs
+index b2d45460..4ed2af30 100644
+--- a/rust/src/api/blocking.rs
++++ b/rust/src/api/blocking.rs
+@@ -166,11 +166,19 @@ impl<N: Network> AleoAPIClient<N> {
+         block_heights: Range<u32>,
+         max_gates: Option<u64>,
+         specified_amounts: Option<&Vec<u64>>,
+-    ) -> Result<Vec<(Field<N>, Record<N, Ciphertext<N>>)>> {
++    ) -> Result<Vec<(Field<N>, Record<N, Plaintext<N>>)>> {
+         let view_key = ViewKey::try_from(private_key)?;
+         let address_x_coordinate = view_key.to_address().to_x_coordinate();
+ 
+         let step_size = 49;
++        let required_amounts = if let Some(amounts) = specified_amounts {
++            ensure!(!amounts.is_empty(), "If specific amounts are specified, there must be one amount specified");
++            let mut required_amounts = amounts.clone();
++            required_amounts.sort_by(|a, b| b.cmp(a));
++            required_amounts
++        } else {
++            vec![]
++        };
+ 
+         ensure!(
+             block_heights.start < block_heights.end,
+@@ -178,7 +186,7 @@ impl<N: Network> AleoAPIClient<N> {
+         );
+ 
+         // Initialize a vector for the records.
+-        let mut records = Vec::new();
++        let mut records = vec![];
+ 
+         let mut total_gates = 0u64;
+         let mut end_height = block_heights.end;
+@@ -196,23 +204,19 @@ impl<N: Network> AleoAPIClient<N> {
+             if start_height < block_heights.start {
+                 start_height = block_heights.start
+             };
+-
+             // Filter the records by the view key.
+             records.extend(records_iter.filter_map(|(commitment, record)| {
+                 match record.is_owner_with_address_x_coordinate(&view_key, &address_x_coordinate) {
+                     true => {
+                         let sn = Record::<N, Ciphertext<N>>::serial_number(*private_key, commitment).ok()?;
+                         if self.find_transition_id(sn).is_err() {
+-                            if max_gates.is_some() {
+-                                let _ = record
+-                                    .decrypt(&view_key)
+-                                    .map(|record| {
+-                                        total_gates += record.microcredits().unwrap_or(0);
+-                                        record
+-                                    })
+-                                    .ok();
++                            let record = record.decrypt(&view_key);
++                            if let Ok(record) = record {
++                                total_gates += record.microcredits().unwrap_or(0);
++                                Some((commitment, record))
++                            } else {
++                                None
+                             }
+-                            Some((commitment, record))
+                         } else {
+                             None
+                         }
+@@ -222,31 +226,32 @@ impl<N: Network> AleoAPIClient<N> {
+             }));
+             // If a maximum number of gates is specified, stop searching when the total gates
+             // exceeds the specified limit
+-            if max_gates.is_some() && total_gates > max_gates.unwrap() {
++            if max_gates.is_some() && total_gates >= max_gates.unwrap() {
+                 break;
+             }
+             // If a list of specified amounts is specified, stop searching when records matching
+             // those amounts are found
+-            if let Some(specified_amounts) = specified_amounts {
+-                let found_records = specified_amounts
+-                    .iter()
+-                    .filter_map(|amount| {
+-                        let position = records.iter().position(|(_, record)| {
+-                            if let Ok(decrypted_record) = record.decrypt(&view_key) {
+-                                decrypted_record.microcredits().unwrap_or(0) > *amount
+-                            } else {
+-                                false
+-                            }
+-                        });
+-                        position.map(|index| records.remove(index))
+-                    })
+-                    .collect::<Vec<_>>();
+-                if found_records.len() >= specified_amounts.len() {
++            if !required_amounts.is_empty() {
++                records.sort_by(|a, b| b.1.microcredits().unwrap_or(0).cmp(&a.1.microcredits().unwrap_or(0)));
++                let mut found_indices = std::collections::HashSet::<usize>::new();
++                required_amounts.iter().for_each(|amount| {
++                    for (pos, record) in records.iter().enumerate() {
++                        if !found_indices.contains(&pos) && record.1.microcredits().unwrap_or(0) >= *amount {
++                            found_indices.insert(pos);
++                        }
++                    }
++                });
++                if found_indices.len() >= required_amounts.len() {
++                    let found_records = records[0..required_amounts.len()].to_vec();
+                     return Ok(found_records);
+                 }
+             }
+         }
+-
++        if !required_amounts.is_empty() {
++            bail!(
++                "Could not find enough records with the specified amounts, consider splitting records into smaller amounts"
++            );
++        }
+         Ok(records)
+     }
+ 
+diff --git a/rust/src/program/helpers/records.rs b/rust/src/program/helpers/records.rs
+index 409deafc..fdb132b3 100644
+--- a/rust/src/program/helpers/records.rs
++++ b/rust/src/program/helpers/records.rs
+@@ -70,9 +70,8 @@ impl<N: Network> RecordFinder<N> {
+         max_microcredits: Option<u64>,
+         private_key: &PrivateKey<N>,
+     ) -> Result<Vec<Record<N, Plaintext<N>>>> {
+-        let view_key = ViewKey::try_from(private_key)?;
+         let latest_height = self.api_client.latest_height()?;
+         let records = self.api_client.get_unspent_records(private_key, 0..latest_height, max_microcredits, amounts)?;
+-        Ok(records.into_iter().filter_map(|(_, record)| record.decrypt(&view_key).ok()).collect())
++        Ok(records.into_iter().map(|(_, record)| record).collect())
+     }
+ }
+diff --git a/rust/src/program/transfer.rs b/rust/src/program/transfer.rs
+index 7c9f222d..cee509f3 100644
+--- a/rust/src/program/transfer.rs
++++ b/rust/src/program/transfer.rs
+@@ -25,11 +25,15 @@ impl<N: Network> ProgramManager<N> {
+         fee: u64,
+         recipient_address: Address<N>,
+         password: Option<&str>,
+-        input_record: Record<N, Plaintext<N>>,
++        amount_record: Record<N, Plaintext<N>>,
+         fee_record: Record<N, Plaintext<N>>,
+     ) -> Result<String> {
+-        ensure!(amount > 0, "Amount must be greater than 0");
+-        ensure!(fee > 0, "Fee must be greater than 0");
++        // Ensure records provided have enough credits to cover the transfer amount and fee
++        ensure!(
++            amount_record.microcredits()? >= amount,
++            "Credits in amount record must greater than transfer amount specified"
++        );
++        ensure!(fee_record.microcredits()? >= fee, "Fee must be greater than 0");
+ 
+         // Specify the network state query
+         let query = Query::from(self.api_client.as_ref().unwrap().base_url());
+@@ -47,7 +51,7 @@ impl<N: Network> ProgramManager<N> {
+ 
+             // Prepare the inputs for a transfer.
+             let inputs = vec![
+-                Value::Record(input_record),
++                Value::Record(amount_record),
+                 Value::from_str(&recipient_address.to_string())?,
+                 Value::from_str(&format!("{}u64", amount))?,
+             ];
+@@ -117,8 +121,7 @@ mod tests {
+             let records = api_client.get_unspent_records(&recipient_private_key, 0..height, None, None).unwrap();
+             if !records.is_empty() {
+                 let (_, record) = &records[0];
+-                let record_plaintext = record.decrypt(&recipient_view_key).unwrap();
+-                let amount = record_plaintext.microcredits().unwrap();
++                let amount = record.microcredits().unwrap();
+                 if amount == 100 {
+                     break;
+                 }
+diff --git a/rust/src/test_utils/mod.rs b/rust/src/test_utils/mod.rs
+index f0946f06..94725863 100644
+--- a/rust/src/test_utils/mod.rs
++++ b/rust/src/test_utils/mod.rs
+@@ -201,5 +201,5 @@ pub fn transfer_to_test_account(
+     let client = program_manager.api_client()?;
+     let latest_height = client.latest_height()?;
+     let records = client.get_unspent_records(&recipient_private_key, 0..latest_height, None, None)?;
+-    Ok(records.iter().map(|(_cm, record)| record.decrypt(&recipient_view_key).unwrap()).collect())
++    Ok(records.into_iter().map(|(_cm, record)| record).collect())
+ }

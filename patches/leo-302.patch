@@ -1,0 +1,1432 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index bea66c8589..e8074e28ec 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -2176,11 +2176,14 @@ dependencies = [
+ name = "leo-fmt"
+ version = "3.4.0"
+ dependencies = [
++ "clap",
++ "colored",
+  "leo-ast",
+  "leo-compiler",
+  "leo-errors",
+  "leo-parser-rowan",
+  "leo-span",
++ "serde_json",
+  "similar",
+  "walkdir",
+ ]
+diff --git a/leo-fmt/Cargo.toml b/leo-fmt/Cargo.toml
+index 7f7a6af00f..a2bd306ddf 100644
+--- a/leo-fmt/Cargo.toml
++++ b/leo-fmt/Cargo.toml
+@@ -23,15 +23,17 @@ validate = [
+   "dep:leo-ast",
+   "dep:leo-errors",
+   "dep:leo-span",
++  "dep:serde_json",
+ ]
+ 
+ [dependencies]
+-leo-parser-rowan    = { workspace = true }
+-leo-compiler        = { workspace = true, optional = true }
++clap                = { workspace = true }
++colored             = { workspace = true }
+ leo-ast             = { workspace = true, optional = true }
++leo-compiler        = { workspace = true, optional = true }
+ leo-errors          = { workspace = true, optional = true }
++leo-parser-rowan    = { workspace = true }
+ leo-span            = { workspace = true, optional = true }
+-
+-[dev-dependencies]
+-similar             = { version = "2.6" }
++serde_json          = { workspace = true, optional = true }
++similar             = { workspace = true }
+ walkdir             = { workspace = true }
+diff --git a/leo-fmt/src/format.rs b/leo-fmt/src/format.rs
+index dea508c53a..a5257d7582 100644
+--- a/leo-fmt/src/format.rs
++++ b/leo-fmt/src/format.rs
+@@ -107,19 +107,17 @@ fn format_root(node: &SyntaxNode, out: &mut Output) {
+     for elem in node.children_with_tokens() {
+         match elem {
+             SyntaxElement::Token(tok) => match tok.kind() {
+-                COMMENT_LINE => {
++                COMMENT_LINE | COMMENT_BLOCK => {
+                     if had_output {
+                         out.ensure_newline();
+                     }
+-                    out.write(tok.text().trim_end());
+-                    out.newline();
+-                    had_output = true;
+-                }
+-                COMMENT_BLOCK => {
+-                    if had_output {
+-                        out.ensure_newline();
++                    if prev_was_import {
++                        out.newline();
++                        prev_was_import = false;
+                     }
+-                    out.write(tok.text());
++                    let text = if tok.kind() == COMMENT_LINE { tok.text().trim_end() } else { tok.text() };
++                    out.write(text);
++                    out.newline();
+                     had_output = true;
+                 }
+                 _ => {} // skip WHITESPACE, LINEBREAK, etc.
+@@ -172,32 +170,8 @@ fn format_root(node: &SyntaxNode, out: &mut Output) {
+ fn format_program(node: &SyntaxNode, out: &mut Output) {
+     let elems = elements(node);
+ 
+-    // Count "item groups" — an annotation followed by a declaration counts as one group
+-    // with the declaration. Standalone annotations also count.
+-    let children: Vec<_> = node.children().collect();
+-    let mut item_group_count = 0;
+-    {
+-        let mut ci = 0;
+-        while ci < children.len() {
+-            let k = children[ci].kind();
+-            if k == ANNOTATION {
+-                // Skip contiguous annotations
+-                while ci < children.len() && children[ci].kind() == ANNOTATION {
+-                    ci += 1;
+-                }
+-                // The following item is part of the same group
+-                if ci < children.len() && is_program_item_non_annotation(children[ci].kind()) {
+-                    ci += 1;
+-                }
+-                item_group_count += 1;
+-            } else if is_program_item_non_annotation(k) || k == ERROR {
+-                item_group_count += 1;
+-                ci += 1;
+-            } else {
+-                ci += 1;
+-            }
+-        }
+-    }
++    // Check if there are any items in the program body.
++    let has_items = node.children().any(|c| is_program_item(c.kind()) || c.kind() == ERROR);
+ 
+     // Write "program name.aleo {"
+     out.write("program");
+@@ -217,14 +191,20 @@ fn format_program(node: &SyntaxNode, out: &mut Output) {
+ 
+     out.space();
+     out.write("{");
+-    if item_group_count > 0 {
++    if has_items {
+         out.newline();
+     }
+ 
+-    // Iterate children_with_tokens to handle items and comments in order
+-    let mut item_group_idx = 0;
++    // Iterate children_with_tokens to handle items and comments in order.
++    // Block items (structs, records, functions, transitions, constructors) always
++    // get a blank line separating them from adjacent items. Inline items (consts,
++    // mappings) preserve source spacing — only get a blank line if the source had one.
+     let mut after_lbrace = false;
+     let mut saw_linebreak = false;
++    let mut linebreak_count: usize = 0;
++    let mut had_item = false;
++    let mut prev_was_block_item = false;
++    let mut in_annotation_group = false;
+ 
+     for elem in &elems {
+         match elem {
+@@ -235,64 +215,68 @@ fn format_program(node: &SyntaxNode, out: &mut Output) {
+                 R_BRACE => {}
+                 LINEBREAK => {
+                     saw_linebreak = true;
++                    linebreak_count += 1;
+                 }
+                 WHITESPACE => {}
+-                COMMENT_LINE if after_lbrace => {
+-                    out.indented(|out| {
+-                        if saw_linebreak {
+-                            out.ensure_newline();
+-                        } else {
+-                            out.space();
+-                        }
+-                        out.write(tok.text().trim_end());
+-                        out.newline();
+-                    });
+-                    saw_linebreak = false;
+-                }
+-                COMMENT_BLOCK if after_lbrace => {
++                COMMENT_LINE | COMMENT_BLOCK if after_lbrace => {
++                    if had_item && linebreak_count >= 2 {
++                        out.insert_newline_at_mark();
++                    }
++                    let text = if tok.kind() == COMMENT_LINE { tok.text().trim_end() } else { tok.text() };
+                     out.indented(|out| {
+                         if saw_linebreak {
+                             out.ensure_newline();
+                         } else {
+                             out.space();
+                         }
+-                        out.write(tok.text());
++                        out.write(text);
+                     });
++                    out.set_mark();
++                    out.newline();
++                    had_item = true;
++                    prev_was_block_item = false;
+                     saw_linebreak = false;
++                    linebreak_count = 0;
+                 }
+                 _ => {}
+             },
+             SyntaxElement::Node(n) if after_lbrace => {
+                 let kind = n.kind();
+-                if kind == ANNOTATION {
+-                    out.indented(|out| {
+-                        format_annotation(n, out);
+-                    });
+-                    saw_linebreak = false;
+-                } else if is_program_item_non_annotation(kind) {
+-                    out.indented(|out| {
+-                        format_node(n, out);
+-                        item_group_idx += 1;
+-                        if item_group_idx < item_group_count {
+-                            out.insert_newline_at_mark();
+-                        }
+-                    });
+-                    saw_linebreak = false;
+-                } else if kind == ERROR {
+-                    let text = n.text().to_string();
+-                    let text = text.trim();
+-                    if !text.is_empty() {
+-                        out.indented(|out| {
+-                            out.write(text);
+-                            out.newline();
+-                            out.set_mark();
+-                            item_group_idx += 1;
+-                            if item_group_idx < item_group_count {
++                let is_content = kind == ERROR || kind == ANNOTATION || is_program_item_non_annotation(kind);
++                if is_content {
++                    let is_block = is_block_item(kind);
++                    let wants_blank = had_item
++                        && !in_annotation_group
++                        && (is_block
++                            || prev_was_block_item
++                            || linebreak_count >= 2
++                            || has_blank_line_in_leading_trivia(n));
++                    in_annotation_group = kind == ANNOTATION;
++                    if kind == ERROR {
++                        let text = n.text().to_string();
++                        let text = text.trim();
++                        if !text.is_empty() {
++                            if wants_blank {
+                                 out.insert_newline_at_mark();
+                             }
+-                        });
++                            out.indented(|out| {
++                                out.write(text);
++                                out.newline();
++                                out.set_mark();
++                            });
++                            had_item = true;
++                            prev_was_block_item = false;
++                        }
++                    } else {
++                        if wants_blank {
++                            out.insert_newline_at_mark();
++                        }
++                        out.indented(|out| format_node(n, out));
++                        had_item = true;
++                        prev_was_block_item = is_block;
+                     }
+                     saw_linebreak = false;
++                    linebreak_count = 0;
+                 }
+             }
+             _ => {}
+@@ -307,6 +291,11 @@ fn is_program_item_non_annotation(kind: SyntaxKind) -> bool {
+     matches!(kind, FUNCTION_DEF | CONSTRUCTOR_DEF | STRUCT_DEF | RECORD_DEF | MAPPING_DEF | STORAGE_DEF | GLOBAL_CONST)
+ }
+ 
++/// Block items have braces and span multiple lines — always separated by blank lines.
++fn is_block_item(kind: SyntaxKind) -> bool {
++    matches!(kind, FUNCTION_DEF | CONSTRUCTOR_DEF | STRUCT_DEF | RECORD_DEF)
++}
++
+ // =============================================================================
+ // Declarations
+ // =============================================================================
+@@ -339,6 +328,10 @@ fn format_function(node: &SyntaxNode, out: &mut Output) {
+                         out.write("->");
+                         out.space();
+                     }
++                    KW_PUBLIC | KW_PRIVATE | KW_CONSTANT => {
++                        out.write(tok.text());
++                        out.space();
++                    }
+                     WHITESPACE | LINEBREAK | COMMENT_LINE | COMMENT_BLOCK => {}
+                     _ => {}
+                 }
+@@ -371,6 +364,7 @@ fn format_function(node: &SyntaxNode, out: &mut Output) {
+ }
+ 
+ fn format_annotation(node: &SyntaxNode, out: &mut Output) {
++    emit_leading_comments(node, out);
+     let has_paren = has_token(node, L_PAREN);
+ 
+     for elem in node.children_with_tokens() {
+@@ -390,7 +384,7 @@ fn format_annotation(node: &SyntaxNode, out: &mut Output) {
+                         out.write("=");
+                         out.space();
+                     }
+-                    WHITESPACE | LINEBREAK => {}
++                    WHITESPACE | LINEBREAK | COMMENT_LINE | COMMENT_BLOCK => {}
+                     _ => {
+                         if has_paren || k == IDENT || k.is_keyword() {
+                             out.write(tok.text());
+@@ -469,6 +463,16 @@ fn format_composite(node: &SyntaxNode, out: &mut Output) {
+                         });
+                         out.newline();
+                     }
++                    ERROR => {
++                        let text = n.text().to_string();
++                        let text = text.trim();
++                        if !text.is_empty() {
++                            out.indented(|out| {
++                                out.write(text);
++                                out.newline();
++                            });
++                        }
++                    }
+                     _ => {}
+                 }
+             }
+@@ -663,17 +667,29 @@ fn format_global_const(node: &SyntaxNode, out: &mut Output) {
+ fn format_parameter_list(node: &SyntaxNode, out: &mut Output) {
+     let params: Vec<_> = node.children().filter(|c| c.kind() == PARAM).collect();
+ 
++    if params.is_empty() {
++        out.write("()");
++        return;
++    }
++
+     let param_strings: Vec<String> = params.iter().map(format_node_to_string).collect();
+     let col = out.current_column();
+ 
+-    if fits_on_one_line(col, "(", ")", &param_strings) {
++    // Force multi-line when comments exist anywhere in parameter list trivia.
++    // This avoids line-comment swallowing in single-line mode and keeps
++    // comments attached to the intended parameter in multi-line mode.
++    let has_comments = node
++        .children_with_tokens()
++        .any(|elem| matches!(elem, SyntaxElement::Token(tok) if matches!(tok.kind(), COMMENT_LINE | COMMENT_BLOCK)))
++        || params.iter().any(has_comment_token);
++
++    if !has_comments && fits_on_one_line(col, "(", ")", &param_strings) {
+         // Single-line: (param1, param2)
+         out.write("(");
+         for (i, param) in params.iter().enumerate() {
+             format_parameter(param, out);
+             if i < params.len() - 1 {
+                 out.write(",");
+-                emit_inline_comments_after_param(node, param, out);
+                 out.space();
+             }
+         }
+@@ -684,12 +700,14 @@ fn format_parameter_list(node: &SyntaxNode, out: &mut Output) {
+         out.newline();
+         out.indented(|out| {
+             for (i, param) in params.iter().enumerate() {
++                emit_leading_comments(param, out);
+                 format_parameter(param, out);
+                 out.write(",");
+                 if i < params.len() - 1 {
+-                    emit_inline_comments_after_param(node, param, out);
++                    emit_comments_after_list_item(node, param, out);
++                    emit_stolen_trailing_comments(&params[i + 1], out);
+                 }
+-                out.newline();
++                out.ensure_newline();
+             }
+         });
+         out.write(")");
+@@ -711,7 +729,7 @@ fn format_parameter(node: &SyntaxNode, out: &mut Output) {
+                         out.space();
+                     }
+                     IDENT => out.write(tok.text()),
+-                    WHITESPACE | LINEBREAK => {}
++                    WHITESPACE | LINEBREAK | COMMENT_LINE | COMMENT_BLOCK => {}
+                     _ => out.write(tok.text()),
+                 }
+             }
+@@ -1361,78 +1379,80 @@ fn format_literal(node: &SyntaxNode, out: &mut Output) {
+ 
+ fn format_call(node: &SyntaxNode, out: &mut Output) {
+     // CALL_EXPR: callee_node, L_PAREN, [args separated by COMMA], R_PAREN
+-    let col = out.current_column();
+-    let single_line = format_call_inline(node);
++    let elems = elements(node);
++    let lparen_idx = find_token_index(&elems, L_PAREN).unwrap_or(elems.len());
+ 
+-    if col + single_line.len() <= LINE_WIDTH {
+-        // Fits on one line — write the pre-formatted string directly
+-        out.write(&single_line);
+-    } else {
+-        // Wrap: write callee, then wrap args
+-        let elems = elements(node);
+-        let lparen_idx = find_token_index(&elems, L_PAREN).unwrap_or(elems.len());
+-
+-        // Write callee (everything before L_PAREN)
+-        for elem in elems[..lparen_idx].iter() {
+-            match elem {
+-                SyntaxElement::Token(tok) => {
+-                    let k = tok.kind();
+-                    if k != WHITESPACE && k != LINEBREAK {
+-                        out.write(tok.text());
+-                    }
++    // Write callee (everything before L_PAREN)
++    for elem in elems[..lparen_idx].iter() {
++        match elem {
++            SyntaxElement::Token(tok) => {
++                let k = tok.kind();
++                if k != WHITESPACE && k != LINEBREAK {
++                    out.write(tok.text());
+                 }
+-                SyntaxElement::Node(n) => format_node(n, out),
+             }
++            SyntaxElement::Node(n) => format_node(n, out),
+         }
++    }
+ 
+-        // Collect args (expression nodes after L_PAREN)
+-        let args: Vec<_> = elems[lparen_idx..]
+-            .iter()
+-            .filter_map(|e| {
+-                if let SyntaxElement::Node(n) = e {
+-                    if is_expression(n.kind()) { Some(n.clone()) } else { None }
+-                } else {
+-                    None
+-                }
+-            })
+-            .collect();
++    // Collect args (expression nodes after L_PAREN)
++    let args: Vec<_> = elems[lparen_idx..]
++        .iter()
++        .filter_map(|e| {
++            if let SyntaxElement::Node(n) = e {
++                if is_expression(n.kind()) { Some(n.clone()) } else { None }
++            } else {
++                None
++            }
++        })
++        .collect();
++
++    if args.is_empty() {
++        out.write("()");
++        return;
++    }
++
++    // Force multi-line whenever comments are present among call argument trivia.
++    // Single-line rendering cannot safely preserve `//` comments.
++    let has_comments = elems[lparen_idx..]
++        .iter()
++        .any(|elem| matches!(elem, SyntaxElement::Token(tok) if matches!(tok.kind(), COMMENT_LINE | COMMENT_BLOCK)))
++        || args.iter().any(has_comment_token);
++    let arg_strings: Vec<String> = args.iter().map(format_node_to_string).collect();
++    let col = out.current_column();
+ 
++    if !has_comments && fits_on_one_line(col, "(", ")", &arg_strings) {
+         out.write("(");
+-        out.newline();
+-        out.indented(|out| {
+-            for arg in &args {
+-                format_node(arg, out);
++        for (i, arg) in args.iter().enumerate() {
++            format_node(arg, out);
++            if i < args.len() - 1 {
+                 out.write(",");
+-                out.newline();
++                out.space();
+             }
+-        });
++        }
+         out.write(")");
++        return;
+     }
+-}
+ 
+-/// Format a call expression as a single-line string (no wrapping).
+-/// Used for measurement to avoid infinite recursion with format_node_to_string.
+-fn format_call_inline(node: &SyntaxNode) -> String {
+-    let mut out = Output::new();
+-    for elem in node.children_with_tokens() {
+-        match elem {
+-            SyntaxElement::Token(tok) => {
+-                let k = tok.kind();
+-                match k {
+-                    L_PAREN => out.write("("),
+-                    R_PAREN => out.write(")"),
+-                    COMMA => {
+-                        out.write(",");
+-                        out.space();
+-                    }
+-                    WHITESPACE | LINEBREAK => {}
+-                    _ => out.write(tok.text()),
+-                }
++    out.write("(");
++    out.newline();
++    out.indented(|out| {
++        for (i, arg) in args.iter().enumerate() {
++            // Preserve comments that belong to this argument (i.e. comments
++            // separated by a linebreak in leading trivia).
++            emit_leading_comments(arg, out);
++            format_node(arg, out);
++            out.write(",");
++            // Preserve comments stolen from the following arg's leading trivia
++            // (same-line trailing comments after the previous comma).
++            if i < args.len() - 1 {
++                emit_comments_after_list_item(node, arg, out);
++                emit_stolen_trailing_comments(&args[i + 1], out);
+             }
+-            SyntaxElement::Node(n) => format_node(&n, &mut out),
++            out.ensure_newline();
+         }
+-    }
+-    out.into_raw()
++    });
++    out.write(")");
+ }
+ 
+ fn format_binary(node: &SyntaxNode, out: &mut Output) {
+@@ -1663,6 +1683,7 @@ fn format_struct_expr(node: &SyntaxNode, out: &mut Output) {
+ }
+ 
+ fn format_struct_field_init(node: &SyntaxNode, out: &mut Output) {
++    emit_leading_comments(node, out);
+     let has_colon = has_token(node, COLON);
+     for elem in node.children_with_tokens() {
+         match elem {
+@@ -1674,7 +1695,7 @@ fn format_struct_field_init(node: &SyntaxNode, out: &mut Output) {
+                         out.space();
+                     }
+                     IDENT => out.write(tok.text()),
+-                    WHITESPACE | LINEBREAK => {}
++                    WHITESPACE | LINEBREAK | COMMENT_LINE | COMMENT_BLOCK => {}
+                     _ => out.write(tok.text()),
+                 }
+             }
+@@ -1849,12 +1870,15 @@ fn emit_stolen_trailing_comments(node: &SyntaxNode, out: &mut Output) {
+     }
+ }
+ 
+-/// Emit inline comments that appear after a child node within its parent.
+-/// Scans sibling elements after `child` (past the COMMA) and emits any comments
+-/// found before the next structural element.
+-fn emit_inline_comments_after_param(parent: &SyntaxNode, child: &SyntaxNode, out: &mut Output) {
++/// Emit comment tokens between a list `child` and the next list item in `parent`.
++///
++/// This captures comments represented as direct parent-level tokens after the
++/// separating comma, before the next structural element.
++fn emit_comments_after_list_item(parent: &SyntaxNode, child: &SyntaxNode, out: &mut Output) {
+     let mut past_child = false;
+     let mut past_comma = false;
++    let mut saw_linebreak = false;
++
+     for elem in parent.children_with_tokens() {
+         if !past_child {
+             if let SyntaxElement::Node(n) = &elem
+@@ -1864,24 +1888,44 @@ fn emit_inline_comments_after_param(parent: &SyntaxNode, child: &SyntaxNode, out
+             }
+             continue;
+         }
++
+         if !past_comma {
+-            if matches!(&elem, SyntaxElement::Token(t) if t.kind() == COMMA) {
+-                past_comma = true;
++            match &elem {
++                SyntaxElement::Token(tok) => match tok.kind() {
++                    COMMA => past_comma = true,
++                    WHITESPACE | LINEBREAK => {}
++                    _ => break,
++                },
++                SyntaxElement::Node(_) => break,
+             }
+             continue;
+         }
++
+         match &elem {
+             SyntaxElement::Token(tok) => match tok.kind() {
++                LINEBREAK => {
++                    saw_linebreak = true;
++                }
+                 COMMENT_LINE => {
+-                    out.space();
++                    if saw_linebreak {
++                        out.ensure_newline();
++                    } else {
++                        out.space();
++                    }
+                     out.write(tok.text().trim_end());
+                     out.newline();
++                    saw_linebreak = false;
+                 }
+                 COMMENT_BLOCK => {
+-                    out.space();
++                    if saw_linebreak {
++                        out.ensure_newline();
++                    } else {
++                        out.space();
++                    }
+                     out.write(tok.text());
++                    saw_linebreak = false;
+                 }
+-                WHITESPACE | LINEBREAK => {}
++                WHITESPACE => {}
+                 _ => break,
+             },
+             SyntaxElement::Node(_) => break,
+@@ -1924,7 +1968,12 @@ fn format_wrapping_list(out: &mut Output, open: &str, close: &str, items: &[Synt
+     let item_strings: Vec<String> = items.iter().map(format_node_to_string).collect();
+     let col = out.current_column();
+ 
+-    if fits_on_one_line(col, open, close, &item_strings) {
++    // Force multi-line when any item has a stolen trailing comment (a COMMENT_LINE
++    // in its leading trivia before the first LINEBREAK). Line comments cannot be
++    // kept inline in a single-line list without swallowing subsequent items.
++    let has_comment = items.iter().any(has_comment_token);
++
++    if !has_comment && fits_on_one_line(col, open, close, &item_strings) {
+         out.write(open);
+         for (i, item) in items.iter().enumerate() {
+             format_node(item, out);
+@@ -1943,6 +1992,11 @@ fn format_wrapping_list(out: &mut Output, open: &str, close: &str, items: &[Synt
+                 if multi_trailing_comma || i < items.len() - 1 {
+                     out.write(",");
+                 }
++                // Emit stolen trailing comments from the next item so they
++                // stay inline after this item's comma.
++                if i < items.len() - 1 {
++                    emit_stolen_trailing_comments(&items[i + 1], out);
++                }
+                 out.newline();
+             }
+         });
+@@ -2091,3 +2145,30 @@ fn find_token_index(elems: &[SyntaxElement], kind: SyntaxKind) -> Option<usize>
+ fn find_last_token_index(elems: &[SyntaxElement], kind: SyntaxKind) -> Option<usize> {
+     elems.iter().rposition(|e| matches!(e, SyntaxElement::Token(t) if t.kind() == kind))
+ }
++
++/// Check if a node's leading trivia contains a blank line (>= 2 LINEBREAK tokens).
++fn has_blank_line_in_leading_trivia(node: &SyntaxNode) -> bool {
++    let mut linebreak_count = 0;
++    for elem in node.children_with_tokens() {
++        match &elem {
++            SyntaxElement::Token(tok) => match tok.kind() {
++                LINEBREAK => {
++                    linebreak_count += 1;
++                    if linebreak_count >= 2 {
++                        return true;
++                    }
++                }
++                WHITESPACE | COMMENT_LINE | COMMENT_BLOCK => {}
++                _ => break,
++            },
++            SyntaxElement::Node(_) => break,
++        }
++    }
++    false
++}
++
++/// Check if a node contains comment tokens among its direct children/tokens.
++fn has_comment_token(node: &SyntaxNode) -> bool {
++    node.children_with_tokens()
++        .any(|elem| matches!(elem, SyntaxElement::Token(tok) if matches!(tok.kind(), COMMENT_LINE | COMMENT_BLOCK)))
++}
+diff --git a/leo-fmt/src/lib.rs b/leo-fmt/src/lib.rs
+index 4f1ecce8d8..ba33630cbd 100644
+--- a/leo-fmt/src/lib.rs
++++ b/leo-fmt/src/lib.rs
+@@ -32,7 +32,17 @@
+ mod format;
+ mod output;
+ 
++use clap::{Args, Parser};
++use colored::Colorize;
+ use leo_parser_rowan::parse_main;
++use similar::{ChangeTag, TextDiff};
++use std::{
++    fs,
++    io,
++    io::ErrorKind,
++    path::{Path, PathBuf},
++    process::ExitCode,
++};
+ 
+ use output::Output;
+ 
+@@ -45,6 +55,153 @@ pub const NEWLINE: &str = "\n";
+ /// Maximum line width before wrapping.
+ pub const LINE_WIDTH: usize = 100;
+ 
++/// Shared CLI arguments for formatting commands.
++///
++/// Used by both the standalone `leo-fmt` binary and `leo fmt` command.
++#[derive(Debug, Clone, Args)]
++pub struct FormatCliArgs {
++    /// Check if files are formatted without modifying them.
++    /// Returns exit code 1 if any files need formatting.
++    #[clap(long, short)]
++    pub check: bool,
++
++    /// Files or directories to format.
++    /// Defaults to current directory if not specified.
++    #[clap(value_name = "PATH")]
++    pub paths: Vec<PathBuf>,
++}
++
++/// Standalone `leo-fmt` CLI parser.
++#[derive(Debug, Parser)]
++#[command(name = "leo-fmt", about = "Format Leo source files", long_about = None)]
++pub struct LeoFmtCli {
++    #[command(flatten)]
++    pub format: FormatCliArgs,
++}
++
++/// Run filesystem formatting/checking for CLI callers.
++pub fn run_format_cli(args: &FormatCliArgs, base_dir: &Path) -> io::Result<bool> {
++    let paths = resolve_paths(&args.paths, base_dir);
++    let leo_files = collect_leo_files(&paths)?;
++    let mut has_unformatted = false;
++
++    for file_path in leo_files {
++        let source = fs::read_to_string(&file_path).map_err(|error| {
++            io::Error::new(error.kind(), format!("failed to read {}: {error}", file_path.display()))
++        })?;
++        let formatted = format_source(&source);
++
++        if source == formatted {
++            continue;
++        }
++
++        if args.check {
++            print_diff(&file_path, &source, &formatted);
++            has_unformatted = true;
++        } else {
++            fs::write(&file_path, formatted).map_err(|error| {
++                io::Error::new(error.kind(), format!("failed to write {}: {error}", file_path.display()))
++            })?;
++        }
++    }
++
++    Ok(has_unformatted)
++}
++
++/// Standalone `leo-fmt` entrypoint logic.
++pub fn run_standalone() -> ExitCode {
++    let args = LeoFmtCli::parse();
++    let base_dir = match std::env::current_dir() {
++        Ok(path) => path,
++        Err(error) => {
++            eprintln!("failed to resolve current directory: {error}");
++            return ExitCode::from(1);
++        }
++    };
++
++    match run_format_cli(&args.format, &base_dir) {
++        Ok(has_unformatted) if args.format.check && has_unformatted => ExitCode::from(1),
++        Ok(_) => ExitCode::SUCCESS,
++        Err(error) => {
++            eprintln!("{error}");
++            ExitCode::from(1)
++        }
++    }
++}
++
++/// Determine paths to format.
++/// Default to project src directory if in a Leo project, otherwise current directory.
++fn resolve_paths(input_paths: &[PathBuf], base_dir: &Path) -> Vec<PathBuf> {
++    if !input_paths.is_empty() {
++        return input_paths.to_vec();
++    }
++
++    let src_dir = base_dir.join("src");
++    if src_dir.exists() { vec![src_dir] } else { vec![base_dir.to_path_buf()] }
++}
++
++/// Collect all .leo files.
++fn collect_leo_files(paths: &[PathBuf]) -> io::Result<Vec<PathBuf>> {
++    let mut leo_files = Vec::new();
++
++    for path in paths {
++        if !path.exists() {
++            return Err(io::Error::new(ErrorKind::InvalidInput, format!("Path not found: {}", path.display())));
++        }
++
++        if path.is_file() {
++            if path.extension().and_then(|s| s.to_str()) == Some("leo") {
++                leo_files.push(path.clone());
++            } else {
++                return Err(io::Error::new(
++                    ErrorKind::InvalidInput,
++                    format!("Expected a .leo file, got: {}", path.display()),
++                ));
++            }
++        } else if path.is_dir() {
++            for entry in walkdir::WalkDir::new(path)
++                .into_iter()
++                .filter_map(|entry| entry.ok())
++                .filter(|entry| entry.file_type().is_file())
++                .filter(|entry| entry.path().extension().and_then(|ext| ext.to_str()) == Some("leo"))
++            {
++                leo_files.push(entry.path().to_path_buf());
++            }
++        }
++    }
++
++    Ok(leo_files)
++}
++
++/// Number of unchanged lines shown around each diff hunk for context.
++const CONTEXT_LINES: usize = 3;
++
++/// Print a colored diff between original and formatted source, matching `cargo fmt --check` output.
++fn print_diff(path: &Path, original: &str, formatted: &str) {
++    let diff = TextDiff::from_lines(original, formatted);
++
++    for hunk in diff.unified_diff().context_radius(CONTEXT_LINES).iter_hunks() {
++        // Extract the old-file start line from the hunk header (e.g. "@@ -10,5 +10,7 @@").
++        let header = hunk.header().to_string();
++        let line_num = header
++            .strip_prefix("@@ -")
++            .and_then(|s| s.split(',').next())
++            .and_then(|s| s.parse::<usize>().ok())
++            .unwrap_or(1);
++        println!("Diff in {}:{}:", path.display(), line_num);
++        for change in hunk.iter_changes() {
++            match change.tag() {
++                ChangeTag::Equal => print!(" {change}"),
++                ChangeTag::Delete => print!("{}", format!("-{change}").red()),
++                ChangeTag::Insert => print!("{}", format!("+{change}").green()),
++            }
++            if change.missing_newline() {
++                println!();
++            }
++        }
++    }
++}
++
+ /// Format Leo source code.
+ ///
+ /// Takes Leo source code as input and returns formatted source code.
+diff --git a/leo-fmt/src/main.rs b/leo-fmt/src/main.rs
+new file mode 100644
+index 0000000000..e4f6a84e5a
+--- /dev/null
++++ b/leo-fmt/src/main.rs
+@@ -0,0 +1,19 @@
++// Copyright (C) 2019-2026 Provable Inc.
++// This file is part of the Leo library.
++
++// The Leo library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The Leo library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
++
++fn main() -> std::process::ExitCode {
++    leo_fmt::run_standalone()
++}
+diff --git a/leo-fmt/tests/harness.rs b/leo-fmt/tests/harness.rs
+index 5111599dbb..042f0ba586 100644
+--- a/leo-fmt/tests/harness.rs
++++ b/leo-fmt/tests/harness.rs
+@@ -124,21 +124,60 @@ fn test_idempotency() {
+ }
+ 
+ // =============================================================================
+-// Compilation validation (feature-gated)
++// Compilation & AST validation (feature-gated)
+ // =============================================================================
+ 
++#[cfg(feature = "validate")]
++use leo_ast::{NetworkName, NodeBuilder};
++#[cfg(feature = "validate")]
++use leo_compiler::Compiler;
++#[cfg(feature = "validate")]
++use leo_errors::Handler;
++#[cfg(feature = "validate")]
++use leo_span::{create_session_if_not_set_then, source_map::FileName};
++#[cfg(feature = "validate")]
++use std::rc::Rc;
++
+ /// Files that are expected to fail type checking (error recovery tests,
+ /// import tests, empty programs, annotated functions).
+ #[cfg(feature = "validate")]
+ const SKIP_VALIDATION: &[&str] = &[
+     "error_recovery_item",
+     "error_recovery_stmt",
++    "error_recovery_struct",
+     "import_single",
+     "import_multiple",
+     "empty_program",
+     "function_annotated",
++    "comment_before_program",
+ ];
+ 
++/// Parse a Leo source string and return a normalized AST JSON value
++/// with spans and node IDs stripped, suitable for semantic comparison.
++///
++/// Returns `None` if parsing fails (some source files have intentionally
++/// malformed whitespace that the compiler's parser rejects).
++#[cfg(feature = "validate")]
++fn source_to_ast_json(name: &str, source: &str) -> Option<serde_json::Value> {
++    let (handler, _) = Handler::new_with_buf();
++    let mut compiler = Compiler::new(
++        None,
++        false,
++        handler,
++        Rc::new(NodeBuilder::default()),
++        "/tmp".into(),
++        None,
++        Default::default(),
++        NetworkName::TestnetV0,
++    );
++    let program = compiler.parse_and_return_ast(source, FileName::Custom(name.into()), &[]).ok()?;
++    let mut json = serde_json::to_value(&program).unwrap();
++    for key in ["span", "_span", "id", "lo", "hi"] {
++        json = leo_ast::remove_key_from_json(json, key);
++    }
++    Some(leo_ast::normalize_json_value(json))
++}
++
+ /// Validate that target files pass Leo type checking.
+ ///
+ /// Runs parse + intermediate passes (name validation, type checking, static
+@@ -151,12 +190,6 @@ const SKIP_VALIDATION: &[&str] = &[
+ #[cfg(feature = "validate")]
+ #[test]
+ fn validate_targets_compile() {
+-    use leo_ast::{NetworkName, NodeBuilder};
+-    use leo_compiler::Compiler;
+-    use leo_errors::Handler;
+-    use leo_span::{create_session_if_not_set_then, source_map::FileName};
+-    use std::rc::Rc;
+-
+     let target_dir = tests_dir().join("target");
+     let target_files = collect_leo_files(&target_dir);
+ 
+@@ -200,3 +233,145 @@ fn validate_targets_compile() {
+         assert!(failures.is_empty(), "{} file(s) failed type checking: {failures:?}", failures.len());
+     });
+ }
++
++/// Validate that formatting preserves AST semantics.
++///
++/// Parses each source file before and after formatting, strips spans and
++/// node IDs, and asserts the resulting ASTs are identical.
++///
++/// Run with: `cargo test -p leo-fmt --features validate -- validate_ast_equivalence`
++#[cfg(feature = "validate")]
++#[test]
++fn validate_ast_equivalence() {
++    let source_dir = tests_dir().join("source");
++    let source_files = collect_leo_files(&source_dir);
++
++    create_session_if_not_set_then(|_| {
++        let mut failures = Vec::new();
++
++        for source_path in &source_files {
++            let name = source_path.file_stem().unwrap().to_str().unwrap();
++            if SKIP_VALIDATION.contains(&name) {
++                continue;
++            }
++
++            let source = std::fs::read_to_string(source_path)
++                .unwrap_or_else(|_| panic!("Failed to read: {}", source_path.display()));
++
++            // Skip files whose source can't be parsed by the compiler
++            // (e.g. files with intentionally exaggerated whitespace in paths).
++            let Some(before) = source_to_ast_json(name, &source) else {
++                continue;
++            };
++            let after = source_to_ast_json(name, &format_source(&source))
++                .unwrap_or_else(|| panic!("Formatted output of {name} failed to parse"));
++
++            if before != after {
++                println!("\n=== AST MISMATCH: {} ===", source_path.display());
++                println!("ASTs differ after formatting (ignoring spans/IDs)");
++                println!("=== END ===\n");
++                failures.push(source_path.clone());
++            }
++        }
++
++        assert!(failures.is_empty(), "{} file(s) have AST mismatches: {failures:?}", failures.len());
++    });
++}
++
++// =============================================================================
++// External repo AST equivalence validation
++// =============================================================================
++
++/// External Leo repos to validate AST equivalence against.
++/// Each entry is (directory_name, git_url).
++#[cfg(feature = "validate")]
++const EXTERNAL_REPOS: &[(&str, &str)] = &[
++    ("aleo-multisig", "https://github.com/AleoNet/aleo-multisig"),
++    ("compliant-transfer-aleo", "https://github.com/sealance-io/compliant-transfer-aleo"),
++    ("hyperlane-aleo", "https://github.com/hyperlane-xyz/hyperlane-aleo"),
++    ("leo-examples", "https://github.com/ProvableHQ/leo-examples"),
++];
++
++/// Directory where external repos are cached between test runs.
++#[cfg(feature = "validate")]
++fn repos_dir() -> PathBuf {
++    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("target").join("test-repos")
++}
++
++/// Ensure a repo is cloned locally. Returns the path to the repo directory.
++///
++/// Uses shallow clones to minimize download size. If the repo is already
++/// cloned, uses the existing checkout without pulling (delete `target/test-repos/`
++/// to force a fresh clone).
++#[cfg(feature = "validate")]
++fn ensure_repo(name: &str, url: &str) -> PathBuf {
++    let dir = repos_dir();
++    std::fs::create_dir_all(&dir).expect("failed to create test-repos directory");
++    let repo_dir = dir.join(name);
++    if !repo_dir.join(".git").exists() {
++        let status = std::process::Command::new("git")
++            .args(["clone", "--depth", "1", url])
++            .arg(&repo_dir)
++            .status()
++            .expect("failed to run git clone");
++        assert!(status.success(), "git clone failed for {url}");
++    }
++    repo_dir
++}
++
++/// Validate AST equivalence against real-world Leo repositories.
++///
++/// Clones external repos (cached in `target/test-repos/`), formats every
++/// `.leo` file, and asserts the AST is unchanged. Files that can't be parsed
++/// by the compiler (e.g. due to unresolved imports) are skipped.
++///
++/// Run with: `cargo test -p leo-fmt --features validate -- validate_ast_equivalence_repos`
++#[cfg(feature = "validate")]
++#[test]
++fn validate_ast_equivalence_repos() {
++    create_session_if_not_set_then(|_| {
++        let mut failures = Vec::new();
++        let mut tested = 0;
++        let mut skipped = 0;
++
++        for (name, url) in EXTERNAL_REPOS {
++            let repo_dir = ensure_repo(name, url);
++            let leo_files = collect_leo_files(&repo_dir);
++            println!("{name}: found {} .leo files", leo_files.len());
++
++            for file_path in &leo_files {
++                let file_name = file_path.file_stem().unwrap().to_str().unwrap();
++                let source = std::fs::read_to_string(file_path)
++                    .unwrap_or_else(|_| panic!("Failed to read: {}", file_path.display()));
++
++                // Skip files the compiler can't parse (e.g. unresolved imports).
++                let Some(before) = source_to_ast_json(file_name, &source) else {
++                    skipped += 1;
++                    continue;
++                };
++
++                let formatted = format_source(&source);
++                let Some(after) = source_to_ast_json(file_name, &formatted) else {
++                    // Original parsed OK but formatted output didn't — formatter broke something.
++                    println!("\n=== FORMAT BROKE PARSING: {} ===", file_path.display());
++                    println!("Original parsed OK but formatted output failed to parse");
++                    println!("=== END ===\n");
++                    failures.push(file_path.clone());
++                    continue;
++                };
++
++                if before != after {
++                    println!("\n=== AST MISMATCH: {} ===", file_path.display());
++                    println!("ASTs differ after formatting (ignoring spans/IDs)");
++                    println!("=== END ===\n");
++                    failures.push(file_path.clone());
++                }
++
++                tested += 1;
++            }
++        }
++
++        println!("\nExternal repos: {tested} files tested, {skipped} skipped (unparseable)");
++        assert!(failures.is_empty(), "{} file(s) have AST mismatches: {failures:?}", failures.len());
++    });
++}
+diff --git a/leo-fmt/tests/source/comment_before_program.leo b/leo-fmt/tests/source/comment_before_program.leo
+new file mode 100644
+index 0000000000..70b4e8c570
+--- /dev/null
++++ b/leo-fmt/tests/source/comment_before_program.leo
+@@ -0,0 +1,10 @@
++  import foo.aleo  ;
++// line comment between import and program
++    /* block comment before program */
++program test.aleo
++    {
++        function bar(  )  ->  u64
++    {
++                return   1u64  ;
++        }
++}
+diff --git a/leo-fmt/tests/source/comment_call_args.leo b/leo-fmt/tests/source/comment_call_args.leo
+new file mode 100644
+index 0000000000..b2b8dde88b
+--- /dev/null
++++ b/leo-fmt/tests/source/comment_call_args.leo
+@@ -0,0 +1,17 @@
++program test.aleo {
++    function foo(a: u64, b: u64, c: u64) -> u64 {
++        return a + b + c;
++    }
++
++    transition main(public a: u64, public b: u64, public c: u64) -> u64 {
++        let short: u64 = foo(a, // inline comment
++            b, c);
++        let long: u64 = foo(
++            a + b + c + a + b + c + a + b + c + a + b + c + a + b + c + a + b + c,
++            /* keep me */
++            b + c,
++            c + a,
++        );
++        return short + long;
++    }
++}
+diff --git a/leo-fmt/tests/source/comment_param_list.leo b/leo-fmt/tests/source/comment_param_list.leo
+new file mode 100644
+index 0000000000..6339e06d05
+--- /dev/null
++++ b/leo-fmt/tests/source/comment_param_list.leo
+@@ -0,0 +1,11 @@
++program test.aleo {
++    function add(a: u64, // inline on a
++        /* before b */
++        b: u64) -> u64 {
++        return a + b;
++    }
++
++    transition main(public a: u64, public b: u64) -> u64 {
++        return add(a, b);
++    }
++}
+diff --git a/leo-fmt/tests/source/error_recovery_struct.leo b/leo-fmt/tests/source/error_recovery_struct.leo
+new file mode 100644
+index 0000000000..fbaec1b4d3
+--- /dev/null
++++ b/leo-fmt/tests/source/error_recovery_struct.leo
+@@ -0,0 +1,8 @@
++program test.aleo  {
++  struct Broken  {
++            x  :  u64  ,
++
++  transition foo(  a : u64  )  ->  u64{
++      return   a  ;
++  }
++}
+diff --git a/leo-fmt/tests/source/function_async.leo b/leo-fmt/tests/source/function_async.leo
+index 7f4581b6a6..b753c7d552 100644
+--- a/leo-fmt/tests/source/function_async.leo
++++ b/leo-fmt/tests/source/function_async.leo
+@@ -1,7 +1,7 @@
+ program test.aleo
+ {
+     async   transition do_something(
+-      value:u64 )  ->  Future{
++      value:u64 )  ->   public  Future{
+ return finalize( value );
+ }
+ 
+diff --git a/leo-fmt/tests/source/spacing_program_items.leo b/leo-fmt/tests/source/spacing_program_items.leo
+new file mode 100644
+index 0000000000..8e3f94f5e4
+--- /dev/null
++++ b/leo-fmt/tests/source/spacing_program_items.leo
+@@ -0,0 +1,28 @@
++program test.aleo
++  {
++struct A{
++x:u64,
++}
++struct B{
++  y :  u64  ,
++    }
++
++
++
++function foo( a  :  u64 )  ->u64 {
++  return a;
++    }
++
++
++
++
++            function bar(b  :u64)  -> u64{
++    return    b  ;
++}
++const VALUE :  u64=42u64;
++        mapping store  :  u64  =>  u64;
++  transition baz(  c :u64  )->  u64
++{
++            return c  ;
++    }
++}
+diff --git a/leo-fmt/tests/target/comment_before_program.leo b/leo-fmt/tests/target/comment_before_program.leo
+new file mode 100644
+index 0000000000..f59d979cfe
+--- /dev/null
++++ b/leo-fmt/tests/target/comment_before_program.leo
+@@ -0,0 +1,9 @@
++import foo.aleo;
++
++// line comment between import and program
++/* block comment before program */
++program test.aleo {
++    function bar() -> u64 {
++        return 1u64;
++    }
++}
+diff --git a/leo-fmt/tests/target/comment_call_args.leo b/leo-fmt/tests/target/comment_call_args.leo
+new file mode 100644
+index 0000000000..93bff760d5
+--- /dev/null
++++ b/leo-fmt/tests/target/comment_call_args.leo
+@@ -0,0 +1,20 @@
++program test.aleo {
++    function foo(a: u64, b: u64, c: u64) -> u64 {
++        return a + b + c;
++    }
++
++    transition main(public a: u64, public b: u64, public c: u64) -> u64 {
++        let short: u64 = foo(
++            a, // inline comment
++            b,
++            c,
++        );
++        let long: u64 = foo(
++            a + b + c + a + b + c + a + b + c + a + b + c + a + b + c + a + b + c,
++            /* keep me */
++            b + c,
++            c + a,
++        );
++        return short + long;
++    }
++}
+diff --git a/leo-fmt/tests/target/comment_param_list.leo b/leo-fmt/tests/target/comment_param_list.leo
+new file mode 100644
+index 0000000000..5d94654ea8
+--- /dev/null
++++ b/leo-fmt/tests/target/comment_param_list.leo
+@@ -0,0 +1,13 @@
++program test.aleo {
++    function add(
++        a: u64, // inline on a
++        /* before b */
++        b: u64,
++    ) -> u64 {
++        return a + b;
++    }
++
++    transition main(public a: u64, public b: u64) -> u64 {
++        return add(a, b);
++    }
++}
+diff --git a/leo-fmt/tests/target/error_recovery_struct.leo b/leo-fmt/tests/target/error_recovery_struct.leo
+new file mode 100644
+index 0000000000..514b834ddd
+--- /dev/null
++++ b/leo-fmt/tests/target/error_recovery_struct.leo
+@@ -0,0 +1,7 @@
++program test.aleo {
++    struct Broken {
++        x: u64,
++        transition foo(  a : u64  )  ->  u64{
++      return   a  ;
++    }
++}
+diff --git a/leo-fmt/tests/target/function_async.leo b/leo-fmt/tests/target/function_async.leo
+index ecde87b05e..ac04d0fa28 100644
+--- a/leo-fmt/tests/target/function_async.leo
++++ b/leo-fmt/tests/target/function_async.leo
+@@ -1,5 +1,5 @@
+ program test.aleo {
+-    async transition do_something(value: u64) -> Future {
++    async transition do_something(value: u64) -> public Future {
+         return finalize(value);
+     }
+ 
+diff --git a/leo-fmt/tests/target/spacing_program_items.leo b/leo-fmt/tests/target/spacing_program_items.leo
+new file mode 100644
+index 0000000000..59766dfbb0
+--- /dev/null
++++ b/leo-fmt/tests/target/spacing_program_items.leo
+@@ -0,0 +1,24 @@
++program test.aleo {
++    struct A {
++        x: u64,
++    }
++
++    struct B {
++        y: u64,
++    }
++
++    function foo(a: u64) -> u64 {
++        return a;
++    }
++
++    function bar(b: u64) -> u64 {
++        return b;
++    }
++
++    const VALUE: u64 = 42u64;
++    mapping store: u64 => u64;
++
++    transition baz(c: u64) -> u64 {
++        return c;
++    }
++}
+diff --git a/leo/cli/commands/format.rs b/leo/cli/commands/format.rs
+index 357d1f8e3a..a6739b7b26 100644
+--- a/leo/cli/commands/format.rs
++++ b/leo/cli/commands/format.rs
+@@ -16,22 +16,12 @@
+ 
+ use super::*;
+ 
+-use colored::Colorize;
+-use similar::{ChangeTag, TextDiff};
+-use std::path::{Path, PathBuf};
+-
+ /// Format Leo source files.
+ #[derive(Parser, Debug)]
+ pub struct LeoFormat {
+-    /// Check if files are formatted without modifying them.
+-    /// Returns exit code 1 if any files need formatting.
+-    #[clap(long, short)]
+-    check: bool,
+-
+-    /// Files or directories to format.
+-    /// Defaults to current directory if not specified.
+-    #[clap(value_name = "PATH")]
+-    paths: Vec<PathBuf>,
++    /// Shared formatting flags/paths from `leo-fmt`.
++    #[clap(flatten)]
++    args: leo_fmt::FormatCliArgs,
+ }
+ 
+ impl Command for LeoFormat {
+@@ -47,93 +37,20 @@ impl Command for LeoFormat {
+     }
+ 
+     fn apply(self, context: Context, _: Self::Input) -> Result<Self::Output> {
+-        // Determine paths to format.
+-        let paths: Vec<PathBuf> = if self.paths.is_empty() {
+-            // Default to project src directory if in a Leo project, otherwise current directory.
+-            let base_dir = context.dir()?;
+-            let src_dir = base_dir.join("src");
+-            if src_dir.exists() { vec![src_dir] } else { vec![base_dir] }
+-        } else {
+-            self.paths
+-        };
+-
+-        // Collect all .leo files.
+-        let mut leo_files: Vec<PathBuf> = Vec::new();
+-        for path in &paths {
+-            if !path.exists() {
+-                return Err(CliError::cli_invalid_input(format!("Path not found: {}", path.display())).into());
+-            }
+-
+-            if path.is_file() {
+-                if path.extension().and_then(|s| s.to_str()) == Some("leo") {
+-                    leo_files.push(path.clone());
+-                } else {
+-                    return Err(
+-                        CliError::cli_invalid_input(format!("Expected a .leo file, got: {}", path.display())).into()
+-                    );
+-                }
+-            } else if path.is_dir() {
+-                for entry in walkdir::WalkDir::new(path)
+-                    .into_iter()
+-                    .filter_map(|e| e.ok())
+-                    .filter(|e| e.file_type().is_file())
+-                    .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("leo"))
+-                {
+-                    leo_files.push(entry.path().to_path_buf());
+-                }
+-            }
+-        }
+-
+-        let mut has_diff = false;
+-
+-        for file_path in &leo_files {
+-            let source = std::fs::read_to_string(file_path).map_err(CliError::cli_io_error)?;
+-            let formatted = leo_fmt::format_source(&source);
+-
+-            if source == formatted {
+-                continue;
+-            }
+-
+-            if self.check {
+-                print_diff(file_path, &source, &formatted);
+-                has_diff = true;
++        let LeoFormat { args } = self;
++        let base_dir = context.dir()?;
++        let has_unformatted = leo_fmt::run_format_cli(&args, &base_dir).map_err(|error| -> leo_errors::LeoError {
++            if error.kind() == std::io::ErrorKind::InvalidInput {
++                CliError::cli_invalid_input(error).into()
+             } else {
+-                std::fs::write(file_path, formatted).map_err(CliError::cli_io_error)?;
++                CliError::cli_io_error(error).into()
+             }
+-        }
++        })?;
+ 
+-        if has_diff {
++        if args.check && has_unformatted {
+             std::process::exit(1);
+         }
+-        Ok(())
+-    }
+-}
+-
+-/// Number of unchanged lines shown around each diff hunk for context.
+-const CONTEXT_LINES: usize = 3;
+ 
+-/// Print a colored diff between original and formatted source, matching `cargo fmt --check` output.
+-fn print_diff(path: &Path, original: &str, formatted: &str) {
+-    let diff = TextDiff::from_lines(original, formatted);
+-
+-    for hunk in diff.unified_diff().context_radius(CONTEXT_LINES).iter_hunks() {
+-        // Extract the old-file start line from the hunk header (e.g. "@@ -10,5 +10,7 @@").
+-        let header = hunk.header().to_string();
+-        let line_num = header
+-            .strip_prefix("@@ -")
+-            .and_then(|s| s.split(',').next())
+-            .and_then(|s| s.parse::<usize>().ok())
+-            .unwrap_or(1);
+-        println!("Diff in {}:{}:", path.display(), line_num);
+-        for change in hunk.iter_changes() {
+-            match change.tag() {
+-                ChangeTag::Equal => print!(" {change}"),
+-                ChangeTag::Delete => print!("{}", format!("-{change}").red()),
+-                ChangeTag::Insert => print!("{}", format!("+{change}").green()),
+-            }
+-            if change.missing_newline() {
+-                println!();
+-            }
+-        }
++        Ok(())
+     }
+ }

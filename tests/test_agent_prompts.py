@@ -63,3 +63,47 @@ def test_build_user_prompt_diff_plus_repo_plus_domain() -> None:
     assert "high" in prompt
     assert "rust" in prompt
     assert "Off-by-one" in prompt
+
+
+# ---------------------------------------------------------------------------
+# Language-aware prompt loading
+# ---------------------------------------------------------------------------
+
+
+def test_load_agent_prompt_language_specific_file_used(tmp_path: Path) -> None:
+    """When a language-specific prompt file exists in the config dir, it is used."""
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / "agent_prompt.md").write_text("generic prompt")
+    (config_dir / "agent_prompt_rust.md").write_text("rust-specific prompt")
+
+    result = load_agent_prompt(config_dir=config_dir, language="rust")
+    assert result == "rust-specific prompt"
+
+
+def test_load_agent_prompt_falls_back_to_generic_when_no_language_specific(tmp_path: Path) -> None:
+    """Falls back to generic agent_prompt.md when no language-specific file exists."""
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / "agent_prompt.md").write_text("generic prompt")
+
+    result = load_agent_prompt(config_dir=config_dir, language="go")
+    assert result == "generic prompt"
+
+
+def test_load_agent_prompt_no_language_uses_generic(tmp_path: Path) -> None:
+    """When language is not given, uses generic agent_prompt.md."""
+    config_dir = tmp_path / "config"
+    config_dir.mkdir()
+    (config_dir / "agent_prompt.md").write_text("generic prompt")
+
+    result = load_agent_prompt(config_dir=config_dir)
+    assert result == "generic prompt"
+
+
+def test_load_agent_prompt_explicit_path_still_works(tmp_path: Path) -> None:
+    """Explicit path= argument still overrides config_dir lookup."""
+    prompt_file = tmp_path / "custom.md"
+    prompt_file.write_text("custom prompt")
+    result = load_agent_prompt(path=prompt_file)
+    assert result == "custom prompt"

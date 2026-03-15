@@ -1,0 +1,1862 @@
+diff --git a/FORMAT_ABNF_GRAMMER.md b/FORMAT_ABNF_GRAMMER.md
+new file mode 100644
+index 0000000000..e69de29bb2
+diff --git a/asg/src/checks/return_path.rs b/asg/src/checks/return_path.rs
+index e0f73d3c0d..ed8874deb2 100644
+--- a/asg/src/checks/return_path.rs
++++ b/asg/src/checks/return_path.rs
+@@ -92,7 +92,7 @@ impl<'a> MonoidalReducerStatement<'a, BoolAnd> for ReturnPathReducer {
+         if_true.append(if_false.unwrap_or(BoolAnd(false)))
+     }
+ 
+-    fn reduce_formatted_string(&mut self, input: &FormatString, parameters: Vec<BoolAnd>) -> BoolAnd {
++    fn reduce_formatted_string(&mut self, input: &ConsoleArgs, parameters: Vec<BoolAnd>) -> BoolAnd {
+         BoolAnd(false)
+     }
+ 
+diff --git a/asg/src/const_value.rs b/asg/src/const_value.rs
+index 5a1c57d2a7..d430f0bbc4 100644
+--- a/asg/src/const_value.rs
++++ b/asg/src/const_value.rs
+@@ -109,16 +109,32 @@ pub enum CharValue {
+     NonScalar(u32),
+ }
+ 
+-impl From<leo_ast::CharValue> for CharValue {
+-    fn from(other: leo_ast::CharValue) -> Self {
++impl From<&leo_ast::Char> for CharValue {
++    fn from(other: &leo_ast::Char) -> Self {
++        use leo_ast::Char::*;
++        match other {
++            Scalar(value) => CharValue::Scalar(*value),
++            NonScalar(value) => CharValue::NonScalar(*value),
++        }
++    }
++}
++
++impl Into<leo_ast::Char> for &CharValue {
++    fn into(self) -> leo_ast::Char {
+         use leo_ast::Char::*;
+-        match other.character {
+-            Scalar(value) => CharValue::Scalar(value),
+-            NonScalar(value) => CharValue::NonScalar(value),
++        match self {
++            CharValue::Scalar(value) => Scalar(*value),
++            CharValue::NonScalar(value) => NonScalar(*value),
+         }
+     }
+ }
+ 
++impl From<leo_ast::CharValue> for CharValue {
++    fn from(other: leo_ast::CharValue) -> Self {
++        Self::from(&other.character)
++    }
++}
++
+ #[derive(Clone, PartialEq)]
+ pub enum ConstValue<'a> {
+     Int(ConstInt),
+diff --git a/asg/src/reducer/monoidal_director.rs b/asg/src/reducer/monoidal_director.rs
+index b0f97fec7b..ce34755a11 100644
+--- a/asg/src/reducer/monoidal_director.rs
++++ b/asg/src/reducer/monoidal_director.rs
+@@ -225,7 +225,7 @@ impl<'a, T: Monoid, R: MonoidalReducerStatement<'a, T>> MonoidalDirector<'a, T,
+             .reduce_conditional_statement(input, condition, if_true, if_false)
+     }
+ 
+-    pub fn reduce_formatted_string(&mut self, input: &FormatString<'a>) -> T {
++    pub fn reduce_formatted_string(&mut self, input: &ConsoleArgs<'a>) -> T {
+         let parameters = input
+             .parameters
+             .iter()
+diff --git a/asg/src/reducer/monoidal_reducer.rs b/asg/src/reducer/monoidal_reducer.rs
+index 2a10604e1e..9510417241 100644
+--- a/asg/src/reducer/monoidal_reducer.rs
++++ b/asg/src/reducer/monoidal_reducer.rs
+@@ -118,7 +118,7 @@ pub trait MonoidalReducerStatement<'a, T: Monoid>: MonoidalReducerExpression<'a,
+         condition.append(if_true).append_option(if_false)
+     }
+ 
+-    fn reduce_formatted_string(&mut self, input: &FormatString<'a>, parameters: Vec<T>) -> T {
++    fn reduce_formatted_string(&mut self, input: &ConsoleArgs<'a>, parameters: Vec<T>) -> T {
+         T::default().append_all(parameters.into_iter())
+     }
+ 
+diff --git a/asg/src/reducer/reconstructing_director.rs b/asg/src/reducer/reconstructing_director.rs
+index 080eb1c5db..75127d477a 100644
+--- a/asg/src/reducer/reconstructing_director.rs
++++ b/asg/src/reducer/reconstructing_director.rs
+@@ -243,7 +243,7 @@ impl<'a, R: ReconstructingReducerStatement<'a>> ReconstructingDirector<'a, R> {
+             .reduce_conditional_statement(input, condition, if_true, if_false)
+     }
+ 
+-    pub fn reduce_formatted_string(&mut self, input: FormatString<'a>) -> FormatString<'a> {
++    pub fn reduce_formatted_string(&mut self, input: ConsoleArgs<'a>) -> ConsoleArgs<'a> {
+         let parameters = input
+             .parameters
+             .iter()
+diff --git a/asg/src/reducer/reconstructing_reducer.rs b/asg/src/reducer/reconstructing_reducer.rs
+index f42a707bc8..cf4e617ec4 100644
+--- a/asg/src/reducer/reconstructing_reducer.rs
++++ b/asg/src/reducer/reconstructing_reducer.rs
+@@ -274,12 +274,12 @@ pub trait ReconstructingReducerStatement<'a>: ReconstructingReducerExpression<'a
+ 
+     fn reduce_formatted_string(
+         &mut self,
+-        input: FormatString<'a>,
++        input: ConsoleArgs<'a>,
+         parameters: Vec<&'a Expression<'a>>,
+-    ) -> FormatString<'a> {
+-        FormatString {
++    ) -> ConsoleArgs<'a> {
++        ConsoleArgs {
+             span: input.span,
+-            parts: input.parts,
++            string: input.string,
+             parameters: parameters.into_iter().map(Cell::new).collect(),
+         }
+     }
+@@ -293,7 +293,7 @@ pub trait ReconstructingReducerStatement<'a>: ReconstructingReducerExpression<'a
+         })
+     }
+ 
+-    fn reduce_console_log(&mut self, input: ConsoleStatement<'a>, argument: FormatString<'a>) -> Statement<'a> {
++    fn reduce_console_log(&mut self, input: ConsoleStatement<'a>, argument: ConsoleArgs<'a>) -> Statement<'a> {
+         assert!(!matches!(input.function, ConsoleFunction::Assert(_)));
+         Statement::Console(ConsoleStatement {
+             parent: input.parent,
+diff --git a/asg/src/reducer/visitor.rs b/asg/src/reducer/visitor.rs
+index 0bd16527bd..1e0b46fd9e 100644
+--- a/asg/src/reducer/visitor.rs
++++ b/asg/src/reducer/visitor.rs
+@@ -120,7 +120,7 @@ pub trait StatementVisitor<'a>: ExpressionVisitor<'a> {
+         Default::default()
+     }
+ 
+-    fn visit_formatted_string(&mut self, input: &FormatString<'a>) -> VisitResult {
++    fn visit_formatted_string(&mut self, input: &ConsoleArgs<'a>) -> VisitResult {
+         Default::default()
+     }
+ 
+diff --git a/asg/src/reducer/visitor_director.rs b/asg/src/reducer/visitor_director.rs
+index ee117dffb8..dc6dae6929 100644
+--- a/asg/src/reducer/visitor_director.rs
++++ b/asg/src/reducer/visitor_director.rs
+@@ -319,7 +319,7 @@ impl<'a, R: StatementVisitor<'a>> VisitorDirector<'a, R> {
+         }
+     }
+ 
+-    pub fn visit_formatted_string(&mut self, input: &FormatString<'a>) -> ConcreteVisitResult {
++    pub fn visit_formatted_string(&mut self, input: &ConsoleArgs<'a>) -> ConcreteVisitResult {
+         match self.visitor.visit_formatted_string(input) {
+             VisitResult::VisitChildren => {
+                 for parameter in input.parameters.iter() {
+diff --git a/asg/src/statement/console.rs b/asg/src/statement/console.rs
+index 5e47cb0012..37359f90b3 100644
+--- a/asg/src/statement/console.rs
++++ b/asg/src/statement/console.rs
+@@ -14,15 +14,15 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{AsgConvertError, Expression, FromAst, Node, PartialType, Scope, Span, Statement, Type};
+-use leo_ast::{ConsoleFunction as AstConsoleFunction, FormatStringPart};
++use crate::{AsgConvertError, CharValue, Expression, FromAst, Node, PartialType, Scope, Span, Statement, Type};
++use leo_ast::ConsoleFunction as AstConsoleFunction;
+ 
+ use std::cell::Cell;
+ 
+ // TODO (protryon): Refactor to not require/depend on span
+ #[derive(Clone)]
+-pub struct FormatString<'a> {
+-    pub parts: Vec<FormatStringPart>,
++pub struct ConsoleArgs<'a> {
++    pub string: Vec<CharValue>,
+     pub parameters: Vec<Cell<&'a Expression<'a>>>,
+     pub span: Span,
+ }
+@@ -30,9 +30,9 @@ pub struct FormatString<'a> {
+ #[derive(Clone)]
+ pub enum ConsoleFunction<'a> {
+     Assert(Cell<&'a Expression<'a>>),
+-    Debug(FormatString<'a>),
+-    Error(FormatString<'a>),
+-    Log(FormatString<'a>),
++    Debug(ConsoleArgs<'a>),
++    Error(ConsoleArgs<'a>),
++    Log(ConsoleArgs<'a>),
+ }
+ 
+ #[derive(Clone)]
+@@ -48,41 +48,28 @@ impl<'a> Node for ConsoleStatement<'a> {
+     }
+ }
+ 
+-impl<'a> FromAst<'a, leo_ast::FormatString> for FormatString<'a> {
++impl<'a> FromAst<'a, leo_ast::ConsoleArgs> for ConsoleArgs<'a> {
+     fn from_ast(
+         scope: &'a Scope<'a>,
+-        value: &leo_ast::FormatString,
++        value: &leo_ast::ConsoleArgs,
+         _expected_type: Option<PartialType<'a>>,
+     ) -> Result<Self, AsgConvertError> {
+-        let expected_param_len = value
+-            .parts
+-            .iter()
+-            .filter(|x| matches!(x, FormatStringPart::Container))
+-            .count();
+-        if value.parameters.len() != expected_param_len {
+-            // + 1 for formatting string as to not confuse user
+-            return Err(AsgConvertError::unexpected_call_argument_count(
+-                expected_param_len + 1,
+-                value.parameters.len() + 1,
+-                &value.span,
+-            ));
+-        }
+         let mut parameters = vec![];
+         for parameter in value.parameters.iter() {
+             parameters.push(Cell::new(<&Expression<'a>>::from_ast(scope, parameter, None)?));
+         }
+-        Ok(FormatString {
+-            parts: value.parts.clone(),
++        Ok(ConsoleArgs {
++            string: value.string.iter().map(CharValue::from).collect::<Vec<_>>(),
+             parameters,
+             span: value.span.clone(),
+         })
+     }
+ }
+ 
+-impl<'a> Into<leo_ast::FormatString> for &FormatString<'a> {
+-    fn into(self) -> leo_ast::FormatString {
+-        leo_ast::FormatString {
+-            parts: self.parts.clone(),
++impl<'a> Into<leo_ast::ConsoleArgs> for &ConsoleArgs<'a> {
++    fn into(self) -> leo_ast::ConsoleArgs {
++        leo_ast::ConsoleArgs {
++            string: self.string.iter().map(|c| c.into()).collect::<Vec<_>>(),
+             parameters: self.parameters.iter().map(|e| e.get().into()).collect(),
+             span: self.span.clone(),
+         }
+@@ -102,15 +89,9 @@ impl<'a> FromAst<'a, leo_ast::ConsoleStatement> for ConsoleStatement<'a> {
+                 AstConsoleFunction::Assert(expression) => ConsoleFunction::Assert(Cell::new(
+                     <&Expression<'a>>::from_ast(scope, expression, Some(Type::Boolean.into()))?,
+                 )),
+-                AstConsoleFunction::Debug(formatted_string) => {
+-                    ConsoleFunction::Debug(FormatString::from_ast(scope, formatted_string, None)?)
+-                }
+-                AstConsoleFunction::Error(formatted_string) => {
+-                    ConsoleFunction::Error(FormatString::from_ast(scope, formatted_string, None)?)
+-                }
+-                AstConsoleFunction::Log(formatted_string) => {
+-                    ConsoleFunction::Log(FormatString::from_ast(scope, formatted_string, None)?)
+-                }
++                AstConsoleFunction::Debug(args) => ConsoleFunction::Debug(ConsoleArgs::from_ast(scope, args, None)?),
++                AstConsoleFunction::Error(args) => ConsoleFunction::Error(ConsoleArgs::from_ast(scope, args, None)?),
++                AstConsoleFunction::Log(args) => ConsoleFunction::Log(ConsoleArgs::from_ast(scope, args, None)?),
+             },
+         })
+     }
+@@ -122,9 +103,9 @@ impl<'a> Into<leo_ast::ConsoleStatement> for &ConsoleStatement<'a> {
+         leo_ast::ConsoleStatement {
+             function: match &self.function {
+                 Assert(e) => AstConsoleFunction::Assert(e.get().into()),
+-                Debug(formatted_string) => AstConsoleFunction::Debug(formatted_string.into()),
+-                Error(formatted_string) => AstConsoleFunction::Error(formatted_string.into()),
+-                Log(formatted_string) => AstConsoleFunction::Log(formatted_string.into()),
++                Debug(args) => AstConsoleFunction::Debug(args.into()),
++                Error(args) => AstConsoleFunction::Error(args.into()),
++                Log(args) => AstConsoleFunction::Log(args.into()),
+             },
+             span: self.span.clone().unwrap_or_default(),
+         }
+diff --git a/asg/tests/fail/console/log_parameter_fail_empty.leo b/asg/tests/fail/console/log_parameter_fail_empty.leo
+deleted file mode 100644
+index 81b42c0919..0000000000
+--- a/asg/tests/fail/console/log_parameter_fail_empty.leo
++++ /dev/null
+@@ -1,3 +0,0 @@
+-function main() {
+-    console.log("{}");
+-}
+\ No newline at end of file
+diff --git a/asg/tests/fail/console/log_parameter_fail_none.leo b/asg/tests/fail/console/log_parameter_fail_none.leo
+deleted file mode 100644
+index c92fdfbb2d..0000000000
+--- a/asg/tests/fail/console/log_parameter_fail_none.leo
++++ /dev/null
+@@ -1,3 +0,0 @@
+-function main() {
+-    console.log("", 1u32);
+-}
+\ No newline at end of file
+diff --git a/asg/tests/fail/console/mod.rs b/asg/tests/fail/console/mod.rs
+index 9f967460f3..d825a4db05 100644
+--- a/asg/tests/fail/console/mod.rs
++++ b/asg/tests/fail/console/mod.rs
+@@ -27,15 +27,3 @@ fn test_log_parameter_fail_unknown() {
+     let program_string = include_str!("log_parameter_fail_unknown.leo");
+     load_asg(program_string).err().unwrap();
+ }
+-
+-#[test]
+-fn test_log_parameter_fail_empty() {
+-    let program_string = include_str!("log_parameter_fail_empty.leo");
+-    load_asg(program_string).err().unwrap();
+-}
+-
+-#[test]
+-fn test_log_parameter_fail_none() {
+-    let program_string = include_str!("log_parameter_fail_empty.leo");
+-    load_asg(program_string).err().unwrap();
+-}
+diff --git a/ast/README.md b/ast/README.md
+index 92305bee12..1ec612648f 100644
+--- a/ast/README.md
++++ b/ast/README.md
+@@ -1,5 +1,343 @@
+ # leo-ast
+-
+ [![Crates.io](https://img.shields.io/crates/v/leo-ast.svg?color=neon)](https://crates.io/crates/leo-ast)
+ [![Authors](https://img.shields.io/badge/authors-Aleo-orange.svg)](../AUTHORS)
+ [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE.md)
++
++This directory contains the code for the AST of a Leo Program.
++
++## Node Types
++
++There are several types of nodes in the AST that then have further breakdowns.
++
++All nodes store a Span, which is useful for tracking the lines and
++columns of where the node was taken from in the Leo Program.
++
++### [Program/File](./src/program.rs)
++
++The top level nodes in a Leo Program.
++
++#### [Imports](./src/imports/import.rs)
++
++Represents an import statement in a Leo Program.
++A list of these are stored on the Program.
++It stores the path to an import and what is being imported.
++
++**NOTE**: The import does not contain the source code of the imported Leo Program.
++
++#### [Circuits](./src/circuits/circuit.rs)
++
++A circuit node represents a defined Circuit in a Leo Program.
++A order preserving map of these are stored on the Program.
++Contains the Circuit's name, as well as it's members.
++The members are a function, or a variable.
++For both of them the Circuit preserves their names.
++
++#### [Decorators](./src/annotation.rs)
++
++An annotation node is a decorator that can be applied to a function.
++Stored on the function themselves despite being a top-level node.
++The node stores the name of the annotation, as well as any args passed to it.
++
++#### [Functions](./src/functions/function.rs)
++
++A function node represents a defined function in a Leo Program.
++A order preserving map of these are stored on the Program.
++A function node stores the following information:
++
++- The annotations applied to the function.
++- An identifier the name of the function.
++- The inputs to the function, both their names and types.
++- The output of the function as a type if it exists.
++- The function body stored as a block statement.
++
++#### [Global Consts](./src/program.rs)
++
++A global const is a bit special and has no special node for itself, but rather is a definition statement.
++A order preserving map of these are stored on the Program.
++
++### [Types](./src/types/type_.rs)
++
++The different types in a Leo Program.
++Types themselves are not a node, but rather just information to be stored on a node.
++
++#### Address
++
++The address type follows the [BIP_0173](https://en.bitcoin.it/wiki/BIP_0173) format starting with `aleo1`.
++
++#### Boolean
++
++The boolean type consists of two values **true** and **false**.
++
++#### Char
++
++The char type resents a character from the inclusive range [0, 10FFFF].
++
++#### Field
++
++The field type an unsigned number up to the modulus length of the field.
++
++#### Group
++
++The group type a set of affine points on the elliptic curve passed.
++
++#### [IntegerType](./src/types/integer_type.rs)
++
++The integer type represents a range of integer types.
++
++##### U8
++
++A integer in the inclusive range [0, 255].
++
++##### U16
++
++A integer in the inclusive range [0, 65535].
++
++##### U32
++
++A integer in the inclusive range [0, 4294967295].
++
++##### U64
++
++A integer in the inclusive range [0, 18446744073709551615].
++
++##### U128
++
++A integer in the inclusive range [0, 340282366920938463463374607431768211455].
++
++##### I8
++
++A integer in the inclusive range [-128, 127].
++
++##### I16
++
++A integer in the inclusive range [-32768, 32767].
++
++##### I32
++
++A integer in the inclusive range [-2147483648, 2147483647].
++
++##### I64
++
++A integer in the inclusive range [-9223372036854775808, 9223372036854775807].
++
++##### I128
++
++A integer in the inclusive range [-170141183460469231731687303715884105728, 170141183460469231731687303715884105727].
++
++#### Array
++
++The array type contains another type, then the number of elements of that type greater than 0.
++
++#### Tuple
++
++The tuple type contains n types, where n is greater than or equal to 0.
++
++#### Circuit
++
++The circuit type, every circuit represents a different type.
++
++#### SelfType
++
++The self type represented by `Self` and only usable inside a circuit.
++
++### [Statements](./src/statements/statement.rs)
++
++The statement level nodes in a Leo Program.
++
++#### [Assignment Statements](./src/statements/assign/)
++
++An assignment statement node stores the following:
++
++- The operation.
++  - **=**
++  - **+=**
++  - **-=**
++  - **=**
++  - **/=**
++  - **=**
++  - **&&=**
++  - **||=**
++- The assignee which is a variable that has context of any access expressions on it.
++- The value which is an expression.
++
++#### [Block Statements](./src/statements/block.rs)
++
++A block statement node stores the following:
++
++- The list of statements inside the block.
++
++#### [Conditional Statements](./src/statements/conditional.rs)
++
++A conditional statement node stores the following:
++
++- The condition which is an expression.
++- The block statement.
++- The next block of the conditional if it exists.
++
++#### [Console Statements](./src/statements/)
++
++A console statement node stores the following:
++
++- The console function being called which stores the type of console function it is and its arguments.
++
++#### [Definition Statements](./src/statements/definition/mod.rs)
++
++A definition statement node stores the following:
++
++- The declaration type:
++  - `let` for mutable definitions.
++  - `const` for cosntant definitions.
++- The names of the varaibles defined.
++- The optional type.
++- The values to be assigned to the varaibles.
++
++#### [Expression Statements](./src/statements/expression.rs)
++
++An expression statement node stores the following:
++
++- The expression.
++
++#### [Iteration Statements](./src/statements/iteration.rs)
++
++A iteration statement node stores the following:
++
++- The loop iterator variable name.
++- The expression to define the starting loop value.
++- The expression to define the stoping loop value.
++- The block to run for the loop.
++
++#### [Return Statements](./src/statements/return_statement.rs)
++
++A return statement node stores the following:
++
++- The expression that is being returned.
++
++### Expressions
++
++The expression nodes in a Leo Program.
++
++#### [ArrayAccess Expressions](./src/expression/array_acces.rs)
++
++An array access expression node stores the following:
++
++- The array expression.
++- The index represented by an expression.
++
++#### [ArrayInit Expressions](./src/expression/array_init.rs)
++
++An array init expression node stores the following:
++
++- The element expression to fill the array with.
++- The dimensions of the array to build.
++
++#### [ArrayInline Expressions](./src/expression/array_inline.rs)
++
++An array inline expression node stores the following:
++
++- The elments of an array which is either an spread or an expression.
++
++#### [ArrayRangeAccess Expressions](./src/expression/array_range_access.rs)
++
++An array range access expression node stores the following:
++
++- The array expression.
++- The optional left side of the range of the array bounds to access.
++- The optional right side of the range of the array bounds to access.
++
++#### [Binary Expressions](./src/expression/binary.rs)
++
++A binary expression node stores the following:
++
++- The left side of the expression.
++- The right side of the expression.
++- The binary operation of the expression:
++  - **+**
++  - **-**
++  - **\***
++  - **/**
++  - **\*\***
++  - **||**
++  - **&&**
++  - **==**
++  - **!=**
++  - **>=**
++  - **>**
++  - **<=**
++  - **<**
++
++#### [Call Expressions](./src/expression/call.rs)
++
++A call expression node stores the following:
++
++- The function expression being called.
++- The aruments a list of expressions.
++
++#### [CircuitInit Expressions](./src/expression/circuit_init.rs)
++
++A circuit init expression node stores the following:
++
++- The name of the circuit expression being initialized.
++- The aruments a list of expressions.
++
++#### [CircuitMemberAccess Expressions](./src/expression/circuit_member_access.rs)
++
++A circuit member access expression node stores the following:
++
++- The circut expression being accessed.
++- The name of the expression being accessed from the circuit.
++
++#### [CircuitStaticFunctionAccess Expressions](./src/expression/circuit_static_function_access.rs)
++
++A circuit static function access expression node stores the following:
++
++- The circut expression being accessed.
++- The name of the expression being statically accessed from the circuit.
++
++#### [Identifier Expressions](./src/common/identifier.rs)
++
++An identifer expression node stores the following:
++
++- An identifier stores the string name.
++
++#### [Ternary Expressions](./src/expression/ternary.rs)
++
++A ternary expression node stores the following:
++
++- The condition of the ternary stored as an expression.
++- The expression returned if the condition is true.
++- The expression returned if the condition is false.
++
++#### [TupleAccess Expressions](./src/expression/tuple_access.rs)
++
++A tuple access expression node stores the following:
++
++- The tuple expression being accessed.
++- The index a positive number greater than or equal to 0.
++
++#### [TupleInit Expressions](./src/expression/tuple_init.rs)
++
++A tuple init expression node stores the following:
++
++- The element expressions to fill the tuple with.
++
++#### [Unary Expressions](./src/expression/unary.rs)
++
++An unary expression node stores the following:
++
++- The inner expression.
++- The unary operator:
++  - **!**
++  - **-**
++
++#### [Value Expressions](./src/expression/value.rs)
++
++A value expression node stores one of the following:
++
++- Address and its value and span.
++- Boolean and its value and span.
++- Char and its value and span.
++- Field and its value and span.
++- Group and its value and span.
++- Implicit and its value and span.
++- Integer and its value and span.
++- String and its value and span.
+diff --git a/ast/src/errors/reducer.rs b/ast/src/errors/reducer.rs
+index e8b582af85..9655c47bde 100644
+--- a/ast/src/errors/reducer.rs
++++ b/ast/src/errors/reducer.rs
+@@ -35,6 +35,13 @@ impl ReducerError {
+         ReducerError::Error(FormattedError::new_from_span(message, span))
+     }
+ 
++    pub fn empty_string(span: &Span) -> Self {
++        let message =
++            "Cannot constrcut an empty string: it has the type of [char; 0] which is not possible.".to_string();
++
++        Self::new_from_span(message, span)
++    }
++
+     pub fn impossible_console_assert_call(span: &Span) -> Self {
+         let message = "Console::Assert cannot be matched here, its handled in another case.".to_string();
+ 
+diff --git a/ast/src/reducer/canonicalization.rs b/ast/src/reducer/canonicalization.rs
+index c6355fc7b2..9ca30d2aa2 100644
+--- a/ast/src/reducer/canonicalization.rs
++++ b/ast/src/reducer/canonicalization.rs
+@@ -391,23 +391,23 @@ impl Canonicalizer {
+                     ConsoleFunction::Assert(expression) => {
+                         ConsoleFunction::Assert(self.canonicalize_expression(expression))
+                     }
+-                    ConsoleFunction::Debug(format) | ConsoleFunction::Error(format) | ConsoleFunction::Log(format) => {
+-                        let parameters = format
++                    ConsoleFunction::Debug(args) | ConsoleFunction::Error(args) | ConsoleFunction::Log(args) => {
++                        let parameters = args
+                             .parameters
+                             .iter()
+                             .map(|parameter| self.canonicalize_expression(parameter))
+                             .collect();
+ 
+-                        let formatted = FormatString {
+-                            parts: format.parts.clone(),
++                        let console_args = ConsoleArgs {
++                            string: args.string.clone(),
+                             parameters,
+-                            span: format.span.clone(),
++                            span: args.span.clone(),
+                         };
+ 
+                         match &console_function_call.function {
+-                            ConsoleFunction::Debug(_) => ConsoleFunction::Debug(formatted),
+-                            ConsoleFunction::Error(_) => ConsoleFunction::Error(formatted),
+-                            ConsoleFunction::Log(_) => ConsoleFunction::Log(formatted),
++                            ConsoleFunction::Debug(_) => ConsoleFunction::Debug(console_args),
++                            ConsoleFunction::Error(_) => ConsoleFunction::Error(console_args),
++                            ConsoleFunction::Log(_) => ConsoleFunction::Log(console_args),
+                             _ => unimplemented!(), // impossible
+                         }
+                     }
+@@ -493,6 +493,10 @@ impl ReconstructingReducer for Canonicalizer {
+     }
+ 
+     fn reduce_string(&mut self, string: &[Char], span: &Span) -> Result<Expression, ReducerError> {
++        if string.is_empty() {
++            return Err(ReducerError::empty_string(span));
++        }
++
+         let mut elements = Vec::new();
+         let mut col_adder = 0;
+         for (index, character) in string.iter().enumerate() {
+diff --git a/ast/src/reducer/reconstructing_director.rs b/ast/src/reducer/reconstructing_director.rs
+index 74fbf76a94..80a61e0476 100644
+--- a/ast/src/reducer/reconstructing_director.rs
++++ b/ast/src/reducer/reconstructing_director.rs
+@@ -390,23 +390,23 @@ impl<R: ReconstructingReducer> ReconstructingDirector<R> {
+     ) -> Result<ConsoleStatement, ReducerError> {
+         let function = match &console_function_call.function {
+             ConsoleFunction::Assert(expression) => ConsoleFunction::Assert(self.reduce_expression(expression)?),
+-            ConsoleFunction::Debug(format) | ConsoleFunction::Error(format) | ConsoleFunction::Log(format) => {
++            ConsoleFunction::Debug(args) | ConsoleFunction::Error(args) | ConsoleFunction::Log(args) => {
+                 let mut parameters = vec![];
+-                for parameter in format.parameters.iter() {
++                for parameter in args.parameters.iter() {
+                     parameters.push(self.reduce_expression(parameter)?);
+                 }
+ 
+-                let formatted = FormatString {
+-                    parts: format.parts.clone(),
++                let formatted = ConsoleArgs {
++                    string: args.string.clone(),
+                     parameters,
+-                    span: format.span.clone(),
++                    span: args.span.clone(),
+                 };
+ 
+                 match &console_function_call.function {
+                     ConsoleFunction::Debug(_) => ConsoleFunction::Debug(formatted),
+                     ConsoleFunction::Error(_) => ConsoleFunction::Error(formatted),
+                     ConsoleFunction::Log(_) => ConsoleFunction::Log(formatted),
+-                    _ => return Err(ReducerError::impossible_console_assert_call(&format.span)),
++                    _ => return Err(ReducerError::impossible_console_assert_call(&args.span)),
+                 }
+             }
+         };
+diff --git a/ast/src/statements/console/formatted_container.rs b/ast/src/statements/console/console_args.rs
+similarity index 68%
+rename from ast/src/statements/console/formatted_container.rs
+rename to ast/src/statements/console/console_args.rs
+index cca1a17220..ebe6e12725 100644
+--- a/ast/src/statements/console/formatted_container.rs
++++ b/ast/src/statements/console/console_args.rs
+@@ -14,23 +14,34 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{Node, Span};
++use crate::{Char, Expression, Node, Span};
+ 
+ use serde::{Deserialize, Serialize};
+ use std::fmt;
+ 
+ #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
+-pub struct FormattedContainer {
++pub struct ConsoleArgs {
++    pub string: Vec<Char>,
++    pub parameters: Vec<Expression>,
+     pub span: Span,
+ }
+ 
+-impl fmt::Display for FormattedContainer {
++impl fmt::Display for ConsoleArgs {
+     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+-        write!(f, "{{}}")
++        write!(
++            f,
++            "\"{}\", {}",
++            self.string.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(""),
++            self.parameters
++                .iter()
++                .map(|p| p.to_string())
++                .collect::<Vec<_>>()
++                .join(",")
++        )
+     }
+ }
+ 
+-impl Node for FormattedContainer {
++impl Node for ConsoleArgs {
+     fn span(&self) -> &Span {
+         &self.span
+     }
+diff --git a/ast/src/statements/console/console_function.rs b/ast/src/statements/console/console_function.rs
+index 17a19931cb..5919980af6 100644
+--- a/ast/src/statements/console/console_function.rs
++++ b/ast/src/statements/console/console_function.rs
+@@ -14,7 +14,7 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{Expression, FormatString, Node, Span};
++use crate::{ConsoleArgs, Expression, Node, Span};
+ 
+ use serde::{Deserialize, Serialize};
+ use std::fmt;
+@@ -22,9 +22,9 @@ use std::fmt;
+ #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
+ pub enum ConsoleFunction {
+     Assert(Expression),
+-    Debug(FormatString),
+-    Error(FormatString),
+-    Log(FormatString),
++    Debug(ConsoleArgs),
++    Error(ConsoleArgs),
++    Log(ConsoleArgs),
+ }
+ 
+ impl fmt::Display for ConsoleFunction {
+diff --git a/ast/src/statements/console/formatted_string.rs b/ast/src/statements/console/formatted_string.rs
+deleted file mode 100644
+index 641362b35a..0000000000
+--- a/ast/src/statements/console/formatted_string.rs
++++ /dev/null
+@@ -1,103 +0,0 @@
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+-use crate::{Char, Expression, Node, Span};
+-
+-use serde::{Deserialize, Serialize};
+-use std::fmt;
+-use tendril::StrTendril;
+-
+-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
+-pub enum FormatStringPart {
+-    Const(#[serde(with = "crate::common::tendril_json")] StrTendril),
+-    Container,
+-}
+-
+-impl FormatStringPart {
+-    pub fn from_string(string: Vec<Char>) -> Vec<Self> {
+-        let mut parts = Vec::new();
+-        let mut in_container = false;
+-        let mut substring = String::new();
+-        for (_, character) in string.iter().enumerate() {
+-            match character {
+-                Char::Scalar(scalar) => match scalar {
+-                    '{' if !in_container => {
+-                        parts.push(FormatStringPart::Const(substring.clone().into()));
+-                        substring.clear();
+-                        in_container = true;
+-                    }
+-                    '}' if in_container => {
+-                        in_container = false;
+-                        parts.push(FormatStringPart::Container);
+-                    }
+-                    _ if in_container => {
+-                        in_container = false;
+-                    }
+-                    _ => substring.push(*scalar),
+-                },
+-                Char::NonScalar(non_scalar) => {
+-                    substring.push_str(format!("\\u{{{:x}}}", non_scalar).as_str());
+-                    in_container = false;
+-                }
+-            }
+-        }
+-
+-        if !substring.is_empty() {
+-            parts.push(FormatStringPart::Const(substring.into()));
+-        }
+-
+-        parts
+-    }
+-}
+-
+-#[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug)]
+-pub struct FormatString {
+-    pub parts: Vec<FormatStringPart>,
+-    pub parameters: Vec<Expression>,
+-    pub span: Span,
+-}
+-
+-impl fmt::Display for FormatString {
+-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+-        write!(
+-            f,
+-            "\"{}\", {}",
+-            self.parts
+-                .iter()
+-                .map(|x| match x {
+-                    FormatStringPart::Const(x) => x.to_string(),
+-                    FormatStringPart::Container => "{}".to_string(),
+-                })
+-                .collect::<Vec<_>>()
+-                .join(""),
+-            self.parameters
+-                .iter()
+-                .map(|p| p.to_string())
+-                .collect::<Vec<_>>()
+-                .join(",")
+-        )
+-    }
+-}
+-
+-impl Node for FormatString {
+-    fn span(&self) -> &Span {
+-        &self.span
+-    }
+-
+-    fn set_span(&mut self, span: Span) {
+-        self.span = span;
+-    }
+-}
+diff --git a/ast/src/statements/console/mod.rs b/ast/src/statements/console/mod.rs
+index da4f604aed..16c2d98a40 100644
+--- a/ast/src/statements/console/mod.rs
++++ b/ast/src/statements/console/mod.rs
+@@ -17,11 +17,8 @@
+ pub mod console_function;
+ pub use console_function::*;
+ 
++pub mod console_args;
++pub use console_args::*;
++
+ pub mod console_statement;
+ pub use console_statement::*;
+-
+-pub mod formatted_container;
+-pub use formatted_container::*;
+-
+-pub mod formatted_string;
+-pub use formatted_string::*;
+diff --git a/compiler/src/console/format.rs b/compiler/src/console/format.rs
+index 7372fa69d2..dd936223fc 100644
+--- a/compiler/src/console/format.rs
++++ b/compiler/src/console/format.rs
+@@ -17,8 +17,7 @@
+ //! Evaluates a formatted string in a compiled Leo program.
+ 
+ use crate::{errors::ConsoleError, program::ConstrainedProgram, GroupType};
+-use leo_asg::FormatString;
+-use leo_ast::FormatStringPart;
++use leo_asg::{CharValue, ConsoleArgs};
+ use snarkvm_fields::PrimeField;
+ use snarkvm_r1cs::ConstraintSystem;
+ 
+@@ -26,34 +25,64 @@ impl<'a, F: PrimeField, G: GroupType<F>> ConstrainedProgram<'a, F, G> {
+     pub fn format<CS: ConstraintSystem<F>>(
+         &mut self,
+         cs: &mut CS,
+-        formatted: &FormatString<'a>,
++        args: &ConsoleArgs<'a>,
+     ) -> Result<String, ConsoleError> {
+-        // Check that containers and parameters match
+-        let container_count = formatted
+-            .parts
+-            .iter()
+-            .filter(|x| matches!(x, FormatStringPart::Container))
+-            .count();
+-        if container_count != formatted.parameters.len() {
+-            return Err(ConsoleError::length(
+-                container_count,
+-                formatted.parameters.len(),
+-                &formatted.span,
+-            ));
+-        }
+-
+-        let mut executed_containers = Vec::with_capacity(formatted.parameters.len());
+-        for parameter in formatted.parameters.iter() {
+-            executed_containers.push(self.enforce_expression(cs, parameter.get())?.to_string());
++        let mut out = Vec::new();
++        let mut in_container = false;
++        let mut substring = String::new();
++        let mut arg_index = 0;
++        let mut escape_right_bracket = false;
++        for (index, character) in args.string.iter().enumerate() {
++            match character {
++                _ if escape_right_bracket => {
++                    escape_right_bracket = false;
++                    continue;
++                }
++                CharValue::Scalar(scalar) => match scalar {
++                    '{' if !in_container => {
++                        out.push(substring.clone());
++                        substring.clear();
++                        in_container = true;
++                    }
++                    '{' if in_container => {
++                        substring.push('{');
++                        in_container = false;
++                    }
++                    '}' if in_container => {
++                        in_container = false;
++                        let parameter = match args.parameters.get(arg_index) {
++                            Some(index) => index,
++                            None => return Err(ConsoleError::length(arg_index + 1, args.parameters.len(), &args.span)),
++                        };
++                        out.push(self.enforce_expression(cs, parameter.get())?.to_string());
++                        arg_index += 1;
++                    }
++                    '}' if !in_container => {
++                        if let Some(CharValue::Scalar(next)) = args.string.get(index + 1) {
++                            if *next == '}' {
++                                substring.push('}');
++                                escape_right_bracket = true;
++                            } else {
++                                return Err(ConsoleError::expected_escaped_right_brace(&args.span));
++                            }
++                        }
++                    }
++                    _ if in_container => {
++                        return Err(ConsoleError::expected_left_or_right_brace(&args.span));
++                    }
++                    _ => substring.push(*scalar),
++                },
++                CharValue::NonScalar(non_scalar) => {
++                    substring.push_str(format!("\\u{{{:x}}}", non_scalar).as_str());
++                    in_container = false;
++                }
++            }
+         }
++        out.push(substring);
+ 
+-        let mut out = vec![];
+-        let mut parameters = executed_containers.iter();
+-        for part in formatted.parts.iter() {
+-            match part {
+-                FormatStringPart::Const(c) => out.push(c.to_string()),
+-                FormatStringPart::Container => out.push(parameters.next().unwrap().to_string()),
+-            }
++        // Check that containers and parameters match
++        if arg_index != args.parameters.len() {
++            return Err(ConsoleError::length(arg_index, args.parameters.len(), &args.span));
+         }
+ 
+         Ok(out.join(""))
+diff --git a/compiler/src/errors/console.rs b/compiler/src/errors/console.rs
+index 62ee02446a..76d4538f1c 100644
+--- a/compiler/src/errors/console.rs
++++ b/compiler/src/errors/console.rs
+@@ -33,6 +33,18 @@ impl ConsoleError {
+         ConsoleError::Error(FormattedError::new_from_span(message, span))
+     }
+ 
++    pub fn expected_left_or_right_brace(span: &Span) -> Self {
++        let message = "Formatter given a {. Expected a { or } after".to_string();
++
++        Self::new_from_span(message, span)
++    }
++
++    pub fn expected_escaped_right_brace(span: &Span) -> Self {
++        let message = "Formatter given a }. Expected a container {} or }}".to_string();
++
++        Self::new_from_span(message, span)
++    }
++
+     pub fn length(containers: usize, parameters: usize, span: &Span) -> Self {
+         let message = format!(
+             "Formatter given {} containers and found {} parameters",
+diff --git a/compiler/src/phases/reducing_director.rs b/compiler/src/phases/reducing_director.rs
+index 5063774993..ff432e3f27 100644
+--- a/compiler/src/phases/reducing_director.rs
++++ b/compiler/src/phases/reducing_director.rs
+@@ -76,12 +76,12 @@ use leo_ast::{
+     CircuitStaticFunctionAccessExpression,
+     CombinerError,
+     ConditionalStatement as AstConditionalStatement,
++    ConsoleArgs as AstConsoleArgs,
+     ConsoleFunction as AstConsoleFunction,
+     ConsoleStatement as AstConsoleStatement,
+     DefinitionStatement as AstDefinitionStatement,
+     Expression as AstExpression,
+     ExpressionStatement as AstExpressionStatement,
+-    FormatString,
+     Function as AstFunction,
+     GroupTuple,
+     GroupValue as AstGroupValue,
+@@ -597,25 +597,27 @@ impl<R: ReconstructingReducer, O: CombinerOptions> CombineAstAsgDirector<R, O> {
+             (AstConsoleFunction::Assert(ast_expression), AsgConsoleFunction::Assert(asg_expression)) => {
+                 AstConsoleFunction::Assert(self.reduce_expression(&ast_expression, asg_expression.get())?)
+             }
+-            (AstConsoleFunction::Debug(ast_format), AsgConsoleFunction::Debug(asg_format))
+-            | (AstConsoleFunction::Error(ast_format), AsgConsoleFunction::Error(asg_format))
+-            | (AstConsoleFunction::Log(ast_format), AsgConsoleFunction::Log(asg_format)) => {
++            (AstConsoleFunction::Debug(ast_console_args), AsgConsoleFunction::Debug(asg_format))
++            | (AstConsoleFunction::Error(ast_console_args), AsgConsoleFunction::Error(asg_format))
++            | (AstConsoleFunction::Log(ast_console_args), AsgConsoleFunction::Log(asg_format)) => {
+                 let mut parameters = vec![];
+-                for (ast_parameter, asg_parameter) in ast_format.parameters.iter().zip(asg_format.parameters.iter()) {
++                for (ast_parameter, asg_parameter) in
++                    ast_console_args.parameters.iter().zip(asg_format.parameters.iter())
++                {
+                     parameters.push(self.reduce_expression(&ast_parameter, asg_parameter.get())?);
+                 }
+ 
+-                let formatted = FormatString {
+-                    parts: ast_format.parts.clone(),
++                let args = AstConsoleArgs {
++                    string: ast_console_args.string.clone(),
+                     parameters,
+-                    span: ast_format.span.clone(),
++                    span: ast_console_args.span.clone(),
+                 };
+ 
+                 match &ast.function {
+-                    AstConsoleFunction::Debug(_) => AstConsoleFunction::Debug(formatted),
+-                    AstConsoleFunction::Error(_) => AstConsoleFunction::Error(formatted),
+-                    AstConsoleFunction::Log(_) => AstConsoleFunction::Log(formatted),
+-                    _ => return Err(ReducerError::impossible_console_assert_call(&ast_format.span)),
++                    AstConsoleFunction::Debug(_) => AstConsoleFunction::Debug(args),
++                    AstConsoleFunction::Error(_) => AstConsoleFunction::Error(args),
++                    AstConsoleFunction::Log(_) => AstConsoleFunction::Log(args),
++                    _ => return Err(ReducerError::impossible_console_assert_call(&ast_console_args.span)),
+                 }
+             }
+             _ => ast.function.clone(),
+diff --git a/grammar/.gitattributes b/grammar/.gitattributes
+index 0d7e2876d4..1e3409b350 100644
+--- a/grammar/.gitattributes
++++ b/grammar/.gitattributes
+@@ -1 +1,2 @@
+-abnf-grammar.txt text eol=crlf
+\ No newline at end of file
++abnf-grammar.txt text eol=crlf
++format-abnf-grammar.txt text eol=crlf
+\ No newline at end of file
+diff --git a/grammar/FORMAT_ABNF_GRAMMER.md b/grammar/FORMAT_ABNF_GRAMMER.md
+new file mode 100644
+index 0000000000..cc88f9fda1
+Binary files /dev/null and b/grammar/FORMAT_ABNF_GRAMMER.md differ
+diff --git a/grammar/README.md b/grammar/README.md
+index 0086f21350..6491e949ff 100644
+Binary files a/grammar/README.md and b/grammar/README.md differ
+diff --git a/grammar/abnf-grammar.txt b/grammar/abnf-grammar.txt
+index 29e925c70a..650a035744 100644
+--- a/grammar/abnf-grammar.txt
++++ b/grammar/abnf-grammar.txt
+@@ -555,11 +555,8 @@ unicode-character-escape = %s"\u{" 1*6hexadecimal-digit "}"
+ ; A string literal consists of one or more elements surrounded by double quotes.
+ ; Each element is any character other than double quote or backslash,
+ ; or an escape among the same ones used for elements of character literals.
+-; There must be at least one element
+-; because string literals denote character arrays,
+-; and arrays must not be empty.
+ 
+-string-literal = double-quote 1*string-literal-element double-quote
++string-literal = double-quote *string-literal-element double-quote
+ 
+ string-literal-element = not-double-quote-or-backslash
+                        / simple-character-escape
+diff --git a/grammar/format-abnf-grammar.txt b/grammar/format-abnf-grammar.txt
+new file mode 100644
+index 0000000000..87d810d881
+--- /dev/null
++++ b/grammar/format-abnf-grammar.txt
+@@ -0,0 +1,50 @@
++; Copyright (C) 2019-2021 Aleo Systems Inc.
++; This file is part of the Leo library.
++
++; The Leo library is free software: you can redistribute it and/or modify
++; it under the terms of the GNU General Public License as published by
++; the Free Software Foundation, either version 3 of the License, or
++; (at your option) any later version.
++
++; The Leo library is distributed in the hope that it will be useful,
++; but WITHOUT ANY WARRANTY; without even the implied warranty of
++; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++; GNU General Public License for more details.
++
++; You should have received a copy of the GNU General Public License
++; along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
++
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++
++; Background on ABNF
++; ------------------
++
++; ABNF is an Internet standard:
++; for more info please checkout the
++; [README](./README.md) in this directory.
++
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++
++; Format String
++; -------------------
++
++; This ABNF grammar consists of one grammar:
++; that describes how a Leo string-literal is parsed
++; for formatting.  Meaning in this context
++; all characters are already parsed and we don't
++; have to worry about escapes or etc.
++
++not-brace = %x0-7A / %x7C / %x7E-10FFFF ; anything but { or }
++
++format-string-container = "{}"
++
++format-string-open-brace = "{{"
++
++format-string-close-brace = "}}"
++
++format-string-element = not-brace
++                        / format-string-container
++                        / format-string-open-brace
++                        / format-string-close-brace
++		      
++format-string = *format-string-element
+diff --git a/grammar/src/main.rs b/grammar/src/main.rs
+index 8ef25c11a5..28b9f6da74 100644
+--- a/grammar/src/main.rs
++++ b/grammar/src/main.rs
+@@ -40,7 +40,7 @@
+ //
+ 
+ use abnf::types::{Node, Rule};
+-use anyhow::Result;
++use anyhow::{anyhow, Result};
+ use std::collections::{HashMap, HashSet};
+ 
+ /// Processor's scope. Used when code block or definition starts or ends.
+@@ -197,18 +197,24 @@ fn parse_abnf_node(node: &Node, sum: &mut Vec<String>) {
+ 
+ fn main() -> Result<()> {
+     // Take Leo ABNF grammar file.
+-    let grammar = include_str!("../abnf-grammar.txt");
++    let args: Vec<String> = std::env::args().collect();
++    let abnf_path = if let Some(path) = args.get(1) {
++        std::path::Path::new(path)
++    } else {
++        return Err(anyhow!("Usage Error: expects one argument to abnf file to convert."));
++    };
++    let grammar = std::fs::read_to_string(abnf_path)?;
+ 
+     // Parse ABNF to get list of all definitions.
+     // Rust ABNF does not provide support for `%s` (case sensitive strings, part of
+     // the standard); so we need to remove all occurrences before parsing.
+-    let parsed = abnf::rulelist(&str::replace(grammar, "%s", "")).map_err(|e| {
++    let parsed = abnf::rulelist(&str::replace(&grammar, "%s", "")).map_err(|e| {
+         eprintln!("{}", &e);
+         anyhow::anyhow!(e)
+     })?;
+ 
+     // Init parser and run it. That's it.
+-    let mut parser = Processor::new(grammar, parsed);
++    let mut parser = Processor::new(&grammar, parsed);
+     parser.process();
+ 
+     // Print result of conversion to STDOUT.
+diff --git a/parser/README.md b/parser/README.md
+new file mode 100644
+index 0000000000..c09aff1736
+--- /dev/null
++++ b/parser/README.md
+@@ -0,0 +1,124 @@
++#  Leo Parser
++[![Crates.io](https://img.shields.io/crates/v/leo-parser.svg?color=neon)](https://crates.io/crates/leo-parser)
++[![Authors](https://img.shields.io/badge/authors-Aleo-orange.svg)](../AUTHORS)
++[![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE.md)
++
++This directory contains the code to tokenize, lex and parse Leo files to the [Leo AST](./../ast/README.md).
++
++## Tokenizer
++
++The tokenizer contains all tokens in Leo.
++It also decides which tokens are keywords.
++Meaning that keywords are a subset of tokens.
++The lexer goes through character by character as bytes, and converts the bytes into the tokens.
++
++### Tokens
++
++Bolded ones are also keywords.
++
++#### Literals
++- CommentLine
++- CommentBlock
++- StringLit
++- Ident
++- Int
++- **True**
++- **False**
++- AddressLit
++- CharLit
++
++#### Symbols
++- At
++- Not
++- And
++- Or
++- Eq
++- NotEq
++- Lt
++- LtEq
++- Gt
++- GtEq
++- Add
++- Minus
++- Mul
++- Div
++- Exp
++- Assign
++- AddEq
++- MinusEq
++- MulEq
++- DivEq
++- ExpEq
++- LeftParen
++- RightParen
++- LeftSquare
++- RightSquare
++- LeftCurly
++- RightCurly
++- Comma
++- Dot
++- DotDot
++- DotDotDot
++- Semicolon
++- Colon
++- DoubleColon
++- Question
++- Arrow
++- Underscore
++
++#### Types
++- **U8**
++- **U16**
++- **U32**
++- **U64**
++- **U128**
++- **I8**
++- **I16**
++- **I32**
++- **I64**
++- **I128**
++- **Field**
++- **Group**
++- **Bool**
++- **Address**
++- **Char**
++- **BigSelf**
++
++#### Words
++- **Input**
++- **LittleSelf**
++- **Import**
++- **As**
++- **Circuit**
++- **Console**
++- **Const**
++- **Else**
++- **For**
++- **Function**
++- **If**
++- **In**
++- **Let**
++- **Mut**
++- **Return**
++- **Static**
++- **String**
++
++#### Meta
++- Eof
++
++## Parser
++
++The parser converts the tokens to the [Leo AST](./../ast/README.md).
++
++The parser is broken down to different files that correspond to different aspects of the AST:
++
++- [File](./src/parser/file.rs) - Parses the top level nodes in Leo.
++- [Types](./src/parser/type_.rs) - Parses the type declarations in Leo.
++- [Statements](./src/parser/statement.rs) - Parses the different kinds of statements.
++- [Expressions](./src/parser/expression.rs) - Parses the different kinds of expressions.
++  
++  For more information on those please read the Leo AST README, linked above.
++
++## Grammar Relation
++
++All function and token names are as close as possible to the [Leo Grammar](./../grammar/README.md)
+diff --git a/parser/src/parser/statement.rs b/parser/src/parser/statement.rs
+index eff1b31e31..f4ec7ea566 100644
+--- a/parser/src/parser/statement.rs
++++ b/parser/src/parser/statement.rs
+@@ -232,9 +232,9 @@ impl ParserContext {
+     }
+ 
+     ///
+-    /// Returns a [`FormatString`] AST node if the next tokens represent a formatted string.
++    /// Returns a [`ConsoleArgs`] AST node if the next tokens represent a formatted string.
+     ///
+-    pub fn parse_formatted_string(&mut self) -> SyntaxResult<FormatString> {
++    pub fn parse_console_args(&mut self) -> SyntaxResult<ConsoleArgs> {
+         let start_span;
+         let string = match self.expect_any()? {
+             SpannedToken {
+@@ -247,7 +247,7 @@ impl ParserContext {
+             SpannedToken { token, span } => return Err(SyntaxError::unexpected_str(&token, "formatted string", &span)),
+         };
+ 
+-        let parts = FormatStringPart::from_string(string);
++        // let parts = FormatStringPart::from_string(string);
+ 
+         let mut parameters = Vec::new();
+         while self.eat(Token::Comma).is_some() {
+@@ -255,8 +255,8 @@ impl ParserContext {
+             parameters.push(param);
+         }
+ 
+-        Ok(FormatString {
+-            parts,
++        Ok(ConsoleArgs {
++            string,
+             span: &start_span + parameters.last().map(|x| x.span()).unwrap_or(&start_span),
+             parameters,
+         })
+@@ -275,9 +275,9 @@ impl ParserContext {
+                 let expr = self.parse_expression()?;
+                 ConsoleFunction::Assert(expr)
+             }
+-            "debug" => ConsoleFunction::Debug(self.parse_formatted_string()?),
+-            "error" => ConsoleFunction::Error(self.parse_formatted_string()?),
+-            "log" => ConsoleFunction::Log(self.parse_formatted_string()?),
++            "debug" => ConsoleFunction::Debug(self.parse_console_args()?),
++            "error" => ConsoleFunction::Error(self.parse_console_args()?),
++            "log" => ConsoleFunction::Log(self.parse_console_args()?),
+             x => {
+                 return Err(SyntaxError::unexpected_ident(
+                     &x,
+diff --git a/parser/src/tokenizer/lexer.rs b/parser/src/tokenizer/lexer.rs
+index 9c3b9f2be0..cf9b452e9b 100644
+--- a/parser/src/tokenizer/lexer.rs
++++ b/parser/src/tokenizer/lexer.rs
+@@ -280,7 +280,7 @@ impl Token {
+                     }
+                 }
+ 
+-                if i == input.len() || i == 1 || !end {
++                if i == input.len() || !end {
+                     return (0, None);
+                 }
+ 
+diff --git a/parser/src/tokenizer/token.rs b/parser/src/tokenizer/token.rs
+index 146393588f..700da12e9e 100644
+--- a/parser/src/tokenizer/token.rs
++++ b/parser/src/tokenizer/token.rs
+@@ -58,9 +58,8 @@ pub enum Token {
+     AddressLit(#[serde(with = "leo_ast::common::tendril_json")] StrTendril),
+     CharLit(Char),
+ 
+-    At,
+-
+     // Symbols
++    At,
+     Not,
+     And,
+     Or,
+diff --git a/tests/expectations/compiler/compiler/char/nonprinting.leo.out b/tests/expectations/compiler/compiler/char/nonprinting.leo.out
+index 599e6b7150..2acf2401e1 100644
+--- a/tests/expectations/compiler/compiler/char/nonprinting.leo.out
++++ b/tests/expectations/compiler/compiler/char/nonprinting.leo.out
+@@ -19,6 +19,6 @@ outputs:
+             r1:
+               type: bool
+               value: "true"
+-    initial_ast: 737b6db278359fac5760302a43f0f27b06e38d9dd6affce2b61946545cb475ac
+-    canonicalized_ast: 737b6db278359fac5760302a43f0f27b06e38d9dd6affce2b61946545cb475ac
+-    type_inferenced_ast: 07d7f6418670dca3233f14b5a7dbde73787168b2cb210f6a66860a0d9a0e9ea7
++    initial_ast: 3484f8dedfe79e122e5b4a7e7d00fa185fa08884b67e6824b29580694c5983f6
++    canonicalized_ast: 3484f8dedfe79e122e5b4a7e7d00fa185fa08884b67e6824b29580694c5983f6
++    type_inferenced_ast: 47dc1acd415b62312ed330c9ef12620f187858ea2b0572b3404936cfb902cdd4
+diff --git a/tests/expectations/compiler/compiler/char/out.leo.out b/tests/expectations/compiler/compiler/char/out.leo.out
+index 7985c76dd8..ab57323b5e 100644
+--- a/tests/expectations/compiler/compiler/char/out.leo.out
++++ b/tests/expectations/compiler/compiler/char/out.leo.out
+@@ -100,6 +100,6 @@ outputs:
+             r:
+               type: char
+               value: "'\\u{1f62d}'"
+-    initial_ast: af450dbf8c804894b41a738de1832af3092cae4d2823b5839da8b7dd6a8679de
+-    canonicalized_ast: af450dbf8c804894b41a738de1832af3092cae4d2823b5839da8b7dd6a8679de
+-    type_inferenced_ast: ec94a20aaab8811399eb3cbd6b30345083f956510e3b5cf6ffb55d3087e83cc8
++    initial_ast: bfd9bc4584922f1010085bd8f2a44594eb07c5c3ffbca6efa5eecc08c5134c0b
++    canonicalized_ast: bfd9bc4584922f1010085bd8f2a44594eb07c5c3ffbca6efa5eecc08c5134c0b
++    type_inferenced_ast: 5986610003c35e0ad024bf0b3a002fe6228548ccd7d99fc2a18f140609851337
+diff --git a/tests/expectations/compiler/compiler/console/debug.leo.out b/tests/expectations/compiler/compiler/console/debug.leo.out
+index 1c5670fc99..9eecd263fd 100644
+--- a/tests/expectations/compiler/compiler/console/debug.leo.out
++++ b/tests/expectations/compiler/compiler/console/debug.leo.out
+@@ -16,6 +16,6 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: 40014c8e30c3aa703f4f0362a16df094a45d5f0df5a94dc26e96d87170784df7
+-    canonicalized_ast: 40014c8e30c3aa703f4f0362a16df094a45d5f0df5a94dc26e96d87170784df7
+-    type_inferenced_ast: fb64ba6e32355ee6df3bd9942ca209f35714ce61511a9b8b867a1587518647a8
++    initial_ast: 80d3dbfdeb9d6fb6e9ba17ba028bd2bf71014b4353f34db9d69a66ee1d0914cf
++    canonicalized_ast: 80d3dbfdeb9d6fb6e9ba17ba028bd2bf71014b4353f34db9d69a66ee1d0914cf
++    type_inferenced_ast: bbad9d7593fb1aa2bcc25f2f2625ace659e18f293af35082ad39b1e3cd71e8b5
+diff --git a/tests/expectations/compiler/compiler/console/error.leo.out b/tests/expectations/compiler/compiler/console/error.leo.out
+index 5e70e0e4a8..a8be560200 100644
+--- a/tests/expectations/compiler/compiler/console/error.leo.out
++++ b/tests/expectations/compiler/compiler/console/error.leo.out
+@@ -16,6 +16,6 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: 2c41e0c55e5a64fd04160a56adf627d90cdbf665ebf1a0fec4a2b9049234652a
+-    canonicalized_ast: 2c41e0c55e5a64fd04160a56adf627d90cdbf665ebf1a0fec4a2b9049234652a
+-    type_inferenced_ast: fa6ccd4112e58ba2e97f3e600dd5d4858c45bb39a858bdd1b1867f494758cbca
++    initial_ast: 637b1f2fc3317138b7352122cab1754c30833e87208d443d9657aa178d7e5a31
++    canonicalized_ast: 637b1f2fc3317138b7352122cab1754c30833e87208d443d9657aa178d7e5a31
++    type_inferenced_ast: b003fc86b328eb76ffb5f13e4cc8b1d19da3c64c9b34ee9f116c46b998121cd3
+diff --git a/tests/expectations/compiler/compiler/console/log.leo.out b/tests/expectations/compiler/compiler/console/log.leo.out
+index a498e594a1..de703bffbf 100644
+--- a/tests/expectations/compiler/compiler/console/log.leo.out
++++ b/tests/expectations/compiler/compiler/console/log.leo.out
+@@ -16,6 +16,6 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: e239286adc6d00ad3d4328d5911a60d5cf05612610f994faf05208420aa1ca6a
+-    canonicalized_ast: e239286adc6d00ad3d4328d5911a60d5cf05612610f994faf05208420aa1ca6a
+-    type_inferenced_ast: 8d10cefa3e8eb8f7d5668cb153ebc4574ca591905ab22f9ff7c81cb1be0fb110
++    initial_ast: 7f5540a6b26be4fbf33c59d72ed8ba4697bbfffde5a674bacc5846ea6254194d
++    canonicalized_ast: 7f5540a6b26be4fbf33c59d72ed8ba4697bbfffde5a674bacc5846ea6254194d
++    type_inferenced_ast: 0a7837344c544abc21e4be2946292baac4553ad6b29c77e8a08a4032b592b206
+diff --git a/tests/expectations/compiler/compiler/console/log_conditional.leo.out b/tests/expectations/compiler/compiler/console/log_conditional.leo.out
+index b43f2e88e0..37cfe37ac7 100644
+--- a/tests/expectations/compiler/compiler/console/log_conditional.leo.out
++++ b/tests/expectations/compiler/compiler/console/log_conditional.leo.out
+@@ -22,6 +22,6 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: d81597e32ce19fd62ae7043b42bbd3fd71980c74b913081cb7ed65a249efea67
+-    canonicalized_ast: d81597e32ce19fd62ae7043b42bbd3fd71980c74b913081cb7ed65a249efea67
+-    type_inferenced_ast: 5e163645d00884a3abf845af25115c2479d13517733d42f2a11c092d040d83e8
++    initial_ast: 686cf650236e7d5578b163101eb4104f0dbdb0fe9ed72ebf109f518b2ab18568
++    canonicalized_ast: 686cf650236e7d5578b163101eb4104f0dbdb0fe9ed72ebf109f518b2ab18568
++    type_inferenced_ast: dddd466784e0095ccd9004c9b3fe011290e36cc0b0a0ceb20ed4052f99aa9b35
+diff --git a/tests/expectations/compiler/compiler/console/log_input.leo.out b/tests/expectations/compiler/compiler/console/log_input.leo.out
+index 073361471a..ef23f2153c 100644
+--- a/tests/expectations/compiler/compiler/console/log_input.leo.out
++++ b/tests/expectations/compiler/compiler/console/log_input.leo.out
+@@ -16,6 +16,6 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: f2a4b944ccecd2be35bab0a4922fb96595b75007db6c35f4be3a1aac08426f9e
+-    canonicalized_ast: f2a4b944ccecd2be35bab0a4922fb96595b75007db6c35f4be3a1aac08426f9e
+-    type_inferenced_ast: bb0b9193a4d3b6d9a91a56820f902c17f0b64705cd6d85cb942479952ec95fab
++    initial_ast: 0e62d5ba7775423a274c6871ed7aa23143051a1030fa2375b3ac52b4624bed29
++    canonicalized_ast: 0e62d5ba7775423a274c6871ed7aa23143051a1030fa2375b3ac52b4624bed29
++    type_inferenced_ast: 816f0e99603f81c6fd2e771095de519200e954ce238a76a535cd3f2b5c403c23
+diff --git a/tests/expectations/compiler/compiler/console/log_parameter.leo.out b/tests/expectations/compiler/compiler/console/log_parameter.leo.out
+index a9e5a0c53a..11a643fae8 100644
+--- a/tests/expectations/compiler/compiler/console/log_parameter.leo.out
++++ b/tests/expectations/compiler/compiler/console/log_parameter.leo.out
+@@ -16,6 +16,6 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: 057e2a8b0841e05d95c13c39d259a26fc12091362ef60f7291329a1a82f0af5e
+-    canonicalized_ast: 057e2a8b0841e05d95c13c39d259a26fc12091362ef60f7291329a1a82f0af5e
+-    type_inferenced_ast: 054b00815c79679a877ab34a89a5dbd27771f5896984c684bcc43a74c5792b32
++    initial_ast: 4c513c484e711bef8b4da2bd54e71f3e6bbea22d002155b598c7573ba5b1c747
++    canonicalized_ast: 4c513c484e711bef8b4da2bd54e71f3e6bbea22d002155b598c7573ba5b1c747
++    type_inferenced_ast: a33edf5d144205f5f5f820c8a95476b677dfcae5a4997c28cd707dcd637cf12a
+diff --git a/tests/expectations/compiler/compiler/console/log_parameter_fail_empty.leo.out b/tests/expectations/compiler/compiler/console/log_parameter_fail_empty.leo.out
+index b3e4e8bbfe..6ebd98b417 100644
+--- a/tests/expectations/compiler/compiler/console/log_parameter_fail_empty.leo.out
++++ b/tests/expectations/compiler/compiler/console/log_parameter_fail_empty.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "    --> compiler-test:4:17\n     |\n   4 |     console.log(\"{}\");\n     |                 ^^^^\n     |\n     = function call expected 2 arguments, got 1"
++  - "    --> compiler-test:4:17\n     |\n   4 |     console.log(\"{}\");\n     |                 ^^^^\n     |\n     = Formatter given 1 containers and found 0 parameters"
+diff --git a/tests/expectations/compiler/compiler/console/log_parameter_fail_none.leo.out b/tests/expectations/compiler/compiler/console/log_parameter_fail_none.leo.out
+index 56c7a9e3b8..f7007ccf5f 100644
+--- a/tests/expectations/compiler/compiler/console/log_parameter_fail_none.leo.out
++++ b/tests/expectations/compiler/compiler/console/log_parameter_fail_none.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "    --> compiler-test:4:17\n     |\n   4 |     console.log(\"\", 1u32);\n     |                 ^\n     |\n     = unexpected token: '\"'"
++  - "    --> compiler-test:4:17\n     |\n   4 |     console.log(\"\", 1u32);\n     |                 ^^^^^^^^\n     |\n     = Formatter given 0 containers and found 1 parameters"
+diff --git a/tests/expectations/compiler/compiler/console/log_parameter_many.leo.out b/tests/expectations/compiler/compiler/console/log_parameter_many.leo.out
+index 010687e3e1..78b90b9a8c 100644
+--- a/tests/expectations/compiler/compiler/console/log_parameter_many.leo.out
++++ b/tests/expectations/compiler/compiler/console/log_parameter_many.leo.out
+@@ -16,6 +16,6 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: ca762bf3526c963a715e0b3ba8f439fde8cfc3466c92e8a76fd3fd78f3dcdcdb
+-    canonicalized_ast: ca762bf3526c963a715e0b3ba8f439fde8cfc3466c92e8a76fd3fd78f3dcdcdb
+-    type_inferenced_ast: 9d00a752fd798ce8b44834df8ed766eb9acd737fade0ed6af938f668c3560a25
++    initial_ast: 11e5803a91f359a4d9e41f70173072984d8a430ea2e19169c239f9fdd0b81726
++    canonicalized_ast: 11e5803a91f359a4d9e41f70173072984d8a430ea2e19169c239f9fdd0b81726
++    type_inferenced_ast: 6833ca94c2ee3e7ceecec151709c145ac12b3fc258b6f720bc203d89056852cf
+diff --git a/tests/expectations/compiler/compiler/input_files/program_input/main_group.leo.out b/tests/expectations/compiler/compiler/input_files/program_input/main_group.leo.out
+index e2dbc00e2f..e1afb82eb9 100644
+--- a/tests/expectations/compiler/compiler/input_files/program_input/main_group.leo.out
++++ b/tests/expectations/compiler/compiler/input_files/program_input/main_group.leo.out
+@@ -13,6 +13,6 @@ outputs:
+       - input_file: input/main_group.in
+         output:
+           registers: {}
+-    initial_ast: b44ed4078cfd47b305648f8b661e63a925d296608b6e05e68922153dc384e5a6
+-    canonicalized_ast: f63a180228feec0dd67f648abb07cbf595d43820ea1a98f3fcb746bbd7a6abe9
+-    type_inferenced_ast: b3179dda593e9c7cd3607416273206a5ae8d171f2c46e6a724f6877e7f3e94b1
++    initial_ast: 80d005d0d277205d4e42029b1257aea9f67301ac8193dd8e595051ebb12ee50e
++    canonicalized_ast: 89eca89eb1633f9346fed9f868d11326c6d8721b846f49b23cf5c54bc426273a
++    type_inferenced_ast: 4e592b434fbceb1a1b942a65d8f6e1a2ca21754fd8215584512c0ecf89c03fa7
+diff --git a/tests/expectations/compiler/compiler/input_files/program_input/main_multi_dimension_array.leo.out b/tests/expectations/compiler/compiler/input_files/program_input/main_multi_dimension_array.leo.out
+index bd6d8663ca..26317ab6f0 100644
+--- a/tests/expectations/compiler/compiler/input_files/program_input/main_multi_dimension_array.leo.out
++++ b/tests/expectations/compiler/compiler/input_files/program_input/main_multi_dimension_array.leo.out
+@@ -16,6 +16,6 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: 0b7d9217b441385cf29f20d5e73748627dcea1a608ccfb42ef3f1dc5e68caaac
+-    canonicalized_ast: 8168a20e4754f86746678eaf7dd23d741b7d81d7ddba1822e0a90fd8c3149651
+-    type_inferenced_ast: 43dcf7397576914601b03d1b7fd92f531992aca52f0879646316df0840d9ff6a
++    initial_ast: 5f2fe4c4fae5c53b40a0011389aaba92ed6f61487c4be3938f450d658cae4639
++    canonicalized_ast: bada9b141c8740dc1af11c395ac97152ed9ef8796e92ceade5fdcb43354a997d
++    type_inferenced_ast: 905b29996916de37e498809f39b26520b618d4d6a952156d8406513dda9d4e8a
+diff --git a/tests/expectations/compiler/compiler/input_files/program_input_constants/main_array.leo.out b/tests/expectations/compiler/compiler/input_files/program_input_constants/main_array.leo.out
+index d74fb40d3e..8fc0faca83 100644
+--- a/tests/expectations/compiler/compiler/input_files/program_input_constants/main_array.leo.out
++++ b/tests/expectations/compiler/compiler/input_files/program_input_constants/main_array.leo.out
+@@ -16,6 +16,6 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: fc0d2296fdb76961806268d592892a064f4de5c55f2bdb705c46c6f564f2a0af
+-    canonicalized_ast: fc0d2296fdb76961806268d592892a064f4de5c55f2bdb705c46c6f564f2a0af
+-    type_inferenced_ast: 40cf529694add5a9193fe0d1784247ae1246f067076c96bc9fdc114e633699af
++    initial_ast: 5cf9f340177e4a476a81c0cbb645ab443dd93551b5e247332e193273b5a42288
++    canonicalized_ast: 5cf9f340177e4a476a81c0cbb645ab443dd93551b5e247332e193273b5a42288
++    type_inferenced_ast: 9b10865266ad6fa0f46d35a94fe2c052ff0fb46ffca1dbdc2b2294ca9e52217e
+diff --git a/tests/expectations/compiler/compiler/input_files/program_input_constants/main_group.leo.out b/tests/expectations/compiler/compiler/input_files/program_input_constants/main_group.leo.out
+index c3eed3a8a4..78e7a115fd 100644
+--- a/tests/expectations/compiler/compiler/input_files/program_input_constants/main_group.leo.out
++++ b/tests/expectations/compiler/compiler/input_files/program_input_constants/main_group.leo.out
+@@ -16,6 +16,6 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: 3d5a53e68eb786c6a74618b539714d3fffbcc890444a5d57409a88cc214cfb7e
+-    canonicalized_ast: 3d5a53e68eb786c6a74618b539714d3fffbcc890444a5d57409a88cc214cfb7e
+-    type_inferenced_ast: 2baac7174583b7f6562bd0715d58da99c335c8ccfd56a2286e18ae57ea078694
++    initial_ast: 854be098a724cec3bb03249c8fc03aba5d53c2628bad6d45188872d2f67a7f15
++    canonicalized_ast: 854be098a724cec3bb03249c8fc03aba5d53c2628bad6d45188872d2f67a7f15
++    type_inferenced_ast: 37a8d6e71f2f6e2ffc61ffd29beb07ff04189647a367e21e7d70245bb3d0b280
+diff --git a/tests/expectations/parser/parser/expression/literal/string.leo.out b/tests/expectations/parser/parser/expression/literal/string.leo.out
+index 2eab41078d..c6b41bc0d5 100644
+--- a/tests/expectations/parser/parser/expression/literal/string.leo.out
++++ b/tests/expectations/parser/parser/expression/literal/string.leo.out
+@@ -2,6 +2,7 @@
+ namespace: Token
+ expectation: Pass
+ outputs:
++  - "'\"\"' @ 1:1-3"
+   - "'\"string\"' @ 1:1-9"
+   - "'\"another { } string\"' @ 1:1-21"
+   - "'\"{ ] [ ; a\"' @ 1:1-12"
+diff --git a/tests/expectations/parser/parser/expression/literal/string_fail.leo.out b/tests/expectations/parser/parser/expression/literal/string_fail.leo.out
+index d97d2cda74..891ec74b3c 100644
+--- a/tests/expectations/parser/parser/expression/literal/string_fail.leo.out
++++ b/tests/expectations/parser/parser/expression/literal/string_fail.leo.out
+@@ -2,7 +2,6 @@
+ namespace: Token
+ expectation: Fail
+ outputs:
+-  - "    --> test:1:1\n     |\n   1 | \"\"\n     | ^\n     |\n     = unexpected token: '\"'"
+   - "    --> test:1:1\n     |\n   1 | \"Hello world!\n     | ^\n     |\n     = unexpected token: '\"'"
+   - "    --> test:1:1\n     |\n   1 | \"\\\"\n     | ^\n     |\n     = unexpected token: '\"'"
+   - "    --> test:1:1\n     |\n   1 | \"\\l\"\n     | ^\n     |\n     = unexpected token: '\"'"
+diff --git a/tests/expectations/parser/parser/statement/console.leo.out b/tests/expectations/parser/parser/statement/console.leo.out
+index a70bf45485..2ed38532c9 100644
+--- a/tests/expectations/parser/parser/statement/console.leo.out
++++ b/tests/expectations/parser/parser/statement/console.leo.out
+@@ -16,9 +16,9 @@ outputs:
+   - Console:
+       function:
+         Error:
+-          parts:
+-            - Const: ""
+-            - Container
++          string:
++            - Scalar: 123
++            - Scalar: 125
+           parameters:
+             - Identifier: "{\"name\":\"x\",\"span\":\"{\\\"line_start\\\":1,\\\"line_stop\\\":1,\\\"col_start\\\":21,\\\"col_stop\\\":22,\\\"path\\\":\\\"test\\\",\\\"content\\\":\\\"console.error(\\\\\\\"{}\\\\\\\", x);\\\"}\"}"
+           span:
+@@ -38,11 +38,11 @@ outputs:
+   - Console:
+       function:
+         Error:
+-          parts:
+-            - Const: ""
+-            - Container
+-            - Const: ""
+-            - Container
++          string:
++            - Scalar: 123
++            - Scalar: 125
++            - Scalar: 123
++            - Scalar: 125
+           parameters:
+             - Identifier: "{\"name\":\"x\",\"span\":\"{\\\"line_start\\\":1,\\\"line_stop\\\":1,\\\"col_start\\\":23,\\\"col_stop\\\":24,\\\"path\\\":\\\"test\\\",\\\"content\\\":\\\"console.error(\\\\\\\"{}{}\\\\\\\", x, y);\\\"}\"}"
+             - Identifier: "{\"name\":\"y\",\"span\":\"{\\\"line_start\\\":1,\\\"line_stop\\\":1,\\\"col_start\\\":26,\\\"col_stop\\\":27,\\\"path\\\":\\\"test\\\",\\\"content\\\":\\\"console.error(\\\\\\\"{}{}\\\\\\\", x, y);\\\"}\"}"
+@@ -63,8 +63,8 @@ outputs:
+   - Console:
+       function:
+         Error:
+-          parts:
+-            - Const: x
++          string:
++            - Scalar: 120
+           parameters: []
+           span:
+             line_start: 1
+@@ -83,9 +83,9 @@ outputs:
+   - Console:
+       function:
+         Debug:
+-          parts:
+-            - Const: ""
+-            - Container
++          string:
++            - Scalar: 123
++            - Scalar: 125
+           parameters:
+             - Identifier: "{\"name\":\"x\",\"span\":\"{\\\"line_start\\\":1,\\\"line_stop\\\":1,\\\"col_start\\\":21,\\\"col_stop\\\":22,\\\"path\\\":\\\"test\\\",\\\"content\\\":\\\"console.debug(\\\\\\\"{}\\\\\\\", x);\\\"}\"}"
+           span:
+@@ -105,11 +105,11 @@ outputs:
+   - Console:
+       function:
+         Debug:
+-          parts:
+-            - Const: ""
+-            - Container
+-            - Const: ""
+-            - Container
++          string:
++            - Scalar: 123
++            - Scalar: 125
++            - Scalar: 123
++            - Scalar: 125
+           parameters:
+             - Identifier: "{\"name\":\"x\",\"span\":\"{\\\"line_start\\\":1,\\\"line_stop\\\":1,\\\"col_start\\\":23,\\\"col_stop\\\":24,\\\"path\\\":\\\"test\\\",\\\"content\\\":\\\"console.debug(\\\\\\\"{}{}\\\\\\\", x, y);\\\"}\"}"
+             - Identifier: "{\"name\":\"y\",\"span\":\"{\\\"line_start\\\":1,\\\"line_stop\\\":1,\\\"col_start\\\":26,\\\"col_stop\\\":27,\\\"path\\\":\\\"test\\\",\\\"content\\\":\\\"console.debug(\\\\\\\"{}{}\\\\\\\", x, y);\\\"}\"}"
+@@ -130,8 +130,8 @@ outputs:
+   - Console:
+       function:
+         Debug:
+-          parts:
+-            - Const: x
++          string:
++            - Scalar: 120
+           parameters: []
+           span:
+             line_start: 1
+@@ -150,9 +150,9 @@ outputs:
+   - Console:
+       function:
+         Log:
+-          parts:
+-            - Const: ""
+-            - Container
++          string:
++            - Scalar: 123
++            - Scalar: 125
+           parameters:
+             - Identifier: "{\"name\":\"x\",\"span\":\"{\\\"line_start\\\":1,\\\"line_stop\\\":1,\\\"col_start\\\":19,\\\"col_stop\\\":20,\\\"path\\\":\\\"test\\\",\\\"content\\\":\\\"console.log(\\\\\\\"{}\\\\\\\", x);\\\"}\"}"
+           span:
+@@ -172,11 +172,11 @@ outputs:
+   - Console:
+       function:
+         Log:
+-          parts:
+-            - Const: ""
+-            - Container
+-            - Const: ""
+-            - Container
++          string:
++            - Scalar: 123
++            - Scalar: 125
++            - Scalar: 123
++            - Scalar: 125
+           parameters:
+             - Identifier: "{\"name\":\"x\",\"span\":\"{\\\"line_start\\\":1,\\\"line_stop\\\":1,\\\"col_start\\\":21,\\\"col_stop\\\":22,\\\"path\\\":\\\"test\\\",\\\"content\\\":\\\"console.log(\\\\\\\"{}{}\\\\\\\", x, y);\\\"}\"}"
+             - Identifier: "{\"name\":\"y\",\"span\":\"{\\\"line_start\\\":1,\\\"line_stop\\\":1,\\\"col_start\\\":24,\\\"col_stop\\\":25,\\\"path\\\":\\\"test\\\",\\\"content\\\":\\\"console.log(\\\\\\\"{}{}\\\\\\\", x, y);\\\"}\"}"
+@@ -197,8 +197,8 @@ outputs:
+   - Console:
+       function:
+         Log:
+-          parts:
+-            - Const: x
++          string:
++            - Scalar: 120
+           parameters: []
+           span:
+             line_start: 1
+diff --git a/tests/parser/expression/literal/string.leo b/tests/parser/expression/literal/string.leo
+index 1b397dfa83..644ad63f3c 100644
+--- a/tests/parser/expression/literal/string.leo
++++ b/tests/parser/expression/literal/string.leo
+@@ -3,6 +3,8 @@ namespace: Token
+ expectation: Pass
+ */
+ 
++""
++
+ "string"
+ 
+ "another { } string"
+diff --git a/tests/parser/expression/literal/string_fail.leo b/tests/parser/expression/literal/string_fail.leo
+index 3015bf53c3..de90e88599 100644
+--- a/tests/parser/expression/literal/string_fail.leo
++++ b/tests/parser/expression/literal/string_fail.leo
+@@ -3,8 +3,6 @@ namespace: Token
+ expectation: Fail
+ */
+ 
+-""
+-
+ "Hello world!
+ 
+ "\"

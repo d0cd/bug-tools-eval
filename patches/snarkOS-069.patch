@@ -1,0 +1,482 @@
+diff --git a/.circleci/config.yml b/.circleci/config.yml
+index 6301d5f03..5d00dcbaf 100644
+--- a/.circleci/config.yml
++++ b/.circleci/config.yml
+@@ -195,7 +195,6 @@ commands:
+           name: "Run devnet test"
+           timeout: 20m  # Allow 20 minutes total
+           command: |
+-            chmod +x .circleci/devnet_ci.sh
+             ./.circleci/devnet_ci.sh << parameters.validators >> << parameters.clients >> << parameters.network_id >> << parameters.min_height >>
+       - clear_environment:
+           cache_key: << parameters.cache_key >>
+diff --git a/.circleci/devnet_ci.sh b/.circleci/devnet_ci.sh
+old mode 100644
+new mode 100755
+index d47a6209d..d93663369
+--- a/.circleci/devnet_ci.sh
++++ b/.circleci/devnet_ci.sh
+@@ -65,7 +65,7 @@ for ((client_index = 0; client_index < $total_clients; client_index++)); do
+   fi
+ done
+ 
+-# Function to check block heights
++# Function checking that each node reached a sufficient block height.
+ check_heights() {
+   echo "Checking block heights on all nodes..."
+   all_reached=true
+@@ -94,9 +94,30 @@ check_heights() {
+   fi
+ }
+ 
++# Function checking that nodes created logs on disk.
++check_logs() {
++  echo "Checking logs for all nodes..."
++  all_reached=true
++  highest_height=0
++  for ((validator_index = 0; validator_index < $total_validators; validator_index++)); do
++    if [ ! -s "$log_dir/validator-${validator_index}.log" ]; then
++      echo "❌ Test failed! Validator #${validator_index} did not create any logs."
++      return 1
++    fi
++  done
++  for ((client_index = 0; client_index < $total_clients; client_index++)); do
++    if [ ! -s "$log_dir/client-${client_index}.log" ]; then
++      echo "❌ Test failed! Client #${client_index} did not create any logs."
++      return 1
++    fi
++  done
++
++  return 0
++ }
++
+ # Wait for 60 seconds to let the network start up
+-echo "Waiting 60 seconds for network to start up..."
+-sleep 60
++echo "Waiting 30 seconds for network to start up..."
++sleep 30
+ 
+ # Check heights periodically with a timeout
+ total_wait=0
+@@ -108,13 +129,17 @@ while [ $total_wait -lt 900 ]; do  # 15 minutes max
+     for pid in "${PIDS[@]}"; do
+       kill -9 $pid 2>/dev/null || true
+     done
+-    
+-    exit 0
++
++    if check_logs; then
++      exit 0
++    else
++      exit 1
++    fi
+   fi
+   
+   # Continue waiting
+-  sleep 60
+-  total_wait=$((total_wait + 60))
++  sleep 30
++  total_wait=$((total_wait + 30))
+   echo "Waited $total_wait seconds so far..."
+ done
+ 
+@@ -132,4 +157,4 @@ for pid in "${PIDS[@]}"; do
+   kill -9 $pid 2>/dev/null || true
+ done
+ 
+-exit 1
+\ No newline at end of file
++exit 1
+diff --git a/Cargo.toml b/Cargo.toml
+index 060b93b6c..21a9d34d1 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -74,6 +74,9 @@ version = "0.22"
+ [workspace.dependencies.tokio]
+ version = "1.28"
+ 
++[workspace.dependencies.tokio-util]
++version = "0.7"
++
+ [workspace.dependencies.itertools]
+ version = "0.14"
+ 
+@@ -81,6 +84,16 @@ version = "0.14"
+ version = "2"
+ default-features = false
+ 
++[workspace.dependencies.tracing]
++version = "0.1"
++default-features = false
++
++[workspace.dependencies.tracing-test]
++version = "0.2"
++
++[workspace.dependencies.tracing-subscriber]
++version = "0.3"
++
+ [workspace.dependencies.test-strategy]
+ version = "0.4"
+ 
+@@ -186,7 +199,7 @@ version = "=3.8.0"
+ tikv-jemallocator = "0.5"
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ optional = true
+ 
+ [dev-dependencies.rusty-hook]
+diff --git a/cli/Cargo.toml b/cli/Cargo.toml
+index e6568cbcd..7ff08f7e9 100644
+--- a/cli/Cargo.toml
++++ b/cli/Cargo.toml
+@@ -143,10 +143,10 @@ workspace = true
+ features = [ "rt" ]
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ 
+ [dependencies.tracing-subscriber]
+-version = "0.3"
++workspace = true
+ features = [ "env-filter" ]
+ 
+ [dependencies.ureq]
+diff --git a/cli/src/helpers/logger.rs b/cli/src/helpers/logger.rs
+index d62dea928..f18dd22f5 100644
+--- a/cli/src/helpers/logger.rs
++++ b/cli/src/helpers/logger.rs
+@@ -33,11 +33,12 @@ use tracing_subscriber::{
+ };
+ 
+ fn parse_log_verbosity(verbosity: u8) -> Result<EnvFilter> {
+-    // First, set default log verbosity
++    // First, set default log verbosity.
++    // Note, that this must not be prefixed with `RUST_LOG=`.
+     let default_log_str = match verbosity {
+-        0 => "RUST_LOG=info",
+-        1 => "RUST_LOG=debug",
+-        2.. => "RUST_LOG=trace",
++        0 => "info",
++        1 => "debug",
++        2.. => "trace",
+     };
+     let filter = EnvFilter::from_str(default_log_str).unwrap();
+ 
+@@ -127,7 +128,8 @@ pub fn initialize_logger<P: AsRef<Path>>(
+     });
+ 
+     // Create the directories tree for a logfile if it doesn't exist.
+-    let logfile_dir = logfile.as_ref().parent().expect("Root directory passed as a logfile");
++    let Some(logfile_dir) = logfile.as_ref().parent() else { bail!("Root directory passed as a logfile") };
++
+     if !logfile_dir.exists() {
+         if let Err(err) = std::fs::create_dir_all(logfile_dir) {
+             bail!("Failed to create a directory: '{}' ({err})", logfile_dir.display());
+@@ -143,6 +145,7 @@ pub fn initialize_logger<P: AsRef<Path>>(
+     let (log_sender, log_receiver) = mpsc::channel(1024);
+ 
+     // Initialize the log sender.
++    // This is only needed when the terminal UI (display) wants to process log output.
+     let log_sender = match nodisplay {
+         true => None,
+         false => Some(log_sender),
+diff --git a/node/Cargo.toml b/node/Cargo.toml
+index 9de243577..04935da13 100644
+--- a/node/Cargo.toml
++++ b/node/Cargo.toml
+@@ -134,10 +134,10 @@ workspace = true
+ features = [ "rt", "signal" ]
+ 
+ [dependencies.tokio-util]
+-version = "0.7"
++workspace = true
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ 
+ [dev-dependencies.deadline]
+ version = "0.2"
+@@ -153,7 +153,7 @@ path = "./router"
+ features = [ "test" ]
+ 
+ [dev-dependencies.tracing-subscriber]
+-version = "0.3"
++workspace = true
+ features = [ "env-filter", "fmt" ]
+ 
+ [dev-dependencies.rand_chacha]
+diff --git a/node/bft/Cargo.toml b/node/bft/Cargo.toml
+index aba0bb643..19f18d6d9 100644
+--- a/node/bft/Cargo.toml
++++ b/node/bft/Cargo.toml
+@@ -139,11 +139,11 @@ features = [ "macros", "rt-multi-thread", "signal" ]
+ version = "=0.1"
+ 
+ [dependencies.tokio-util]
+-version = "0.7"
++workspace = true
+ features = [ "codec" ]
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ 
+ [dev-dependencies.axum]
+ version = "0.8"
+@@ -200,11 +200,11 @@ version = "0.6"
+ features = [ "fs", "trace" ]
+ 
+ [dev-dependencies.tracing-subscriber]
+-version = "0.3"
++workspace = true
+ features = [ "env-filter" ]
+ 
+ [dev-dependencies.tracing-test]
+-version = "0.2"
++workspace = true
+ 
+ [dev-dependencies.mockall]
+ version = "0.12.1"
+diff --git a/node/bft/events/Cargo.toml b/node/bft/events/Cargo.toml
+index deb6114de..7b0c759b7 100644
+--- a/node/bft/events/Cargo.toml
++++ b/node/bft/events/Cargo.toml
+@@ -42,11 +42,11 @@ workspace = true
+ features = [ "ledger", "utilities" ]
+ 
+ [dependencies.tokio-util]
+-version = "0.7"
++workspace = true
+ features = [ "codec" ]
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ 
+ [dev-dependencies.proptest]
+ workspace = true
+diff --git a/node/bft/ledger-service/Cargo.toml b/node/bft/ledger-service/Cargo.toml
+index e4728b536..a6a022c0b 100644
+--- a/node/bft/ledger-service/Cargo.toml
++++ b/node/bft/ledger-service/Cargo.toml
+@@ -71,5 +71,5 @@ features = [ "macros", "rt-multi-thread" ]
+ optional = true
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ optional = true
+diff --git a/node/bft/storage-service/Cargo.toml b/node/bft/storage-service/Cargo.toml
+index bc532a8de..14e02fb33 100644
+--- a/node/bft/storage-service/Cargo.toml
++++ b/node/bft/storage-service/Cargo.toml
+@@ -50,7 +50,7 @@ workspace = true
+ features = [ "ledger", "console", "rocks" ]
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ optional = true
+ 
+ [dev-dependencies.snarkvm]
+diff --git a/node/cdn/Cargo.toml b/node/cdn/Cargo.toml
+index 736d39e35..1049ce0c3 100644
+--- a/node/cdn/Cargo.toml
++++ b/node/cdn/Cargo.toml
+@@ -70,7 +70,7 @@ workspace = true
+ features = [ "rt" ]
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ 
+ [dev-dependencies.tokio]
+ workspace = true
+diff --git a/node/cdn/src/blocks.rs b/node/cdn/src/blocks.rs
+index cdccb6906..8eb925c3a 100644
+--- a/node/cdn/src/blocks.rs
++++ b/node/cdn/src/blocks.rs
+@@ -92,6 +92,7 @@ impl CdnBlockSync {
+             tokio::spawn(async move { Self::worker(base_url, ledger, shutdown).await })
+         };
+ 
++        debug!("Started sync from CDN at {base_url}");
+         Self { done: AtomicBool::new(false), base_url, task: Mutex::new(Some(task)) }
+     }
+ 
+@@ -465,6 +466,7 @@ async fn cdn_get<T: 'static + DeserializeOwned + Send>(client: Client, url: &str
+         Ok(bytes) => bytes,
+         Err(error) => bail!("Failed to parse {ctx} - {error}"),
+     };
++
+     // Parse the objects.
+     match tokio::task::spawn_blocking(move || bincode::deserialize::<T>(&bytes)).await {
+         Ok(Ok(objects)) => Ok(objects),
+diff --git a/node/consensus/Cargo.toml b/node/consensus/Cargo.toml
+index f3254e614..5c46745f5 100644
+--- a/node/consensus/Cargo.toml
++++ b/node/consensus/Cargo.toml
+@@ -91,7 +91,7 @@ workspace = true
+ features = [ "macros", "rt-multi-thread", "signal" ]
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ 
+ [dev-dependencies.indexmap]
+ workspace = true
+@@ -103,4 +103,4 @@ version = "0.12"
+ version = "1.19"
+ 
+ [dev-dependencies.tracing-test]
+-version = "0.2"
++workspace = true
+diff --git a/node/rest/Cargo.toml b/node/rest/Cargo.toml
+index 3b6ea3e5e..c2fb4a6c3 100644
+--- a/node/rest/Cargo.toml
++++ b/node/rest/Cargo.toml
+@@ -104,7 +104,7 @@ version = "0.6"
+ features = [ "cors", "trace" ]
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ 
+ [dev-dependencies.base64]
+ workspace = true
+diff --git a/node/rest/src/routes.rs b/node/rest/src/routes.rs
+index bb76f4e9e..673926dd8 100644
+--- a/node/rest/src/routes.rs
++++ b/node/rest/src/routes.rs
+@@ -143,10 +143,11 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
+         let (cdn_sync, cdn_height) = if let Some(cdn_sync) = &rest.cdn_sync {
+             let done = cdn_sync.is_done();
+ 
+-            // do not show CDN height if we are already done syncing from the CDN
++            // Do not show CDN height if we are already done syncing from the CDN.
+             let cdn_height = if done { None } else { Some(cdn_sync.get_cdn_height().await?) };
+ 
+-            (done, cdn_height)
++            // Report CDN sync until it is finished.
++            (!done, cdn_height)
+         } else {
+             (false, None)
+         };
+diff --git a/node/router/Cargo.toml b/node/router/Cargo.toml
+index a093b162c..018b60688 100644
+--- a/node/router/Cargo.toml
++++ b/node/router/Cargo.toml
+@@ -99,14 +99,14 @@ features = [
+ ]
+ 
+ [dependencies.tokio-util]
+-version = "0.7"
++workspace = true
+ features = [ "codec" ]
+ 
+ [dependencies.tokio-stream]
+ version = "=0.1"
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ 
+ [dev-dependencies.deadline]
+ version = "0.2"
+@@ -139,5 +139,5 @@ workspace = true
+ features = [ "test-helpers" ]
+ 
+ [dev-dependencies.tracing-subscriber]
+-version = "0.3"
++workspace = true
+ features = [ "env-filter", "fmt" ]
+diff --git a/node/router/messages/Cargo.toml b/node/router/messages/Cargo.toml
+index 3dcb76367..824877bd6 100644
+--- a/node/router/messages/Cargo.toml
++++ b/node/router/messages/Cargo.toml
+@@ -38,11 +38,11 @@ version = "=3.8.0"
+ workspace = true
+ 
+ [dependencies.tokio-util]
+-version = "0.7"
++workspace = true
+ features = [ "codec" ]
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ 
+ [dev-dependencies.snarkos-node-sync-locators]
+ path = "../../sync/locators"
+diff --git a/node/src/client/mod.rs b/node/src/client/mod.rs
+index 194ad5e92..a6e8bf262 100644
+--- a/node/src/client/mod.rs
++++ b/node/src/client/mod.rs
+@@ -198,8 +198,10 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+         };
+ 
+         // Perform sync with CDN (if enabled).
+-        let cdn_sync = cdn.map(|base_url| Arc::new(CdnBlockSync::new(base_url, ledger.clone(), shutdown)));
+-
++        let cdn_sync = cdn.map(|base_url| {
++            trace!("CDN sync is enabled");
++            Arc::new(CdnBlockSync::new(base_url, ledger.clone(), shutdown))
++        });
+         // Initialize the REST server.
+         if let Some(rest_ip) = rest_ip {
+             node.rest = Some(
+@@ -207,7 +209,7 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+             );
+         }
+ 
+-        // Set up everythign else after CDN sync is done.
++        // Set up everything else after CDN sync is done.
+         if let Some(cdn_sync) = cdn_sync {
+             if let Err(error) = cdn_sync.wait().await {
+                 crate::log_clean_error(&storage_mode);
+diff --git a/node/sync/Cargo.toml b/node/sync/Cargo.toml
+index ea616a2d7..55a621181 100644
+--- a/node/sync/Cargo.toml
++++ b/node/sync/Cargo.toml
+@@ -83,7 +83,7 @@ version = "=3.8.0"
+ workspace = true
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+ 
+ [dev-dependencies.snarkos-node-bft-ledger-service]
+ path = "../bft/ledger-service"
+diff --git a/node/sync/locators/Cargo.toml b/node/sync/locators/Cargo.toml
+index 8ea10fa16..a754f9779 100644
+--- a/node/sync/locators/Cargo.toml
++++ b/node/sync/locators/Cargo.toml
+@@ -35,4 +35,4 @@ workspace = true
+ features = [ "console" ]
+ 
+ [dependencies.tracing]
+-version = "0.1"
++workspace = true
+diff --git a/node/tcp/Cargo.toml b/node/tcp/Cargo.toml
+index fd8cbd9bd..546628400 100644
+--- a/node/tcp/Cargo.toml
++++ b/node/tcp/Cargo.toml
+@@ -50,12 +50,11 @@ workspace = true
+ features = [ "io-util", "net", "parking_lot", "rt", "sync", "time" ]
+ 
+ [dependencies.tokio-util]
+-version = "0.7"
++workspace = true
+ features = [ "codec" ]
+ 
+ [dependencies.tracing]
+-version = "0.1"
+-default-features = false
++workspace = true
+ 
+ [dependencies.thiserror]
+ version = "2"

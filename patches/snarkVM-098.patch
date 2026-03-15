@@ -1,0 +1,72 @@
+diff --git a/console/program/src/data/identifier/parse.rs b/console/program/src/data/identifier/parse.rs
+index 94de468b2..4d2673dd1 100644
+--- a/console/program/src/data/identifier/parse.rs
++++ b/console/program/src/data/identifier/parse.rs
+@@ -52,6 +52,12 @@ impl<N: Network> FromStr for Identifier<N> {
+             bail!("Identifier is too large. Identifiers must be <= {max_bytes} bytes long")
+         }
+ 
++        // Ensure that the identifier is not a literal.
++        ensure!(
++            crate::LiteralType::from_str(identifier).is_err(),
++            "Identifier '{identifier}' is a reserved literal type"
++        );
++
+         // Note: The string bytes themselves are **not** little-endian. Rather, they are order-preserving
+         // for reconstructing the string when recovering the field element back into bytes.
+         Ok(Self(
+diff --git a/console/program/src/data_types/plaintext_type/parse.rs b/console/program/src/data_types/plaintext_type/parse.rs
+index 21474fc5e..d1a063401 100644
+--- a/console/program/src/data_types/plaintext_type/parse.rs
++++ b/console/program/src/data_types/plaintext_type/parse.rs
+@@ -21,8 +21,8 @@ impl<N: Network> Parser for PlaintextType<N> {
+         // Parse to determine the plaintext type (order matters).
+         alt((
+             map(ArrayType::parse, |type_| Self::Array(type_)),
+-            map(LiteralType::parse, |type_| Self::Literal(type_)),
+             map(Identifier::parse, |identifier| Self::Struct(identifier)),
++            map(LiteralType::parse, |type_| Self::Literal(type_)),
+         ))(string)
+     }
+ }
+@@ -86,6 +86,10 @@ mod tests {
+             PlaintextType::parse("foo"),
+             Ok(("", PlaintextType::<CurrentNetwork>::Struct(Identifier::from_str("foo")?)))
+         );
++        assert_eq!(
++            PlaintextType::parse("u8jdsklaj"),
++            Ok(("", PlaintextType::<CurrentNetwork>::Struct(Identifier::from_str("u8jdsklaj")?)))
++        );
+         assert_eq!(
+             PlaintextType::parse("[field; 1u32]"),
+             Ok(("", PlaintextType::<CurrentNetwork>::Array(ArrayType::from_str("[field; 1u32]")?)))
+diff --git a/console/program/src/data_types/register_type/parse.rs b/console/program/src/data_types/register_type/parse.rs
+index ec4bbcef5..9b70a48ec 100644
+--- a/console/program/src/data_types/register_type/parse.rs
++++ b/console/program/src/data_types/register_type/parse.rs
+@@ -88,6 +88,10 @@ mod tests {
+             Ok(("", RegisterType::<CurrentNetwork>::Plaintext(PlaintextType::from_str("signature")?))),
+             RegisterType::<CurrentNetwork>::parse("signature")
+         );
++        assert_eq!(
++            Ok(("", RegisterType::<CurrentNetwork>::Plaintext(PlaintextType::from_str("u8kldsafj")?))),
++            RegisterType::<CurrentNetwork>::parse("u8kldsafj")
++        );
+ 
+         // Record type.
+         assert_eq!(
+diff --git a/console/program/src/data_types/value_type/parse.rs b/console/program/src/data_types/value_type/parse.rs
+index a9198179d..6b98fd2b4 100644
+--- a/console/program/src/data_types/value_type/parse.rs
++++ b/console/program/src/data_types/value_type/parse.rs
+@@ -105,6 +105,10 @@ mod tests {
+             Ok(("", ValueType::<CurrentNetwork>::from_str("signature.private")?)),
+             ValueType::<CurrentNetwork>::parse("signature.private")
+         );
++        assert_eq!(
++            Ok(("", ValueType::<CurrentNetwork>::from_str("i8abc.constant")?)),
++            ValueType::<CurrentNetwork>::parse("i8abc.constant")
++        );
+ 
+         // Record type.
+         assert_eq!(

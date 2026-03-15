@@ -1,0 +1,65 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index aca21e157..2c50e684b 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -3617,6 +3617,7 @@ dependencies = [
+  "anyhow",
+  "bincode",
+  "colored",
++ "locktick",
+  "parking_lot",
+  "rayon",
+  "reqwest 0.11.27",
+diff --git a/node/bft/src/helpers/telemetry.rs b/node/bft/src/helpers/telemetry.rs
+index 333b1017b..11a9918d0 100644
+--- a/node/bft/src/helpers/telemetry.rs
++++ b/node/bft/src/helpers/telemetry.rs
+@@ -22,6 +22,9 @@ use snarkvm::{
+ };
+ 
+ use indexmap::{IndexMap, IndexSet};
++#[cfg(feature = "locktick")]
++use locktick::parking_lot::RwLock;
++#[cfg(not(feature = "locktick"))]
+ use parking_lot::RwLock;
+ use rayon::prelude::*;
+ use std::sync::Arc;
+diff --git a/node/cdn/Cargo.toml b/node/cdn/Cargo.toml
+index 1a86aced2..bbd489b28 100644
+--- a/node/cdn/Cargo.toml
++++ b/node/cdn/Cargo.toml
+@@ -18,7 +18,7 @@ edition = "2021"
+ 
+ [features]
+ default = [ "parallel" ]
+-locktick = [ "snarkvm/locktick" ]
++locktick = [ "dep:locktick", "snarkvm/locktick" ]
+ parallel = [ "rayon" ]
+ cuda = [ "snarkvm/cuda" ]
+ metrics = [ "dep:snarkos-node-metrics" ]
+@@ -32,6 +32,11 @@ version = "1.0"
+ [dependencies.colored]
+ version = "2"
+ 
++[dependencies.locktick]
++version = "0.3"
++features = [ "parking_lot" ]
++optional = true
++
+ [dependencies.parking_lot]
+ version = "0.12"
+ 
+diff --git a/node/cdn/src/blocks.rs b/node/cdn/src/blocks.rs
+index be373d6d5..d1a6455b8 100644
+--- a/node/cdn/src/blocks.rs
++++ b/node/cdn/src/blocks.rs
+@@ -29,6 +29,9 @@ use snarkvm::prelude::{
+ 
+ use anyhow::{Result, anyhow, bail};
+ use colored::Colorize;
++#[cfg(feature = "locktick")]
++use locktick::parking_lot::Mutex;
++#[cfg(not(feature = "locktick"))]
+ use parking_lot::Mutex;
+ use reqwest::Client;
+ use std::{

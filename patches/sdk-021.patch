@@ -1,0 +1,194 @@
+diff --git a/.github/workflows/staging-website.yml b/.github/workflows/staging-website.yml
+index 244b1b10..f81a1ff9 100644
+--- a/.github/workflows/staging-website.yml
++++ b/.github/workflows/staging-website.yml
+@@ -18,9 +18,9 @@ jobs:
+         uses: actions-rs/toolchain@v1
+         with:
+           profile: minimal
+-          toolchain: nightly
++          toolchain: nightly-2023-05-24
+           override: true
+-          components: rustfmt
++          components: rustfmt, rust-src
+ 
+       - uses: jetli/wasm-pack-action@v0.3.0
+         with:
+@@ -37,7 +37,7 @@ jobs:
+ 
+       - name: Install and Build
+         run: |
+-          rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
++          rustup component add rust-src
+           cd website
+           yarn install
+           yarn build
+diff --git a/.github/workflows/test-website.yml b/.github/workflows/test-website.yml
+index 4de9e3a0..7283522e 100644
+--- a/.github/workflows/test-website.yml
++++ b/.github/workflows/test-website.yml
+@@ -15,9 +15,9 @@ jobs:
+         uses: actions-rs/toolchain@v1
+         with:
+           profile: minimal
+-          toolchain: nightly
++          toolchain: nightly-2023-05-24
+           override: true
+-          components: rustfmt
++          components: rustfmt, rust-src
+ 
+       - uses: jetli/wasm-pack-action@v0.3.0
+         with:
+@@ -34,7 +34,7 @@ jobs:
+ 
+       - name: Install and Build
+         run: |
+-          rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
++          rustup component add rust-src
+           cd website
+           yarn install
+           yarn build
+diff --git a/.github/workflows/website.yml b/.github/workflows/website.yml
+index 3d4311b4..72e1c17e 100644
+--- a/.github/workflows/website.yml
++++ b/.github/workflows/website.yml
+@@ -18,9 +18,9 @@ jobs:
+         uses: actions-rs/toolchain@v1
+         with:
+           profile: minimal
+-          toolchain: nightly
++          toolchain: nightly-2023-05-24
+           override: true
+-          components: rustfmt
++          components: rustfmt, rust-src
+ 
+       - uses: jetli/wasm-pack-action@v0.3.0
+         with:
+@@ -37,7 +37,7 @@ jobs:
+ 
+       - name: Install and Build
+         run: |
+-          rustup component add rust-src --toolchain nightly-x86_64-unknown-linux-gnu
++          rustup component add rust-src
+           cd website
+           yarn install
+           yarn build
+diff --git a/Cargo.lock b/Cargo.lock
+index 722f94c5..7b20ec6d 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -795,18 +795,6 @@ dependencies = [
+  "instant",
+ ]
+ 
+-[[package]]
+-name = "filetime"
+-version = "0.2.21"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "5cbc844cecaee9d4443931972e1289c8ff485cb4cc2767cb03ca139ed6885153"
+-dependencies = [
+- "cfg-if",
+- "libc",
+- "redox_syscall 0.2.16",
+- "windows-sys 0.48.0",
+-]
+-
+ [[package]]
+ name = "flate2"
+ version = "1.0.26"
+@@ -2006,7 +1994,6 @@ dependencies = [
+  "reqwest",
+  "semver",
+  "serde_json",
+- "tar",
+  "tempfile",
+  "urlencoding",
+  "zip",
+@@ -2883,17 +2870,6 @@ dependencies = [
+  "unicode-xid",
+ ]
+ 
+-[[package]]
+-name = "tar"
+-version = "0.4.38"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "4b55807c0344e1e6c04d7c965f5289c39a8d94ae23ed5c0b57aabac549f871c6"
+-dependencies = [
+- "filetime",
+- "libc",
+- "xattr",
+-]
+-
+ [[package]]
+ name = "tempfile"
+ version = "3.5.0"
+@@ -3654,15 +3630,6 @@ dependencies = [
+  "winapi",
+ ]
+ 
+-[[package]]
+-name = "xattr"
+-version = "0.2.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "6d1526bbe5aaeb5eb06885f4d987bcdfa5e23187055de9b83fe00156a821fabc"
+-dependencies = [
+- "libc",
+-]
+-
+ [[package]]
+ name = "zip"
+ version = "0.6.6"
+diff --git a/Cargo.toml b/Cargo.toml
+index 5d0dd062..feb840a5 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -89,7 +89,7 @@ version = "7.2.0"
+ 
+ [dependencies.self_update]
+ version = "0.37"
+-features = [ "default", "archive-zip", "archive-tar"]
++features = [ "archive-zip" ]
+ 
+ [dependencies.serde]
+ version = "1"
+diff --git a/cli/helpers/updater.rs b/cli/helpers/updater.rs
+index 1d7548e9..498e0200 100644
+--- a/cli/helpers/updater.rs
++++ b/cli/helpers/updater.rs
+@@ -26,7 +26,7 @@ pub struct Updater;
+ // TODO Add logic for users to easily select release versions.
+ impl Updater {
+     const ALEO_BIN_NAME: &'static str = "aleo";
+-    const ALEO_REPO_NAME: &'static str = "aleo";
++    const ALEO_REPO_NAME: &'static str = "sdk";
+     const ALEO_REPO_OWNER: &'static str = "AleoHQ";
+ 
+     /// Show all available releases for `aleo`.
+diff --git a/website/package.json b/website/package.json
+index 461bec60..c7c843cb 100644
+--- a/website/package.json
++++ b/website/package.json
+@@ -30,7 +30,7 @@
+     "webpack-dev-server": "^4.7.4"
+   },
+   "scripts": {
+-    "preinstall": "cd ../wasm && export RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-arg=--max-memory=4294967296' && rustup run nightly wasm-pack build --release --target web --out-dir pkg-parallel -- --features \"parallel, browser\" --no-default-features -Z build-std=panic_abort,std",
++    "preinstall": "cd ../wasm && export RUSTFLAGS='-C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-arg=--max-memory=4294967296' && rustup run nightly-2023-05-24 wasm-pack build --release --target web --out-dir pkg-parallel -- --features \"parallel, browser\" --no-default-features -Z build-std=panic_abort,std",
+     "start": "webpack-dev-server",
+     "build": "webpack --config webpack.config.js",
+     "predeploy": "yarn build",
+diff --git a/website/src/tabs/develop/Execute.js b/website/src/tabs/develop/Execute.js
+index 77e1f603..ec3eb4f3 100644
+--- a/website/src/tabs/develop/Execute.js
++++ b/website/src/tabs/develop/Execute.js
+@@ -125,7 +125,9 @@ export const Execute = () => {
+ 
+         let functionInputs = []
+         try {
+-            functionInputs = inputs.split(" ");
++            if (!!inputs) {
++                functionInputs = inputs.split(" ");
++            }
+         } catch (e) {
+             setExecutionError("Inputs are not valid");
+             setLoading(false);

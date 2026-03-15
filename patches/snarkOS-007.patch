@@ -1,0 +1,2354 @@
+diff --git a/.ci/utils.sh b/.ci/utils.sh
+index 740a558af..fa323af02 100644
+--- a/.ci/utils.sh
++++ b/.ci/utils.sh
+@@ -75,7 +75,7 @@ function check_heights() {
+   fi
+ }
+ 
+-# Function checking that nodes created logs on disk and they contain no errors.
++# Function checking that nodes created logs on disk.
+ function check_logs() {
+   echo "Checking logs exist for all nodes..."
+   local log_dir=$1
+@@ -90,11 +90,6 @@ function check_logs() {
+       echo "❌ Test failed! Validator #${validator_index} did not create any logs in \"$log_dir\"."
+       return 1
+     fi
+-
+-    if grep -q "ERROR" "$log_dir/validator-${validator_index}.log"; then
+-      echo "❌ Test failed! Validator #${validator_index} logs contain errors."
+-      return 1
+-    fi
+   done
+ 
+   for ((client_index = 0; client_index < total_clients; client_index++)); do
+@@ -102,12 +97,6 @@ function check_logs() {
+       echo "❌ Test failed! Client #${client_index} did not create any logs in \"$log_dir\"."
+       return 1
+     fi
+-
+-    if grep -q "ERROR" "$log_dir/client-${client_index}.log"; then
+-      echo "❌ Test failed! Client #${client_index} logs contain errors."
+-      return 1
+-    fi
+- 
+   done
+ 
+   return 0
+diff --git a/Cargo.lock b/Cargo.lock
+index 4131f9b58..b6b97cb21 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -795,9 +795,9 @@ checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
+ 
+ [[package]]
+ name = "convert_case"
+-version = "0.7.1"
++version = "0.10.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "bb402b8d4c85569410425650ce3eddc7d698ed96d39a73f941b08fb63082f1e7"
++checksum = "633458d4ef8c78b72454de2d54fd6ab2e60f9e02be22f3c6104cdc8a4e0fceb9"
+ dependencies = [
+  "unicode-segmentation",
+ ]
+@@ -1165,22 +1165,23 @@ dependencies = [
+ 
+ [[package]]
+ name = "derive_more"
+-version = "2.0.1"
++version = "2.1.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "093242cf7570c207c83073cf82f79706fe7b8317e98620a47d5be7c3d8497678"
++checksum = "10b768e943bed7bf2cab53df09f4bc34bfd217cdb57d971e769874c9a6710618"
+ dependencies = [
+  "derive_more-impl",
+ ]
+ 
+ [[package]]
+ name = "derive_more-impl"
+-version = "2.0.1"
++version = "2.1.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "bda628edc44c4bb645fbe0f758797143e4e07926f7ebf4e9bdfbd3d2ce621df3"
++checksum = "6d286bfdaf75e988b4a78e013ecd79c581e06399ab53fbacd2d916c2f904f30b"
+ dependencies = [
+  "convert_case",
+  "proc-macro2",
+  "quote 1.0.42",
++ "rustc_version",
+  "syn 2.0.111",
+ ]
+ 
+@@ -2048,9 +2049,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "hyper-util"
+-version = "0.1.18"
++version = "0.1.19"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "52e9a2a24dc5c6821e71a7030e1e14b7b632acac55c40e9d2e082c621261bb56"
++checksum = "727805d60e7938b76b826a6ef209eb70eaa1812794f9424d4a4e2d740662df5f"
+ dependencies = [
+  "base64 0.22.1",
+  "bytes",
+@@ -2389,9 +2390,9 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
+ 
+ [[package]]
+ name = "libc"
+-version = "0.2.177"
++version = "0.2.178"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2874a2af47a2325c2001a6e6fad9b16a53b802102b528163885171cf92b15976"
++checksum = "37c93d8daa9d8a012fd8ab92f088405fb202ea0b6ab73ee2482ae66af4f42091"
+ 
+ [[package]]
+ name = "libgit2-sys"
+@@ -2511,9 +2512,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "log"
+-version = "0.4.28"
++version = "0.4.29"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "34080505efa8e45a4b816c349525ebe327ceaa8559756f0356cba97ef3bf7432"
++checksum = "5e5032e24019045c762d3c0f28f5b6b8bbf38563a65908389bf7978758920897"
+ 
+ [[package]]
+ name = "lru"
+@@ -2654,9 +2655,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "mio"
+-version = "1.1.0"
++version = "1.1.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "69d83b0086dc8ecf3ce9ae2874b2d1290252e2a30720bea58a5c6639b0092873"
++checksum = "a69bcab0ad47271a0234d9422b131806bf3968021e5dc9328caf2d4cd58557fc"
+ dependencies = [
+  "libc",
+  "log",
+@@ -4136,7 +4137,6 @@ dependencies = [
+  "snarkos-node-cdn",
+  "snarkos-node-metrics",
+  "snarkos-node-rest",
+- "snarkos-utilities",
+  "snarkvm",
+  "sys-info",
+  "tempfile",
+@@ -4157,7 +4157,6 @@ dependencies = [
+  "crossterm 0.29.0",
+  "ratatui",
+  "snarkos-node",
+- "snarkos-utilities",
+  "snarkvm",
+  "tokio",
+ ]
+@@ -4178,6 +4177,7 @@ dependencies = [
+  "locktick",
+  "lru 0.16.2",
+  "num_cpus",
++ "once_cell",
+  "parking_lot",
+  "paste",
+  "pea2pea",
+@@ -4194,7 +4194,6 @@ dependencies = [
+  "snarkos-node-router",
+  "snarkos-node-sync",
+  "snarkos-node-tcp",
+- "snarkos-utilities",
+  "snarkvm",
+  "time",
+  "tokio",
+@@ -4243,7 +4242,6 @@ dependencies = [
+  "snarkos-node-network",
+  "snarkos-node-sync",
+  "snarkos-node-tcp",
+- "snarkos-utilities",
+  "snarkvm",
+  "test-log",
+  "test-strategy 0.4.3",
+@@ -4286,7 +4284,6 @@ dependencies = [
+  "rand 0.8.5",
+  "rayon",
+  "snarkos-node-metrics",
+- "snarkos-utilities",
+  "snarkvm",
+  "tokio",
+  "tracing",
+@@ -4321,7 +4318,6 @@ dependencies = [
+  "serde",
+  "serde_json",
+  "snarkos-node-metrics",
+- "snarkos-utilities",
+  "snarkvm",
+  "tokio",
+  "tokio-test",
+@@ -4528,16 +4524,6 @@ dependencies = [
+  "tracing",
+ ]
+ 
+-[[package]]
+-name = "snarkos-utilities"
+-version = "4.2.1"
+-dependencies = [
+- "locktick",
+- "parking_lot",
+- "tokio",
+- "tracing",
+-]
+-
+ [[package]]
+ name = "snarkvm"
+ version = "4.4.0"
+diff --git a/Cargo.toml b/Cargo.toml
+index d0c3363ea..1c82514cc 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -37,8 +37,7 @@ members = [
+   "node/sync",
+   "node/sync/communication-service",
+   "node/sync/locators",
+-  "node/tcp",
+-  "utilities",
++  "node/tcp"
+ ]
+ 
+ [workspace.dependencies.aleo-std]
+@@ -250,10 +249,6 @@ version = "=4.4.0"
+ path = "node/tcp"
+ version = "=4.4.0"
+ 
+-[workspace.dependencies.snarkos-utilities]
+-path = "utilities"
+-version = "=4.2.1"
+-
+ [[bin]]
+ name = "snarkos"
+ path = "snarkos/main.rs"
+diff --git a/cli/Cargo.toml b/cli/Cargo.toml
+index 22c54809a..72da717c9 100644
+--- a/cli/Cargo.toml
++++ b/cli/Cargo.toml
+@@ -17,15 +17,12 @@ license = "Apache-2.0"
+ edition = "2024"
+ 
+ [features]
+-default = [ ]
+-async = [ ]
++async = []
+ locktick = [
+   "dep:locktick",
+-  "snarkos-display/locktick",
+   "snarkos-node/locktick",
+   "snarkos-node-cdn/locktick",
+   "snarkos-node-rest/locktick",
+-  "snarkos-utilities/locktick",
+   "snarkvm/locktick"
+ ]
+ metrics = [ "dep:snarkos-node-metrics", "snarkos-node/metrics" ]
+@@ -43,11 +40,7 @@ test_network = [
+   "test_consensus_heights",
+   "snarkvm/dev-print"
+ ]
+-serial = [
+-  "snarkvm/serial",
+-  "snarkos-node/serial",
+-  "snarkos-display/serial",
+-]
++serial = [ ]
+ tokio_console = [ "dep:console-subscriber", "tokio/tracing" ]
+ 
+ [dependencies.aleo-std]
+@@ -133,9 +126,6 @@ optional = true
+ [dependencies.snarkos-node-rest]
+ workspace = true
+ 
+-[dependencies.snarkos-utilities]
+-workspace = true
+-
+ [dependencies.snarkvm]
+ workspace = true
+ features = [ "parameters", "circuit", "package" ]
+diff --git a/cli/src/commands/developer/execute.rs b/cli/src/commands/developer/execute.rs
+index 0931fe3c0..4ae0e8910 100644
+--- a/cli/src/commands/developer/execute.rs
++++ b/cli/src/commands/developer/execute.rs
+@@ -155,11 +155,9 @@ impl Execute {
+                 let height = query.current_block_height().with_context(|| "Failed to retrieve current block height")?;
+                 let version = N::CONSENSUS_VERSION(height)?;
+                 debug!("At block height {height} and consensus {version:?}");
+-                let edition = Developer::get_latest_edition(&endpoint, &program_id)
+-                    .with_context(|| format!("Failed to get latest edition for program {program_id}"))?;
+ 
+                 // Load the program and it's imports into the process.
+-                load_program(&query, &mut vm.process().write(), &program_id, edition)?;
++                load_program(&query, &mut vm.process().write(), &program_id, &endpoint)?;
+             }
+ 
+             // Prepare the fee.
+@@ -239,10 +237,13 @@ fn load_program<N: Network>(
+     query: &Query<N, BlockMemory<N>>,
+     process: &mut Process<N>,
+     program_id: &ProgramID<N>,
+-    edition: u16,
++    endpoint: &Uri,
+ ) -> Result<()> {
+     // Fetch the program.
+     let program = query.get_program(program_id).with_context(|| "Failed to fetch program")?;
++    // Fetch the latest edition of the program.
++    let edition = Developer::get_latest_edition(endpoint, program_id)
++        .with_context(|| format!("Failed to get latest edition for program {program_id}"))?;
+ 
+     // Return early if the program is already loaded.
+     if process.contains_program(program.id()) {
+@@ -254,13 +255,14 @@ fn load_program<N: Network>(
+         // Add the imports to the process if does not exist yet.
+         if !process.contains_program(import_program_id) {
+             // Recursively load the program and its imports.
+-            load_program(query, process, import_program_id, edition)
++            load_program(query, process, import_program_id, endpoint)
+                 .with_context(|| format!("Failed to load imported program {import_program_id}"))?;
+         }
+     }
+ 
+     // Add the program to the process if it does not already exist.
+     if !process.contains_program(program.id()) {
++        debug!("Adding program {program_id} with edition {edition}");
+         process
+             .add_programs_with_editions(&[(program, edition)])
+             .with_context(|| format!("Failed to add program {program_id}"))?;
+diff --git a/cli/src/commands/developer/scan.rs b/cli/src/commands/developer/scan.rs
+index d51210ec1..13b999b5b 100644
+--- a/cli/src/commands/developer/scan.rs
++++ b/cli/src/commands/developer/scan.rs
+@@ -20,8 +20,6 @@ use crate::{
+ };
+ 
+ use snarkos_node_cdn::CDN_BASE_URL;
+-use snarkos_utilities::SimpleStoppable;
+-
+ use snarkvm::{
+     console::network::Network,
+     prelude::{Ciphertext, Field, Plaintext, PrivateKey, Record, ViewKey, block::Block},
+@@ -314,7 +312,7 @@ impl Scan {
+         let rt = tokio::runtime::Runtime::new()?;
+ 
+         // Create a placeholder shutdown flag.
+-        let _shutdown = SimpleStoppable::new();
++        let _shutdown = Default::default();
+ 
+         // Copy endpoint for background task.
+         let endpoint = endpoint.clone();
+diff --git a/cli/src/commands/start.rs b/cli/src/commands/start.rs
+index c35a9bcd7..55d34da83 100644
+--- a/cli/src/commands/start.rs
++++ b/cli/src/commands/start.rs
+@@ -24,8 +24,6 @@ use snarkos_node::{
+     rest::DEFAULT_REST_PORT,
+     router::DEFAULT_NODE_PORT,
+ };
+-use snarkos_utilities::SignalHandler;
+-
+ use snarkvm::{
+     console::{
+         account::{Address, PrivateKey},
+@@ -59,7 +57,7 @@ use std::{
+ };
+ use tokio::{
+     runtime::{self, Runtime},
+-    sync::mpsc,
++    sync::oneshot,
+     task,
+ };
+ use tracing::warn;
+@@ -269,7 +267,7 @@ pub struct Start {
+ }
+ 
+ impl Start {
+-    /// Starts the snarkOS node and blocks until it terminates.
++    /// Starts the snarkOS node.
+     pub fn parse(self) -> Result<String> {
+         // Prepare the shutdown flag.
+         let shutdown: Arc<AtomicBool> = Default::default();
+@@ -287,19 +285,57 @@ impl Start {
+         // Initialize the runtime.
+         Self::runtime().block_on(async move {
+             // Error messages.
+-            let node_parse_error = || "Failed to start node";
++            let node_parse_error = || "Failed to parse node arguments";
++            let display_start_error = || "Failed to initialize the display";
+ 
+-            // Clone the configurations.
+-            let mut self_ = self.clone();
++            let (shutdown_tx, shutdown_rx) = oneshot::channel();
+ 
+-            // Parse the node arguments, start it, and block until shutdown.
+-            match self_.network {
+-                MainnetV0::ID => self_.parse_node::<MainnetV0>(log_receiver).await.with_context(node_parse_error)?,
+-                TestnetV0::ID => self_.parse_node::<TestnetV0>(log_receiver).await.with_context(node_parse_error)?,
+-                CanaryV0::ID => self_.parse_node::<CanaryV0>(log_receiver).await.with_context(node_parse_error)?,
++            // Clone the configurations.
++            let mut cli = self.clone();
++            // Parse the network.
++            match cli.network {
++                MainnetV0::ID => {
++                    // Parse the node from the configurations.
++                    let node = cli
++                        .parse_node::<MainnetV0>(shutdown.clone(), shutdown_tx)
++                        .await
++                        .with_context(node_parse_error)?;
++                    // If the display is enabled, render the display.
++                    if !cli.nodisplay {
++                        // Initialize the display.
++                        Display::start(node, log_receiver).with_context(display_start_error)?;
++                    }
++                }
++                TestnetV0::ID => {
++                    // Parse the node from the configurations.
++                    let node = cli
++                        .parse_node::<TestnetV0>(shutdown.clone(), shutdown_tx)
++                        .await
++                        .with_context(node_parse_error)?;
++                    // If the display is enabled, render the display.
++                    if !cli.nodisplay {
++                        // Initialize the display.
++                        Display::start(node, log_receiver).with_context(display_start_error)?;
++                    }
++                }
++                CanaryV0::ID => {
++                    // Parse the node from the configurations.
++                    let node = cli
++                        .parse_node::<CanaryV0>(shutdown.clone(), shutdown_tx)
++                        .await
++                        .with_context(node_parse_error)?;
++                    // If the display is enabled, render the display.
++                    if !cli.nodisplay {
++                        // Initialize the display.
++                        Display::start(node, log_receiver).with_context(display_start_error)?;
++                    }
++                }
+                 _ => panic!("Invalid network ID specified"),
+             };
+ 
++            // Wait for the shutdown signal.
++            let _ = shutdown_rx.await;
++
+             Ok(String::new())
+         })
+     }
+@@ -564,9 +600,9 @@ impl Start {
+         }
+     }
+ 
+-    /// Start the node and blocks until it terminates.
++    /// Returns the node type corresponding to the given configurations.
+     #[rustfmt::skip]
+-    async fn parse_node<N: Network>(&mut self, log_receiver: mpsc::Receiver<Vec<u8>>) -> Result<()> {
++    async fn parse_node<N: Network>(&mut self, shutdown: Arc<AtomicBool>, shutdown_tx: oneshot::Sender<()>) -> Result<Node<N>> {
+         if !self.nobanner {
+             // Print the welcome banner.
+             println!("{}", crate::helpers::welcome_message());
+@@ -706,31 +742,24 @@ impl Start {
+             }
+         };
+ 
++
+         // TODO(kaimast): start the display earlier and show sync progress.
+         if !self.nodisplay && !self.nocdn {
+             println!("🪧 The terminal UI will not start until the node has finished syncing from the CDN. If this step takes too long, consider restarting with `--nodisplay`.");
+         }
+ 
+-        // Register the signal handler.
+-        let signal_handler = SignalHandler::new();
++        let shutdown_tx = Some(shutdown_tx);
+ 
+         // Initialize the node.
+-        let node = match node_type {
+-            NodeType::Validator => Node::new_validator(node_ip, self.bft, rest_ip, self.rest_rps, account, &trusted_peers, &trusted_validators, genesis, cdn, storage_mode, self.trusted_peers_only, dev_txs, self.dev, signal_handler.clone()).await,
+-            NodeType::Prover => Node::new_prover(node_ip, account, &trusted_peers, genesis, storage_mode, self.trusted_peers_only, self.dev, signal_handler.clone()).await,
+-            NodeType::Client => Node::new_client(node_ip, rest_ip, self.rest_rps, account, &trusted_peers, genesis, cdn, storage_mode, self.trusted_peers_only, self.dev, signal_handler.clone()).await,
++        match node_type {
++            NodeType::Validator => Node::new_validator(node_ip, self.bft, rest_ip, self.rest_rps, account, &trusted_peers, &trusted_validators, genesis, cdn, storage_mode, self.trusted_peers_only, dev_txs, self.dev, shutdown.clone(), shutdown_tx).await,
++            NodeType::Prover => Node::new_prover(node_ip, account, &trusted_peers, genesis, storage_mode, self.trusted_peers_only, self.dev, shutdown.clone(), shutdown_tx).await,
++            NodeType::Client => Node::new_client(node_ip, rest_ip, self.rest_rps, account, &trusted_peers, genesis, cdn, storage_mode, self.trusted_peers_only, self.dev, shutdown, shutdown_tx).await,
+             NodeType::BootstrapClient => Node::new_bootstrap_client(node_ip, account, *genesis.header(), self.dev).await,
+-        }?;
+-
+-        if !self.nodisplay {
+-            Display::start(node.clone(), log_receiver, signal_handler.clone()).with_context(|| "Failed to start the display")?;
+         }
+-
+-        node.wait_for_signals(&signal_handler).await;
+-        Ok(())
+     }
+ 
+-    /// Starts a rayon thread pool and tokio runtime for the node, and returns the tokio `Runtime`.
++    /// Returns a runtime for the node.
+     fn runtime() -> Runtime {
+         // Retrieve the number of cores.
+         let num_cores = num_cpus::get();
+@@ -741,16 +770,14 @@ impl Start {
+         let (num_tokio_worker_threads, max_tokio_blocking_threads, num_rayon_cores_global) =
+             (2 * num_cores, 512, num_cores);
+ 
+-        // Set up the rayon thread pool.
+-        // A custom panic handler is not needed here, as rayon propagates the panic to the calling thread by default (except for `rayon::spawn` which we do not use).
++        // Initialize the parallelization parameters.
+         rayon::ThreadPoolBuilder::new()
+             .stack_size(8 * 1024 * 1024)
+             .num_threads(num_rayon_cores_global)
+             .build_global()
+             .unwrap();
+ 
+-        // Set up the tokio Runtime.
+-        // TODO(kaimast): set up a panic handler here for each worker thread once [`tokio::runtime::Builder::unhandled_panic`](https://docs.rs/tokio/latest/tokio/runtime/struct.Builder.html#method.unhandled_panic) is stabilized.
++        // Initialize the runtime configuration.
+         runtime::Builder::new_multi_thread()
+             .enable_all()
+             .thread_stack_size(8 * 1024 * 1024)
+diff --git a/display/Cargo.toml b/display/Cargo.toml
+index ed9e7081f..551e18fef 100644
+--- a/display/Cargo.toml
++++ b/display/Cargo.toml
+@@ -16,11 +16,6 @@ categories = [ "cryptography", "cryptography::cryptocurrencies", "os" ]
+ license = "Apache-2.0"
+ edition = "2024"
+ 
+-[features]
+-default = [ ]
+-locktick = [ "snarkos-node/locktick", "snarkos-utilities/locktick" ]
+-serial = [ "snarkvm/serial" ]
+-
+ [dependencies.anyhow]
+ workspace = true
+ 
+@@ -33,9 +28,6 @@ version = "0.29"
+ [dependencies.snarkos-node]
+ workspace = true
+ 
+-[dependencies.snarkos-utilities]
+-workspace = true
+-
+ [dependencies.snarkvm]
+ workspace = true
+ 
+diff --git a/display/src/lib.rs b/display/src/lib.rs
+index e97be68ea..1a0305859 100644
+--- a/display/src/lib.rs
++++ b/display/src/lib.rs
+@@ -22,8 +22,6 @@ mod tabs;
+ use tabs::Tabs;
+ 
+ use snarkos_node::Node;
+-use snarkos_utilities::Stoppable;
+-
+ use snarkvm::prelude::Network;
+ 
+ use anyhow::Result;
+@@ -43,7 +41,6 @@ use ratatui::{
+ };
+ use std::{
+     io,
+-    sync::Arc,
+     thread,
+     time::{Duration, Instant},
+ };
+@@ -70,7 +67,7 @@ fn content_style() -> Style {
+ 
+ impl<N: Network> Display<N> {
+     /// Initializes a new display.
+-    pub fn start(node: Node<N>, log_receiver: Receiver<Vec<u8>>, stoppable: Arc<dyn Stoppable>) -> Result<()> {
++    pub fn start(node: Node<N>, log_receiver: Receiver<Vec<u8>>) -> Result<()> {
+         // Initialize the display.
+         enable_raw_mode()?;
+         let mut stdout = io::stdout();
+@@ -87,7 +84,7 @@ impl<N: Network> Display<N> {
+         };
+ 
+         // Render the display.
+-        let res = display.render(&mut terminal, stoppable);
++        let res = display.render(&mut terminal);
+ 
+         // Terminate the display.
+         disable_raw_mode()?;
+@@ -105,7 +102,7 @@ impl<N: Network> Display<N> {
+ 
+ impl<N: Network> Display<N> {
+     /// Renders the display.
+-    fn render<B: Backend>(&mut self, terminal: &mut Terminal<B>, stoppable: Arc<dyn Stoppable>) -> io::Result<()> {
++    fn render<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> io::Result<()> {
+         let mut last_tick = Instant::now();
+         loop {
+             terminal.draw(|f| self.draw(f))?;
+@@ -117,7 +114,11 @@ impl<N: Network> Display<N> {
+                 if let Event::Key(key) = event::read()? {
+                     match key.code {
+                         KeyCode::Esc => {
+-                            stoppable.stop();
++                            // // TODO (howardwu): @ljedrz to implement a wrapping scope for Display within Node/Server.
++                            // #[allow(unused_must_use)]
++                            // {
++                            //     self.node.shut_down();
++                            // }
+                             return Ok(());
+                         }
+                         KeyCode::Left => self.tabs.previous(),
+diff --git a/node/Cargo.toml b/node/Cargo.toml
+index 063755359..23b298eb5 100644
+--- a/node/Cargo.toml
++++ b/node/Cargo.toml
+@@ -17,7 +17,8 @@ license = "Apache-2.0"
+ edition = "2024"
+ 
+ [features]
+-default = [ ]
++default = [ "parallel" ]
++parallel = [ ] #TODO(kaimast): is this still used?
+ timer = [ "aleo-std/timer" ]
+ locktick = [
+   "dep:locktick",
+@@ -29,7 +30,6 @@ locktick = [
+   "snarkos-node-router/locktick",
+   "snarkos-node-sync/locktick",
+   "snarkos-node-tcp/locktick",
+-  "snarkos-utilities/locktick",
+   "snarkvm/locktick"
+ ]
+ metrics = [
+@@ -50,10 +50,7 @@ cuda = [
+   "snarkos-node-router/cuda",
+   "snarkos-node-sync/cuda"
+ ]
+-serial = [
+-  "snarkvm/serial",
+-  "snarkos-node-bft/serial"
+-]
++serial = [ "snarkos-node-bft/serial" ]
+ test = []
+ 
+ [dependencies.aleo-std]
+@@ -86,6 +83,9 @@ workspace = true
+ [dependencies.num_cpus]
+ workspace = true
+ 
++[dependencies.once_cell]
++workspace = true
++
+ [dependencies.parking_lot]
+ workspace = true
+ 
+@@ -130,9 +130,6 @@ workspace = true
+ [dependencies.snarkos-node-tcp]
+ workspace = true
+ 
+-[dependencies.snarkos-utilities]
+-workspace = true
+-
+ [dependencies.snarkvm]
+ workspace = true
+ 
+diff --git a/node/bft/Cargo.toml b/node/bft/Cargo.toml
+index 3ae7b8d5f..8e14863af 100644
+--- a/node/bft/Cargo.toml
++++ b/node/bft/Cargo.toml
+@@ -25,7 +25,6 @@ locktick = [
+   "snarkos-node-bft-storage-service/locktick",
+   "snarkos-node-sync/locktick",
+   "snarkos-node-tcp/locktick",
+-  "snarkos-utilities/locktick",
+   "snarkvm/locktick"
+ ]
+ metrics = [
+@@ -45,10 +44,7 @@ test = [
+   "snarkos-node-bft-ledger-service/test",
+   "snarkos-node-bft-storage-service/test"
+ ]
+-serial = [
+-  "snarkos-node-metrics/serial",
+-  "snarkos-node-bft-ledger-service/serial"
+-]
++serial = [ "snarkos-node-bft-ledger-service/serial" ]
+ 
+ [dependencies.aleo-std]
+ workspace = true
+@@ -124,9 +120,6 @@ workspace = true
+ [dependencies.snarkos-node-tcp]
+ workspace = true
+ 
+-[dependencies.snarkos-utilities]
+-workspace = true
+-
+ [dependencies.snarkvm]
+ workspace = true
+ features = [ "utilities" ]
+diff --git a/node/bft/events/src/challenge_request.rs b/node/bft/events/src/challenge_request.rs
+index a1d057930..1fb1e5423 100644
+--- a/node/bft/events/src/challenge_request.rs
++++ b/node/bft/events/src/challenge_request.rs
+@@ -60,18 +60,10 @@ impl<N: Network> FromBytes for ChallengeRequest<N> {
+         let listener_port = u16::read_le(&mut reader)?;
+         let address = Address::<N>::read_le(&mut reader)?;
+         let nonce = u64::read_le(&mut reader)?;
+-        let snarkos_sha = match <[u8; 40]>::read_le(&mut reader) {
+-            Ok(bytes) => {
+-                if bytes == Self::UNKNOWN_COMMIT_HASH {
+-                    None
+-                } else {
+-                    Some(bytes)
+-                }
+-            }
+-            Err(err) => {
+-                tracing::warn!("Invalid snarkOS SHA - {err}");
+-                None
+-            }
++        let snarkos_sha = {
++            let bytes =
++                <[u8; 40]>::read_le(&mut reader).map_err(|err| io_error(format!("Invalid snarkOS SHA - {err}")))?;
++            if bytes == Self::UNKNOWN_COMMIT_HASH { None } else { Some(bytes) }
+         };
+ 
+         Ok(Self { version, listener_port, address, nonce, snarkos_sha })
+diff --git a/node/bft/examples/simple_node.rs b/node/bft/examples/simple_node.rs
+index 99536287f..a39770d8e 100644
+--- a/node/bft/examples/simple_node.rs
++++ b/node/bft/examples/simple_node.rs
+@@ -19,6 +19,7 @@ extern crate tracing;
+ #[cfg(feature = "metrics")]
+ extern crate snarkos_node_metrics as metrics;
+ 
++use aleo_std::StorageMode;
+ use snarkos_account::Account;
+ use snarkos_node_bft::{
+     BFT,
+@@ -29,9 +30,6 @@ use snarkos_node_bft::{
+ use snarkos_node_bft_ledger_service::TranslucentLedgerService;
+ use snarkos_node_bft_storage_service::BFTMemoryService;
+ use snarkos_node_sync::BlockSync;
+-use snarkos_utilities::SimpleStoppable;
+-
+-use aleo_std::StorageMode;
+ use snarkvm::{
+     console::{account::PrivateKey, algorithms::BHP256, types::Address},
+     ledger::{
+@@ -66,7 +64,7 @@ use std::{
+     net::{IpAddr, Ipv4Addr, SocketAddr},
+     path::PathBuf,
+     str::FromStr,
+-    sync::{Arc, Mutex, OnceLock},
++    sync::{Arc, Mutex, OnceLock, atomic::AtomicBool},
+ };
+ use tokio::{net::TcpListener, sync::oneshot};
+ use tracing_subscriber::{
+@@ -235,7 +233,7 @@ fn create_ledger(
+     }
+     let mut rng = TestRng::default();
+     let gen_ledger = genesis_ledger(*gen_key, committee.clone(), balances.clone(), node_id, &mut rng);
+-    Arc::new(TranslucentLedgerService::new(gen_ledger, SimpleStoppable::new()))
++    Arc::new(TranslucentLedgerService::new(gen_ledger, Arc::new(AtomicBool::new(false))))
+ }
+ 
+ pub type CurrentLedger = Ledger<CurrentNetwork, ConsensusMemory<CurrentNetwork>>;
+diff --git a/node/bft/ledger-service/Cargo.toml b/node/bft/ledger-service/Cargo.toml
+index aa3febe6f..8bcb6ea3e 100644
+--- a/node/bft/ledger-service/Cargo.toml
++++ b/node/bft/ledger-service/Cargo.toml
+@@ -20,18 +20,12 @@ edition = "2024"
+ default = [ ]
+ ledger = [ "parking_lot", "rand", "rayon", "tokio", "tracing" ]
+ ledger-write = [ ]
+-locktick = [
+-  "dep:locktick",
+-  "snarkvm/locktick",
+-  "snarkos-utilities/locktick"
+-]
++locktick = [ "dep:locktick", "snarkvm/locktick" ]
+ metrics = [ "dep:snarkos-node-metrics", "snarkvm/metrics" ]
+ mock = [ "parking_lot", "tracing" ]
+ prover = [ ]
+ cuda = [ "snarkvm/cuda" ]
+-serial = [
+-  "snarkvm/serial"
+-]
++serial = [ ]
+ test = [ "mock", "translucent" ]
+ translucent = [ "ledger" ]
+ 
+@@ -54,9 +48,6 @@ optional = true
+ workspace = true
+ optional = true
+ 
+-[dependencies.snarkos-utilities]
+-workspace = true
+-
+ [dependencies.parking_lot]
+ workspace = true
+ optional = true
+diff --git a/node/bft/ledger-service/src/ledger.rs b/node/bft/ledger-service/src/ledger.rs
+index 95c63d662..09ff58632 100644
+--- a/node/bft/ledger-service/src/ledger.rs
++++ b/node/bft/ledger-service/src/ledger.rs
+@@ -14,9 +14,6 @@
+ // limitations under the License.
+ 
+ use crate::{LedgerService, fmt_id, spawn_blocking};
+-
+-use snarkos_utilities::Stoppable;
+-
+ use snarkvm::{
+     ledger::{
+         Ledger,
+@@ -52,20 +49,28 @@ use parking_lot::RwLock;
+ #[cfg(not(feature = "serial"))]
+ use rayon::prelude::*;
+ 
+-use std::{fmt, io::Read, ops::Range, sync::Arc};
++use std::{
++    fmt,
++    io::Read,
++    ops::Range,
++    sync::{
++        Arc,
++        atomic::{AtomicBool, Ordering},
++    },
++};
+ 
+ /// A core ledger service.
+ #[allow(clippy::type_complexity)]
+ pub struct CoreLedgerService<N: Network, C: ConsensusStorage<N>> {
+     ledger: Ledger<N, C>,
+     latest_leader: Arc<RwLock<Option<(u64, Address<N>)>>>,
+-    stoppable: Arc<dyn Stoppable>,
++    shutdown: Arc<AtomicBool>,
+ }
+ 
+ impl<N: Network, C: ConsensusStorage<N>> CoreLedgerService<N, C> {
+     /// Initializes a new core ledger service.
+-    pub fn new(ledger: Ledger<N, C>, stoppable: Arc<dyn Stoppable>) -> Self {
+-        Self { ledger, latest_leader: Default::default(), stoppable }
++    pub fn new(ledger: Ledger<N, C>, shutdown: Arc<AtomicBool>) -> Self {
++        Self { ledger, latest_leader: Default::default(), shutdown }
+     }
+ }
+ 
+@@ -355,7 +360,7 @@ impl<N: Network, C: ConsensusStorage<N>> LedgerService<N> for CoreLedgerService<
+     #[cfg(feature = "ledger-write")]
+     fn advance_to_next_block(&self, block: &Block<N>) -> Result<()> {
+         // If the Ctrl-C handler registered the signal, then skip advancing to the next block.
+-        if self.stoppable.is_stopped() {
++        if self.shutdown.load(Ordering::Acquire) {
+             bail!("Skipping advancing to block {} - The node is shutting down", block.height());
+         }
+         // Advance to the next block.
+diff --git a/node/bft/ledger-service/src/translucent.rs b/node/bft/ledger-service/src/translucent.rs
+index b4ffb988d..7c3a5fcd2 100644
+--- a/node/bft/ledger-service/src/translucent.rs
++++ b/node/bft/ledger-service/src/translucent.rs
+@@ -14,9 +14,8 @@
+ // limitations under the License.
+ 
+ use crate::{CoreLedgerService, LedgerService};
+-
+-use snarkos_utilities::Stoppable;
+-
++use async_trait::async_trait;
++use indexmap::IndexMap;
+ use snarkvm::{
+     ledger::{
+         Ledger,
+@@ -28,10 +27,11 @@ use snarkvm::{
+     },
+     prelude::{Address, ConsensusVersion, Field, Network, Result, narwhal::BatchCertificate},
+ };
+-
+-use async_trait::async_trait;
+-use indexmap::IndexMap;
+-use std::{fmt, ops::Range, sync::Arc};
++use std::{
++    fmt,
++    ops::Range,
++    sync::{Arc, atomic::AtomicBool},
++};
+ 
+ pub struct TranslucentLedgerService<N: Network, C: ConsensusStorage<N>> {
+     inner: CoreLedgerService<N, C>,
+@@ -46,8 +46,8 @@ impl<N: Network, C: ConsensusStorage<N>> fmt::Debug for TranslucentLedgerService
+ 
+ impl<N: Network, C: ConsensusStorage<N>> TranslucentLedgerService<N, C> {
+     /// Initializes a new ledger service wrapper.
+-    pub fn new(ledger: Ledger<N, C>, stoppable: Arc<dyn Stoppable>) -> Self {
+-        Self { inner: CoreLedgerService::new(ledger, stoppable) }
++    pub fn new(ledger: Ledger<N, C>, shutdown: Arc<AtomicBool>) -> Self {
++        Self { inner: CoreLedgerService::new(ledger, shutdown) }
+     }
+ }
+ 
+diff --git a/node/bft/src/gateway.rs b/node/bft/src/gateway.rs
+index 3f38f1d1f..945d9df5d 100644
+--- a/node/bft/src/gateway.rs
++++ b/node/bft/src/gateway.rs
+@@ -87,7 +87,7 @@ use std::{
+     io,
+     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+     sync::Arc,
+-    time::{Duration, Instant},
++    time::Duration,
+ };
+ use tokio::{
+     net::TcpStream,
+@@ -821,14 +821,12 @@ impl<N: Network> Gateway<N> {
+     fn initialize_heartbeat(&self) {
+         let self_clone = self.clone();
+         self.spawn(async move {
+-            let start = Instant::now();
+             // Sleep briefly to ensure the other nodes are ready to connect.
+             tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+             info!("Starting the heartbeat of the gateway...");
+             loop {
+                 // Process a heartbeat in the gateway.
+-                let uptime = start.elapsed();
+-                self_clone.heartbeat(uptime).await;
++                self_clone.heartbeat().await;
+                 // Sleep for the heartbeat interval.
+                 tokio::time::sleep(Duration::from_secs(15)).await;
+             }
+@@ -856,13 +854,10 @@ impl<N: Network> Gateway<N> {
+ }
+ 
+ impl<N: Network> Gateway<N> {
+-    /// The uptime after which nodes log a warning about missing validator connections.
+-    const MISSING_VALIDATOR_CONNECTIONS_GRACE_PERIOD: Duration = Duration::from_secs(60);
+-
+     /// Handles the heartbeat request.
+-    async fn heartbeat(&self, uptime: Duration) {
++    async fn heartbeat(&self) {
+         // Log the connected validators.
+-        self.log_connected_validators(uptime);
++        self.log_connected_validators();
+         // Log the validator participation scores.
+         #[cfg(feature = "telemetry")]
+         self.log_participation_scores();
+@@ -879,7 +874,7 @@ impl<N: Network> Gateway<N> {
+     }
+ 
+     /// Logs the connected validators.
+-    fn log_connected_validators(&self, uptime: Duration) {
++    fn log_connected_validators(&self) {
+         // Retrieve the connected validators and current committee.
+         let connected_validators = self.connected_peers();
+         let committee = match self.ledger.current_committee() {
+@@ -942,12 +937,7 @@ impl<N: Network> Gateway<N> {
+         }
+ 
+         if !committee.is_quorum_threshold_reached(&connected_validator_addresses) {
+-            // Not being connected to a quorum of validators is begning during startup.
+-            if uptime > Self::MISSING_VALIDATOR_CONNECTIONS_GRACE_PERIOD {
+-                error!("Not connected to a quorum of validators");
+-            } else {
+-                debug!("Not connected to a quorum of validators");
+-            }
++            error!("Not connected to a quorum of validators");
+         }
+     }
+ 
+diff --git a/node/bft/src/sync/mod.rs b/node/bft/src/sync/mod.rs
+index a8c097105..4d84da002 100644
+--- a/node/bft/src/sync/mod.rs
++++ b/node/bft/src/sync/mod.rs
+@@ -1020,7 +1020,6 @@ mod tests {
+ 
+     use snarkos_account::Account;
+     use snarkos_node_sync::BlockSync;
+-    use snarkos_utilities::SimpleStoppable;
+     use snarkvm::{
+         console::{
+             account::{Address, PrivateKey},
+@@ -1073,7 +1072,7 @@ mod tests {
+         let genesis_clone = genesis.clone();
+         let ledger = spawn_blocking!(CurrentLedger::load(genesis_clone, StorageMode::new_test(None))).unwrap();
+         // Initialize the ledger.
+-        let core_ledger = Arc::new(CoreLedgerService::new(ledger.clone(), SimpleStoppable::new()));
++        let core_ledger = Arc::new(CoreLedgerService::new(ledger.clone(), Default::default()));
+ 
+         // Sample 5 rounds of batch certificates starting at the genesis round from a static set of 4 authors.
+         let (round_to_certificates_map, committee) = {
+@@ -1253,10 +1252,10 @@ mod tests {
+         spawn_blocking!(ledger.advance_to_next_block(&block))?;
+ 
+         // Initialize the syncing ledger.
+-        let syncing_ledger = spawn_blocking!(CurrentLedger::load(genesis, StorageMode::Test(None))).unwrap();
+-        let syncing_ledger = Arc::new(CoreLedgerService::new(syncing_ledger, SimpleStoppable::new()));
+-
++        let syncing_ledger = spawn_blocking!(CurrentLedger::load(genesis, StorageMode::new_test(None))).unwrap();
++        let syncing_ledger = Arc::new(CoreLedgerService::new(syncing_ledger, Default::default()));
+         // Initialize the gateway.
++        let storage_mode = StorageMode::new_test(None);
+         let gateway = Gateway::new(
+             account.clone(),
+             storage.clone(),
+@@ -1264,7 +1263,7 @@ mod tests {
+             None,
+             &[],
+             false,
+-            StorageMode::new_test(None),
++            storage_mode,
+             None,
+         )?;
+         // Initialize the block synchronization logic.
+@@ -1316,7 +1315,7 @@ mod tests {
+         // Initialize the ledger with the genesis block.
+         let ledger = spawn_blocking!(CurrentLedger::load(genesis, StorageMode::new_test(None))).unwrap();
+         // Initialize the ledger.
+-        let core_ledger = Arc::new(CoreLedgerService::new(ledger.clone(), SimpleStoppable::new()));
++        let core_ledger = Arc::new(CoreLedgerService::new(ledger, Default::default()));
+         // Sample rounds of batch certificates starting at the genesis round from a static set of 4 authors.
+         let (round_to_certificates_map, committee) = {
+             // Initialize the committee.
+diff --git a/node/bft/tests/bft_e2e.rs b/node/bft/tests/bft_e2e.rs
+index c1e788a95..0b89aa7ff 100644
+--- a/node/bft/tests/bft_e2e.rs
++++ b/node/bft/tests/bft_e2e.rs
+@@ -156,6 +156,10 @@ async fn test_quorum_threshold() {
+     const TARGET_ROUND: u64 = 4;
+     let net = network.clone();
+     deadline!(Duration::from_secs(20), move || { net.is_round_reached(TARGET_ROUND) });
++
++    tokio::task::spawn_blocking(move || {
++        drop(network);
++    });
+ }
+ 
+ #[tokio::test(flavor = "multi_thread")]
+@@ -190,6 +194,10 @@ async fn test_quorum_break() {
+ 
+     // Check the nodes have stopped advancing through the rounds.
+     assert!(network.is_halted().await);
++
++    tokio::task::spawn_blocking(move || {
++        drop(network);
++    });
+ }
+ 
+ #[tokio::test(flavor = "multi_thread")]
+@@ -251,6 +259,10 @@ async fn test_leader_election_consistency() {
+         // Assert that all leaders are equal
+         assert!(leaders.iter().all_equal());
+     }
++
++    tokio::task::spawn_blocking(move || {
++        drop(network);
++    });
+ }
+ 
+ #[tokio::test(flavor = "multi_thread")]
+diff --git a/node/bft/tests/common/primary.rs b/node/bft/tests/common/primary.rs
+index 3e65ec77d..54dc04fd9 100644
+--- a/node/bft/tests/common/primary.rs
++++ b/node/bft/tests/common/primary.rs
+@@ -18,7 +18,6 @@ use crate::common::{
+     TranslucentLedgerService,
+     utils::{fire_unconfirmed_solutions, fire_unconfirmed_transactions, initialize_logger},
+ };
+-
+ use snarkos_account::Account;
+ use snarkos_node_bft::{
+     BFT,
+@@ -30,8 +29,6 @@ use snarkos_node_bft::{
+ use snarkos_node_bft_storage_service::BFTMemoryService;
+ use snarkos_node_network::PeerPoolHandling;
+ use snarkos_node_sync::BlockSync;
+-use snarkos_utilities::SimpleStoppable;
+-
+ use snarkvm::{
+     console::{
+         account::{Address, PrivateKey},
+@@ -163,7 +160,7 @@ impl TestNetwork {
+         for (id, account) in accounts.into_iter().enumerate() {
+             let gen_ledger =
+                 genesis_ledger(gen_key, committee.clone(), balances.clone(), bonded_balances.clone(), &mut rng);
+-            let ledger = Arc::new(TranslucentLedgerService::new(gen_ledger, SimpleStoppable::new()));
++            let ledger = Arc::new(TranslucentLedgerService::new(gen_ledger, Default::default()));
+             let storage = Storage::new(
+                 ledger.clone(),
+                 Arc::new(BFTMemoryService::new()),
+diff --git a/node/bft/tests/common/utils.rs b/node/bft/tests/common/utils.rs
+index c9ba1d2ae..27d527a38 100644
+--- a/node/bft/tests/common/utils.rs
++++ b/node/bft/tests/common/utils.rs
+@@ -22,9 +22,7 @@ use snarkos_node_bft::{
+     helpers::{PrimarySender, Storage},
+ };
+ 
+-use snarkos_node_bft::storage_service::BFTMemoryService;
+-use snarkos_utilities::SimpleStoppable;
+-
++use snarkos_node_bft_storage_service::BFTMemoryService;
+ use snarkvm::{
+     console::account::Address,
+     ledger::{
+@@ -204,7 +202,7 @@ pub fn sample_ledger(
+ 
+     let gen_ledger =
+         primary::genesis_ledger(gen_key, committee.clone(), balances.clone(), bonded_balances.clone(), rng);
+-    Arc::new(TranslucentLedgerService::new(gen_ledger, SimpleStoppable::new()))
++    Arc::new(TranslucentLedgerService::new(gen_ledger, Default::default()))
+ }
+ 
+ /// Samples a new storage with the given ledger.
+diff --git a/node/bft/tests/components/worker.rs b/node/bft/tests/components/worker.rs
+index aca874767..921aa8ae2 100644
+--- a/node/bft/tests/components/worker.rs
++++ b/node/bft/tests/components/worker.rs
+@@ -36,10 +36,11 @@ async fn test_resend_transmission_request() {
+     // Initialize the accounts and the committee.
+     let (accounts, committee) = new_test_committee(num_nodes, &mut rng);
+     // Sample a ledger.
+-    let ledger = {
+-        let accounts = accounts.clone();
+-        tokio::task::spawn_blocking(move || sample_ledger(&accounts, &committee, &mut rng)).await.unwrap()
+-    };
++    let accounts_ = accounts.clone();
++    let committee_ = committee.clone();
++    let ledger = tokio::task::spawn_blocking(move || {
++        sample_ledger(&accounts_, &committee_, &mut rng)
++    }).await.unwrap();
+     // Sample a worker.
+     let worker = sample_worker(0, accounts[0].clone(), ledger.clone());
+ 
+@@ -121,10 +122,11 @@ async fn test_flood_transmission_requests() {
+     // Initialize the accounts and the committee.
+     let (accounts, committee) = new_test_committee(num_nodes, &mut rng);
+     // Sample a ledger.
+-    let ledger = {
+-        let accounts = accounts.clone();
+-        tokio::task::spawn_blocking(move || sample_ledger(&accounts, &committee, &mut rng)).await.unwrap()
+-    };
++    let accounts_ = accounts.clone();
++    let committee_ = committee.clone();
++    let ledger = tokio::task::spawn_blocking(move || {
++        sample_ledger(&accounts_, &committee_, &mut rng)
++    }).await.unwrap();
+     // Sample a worker.
+     let worker = sample_worker(0, accounts[0].clone(), ledger.clone());
+ 
+diff --git a/node/bft/tests/narwhal_e2e.rs b/node/bft/tests/narwhal_e2e.rs
+index ea731fb70..8072f2592 100644
+--- a/node/bft/tests/narwhal_e2e.rs
++++ b/node/bft/tests/narwhal_e2e.rs
+@@ -108,6 +108,10 @@ async fn test_quorum_threshold() {
+     const TARGET_ROUND: u64 = 4;
+     let net = network.clone();
+     deadline!(Duration::from_secs(20), move || { net.is_round_reached(TARGET_ROUND) });
++
++    tokio::task::spawn_blocking(move || {
++        drop(network);
++    });
+ }
+ 
+ #[tokio::test(flavor = "multi_thread")]
+@@ -142,6 +146,10 @@ async fn test_quorum_break() {
+ 
+     // Check the nodes have stopped advancing through the rounds.
+     assert!(network.is_halted().await);
++
++    tokio::task::spawn_blocking(move || {
++        drop(network);
++    });
+ }
+ 
+ #[tokio::test(flavor = "multi_thread")]
+@@ -178,4 +186,8 @@ async fn test_storage_coherence() {
+     // check only up to 3 rounds before the the target round, because the network advances when
+     // quorum is reached, not when all the nodes have completed the round and received certificates.
+     assert!(network.is_certificate_round_coherent(1..TARGET_ROUND - 2));
++
++    tokio::task::spawn_blocking(move || {
++        drop(network);
++    });
+ }
+diff --git a/node/cdn/Cargo.toml b/node/cdn/Cargo.toml
+index 35ac5c8ff..1269103ed 100644
+--- a/node/cdn/Cargo.toml
++++ b/node/cdn/Cargo.toml
+@@ -17,17 +17,9 @@ license = "Apache-2.0"
+ edition = "2024"
+ 
+ [features]
+-default = [ ]
+-serial = [ 
+-  "snarkos-node-metrics/locktick",
+-  "snarkvm/serial",
+-]
+-locktick = [
+-  "dep:locktick",
+-  "snarkvm/locktick",
+-  "snarkos-node-metrics/locktick",
+-  "snarkos-utilities/locktick"
+-]
++default = [ "parallel" ]
++locktick = [ "dep:locktick", "snarkvm/locktick" ]
++parallel = [ "rayon" ]
+ cuda = [ "snarkvm/cuda" ]
+ metrics = [ "dep:snarkos-node-metrics" ]
+ 
+@@ -53,11 +45,9 @@ workspace = true
+ optional = true
+ features = [ "metrics" ]
+ 
+-[dependencies.snarkos-utilities]
+-workspace = true
+-
+ [dependencies.rayon]
+ workspace = true
++optional = true
+ 
+ [dependencies.reqwest]
+ version = "0.12"
+diff --git a/node/cdn/src/blocks.rs b/node/cdn/src/blocks.rs
+index b984ac744..4b489d195 100644
+--- a/node/cdn/src/blocks.rs
++++ b/node/cdn/src/blocks.rs
+@@ -17,8 +17,6 @@
+ // https://github.com/rust-lang/rust-clippy/issues/6446
+ #![allow(clippy::await_holding_lock)]
+ 
+-use snarkos_utilities::{SignalHandler, Stoppable};
+-
+ use snarkvm::prelude::{
+     Deserialize,
+     DeserializeOwned,
+@@ -89,11 +87,11 @@ impl CdnBlockSync {
+     pub fn new<N: Network, C: ConsensusStorage<N>>(
+         base_url: http::Uri,
+         ledger: Ledger<N, C>,
+-        stoppable: Arc<SignalHandler>,
++        shutdown: Arc<AtomicBool>,
+     ) -> Self {
+         let task = {
+             let base_url = base_url.clone();
+-            tokio::spawn(async move { Self::worker(base_url, ledger, stoppable).await })
++            tokio::spawn(async move { Self::worker(base_url, ledger, shutdown).await })
+         };
+ 
+         debug!("Started sync from CDN at {base_url}");
+@@ -121,13 +119,13 @@ impl CdnBlockSync {
+     async fn worker<N: Network, C: ConsensusStorage<N>>(
+         base_url: http::Uri,
+         ledger: Ledger<N, C>,
+-        stoppable: Arc<dyn Stoppable>,
++        shutdown: Arc<AtomicBool>,
+     ) -> SyncResult {
+         // Fetch the node height.
+         let start_height = ledger.latest_height() + 1;
+         // Load the blocks from the CDN into the ledger.
+         let ledger_clone = ledger.clone();
+-        let result = load_blocks(&base_url, start_height, None, stoppable, move |block: Block<N>| {
++        let result = load_blocks(&base_url, start_height, None, shutdown, move |block: Block<N>| {
+             ledger_clone.advance_to_next_block(&block)
+         })
+         .await;
+@@ -174,7 +172,7 @@ pub async fn load_blocks<N: Network>(
+     base_url: &http::Uri,
+     start_height: u32,
+     end_height: Option<u32>,
+-    stoppable: Arc<dyn Stoppable>,
++    shutdown: Arc<AtomicBool>,
+     process: impl FnMut(Block<N>) -> Result<()> + Clone + Send + Sync + 'static,
+ ) -> Result<u32, (u32, anyhow::Error)> {
+     // Create a Client to maintain a connection pool throughout the sync.
+@@ -227,19 +225,16 @@ pub async fn load_blocks<N: Network>(
+     // Spawn a background task responsible for concurrent downloads.
+     let pending_blocks_clone = pending_blocks.clone();
+     let base_url = base_url.to_owned();
+-
+-    {
+-        let stoppable = stoppable.clone();
+-        tokio::spawn(async move {
+-            download_block_bundles(client, &base_url, cdn_start, cdn_end, pending_blocks_clone, stoppable).await;
+-        });
+-    }
++    let shutdown_clone = shutdown.clone();
++    tokio::spawn(async move {
++        download_block_bundles(client, &base_url, cdn_start, cdn_end, pending_blocks_clone, shutdown_clone).await;
++    });
+ 
+     // A loop for inserting the pending blocks into the ledger.
+     let mut current_height = start_height.saturating_sub(1);
+     while current_height < end_height - 1 {
+         // If we are instructed to shut down, abort.
+-        if stoppable.is_stopped() {
++        if shutdown.load(Ordering::Acquire) {
+             info!("Stopping block sync at {} - shutting down", current_height);
+             // We can shut down cleanly from here, as the node hasn't been started yet.
+             std::process::exit(0);
+@@ -274,12 +269,12 @@ pub async fn load_blocks<N: Network>(
+ 
+         // Attempt to advance the ledger using the CDN block bundle.
+         let mut process_clone = process.clone();
+-        let stoppable_clone = stoppable.clone();
++        let shutdown_clone = shutdown.clone();
+         current_height = tokio::task::spawn_blocking(move || {
+             threadpool.install(|| {
+                 for block in next_blocks.into_iter().filter(|b| (start_height..end_height).contains(&b.height())) {
+                     // If we are instructed to shut down, abort.
+-                    if stoppable_clone.is_stopped() {
++                    if shutdown_clone.load(Ordering::Relaxed) {
+                         info!("Stopping block sync at {} - the node is shutting down", current_height);
+                         // We can shut down cleanly from here, as the node hasn't been started yet.
+                         std::process::exit(0);
+@@ -319,7 +314,7 @@ async fn download_block_bundles<N: Network>(
+     cdn_start: u32,
+     cdn_end: u32,
+     pending_blocks: Arc<TMutex<Vec<Block<N>>>>,
+-    stoppable: Arc<dyn Stoppable>,
++    shutdown: Arc<AtomicBool>,
+ ) {
+     // Keep track of the number of concurrent requests.
+     let active_requests: Arc<AtomicU32> = Default::default();
+@@ -327,7 +322,7 @@ async fn download_block_bundles<N: Network>(
+     let mut start = cdn_start;
+     while start < cdn_end - 1 {
+         // If we are instructed to shut down, stop downloading.
+-        if stoppable.is_stopped() {
++        if shutdown.load(Ordering::Acquire) {
+             break;
+         }
+ 
+@@ -361,7 +356,7 @@ async fn download_block_bundles<N: Network>(
+             let base_url_clone = base_url.clone();
+             let pending_blocks_clone = pending_blocks.clone();
+             let active_requests_clone = active_requests.clone();
+-            let stoppable_clone = stoppable.clone();
++            let shutdown_clone = shutdown.clone();
+             tokio::spawn(async move {
+                 // Increment the number of active requests.
+                 active_requests_clone.fetch_add(1, Ordering::Relaxed);
+@@ -397,7 +392,7 @@ async fn download_block_bundles<N: Network>(
+                             attempts += 1;
+                             if attempts > MAXIMUM_REQUEST_ATTEMPTS {
+                                 warn!("Maximum number of requests to {blocks_url} reached - shutting down...");
+-                                stoppable_clone.stop();
++                                shutdown_clone.store(true, Ordering::Relaxed);
+                                 break;
+                             }
+                             tokio::time::sleep(Duration::from_secs(attempts as u64 * 10)).await;
+@@ -558,10 +553,8 @@ fn log_progress<const OBJECTS_PER_FILE: u32>(
+ 
+ #[cfg(test)]
+ mod tests {
+-    use super::{BLOCKS_PER_FILE, CDN_BASE_URL, cdn_height, load_blocks, log_progress};
+-
+-    use snarkos_utilities::SimpleStoppable;
+-
++    use super::{BLOCKS_PER_FILE, CDN_BASE_URL, cdn_height, log_progress};
++    use crate::load_blocks;
+     use snarkvm::prelude::{MainnetV0, block::Block};
+ 
+     use http::Uri;
+@@ -583,7 +576,7 @@ mod tests {
+         let rt = tokio::runtime::Runtime::new().unwrap();
+         rt.block_on(async {
+             let completed_height =
+-                load_blocks(&testnet_cdn_url, start, end, SimpleStoppable::new(), process).await.unwrap();
++                load_blocks(&testnet_cdn_url, start, end, Default::default(), process).await.unwrap();
+             assert_eq!(blocks.read().len(), expected);
+             if expected > 0 {
+                 assert_eq!(blocks.read().last().unwrap().height(), completed_height);
+diff --git a/node/consensus/Cargo.toml b/node/consensus/Cargo.toml
+index 7d6b75a66..49753927f 100644
+--- a/node/consensus/Cargo.toml
++++ b/node/consensus/Cargo.toml
+@@ -28,11 +28,8 @@ locktick = [
+ metrics = [ "dep:snarkos-node-metrics" ]
+ telemetry = [ "snarkos-node-bft/telemetry" ]
+ cuda = [ "snarkvm/cuda", "snarkos-account/cuda", "snarkos-node-bft-ledger-service/cuda" ]
+-serial = [ 
+-  "snarkos-node-bft-ledger-service/serial",
+-  "snarkos-node-metrics/serial",
+-  "snarkvm/serial"
+-]
++serial = [ "snarkos-node-bft-ledger-service/serial" ]
++
+ 
+ [dependencies.aleo-std]
+ workspace = true
+diff --git a/node/metrics/Cargo.toml b/node/metrics/Cargo.toml
+index 3f89b6a61..1c72cf774 100644
+--- a/node/metrics/Cargo.toml
++++ b/node/metrics/Cargo.toml
+@@ -17,13 +17,10 @@ license = "Apache-2.0"
+ edition = "2024"
+ 
+ [features]
+-default = [ "metrics" ]
+-locktick = [ 
+-  "dep:locktick",
+-  "snarkvm/locktick"
+-]
++default = [ "rayon", "snarkvm/metrics" ]
++locktick = [ "dep:locktick", "snarkvm/locktick" ]
+ metrics = [ "snarkvm/metrics" ]
+-serial = [ "snarkvm/serial" ]
++serial = [ ]
+ 
+ [dependencies.locktick]
+ workspace = true
+@@ -38,6 +35,7 @@ workspace = true
+ 
+ [dependencies.rayon]
+ workspace = true
++optional = true
+ 
+ [dependencies.snarkvm]
+ workspace = true
+diff --git a/node/router/Cargo.toml b/node/router/Cargo.toml
+index a5e91536f..8dda700f9 100644
+--- a/node/router/Cargo.toml
++++ b/node/router/Cargo.toml
+@@ -18,12 +18,7 @@ edition = "2024"
+ 
+ [features]
+ test = [ ]
+-locktick = [
+-  "dep:locktick",
+-  "snarkos-node-tcp/locktick",
+-  "snarkvm/locktick",
+-  "snarkos-node-network/locktick"
+-]
++locktick = [ "dep:locktick", "snarkos-node-tcp/locktick", "snarkvm/locktick" ]
+ metrics = [ "dep:snarkos-node-metrics" ]
+ cuda = [ "snarkvm/cuda", "snarkos-account/cuda" ]
+ serial = [ "snarkos-node-bft-ledger-service/serial" ]
+diff --git a/node/router/messages/src/challenge_request.rs b/node/router/messages/src/challenge_request.rs
+index 9cb842103..6e038a66e 100644
+--- a/node/router/messages/src/challenge_request.rs
++++ b/node/router/messages/src/challenge_request.rs
+@@ -16,7 +16,7 @@
+ use super::*;
+ 
+ use snarkos_node_network::NodeType;
+-use snarkvm::prelude::{FromBytes, ToBytes};
++use snarkvm::prelude::{FromBytes, ToBytes, io_error};
+ 
+ use std::borrow::Cow;
+ 
+@@ -59,18 +59,10 @@ impl<N: Network> FromBytes for ChallengeRequest<N> {
+         let address = Address::<N>::read_le(&mut reader)?;
+         let nonce = u64::read_le(&mut reader)?;
+ 
+-        let snarkos_sha = match <[u8; 40]>::read_le(&mut reader) {
+-            Ok(bytes) => {
+-                if bytes == Self::UNKNOWN_COMMIT_HASH {
+-                    None
+-                } else {
+-                    Some(bytes)
+-                }
+-            }
+-            Err(err) => {
+-                tracing::warn!("Invalid snarkOS SHA - {err}");
+-                None
+-            }
++        let snarkos_sha = {
++            let bytes =
++                <[u8; 40]>::read_le(&mut reader).map_err(|err| io_error(format!("Invalid snarkOS SHA - {err}")))?;
++            if bytes == Self::UNKNOWN_COMMIT_HASH { None } else { Some(bytes) }
+         };
+ 
+         Ok(Self { version, listener_port, node_type, address, nonce, snarkos_sha })
+diff --git a/node/src/bootstrap_client/mod.rs b/node/src/bootstrap_client/mod.rs
+index cca28578f..e594475d3 100644
+--- a/node/src/bootstrap_client/mod.rs
++++ b/node/src/bootstrap_client/mod.rs
+@@ -21,7 +21,6 @@ use crate::tcp::{self, Tcp};
+ use snarkos_account::Account;
+ use snarkos_node_network::{ConnectionMode, Peer, Resolver};
+ use snarkos_node_tcp::{P2P, protocols::*};
+-use snarkos_utilities::SignalHandler;
+ use snarkvm::{
+     ledger::committee::Committee,
+     prelude::{Address, Field, Header, Network, PrivateKey, ViewKey},
+@@ -231,12 +230,4 @@ impl<N: Network> BootstrapClient<N> {
+             let _ = shutdown_tx.send(());
+         }
+     }
+-
+-    /// Blocks until a shutdown signal was received or manual shutdown was triggered.
+-    pub async fn wait_for_signals(&self, handler: &SignalHandler) {
+-        handler.wait_for_signals().await;
+-
+-        // If the node is already initialized, then shut it down.
+-        self.shut_down().await;
+-    }
+ }
+diff --git a/node/src/client/mod.rs b/node/src/client/mod.rs
+index 2ce274da8..80c87a8df 100644
+--- a/node/src/client/mod.rs
++++ b/node/src/client/mod.rs
+@@ -15,13 +15,11 @@
+ 
+ mod router;
+ 
+-use crate::{
+-    bft::{events::DataBlocks, helpers::fmt_id, ledger_service::CoreLedgerService, spawn_blocking},
+-    cdn::CdnBlockSync,
+-    traits::NodeInterface,
+-};
++use crate::traits::NodeInterface;
+ 
+ use snarkos_account::Account;
++use snarkos_node_bft::{events::DataBlocks, helpers::fmt_id, ledger_service::CoreLedgerService, spawn_blocking};
++use snarkos_node_cdn::CdnBlockSync;
+ use snarkos_node_network::NodeType;
+ use snarkos_node_rest::Rest;
+ use snarkos_node_router::{
+@@ -37,8 +35,6 @@ use snarkos_node_tcp::{
+     P2P,
+     protocols::{Disconnect, Handshake, OnConnect, Reading},
+ };
+-use snarkos_utilities::{SignalHandler, Stoppable};
+-
+ use snarkvm::{
+     console::network::Network,
+     ledger::{
+@@ -66,6 +62,7 @@ use std::{
+     sync::{
+         Arc,
+         atomic::{
++            AtomicBool,
+             AtomicUsize,
+             Ordering::{Acquire, Relaxed},
+         },
+@@ -73,6 +70,7 @@ use std::{
+     time::Duration,
+ };
+ use tokio::{
++    sync::oneshot,
+     task::JoinHandle,
+     time::{sleep, timeout},
+ };
+@@ -126,10 +124,10 @@ pub struct Client<N: Network, C: ConsensusStorage<N>> {
+     num_verifying_executions: Arc<AtomicUsize>,
+     /// The spawned handles.
+     handles: Arc<Mutex<Vec<JoinHandle<()>>>>,
++    /// The shutdown signal.
++    shutdown: Arc<AtomicBool>,
+     /// Keeps track of sending pings.
+     ping: Arc<Ping<N>>,
+-    /// The signal handling logic.
+-    signal_handler: Arc<SignalHandler>,
+ }
+ 
+ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+@@ -145,8 +143,12 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+         storage_mode: StorageMode,
+         trusted_peers_only: bool,
+         dev: Option<u16>,
+-        signal_handler: Arc<SignalHandler>,
++        shutdown: Arc<AtomicBool>,
++        shutdown_tx: Option<oneshot::Sender<()>>,
+     ) -> Result<Self> {
++        // Initialize the signal handler.
++        let signal_node = Self::handle_signals(shutdown.clone(), shutdown_tx);
++
+         // Initialize the ledger.
+         let ledger = {
+             let storage_mode = storage_mode.clone();
+@@ -157,7 +159,8 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+         .with_context(|| "Failed to initialize the ledger")?;
+ 
+         // Initialize the ledger service.
+-        let ledger_service = Arc::new(CoreLedgerService::<N, C>::new(ledger.clone(), signal_handler.clone()));
++        let ledger_service = Arc::new(CoreLedgerService::<N, C>::new(ledger.clone(), shutdown.clone()));
++
+         // Initialize the node router.
+         let router = Router::new(
+             node_ip,
+@@ -195,13 +198,13 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+             num_verifying_deploys: Default::default(),
+             num_verifying_executions: Default::default(),
+             handles: Default::default(),
+-            signal_handler: signal_handler.clone(),
++            shutdown: shutdown.clone(),
+         };
+ 
+         // Perform sync with CDN (if enabled).
+         let cdn_sync = cdn.map(|base_url| {
+             trace!("CDN sync is enabled");
+-            Arc::new(CdnBlockSync::new(base_url, ledger.clone(), signal_handler))
++            Arc::new(CdnBlockSync::new(base_url, ledger.clone(), shutdown))
+         });
+ 
+         // Initialize the REST server.
+@@ -233,6 +236,8 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+         node.initialize_execute_verification();
+         // Initialize the notification message loop.
+         node.handles.lock().push(crate::start_notification_message_loop());
++        // Pass the node to the signal handler.
++        let _ = signal_node.set(node.clone());
+         // Return the node.
+         Ok(node)
+     }
+@@ -264,9 +269,11 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+         // Start the block request generation loop (outgoing).
+         let self_ = self.clone();
+         self.spawn(async move {
+-            while !self_.signal_handler.is_stopped() {
++            while !self_.shutdown.load(std::sync::atomic::Ordering::Acquire) {
+                 // Perform the sync routine.
+                 self_.try_issuing_block_requests().await;
++
++                // Rate limiting happens in [`Self::send_block_requests`] and no additional sleeps are needed here
+             }
+ 
+             info!("Stopped block request generation");
+@@ -275,7 +282,7 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+         // Start the block response processing loop (incoming).
+         let self_ = self.clone();
+         self.spawn(async move {
+-            while !self_.signal_handler.is_stopped() {
++            while !self_.shutdown.load(std::sync::atomic::Ordering::Acquire) {
+                 // Wait until there is something to do or until the timeout.
+                 let _ = timeout(Self::MAX_SYNC_INTERVAL, self_.sync.wait_for_block_responses()).await;
+ 
+@@ -388,7 +395,7 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+         self.spawn(async move {
+             loop {
+                 // If the Ctrl-C handler registered the signal, stop the node.
+-                if node.signal_handler.is_stopped() {
++                if node.shutdown.load(Acquire) {
+                     info!("Shutting down solution verification");
+                     break;
+                 }
+@@ -462,7 +469,7 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+         self.spawn(async move {
+             loop {
+                 // If the Ctrl-C handler registered the signal, stop the node.
+-                if node.signal_handler.is_stopped() {
++                if node.shutdown.load(Acquire) {
+                     info!("Shutting down deployment verification");
+                     break;
+                 }
+@@ -530,7 +537,7 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+         self.spawn(async move {
+             loop {
+                 // If the Ctrl-C handler registered the signal, stop the node.
+-                if node.signal_handler.is_stopped() {
++                if node.shutdown.load(Acquire) {
+                     info!("Shutting down execution verification");
+                     break;
+                 }
+@@ -608,6 +615,7 @@ impl<N: Network, C: ConsensusStorage<N>> NodeInterface<N> for Client<N, C> {
+ 
+         // Shut down the node.
+         trace!("Shutting down the node...");
++        self.shutdown.store(true, std::sync::atomic::Ordering::Release);
+ 
+         // Abort the tasks.
+         trace!("Shutting down the client...");
+diff --git a/node/src/node.rs b/node/src/node.rs
+index 93ffeb645..14e10f0f7 100644
+--- a/node/src/node.rs
++++ b/node/src/node.rs
+@@ -13,19 +13,10 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-use crate::{
+-    BootstrapClient,
+-    Client,
+-    Prover,
+-    Validator,
+-    network::{NodeType, Peer, PeerPoolHandling},
+-    router::Outbound,
+-    traits::NodeInterface,
+-};
+-
++use crate::{BootstrapClient, Client, Prover, Validator, traits::NodeInterface};
+ use snarkos_account::Account;
+-use snarkos_utilities::SignalHandler;
+-
++use snarkos_node_network::{NodeType, Peer, PeerPoolHandling};
++use snarkos_node_router::Outbound;
+ use snarkvm::prelude::{
+     Address,
+     Header,
+@@ -39,12 +30,16 @@ use snarkvm::prelude::{
+ 
+ use aleo_std::StorageMode;
+ use anyhow::Result;
+-
+ #[cfg(feature = "locktick")]
+ use locktick::parking_lot::RwLock;
+ #[cfg(not(feature = "locktick"))]
+ use parking_lot::RwLock;
+-use std::{collections::HashMap, net::SocketAddr, sync::Arc};
++use std::{
++    collections::HashMap,
++    net::SocketAddr,
++    sync::{Arc, atomic::AtomicBool},
++};
++use tokio::sync::oneshot;
+ 
+ #[derive(Clone)]
+ pub enum Node<N: Network> {
+@@ -74,7 +69,8 @@ impl<N: Network> Node<N> {
+         trusted_peers_only: bool,
+         dev_txs: bool,
+         dev: Option<u16>,
+-        signal_handler: Arc<SignalHandler>,
++        shutdown: Arc<AtomicBool>,
++        shutdown_tx: Option<oneshot::Sender<()>>,
+     ) -> Result<Self> {
+         Ok(Self::Validator(Arc::new(
+             Validator::new(
+@@ -91,7 +87,8 @@ impl<N: Network> Node<N> {
+                 trusted_peers_only,
+                 dev_txs,
+                 dev,
+-                signal_handler,
++                shutdown,
++                shutdown_tx,
+             )
+             .await?,
+         )))
+@@ -106,7 +103,8 @@ impl<N: Network> Node<N> {
+         storage_mode: StorageMode,
+         trusted_peers_only: bool,
+         dev: Option<u16>,
+-        signal_handler: Arc<SignalHandler>,
++        shutdown: Arc<AtomicBool>,
++        shutdown_tx: Option<oneshot::Sender<()>>,
+     ) -> Result<Self> {
+         Ok(Self::Prover(Arc::new(
+             Prover::new(
+@@ -117,7 +115,8 @@ impl<N: Network> Node<N> {
+                 storage_mode,
+                 trusted_peers_only,
+                 dev,
+-                signal_handler,
++                shutdown,
++                shutdown_tx,
+             )
+             .await?,
+         )))
+@@ -135,7 +134,8 @@ impl<N: Network> Node<N> {
+         storage_mode: StorageMode,
+         trusted_peers_only: bool,
+         dev: Option<u16>,
+-        signal_handler: Arc<SignalHandler>,
++        shutdown: Arc<AtomicBool>,
++        shutdown_tx: Option<oneshot::Sender<()>>,
+     ) -> Result<Self> {
+         Ok(Self::Client(Arc::new(
+             Client::new(
+@@ -149,7 +149,8 @@ impl<N: Network> Node<N> {
+                 storage_mode,
+                 trusted_peers_only,
+                 dev,
+-                signal_handler,
++                shutdown,
++                shutdown_tx,
+             )
+             .await?,
+         )))
+@@ -276,14 +277,4 @@ impl<N: Network> Node<N> {
+             Self::BootstrapClient(node) => node.shut_down().await,
+         }
+     }
+-
+-    /// Waits until the node receives a signal.
+-    pub async fn wait_for_signals(&self, signal_handler: &SignalHandler) {
+-        match self {
+-            Self::Validator(node) => node.wait_for_signals(signal_handler).await,
+-            Self::Prover(node) => node.wait_for_signals(signal_handler).await,
+-            Self::Client(node) => node.wait_for_signals(signal_handler).await,
+-            Self::BootstrapClient(node) => node.wait_for_signals(signal_handler).await,
+-        }
+-    }
+ }
+diff --git a/node/src/prover/mod.rs b/node/src/prover/mod.rs
+index 5cedb19ae..433734ef8 100644
+--- a/node/src/prover/mod.rs
++++ b/node/src/prover/mod.rs
+@@ -15,15 +15,10 @@
+ 
+ mod router;
+ 
+-use crate::{
+-    bft::ledger_service::ProverLedgerService,
+-    sync::{BlockSync, Ping},
+-    traits::NodeInterface,
+-};
+-
++use crate::traits::NodeInterface;
+ use snarkos_account::Account;
++use snarkos_node_bft::ledger_service::ProverLedgerService;
+ use snarkos_node_network::{NodeType, PeerPoolHandling};
+-
+ use snarkos_node_router::{
+     Heartbeat,
+     Inbound,
+@@ -32,12 +27,11 @@ use snarkos_node_router::{
+     Routing,
+     messages::{Message, UnconfirmedSolution},
+ };
++use snarkos_node_sync::{BlockSync, Ping};
+ use snarkos_node_tcp::{
+     P2P,
+     protocols::{Disconnect, Handshake, OnConnect, Reading},
+ };
+-use snarkos_utilities::{SignalHandler, Stoppable};
+-
+ use snarkvm::{
+     ledger::narwhal::Data,
+     prelude::{
+@@ -63,10 +57,10 @@ use std::{
+     net::SocketAddr,
+     sync::{
+         Arc,
+-        atomic::{AtomicU8, Ordering},
++        atomic::{AtomicBool, AtomicU8, Ordering},
+     },
+ };
+-use tokio::task::JoinHandle;
++use tokio::{sync::oneshot, task::JoinHandle};
+ 
+ /// A prover is a light node, capable of producing proofs for consensus.
+ #[derive(Clone)]
+@@ -89,10 +83,10 @@ pub struct Prover<N: Network, C: ConsensusStorage<N>> {
+     max_puzzle_instances: u8,
+     /// The spawned handles.
+     handles: Arc<Mutex<Vec<JoinHandle<()>>>>,
++    /// The shutdown signal.
++    shutdown: Arc<AtomicBool>,
+     /// Keeps track of sending pings.
+     ping: Arc<Ping<N>>,
+-    /// The signal handling logic.
+-    signal_handler: Arc<SignalHandler>,
+     /// PhantomData.
+     _phantom: PhantomData<C>,
+ }
+@@ -107,8 +101,12 @@ impl<N: Network, C: ConsensusStorage<N>> Prover<N, C> {
+         storage_mode: StorageMode,
+         trusted_peers_only: bool,
+         dev: Option<u16>,
+-        signal_handler: Arc<SignalHandler>,
++        shutdown: Arc<AtomicBool>,
++        shutdown_tx: Option<oneshot::Sender<()>>,
+     ) -> Result<Self> {
++        // Initialize the signal handler.
++        let signal_node = Self::handle_signals(shutdown.clone(), shutdown_tx);
++
+         // Initialize the ledger service.
+         let ledger_service = Arc::new(ProverLedgerService::new());
+ 
+@@ -146,7 +144,7 @@ impl<N: Network, C: ConsensusStorage<N>> Prover<N, C> {
+             max_puzzle_instances: u8::try_from(max_puzzle_instances)?,
+             handles: Default::default(),
+             ping,
+-            signal_handler,
++            shutdown,
+             _phantom: Default::default(),
+         };
+         // Initialize the routing.
+@@ -155,7 +153,8 @@ impl<N: Network, C: ConsensusStorage<N>> Prover<N, C> {
+         node.initialize_puzzle().await;
+         // Initialize the notification message loop.
+         node.handles.lock().push(crate::start_notification_message_loop());
+-
++        // Pass the node to the signal handler.
++        let _ = signal_node.set(node.clone());
+         // Return the node.
+         Ok(node)
+     }
+@@ -173,6 +172,7 @@ impl<N: Network, C: ConsensusStorage<N>> NodeInterface<N> for Prover<N, C> {
+ 
+         // Shut down the puzzle.
+         debug!("Shutting down the puzzle...");
++        self.shutdown.store(true, Ordering::Release);
+ 
+         // Abort the tasks.
+         debug!("Shutting down the prover...");
+@@ -243,7 +243,7 @@ impl<N: Network, C: ConsensusStorage<N>> Prover<N, C> {
+             }
+ 
+             // If the Ctrl-C handler registered the signal, stop the prover.
+-            if self.signal_handler.is_stopped() {
++            if self.shutdown.load(Ordering::Acquire) {
+                 debug!("Shutting down the puzzle...");
+                 break;
+             }
+diff --git a/node/src/traits.rs b/node/src/traits.rs
+index dd7a4155d..735b37d0d 100644
+--- a/node/src/traits.rs
++++ b/node/src/traits.rs
+@@ -15,11 +15,20 @@
+ 
+ use snarkos_node_network::{NodeType, PeerPoolHandling};
+ use snarkos_node_router::Routing;
+-
+-use snarkos_utilities::SignalHandler;
+-
+ use snarkvm::prelude::{Address, Network, PrivateKey, ViewKey};
+ 
++use once_cell::sync::OnceCell;
++use std::{
++    future::Future,
++    io,
++    sync::{
++        Arc,
++        atomic::{AtomicBool, Ordering},
++    },
++    time::Duration,
++};
++use tokio::sync::oneshot;
++
+ #[async_trait]
+ pub trait NodeInterface<N: Network>: Routing<N> {
+     /// Returns the node type.
+@@ -47,12 +56,69 @@ pub trait NodeInterface<N: Network>: Routing<N> {
+         self.router().is_dev()
+     }
+ 
+-    /// Blocks until a shutdown signal was received or manual shutdown was triggered.
+-    async fn wait_for_signals(&self, handler: &SignalHandler) {
+-        handler.wait_for_signals().await;
++    /// Handles OS signals for the node to intercept and perform a clean shutdown.
++    /// The optional `shutdown_flag` flag can be used to cleanly terminate the syncing process.
++    fn handle_signals(shutdown_flag: Arc<AtomicBool>, shutdown_tx: Option<oneshot::Sender<()>>) -> Arc<OnceCell<Self>> {
++        // In order for the signal handler to be started as early as possible, a reference to the node needs
++        // to be passed to it at a later time.
++        let node: Arc<OnceCell<Self>> = Default::default();
++
++        #[cfg(target_family = "unix")]
++        fn signal_listener() -> impl Future<Output = io::Result<()>> {
++            use tokio::signal::unix::{SignalKind, signal};
++
++            // Handle SIGINT, SIGTERM, SIGQUIT, and SIGHUP.
++            let mut s_int = signal(SignalKind::interrupt()).unwrap();
++            let mut s_term = signal(SignalKind::terminate()).unwrap();
++            let mut s_quit = signal(SignalKind::quit()).unwrap();
++            let mut s_hup = signal(SignalKind::hangup()).unwrap();
++
++            // Return when any of the signals above is received.
++            async move {
++                tokio::select!(
++                    _ = s_int.recv() => (),
++                    _ = s_term.recv() => (),
++                    _ = s_quit.recv() => (),
++                    _ = s_hup.recv() => (),
++                );
++                Ok(())
++            }
++        }
++        #[cfg(not(target_family = "unix"))]
++        fn signal_listener() -> impl Future<Output = io::Result<()>> {
++            tokio::signal::ctrl_c()
++        }
++
++        let node_clone = node.clone();
++        tokio::task::spawn(async move {
++            match signal_listener().await {
++                Ok(()) => {
++                    warn!("==========================================================================================");
++                    warn!("⚠️  Attention - Starting the graceful shutdown procedure (ETA: 30 seconds)...");
++                    warn!("⚠️  Attention - To avoid DATA CORRUPTION, do NOT interrupt snarkOS (or press Ctrl+C again)");
++                    warn!("⚠️  Attention - Please wait until the shutdown gracefully completes (ETA: 30 seconds)");
++                    warn!("==========================================================================================");
++
++                    match node_clone.get() {
++                        // If the node is already initialized, then shut it down.
++                        Some(node) => node.shut_down().await,
++                        // Otherwise, if the node is not yet initialized, then set the shutdown flag directly.
++                        None => shutdown_flag.store(true, Ordering::Relaxed),
++                    }
++
++                    // A best-effort attempt to let any ongoing activity conclude.
++                    tokio::time::sleep(Duration::from_secs(3)).await;
++
++                    // Terminate the process.
++                    if let Some(tx) = shutdown_tx {
++                        let _ = tx.send(());
++                    }
++                }
++                Err(error) => error!("tokio::signal::ctrl_c encountered an error: {}", error),
++            }
++        });
+ 
+-        // If the node is already initialized, then shut it down.
+-        self.shut_down().await;
++        node
+     }
+ 
+     /// Shuts down the node.
+diff --git a/node/src/validator/mod.rs b/node/src/validator/mod.rs
+index c3d75d6e9..7b8c3e530 100644
+--- a/node/src/validator/mod.rs
++++ b/node/src/validator/mod.rs
+@@ -36,8 +36,6 @@ use snarkos_node_tcp::{
+     P2P,
+     protocols::{Disconnect, Handshake, OnConnect, Reading},
+ };
+-use snarkos_utilities::SignalHandler;
+-
+ use snarkvm::prelude::{
+     Ledger,
+     Network,
+@@ -53,8 +51,12 @@ use core::future::Future;
+ use locktick::parking_lot::Mutex;
+ #[cfg(not(feature = "locktick"))]
+ use parking_lot::Mutex;
+-use std::{net::SocketAddr, sync::Arc, time::Duration};
+-use tokio::task::JoinHandle;
++use std::{
++    net::SocketAddr,
++    sync::{Arc, atomic::AtomicBool},
++    time::Duration,
++};
++use tokio::{sync::oneshot, task::JoinHandle};
+ 
+ /// A validator is a full node, capable of validating blocks.
+ #[derive(Clone)]
+@@ -71,6 +73,8 @@ pub struct Validator<N: Network, C: ConsensusStorage<N>> {
+     sync: Arc<BlockSync<N>>,
+     /// The spawned handles.
+     handles: Arc<Mutex<Vec<JoinHandle<()>>>>,
++    /// The shutdown signal.
++    shutdown: Arc<AtomicBool>,
+     /// Keeps track of sending pings.
+     ping: Arc<Ping<N>>,
+ }
+@@ -91,8 +95,12 @@ impl<N: Network, C: ConsensusStorage<N>> Validator<N, C> {
+         trusted_peers_only: bool,
+         dev_txs: bool,
+         dev: Option<u16>,
+-        signal_handler: Arc<SignalHandler>,
++        shutdown: Arc<AtomicBool>,
++        shutdown_tx: Option<oneshot::Sender<()>>,
+     ) -> Result<Self> {
++        // Initialize the signal handler.
++        let signal_node = Self::handle_signals(shutdown.clone(), shutdown_tx);
++
+         // Initialize the ledger.
+         let ledger = {
+             let storage_mode = storage_mode.clone();
+@@ -103,7 +111,7 @@ impl<N: Network, C: ConsensusStorage<N>> Validator<N, C> {
+         .with_context(|| "Failed to initialize the ledger")?;
+ 
+         // Initialize the ledger service.
+-        let ledger_service = Arc::new(CoreLedgerService::new(ledger.clone(), signal_handler.clone()));
++        let ledger_service = Arc::new(CoreLedgerService::new(ledger.clone(), shutdown.clone()));
+ 
+         // Initialize the node router.
+         let router = Router::new(
+@@ -147,10 +155,11 @@ impl<N: Network, C: ConsensusStorage<N>> Validator<N, C> {
+             sync: sync.clone(),
+             ping,
+             handles: Default::default(),
++            shutdown: shutdown.clone(),
+         };
+ 
+         // Perform sync with CDN (if enabled).
+-        let cdn_sync = cdn.map(|base_url| Arc::new(CdnBlockSync::new(base_url, ledger.clone(), signal_handler)));
++        let cdn_sync = cdn.map(|base_url| Arc::new(CdnBlockSync::new(base_url, ledger.clone(), shutdown)));
+ 
+         // Initialize the transaction pool.
+         node.initialize_transaction_pool(dev, dev_txs)?;
+@@ -184,7 +193,8 @@ impl<N: Network, C: ConsensusStorage<N>> Validator<N, C> {
+         node.initialize_routing().await;
+         // Initialize the notification message loop.
+         node.handles.lock().push(crate::start_notification_message_loop());
+-
++        // Pass the node to the signal handler.
++        let _ = signal_node.set(node.clone());
+         // Return the node.
+         Ok(node)
+     }
+@@ -458,6 +468,7 @@ impl<N: Network, C: ConsensusStorage<N>> NodeInterface<N> for Validator<N, C> {
+ 
+         // Shut down the node.
+         trace!("Shutting down the node...");
++        self.shutdown.store(true, std::sync::atomic::Ordering::Release);
+ 
+         // Abort the tasks.
+         trace!("Shutting down the validator...");
+@@ -527,7 +538,8 @@ mod tests {
+             false,
+             dev_txs,
+             None,
+-            SignalHandler::new(),
++            Default::default(),
++            None,
+         )
+         .await
+         .unwrap();
+diff --git a/node/tests/common/node.rs b/node/tests/common/node.rs
+index 2e55778e8..102133964 100644
+--- a/node/tests/common/node.rs
++++ b/node/tests/common/node.rs
+@@ -14,11 +14,8 @@
+ // limitations under the License.
+ 
+ use crate::common::test_peer::sample_genesis_block;
+-
+ use snarkos_account::Account;
+ use snarkos_node::{Client, Prover, Validator};
+-use snarkos_utilities::SignalHandler;
+-
+ use snarkvm::prelude::{MainnetV0 as CurrentNetwork, store::helpers::memory::ConsensusMemory};
+ 
+ use aleo_std::StorageMode;
+@@ -36,7 +33,8 @@ pub async fn client() -> Client<CurrentNetwork, ConsensusMemory<CurrentNetwork>>
+         StorageMode::new_test(None),
+         false, // Connect to untrusted peers.
+         None,
+-        SignalHandler::new(),
++        Default::default(),
++        None,
+     )
+     .await
+     .expect("couldn't create client instance")
+@@ -51,7 +49,8 @@ pub async fn prover() -> Prover<CurrentNetwork, ConsensusMemory<CurrentNetwork>>
+         StorageMode::new_test(None),
+         false,
+         None,
+-        SignalHandler::new(),
++        Default::default(),
++        None,
+     )
+     .await
+     .expect("couldn't create prover instance")
+@@ -72,7 +71,8 @@ pub async fn validator() -> Validator<CurrentNetwork, ConsensusMemory<CurrentNet
+         false, // This test requires validators to connect to peers.
+         false, // No dev traffic in production mode.
+         None,
+-        SignalHandler::new(),
++        Default::default(),
++        None,
+     )
+     .await
+     .expect("couldn't create validator instance")
+diff --git a/utilities/Cargo.toml b/utilities/Cargo.toml
+deleted file mode 100644
+index c03dc9317..000000000
+--- a/utilities/Cargo.toml
++++ /dev/null
+@@ -1,32 +0,0 @@
+-[package]
+-name = "snarkos-utilities"
+-version = "4.2.1"
+-authors = [ "The Aleo Team <hello@aleo.org>" ]
+-description = "Utilities for a decentralized operating system"
+-homepage = "https://aleo.org"
+-repository = "https://github.com/ProvableHQ/snarkOS"
+-keywords = [
+-  "aleo",
+-  "cryptography",
+-  "blockchain",
+-  "decentralized",
+-  "zero-knowledge"
+-]
+-include = ["../LICENSE.md"]
+-categories = [ "cryptography", "cryptography::cryptocurrencies", "os" ]
+-license = "Apache-2.0"
+-edition = "2024"
+-
+-[dependencies.tokio]
+-workspace = true
+-features = [ "macros", "signal", "sync" ]
+-
+-[dependencies.tracing]
+-workspace = true
+-
+-[dependencies.locktick]
+-optional = true
+-workspace = true
+-
+-[dependencies.parking_lot]
+-workspace = true
+diff --git a/utilities/src/lib.rs b/utilities/src/lib.rs
+deleted file mode 100644
+index de7548d27..000000000
+--- a/utilities/src/lib.rs
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// Copyright (c) 2019-2025 Provable Inc.
+-// This file is part of the snarkOS library.
+-
+-// Licensed under the Apache License, Version 2.0 (the "License");
+-// you may not use this file except in compliance with the License.
+-// You may obtain a copy of the License at:
+-
+-// http://www.apache.org/licenses/LICENSE-2.0
+-
+-// Unless required by applicable law or agreed to in writing, software
+-// distributed under the License is distributed on an "AS IS" BASIS,
+-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-// See the License for the specific language governing permissions and
+-// limitations under the License.
+-
+-/// Utilities for signal and shutdown handling.
+-pub mod signals;
+-
+-pub use signals::*;
+diff --git a/utilities/src/signals.rs b/utilities/src/signals.rs
+deleted file mode 100644
+index 83809d1b2..000000000
+--- a/utilities/src/signals.rs
++++ /dev/null
+@@ -1,155 +0,0 @@
+-// Copyright (c) 2019-2025 Provable Inc.
+-// This file is part of the snarkOS library.
+-
+-// Licensed under the Apache License, Version 2.0 (the "License");
+-// you may not use this file except in compliance with the License.
+-// You may obtain a copy of the License at:
+-
+-// http://www.apache.org/licenses/LICENSE-2.0
+-
+-// Unless required by applicable law or agreed to in writing, software
+-// distributed under the License is distributed on an "AS IS" BASIS,
+-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-// See the License for the specific language governing permissions and
+-// limitations under the License.
+-
+-#[cfg(feature = "locktick")]
+-use locktick::parking_lot::{Mutex, RwLock};
+-#[cfg(not(feature = "locktick"))]
+-use parking_lot::{Mutex, RwLock};
+-
+-use std::sync::{
+-    Arc,
+-    atomic::{AtomicBool, Ordering},
+-};
+-use tokio::sync::oneshot;
+-
+-use tracing::{debug, error, trace};
+-
+-/// Generic trait that can be queried for whether current process should be stopped.
+-/// This is implemented by `SignalHandler` and `SimpleStoppable`.
+-pub trait Stoppable: Send + Sync {
+-    /// Initiates shutdown of the node.
+-    fn stop(&self);
+-
+-    /// Returns `true` if the node is (in the process of being) stopped.
+-    fn is_stopped(&self) -> bool;
+-}
+-
+-/// Wrapper around `AtomicBool` that implements the `Stoppable` trait.
+-///
+-/// This is useful when no signal or complex shutdown handling is necessary (e.g., in a test environment).
+-pub struct SimpleStoppable {
+-    state: AtomicBool,
+-}
+-
+-impl SimpleStoppable {
+-    pub fn new() -> Arc<Self> {
+-        Arc::new(Self { state: AtomicBool::new(false) })
+-    }
+-}
+-
+-impl Stoppable for SimpleStoppable {
+-    fn stop(&self) {
+-        self.state.store(true, Ordering::SeqCst);
+-    }
+-
+-    fn is_stopped(&self) -> bool {
+-        self.state.load(Ordering::SeqCst)
+-    }
+-}
+-
+-/// Helper for signal handling that implements the `Stoppable` trait.
+-///
+-/// This struct will set itself to "stopped" as soon as the process receives Ctrl+C.
+-/// It can also be manually stopped (e.g., when the node encounters a fatal error).
+-pub struct SignalHandler {
+-    /// This sender is used to notify a waiting task that the node has been stopped.
+-    /// If this is `None`, the node is in the process of shutting down.
+-    stopped_sender: RwLock<Option<oneshot::Sender<()>>>,
+-
+-    /// This receiver is used to wait for the node to be stopped.
+-    stopped_receiver: Mutex<Option<oneshot::Receiver<()>>>,
+-}
+-
+-impl SignalHandler {
+-    /// Spawns a background tasks that listens for Ctrl+C and returns `Self`.
+-    pub fn new() -> Arc<Self> {
+-        let (stopped_sender, stopped_receiver) = oneshot::channel();
+-        let obj = Arc::new(Self {
+-            stopped_sender: RwLock::new(Some(stopped_sender)),
+-            stopped_receiver: Mutex::new(Some(stopped_receiver)),
+-        });
+-
+-        {
+-            let obj = obj.clone();
+-            tokio::spawn(async move {
+-                obj.handle_signals().await;
+-            });
+-        }
+-
+-        obj
+-    }
+-
+-    /// Logic for the background task that waits for a signal.
+-    async fn handle_signals(&self) {
+-        #[cfg(target_family = "unix")]
+-        let signal_listener = async move {
+-            use tokio::signal::unix::{SignalKind, signal};
+-
+-            // Handle SIGINT, SIGTERM, SIGQUIT, and SIGHUP.
+-            let mut s_int = signal(SignalKind::interrupt())?;
+-            let mut s_term = signal(SignalKind::terminate())?;
+-            let mut s_quit = signal(SignalKind::quit())?;
+-            let mut s_hup = signal(SignalKind::hangup())?;
+-
+-            tokio::select!(
+-                _ = s_int.recv() => trace!("Received SIGINT"),
+-                _ = s_term.recv() => trace!("Received SIGTERM"),
+-                _ = s_quit.recv() => trace!("Received SIGQUIT"),
+-                _ = s_hup.recv() => trace!("Received SIGHUP"),
+-            );
+-
+-            std::io::Result::<()>::Ok(())
+-        };
+-
+-        #[cfg(not(target_family = "unix"))]
+-        let signal_listener = async move {
+-            tokio::signal::ctrl_c().await?;
+-            std::io::Result::<()>::Ok(())
+-        };
+-
+-        // Block until we receive a signal.
+-        match signal_listener.await {
+-            Ok(()) => debug!("Received signal, shutting down..."),
+-            Err(error) => error!("tokio::signal encountered an error: {error}"),
+-        }
+-
+-        self.stop();
+-    }
+-
+-    /// Waits until the signal handler was invoked or the stopped flag was set some other way.
+-    ///
+-    /// Note: This can only be called once, and must not be called concurrently.
+-    pub async fn wait_for_signals(&self) {
+-        let Some(receiver) = self.stopped_receiver.lock().take() else {
+-            panic!("wait_for_signals must be called at most once");
+-        };
+-
+-        if let Err(err) = receiver.await {
+-            error!("wait_for_signals encountered an error: {err}");
+-        }
+-    }
+-}
+-
+-impl Stoppable for SignalHandler {
+-    fn stop(&self) {
+-        if let Some(stopped_sender) = self.stopped_sender.write().take() {
+-            let _ = stopped_sender.send(());
+-        }
+-    }
+-
+-    fn is_stopped(&self) -> bool {
+-        self.stopped_sender.read().is_none()
+-    }
+-}

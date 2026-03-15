@@ -1,0 +1,50 @@
+diff --git a/rest/src/lib.rs b/rest/src/lib.rs
+index eadce6309..9b0c08f31 100644
+--- a/rest/src/lib.rs
++++ b/rest/src/lib.rs
+@@ -28,7 +28,7 @@ pub use routes::*;
+ mod start;
+ pub use start::*;
+ 
+-use snarkvm_compiler::{BlockStorage, Ledger, ProgramStorage, RecordsFilter, Transaction};
++use snarkvm_compiler::{BlockStorage, Ledger, Program, ProgramStorage, RecordsFilter, Transaction};
+ use snarkvm_console::{
+     account::{Address, ViewKey},
+     prelude::Network,
+@@ -40,7 +40,7 @@ use anyhow::Result;
+ use indexmap::IndexMap;
+ use parking_lot::RwLock;
+ use serde::{Deserialize, Serialize};
+-use std::sync::Arc;
++use std::{str::FromStr, sync::Arc};
+ use tokio::{sync::mpsc, task::JoinHandle};
+ use warp::{http::StatusCode, reject, reply, Filter, Rejection, Reply};
+ 
+diff --git a/rest/src/routes.rs b/rest/src/routes.rs
+index 4df09050e..ce95e6740 100644
+--- a/rest/src/routes.rs
++++ b/rest/src/routes.rs
+@@ -25,7 +25,7 @@ struct BlockRange {
+ 
+ impl<N: Network, B: BlockStorage<N>, P: ProgramStorage<N>> Server<N, B, P> {
+     /// Initializes the routes, given the ledger and ledger sender.
+-    #[allow(clippy::redundant_clone)]
++    #[allow(clippy::redundant_clone, opaque_hidden_inferred_bound)]
+     pub fn routes(&self) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+         // GET /testnet3/latest/height
+         let latest_height = warp::get()
+@@ -225,7 +225,13 @@ impl<N: Network, B: BlockStorage<N>, P: ProgramStorage<N>> Server<N, B, P> {
+         program_id: ProgramID<N>,
+         ledger: Arc<RwLock<Ledger<N, B, P>>>,
+     ) -> Result<impl Reply, Rejection> {
+-        Ok(reply::json(&ledger.read().get_program(program_id).or_reject()?))
++        let program = if program_id == ProgramID::<N>::from_str("credits.aleo").or_reject()? {
++            Program::<N>::credits().or_reject()?
++        } else {
++            ledger.read().get_program(program_id).or_reject()?
++        };
++
++        Ok(reply::json(&program))
+     }
+ 
+     /// Returns the list of current validators.

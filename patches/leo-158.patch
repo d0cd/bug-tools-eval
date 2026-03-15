@@ -1,0 +1,79 @@
+diff --git a/compiler/src/expression/circuit/circuit.rs b/compiler/src/expression/circuit/circuit.rs
+index b180428ae4..8963e7ca22 100644
+--- a/compiler/src/expression/circuit/circuit.rs
++++ b/compiler/src/expression/circuit/circuit.rs
+@@ -39,7 +39,9 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         members: Vec<CircuitVariableDefinition>,
+         span: Span,
+     ) -> Result<ConstrainedValue<F, G>, ExpressionError> {
+-        let mut program_identifier = new_scope(file_scope.clone(), identifier.to_string());
++        // Circuit definitions are located at the minimum file scope
++        let scopes: Vec<&str> = file_scope.split("_").collect();
++        let mut program_identifier = new_scope(scopes[0].to_string(), identifier.to_string());
+ 
+         if identifier.is_self() {
+             program_identifier = file_scope.clone();
+diff --git a/compiler/src/statement/definition/definition.rs b/compiler/src/statement/definition/definition.rs
+index 737ec4da4c..76da259ba2 100644
+--- a/compiler/src/statement/definition/definition.rs
++++ b/compiler/src/statement/definition/definition.rs
+@@ -154,7 +154,6 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+ 
+         if num_variables == 1 && num_values == 1 {
+             // Define a single variable with a single value
+-
+             let variable = variables.names[0].clone();
+             let expression = self.enforce_expression(
+                 cs,
+diff --git a/compiler/tests/circuits/define_circuit_inside_circuit_function.leo b/compiler/tests/circuits/define_circuit_inside_circuit_function.leo
+new file mode 100644
+index 0000000000..17a8522b97
+--- /dev/null
++++ b/compiler/tests/circuits/define_circuit_inside_circuit_function.leo
+@@ -0,0 +1,13 @@
++circuit Foo {
++    a: u32,
++}
++
++circuit Bar {
++    static function bar() {
++        let f = Foo { a: 0u32 };
++    }
++}
++
++function main() {
++    let b = Bar::bar();
++}
+\ No newline at end of file
+diff --git a/compiler/tests/circuits/mod.rs b/compiler/tests/circuits/mod.rs
+index 54e44f49b9..b98d5aea99 100644
+--- a/compiler/tests/circuits/mod.rs
++++ b/compiler/tests/circuits/mod.rs
+@@ -135,6 +135,7 @@ fn test_member_static_function_undefined() {
+ }
+ 
+ // Mutability
++
+ #[test]
+ fn test_mutate_function_fail() {
+     let bytes = include_bytes!("mut_function_fail.leo");
+@@ -200,6 +201,7 @@ fn test_mutate_variable_fail() {
+ }
+ 
+ // Self
++
+ #[test]
+ fn test_self_member_pass() {
+     let bytes = include_bytes!("self_member.leo");
+@@ -233,3 +235,11 @@ fn test_pedersen_mock() {
+ 
+     assert_satisfied(program);
+ }
++
++#[test]
++fn test_define_circuit_inside_circuit_function() {
++    let bytes = include_bytes!("define_circuit_inside_circuit_function.leo");
++    let program = parse_program(bytes).unwrap();
++
++    assert_satisfied(program);
++}

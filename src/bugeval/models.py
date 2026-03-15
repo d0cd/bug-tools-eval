@@ -72,6 +72,8 @@ class TestCase(BaseModel):
     stats: CaseStats | None = None
     visibility: Visibility = Visibility.public
     needs_manual_review: bool = False
+    verified: bool = False
+    verified_by: str | None = None
 
 
 class Candidate(BaseModel):

@@ -1,0 +1,339 @@
+diff --git a/state/src/local_data_commitment/local_data_commitment.rs b/state/src/local_data_commitment/local_data_commitment.rs
+index 2f795353f3..3e7c69d9ad 100644
+--- a/state/src/local_data_commitment/local_data_commitment.rs
++++ b/state/src/local_data_commitment/local_data_commitment.rs
+@@ -15,7 +15,7 @@
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use crate::{verify_record_commitment, LocalDataVerificationError, StateLeafValues, StateValues};
+-use leo_ast::Input as InputAst;
++use leo_ast::Input as AstInput;
+ 
+ use snarkos_algorithms::commitment_tree::CommitmentMerklePath;
+ use snarkos_dpc::base_dpc::{
+@@ -30,31 +30,33 @@ use snarkos_utilities::{bytes::ToBytes, to_bytes, FromBytes};
+ 
+ use std::convert::TryFrom;
+ 
++/// Returns `true` if the path to the local data commitment leaf is a valid path in the record
++/// commitment merkle tree.
+ pub fn verify_local_data_commitment(
+     system_parameters: &SystemParameters<Components>,
+-    input_ast: &InputAst,
++    ast_input: &AstInput,
+ ) -> Result<bool, LocalDataVerificationError> {
+-    // verify record commitment
+-    let typed_record = input_ast.get_record();
++    // verify record commitment.
++    let typed_record = ast_input.get_record();
+     let dpc_record_values = verify_record_commitment(system_parameters, typed_record)?;
+     let record_commitment: Vec<u8> = dpc_record_values.commitment;
+     let record_serial_number: Vec<u8> = dpc_record_values.serial_number;
+ 
+-    // parse typed state values
+-    let typed_state = input_ast.get_state();
++    // parse typed state values.
++    let typed_state = ast_input.get_state();
+     let state_values = StateValues::try_from(typed_state)?;
+     let leaf_index: u32 = state_values.leaf_index;
+     let root: Vec<u8> = state_values.root;
+ 
+-    // parse typed state leaf values
+-    let typed_state_leaf = input_ast.get_state_leaf();
++    // parse typed state leaf values.
++    let typed_state_leaf = ast_input.get_state_leaf();
+     let state_leaf_values = StateLeafValues::try_from(typed_state_leaf)?;
+     let path: Vec<u8> = state_leaf_values.path;
+     let memo: Vec<u8> = state_leaf_values.memo;
+     let network_id: u8 = state_leaf_values.network_id;
+     let leaf_randomness: Vec<u8> = state_leaf_values.leaf_randomness;
+ 
+-    // Select local data commitment input bytes
++    // Select local data commitment input bytes.
+     let is_death = leaf_index < (Components::NUM_INPUT_RECORDS as u32);
+     let input_bytes = if is_death {
+         to_bytes![record_serial_number, record_commitment, memo, network_id]?
+@@ -62,7 +64,7 @@ pub fn verify_local_data_commitment(
+         to_bytes![record_commitment, memo, network_id]?
+     };
+ 
+-    // Construct local data commitment leaf
++    // Construct local data commitment leaf.
+     let local_data_leaf_randomness = <LocalDataCommitment as CommitmentScheme>::Randomness::read(&leaf_randomness[..])?;
+     let local_data_commitment_leaf = LocalDataCommitment::commit(
+         &system_parameters.local_data_commitment,
+@@ -70,10 +72,10 @@ pub fn verify_local_data_commitment(
+         &local_data_leaf_randomness,
+     )?;
+ 
+-    // Construct record commitment merkle path
++    // Construct record commitment merkle path.
+     let local_data_merkle_path = CommitmentMerklePath::<LocalDataCommitment, LocalDataCRH>::read(&path[..])?;
+ 
+-    // Check record commitment merkle path is valid for the given local data commitment root
++    // Check record commitment merkle path is valid for the given local data commitment root.
+     let local_data_commitment_root = <LocalDataCRH as CRH>::Output::read(&root[..])?;
+     let result = local_data_merkle_path.verify(
+         &system_parameters.local_data_crh,
+diff --git a/state/src/local_data_commitment/state_leaf_values.rs b/state/src/local_data_commitment/state_leaf_values.rs
+index 3265c68310..600af06633 100644
+--- a/state/src/local_data_commitment/state_leaf_values.rs
++++ b/state/src/local_data_commitment/state_leaf_values.rs
+@@ -14,8 +14,8 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{find_input, input_to_integer_string, input_to_u8_vec, StateLeafValuesError};
+-use leo_ast::StateLeaf as StateLeafAst;
++use crate::{find_input, input_to_bytes, input_to_integer_string, StateLeafValuesError};
++use leo_ast::StateLeaf as AstStateLeaf;
+ 
+ use std::convert::TryFrom;
+ 
+@@ -24,6 +24,8 @@ static MEMO_PARAMETER_STRING: &str = "memo";
+ static NETWORK_ID_PARAMETER_STRING: &str = "network_id";
+ static LEAF_RANDOMNESS_PARAMETER_STRING: &str = "leaf_randomness";
+ 
++/// The serialized values included in the state leaf.
++/// A new [`StateLeafValues`] type can be constructed from an [`AstStateLeaf`] type.
+ pub struct StateLeafValues {
+     pub path: Vec<u8>,
+     pub memo: Vec<u8>,
+@@ -31,19 +33,19 @@ pub struct StateLeafValues {
+     pub leaf_randomness: Vec<u8>,
+ }
+ 
+-impl TryFrom<&StateLeafAst> for StateLeafValues {
++impl TryFrom<&AstStateLeaf> for StateLeafValues {
+     type Error = StateLeafValuesError;
+ 
+-    fn try_from(state_leaf: &StateLeafAst) -> Result<Self, Self::Error> {
+-        let parameters = state_leaf.values();
++    fn try_from(ast_state_leaf: &AstStateLeaf) -> Result<Self, Self::Error> {
++        let parameters = ast_state_leaf.values();
+ 
+         // Lookup path
+         let path_value = find_input(PATH_PARAMETER_STRING.to_owned(), &parameters)?;
+-        let path = input_to_u8_vec(path_value)?;
++        let path = input_to_bytes(path_value)?;
+ 
+         // Lookup memo
+         let memo_value = find_input(MEMO_PARAMETER_STRING.to_owned(), &parameters)?;
+-        let memo = input_to_u8_vec(memo_value)?;
++        let memo = input_to_bytes(memo_value)?;
+ 
+         // Lookup network id
+         let network_id_value = find_input(NETWORK_ID_PARAMETER_STRING.to_owned(), &parameters)?;
+@@ -51,7 +53,7 @@ impl TryFrom<&StateLeafAst> for StateLeafValues {
+ 
+         // Lookup leaf randomness
+         let leaf_randomness_value = find_input(LEAF_RANDOMNESS_PARAMETER_STRING.to_owned(), &parameters)?;
+-        let leaf_randomness = input_to_u8_vec(leaf_randomness_value)?;
++        let leaf_randomness = input_to_bytes(leaf_randomness_value)?;
+ 
+         Ok(Self {
+             path,
+diff --git a/state/src/local_data_commitment/state_values.rs b/state/src/local_data_commitment/state_values.rs
+index 6b67ba7ea7..b5e2619c7e 100644
+--- a/state/src/local_data_commitment/state_values.rs
++++ b/state/src/local_data_commitment/state_values.rs
+@@ -14,24 +14,26 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{find_input, input_to_integer_string, input_to_u8_vec, StateValuesError};
+-use leo_ast::State as StateAst;
++use crate::{find_input, input_to_bytes, input_to_integer_string, StateValuesError};
++use leo_ast::State as AstState;
+ 
+ use std::convert::TryFrom;
+ 
+ static LEAF_INDEX_PARAMETER_STRING: &str = "leaf_index";
+ static ROOT_PARAMETER_STRING: &str = "root";
+ 
++/// The serialized values included in the state.
++/// A new [`StateValues`] type can be constructed from an [`AstState`] type.
+ pub struct StateValues {
+     pub leaf_index: u32,
+     pub root: Vec<u8>,
+ }
+ 
+-impl TryFrom<&StateAst> for StateValues {
++impl TryFrom<&AstState> for StateValues {
+     type Error = StateValuesError;
+ 
+-    fn try_from(state: &StateAst) -> Result<Self, Self::Error> {
+-        let parameters = state.values();
++    fn try_from(ast_state: &AstState) -> Result<Self, Self::Error> {
++        let parameters = ast_state.values();
+ 
+         // Lookup leaf index
+         let leaf_index_value = find_input(LEAF_INDEX_PARAMETER_STRING.to_owned(), &parameters)?;
+@@ -39,7 +41,7 @@ impl TryFrom<&StateAst> for StateValues {
+ 
+         // Lookup root
+         let root_value = find_input(ROOT_PARAMETER_STRING.to_owned(), &parameters)?;
+-        let root = input_to_u8_vec(root_value)?;
++        let root = input_to_bytes(root_value)?;
+ 
+         Ok(Self { leaf_index, root })
+     }
+diff --git a/state/src/record_commitment/dpc_record_values.rs b/state/src/record_commitment/dpc_record_values.rs
+index 16f4963ba6..12ae7b84fc 100644
+--- a/state/src/record_commitment/dpc_record_values.rs
++++ b/state/src/record_commitment/dpc_record_values.rs
+@@ -15,7 +15,7 @@
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use crate::{utilities::*, DPCRecordValuesError};
+-use leo_ast::Record as RecordAst;
++use leo_ast::Record as AstRecord;
+ 
+ use snarkos_dpc::base_dpc::instantiated::Components;
+ use snarkos_objects::AccountAddress;
+@@ -33,6 +33,8 @@ static SERIAL_NUMBER_NONCE_PARAMETER_STRING: &str = "serial_number_nonce";
+ static COMMITMENT_PARAMETER_STRING: &str = "commitment";
+ static COMMITMENT_RANDOMNESS_PARAMETER_STRING: &str = "commitment_randomness";
+ 
++/// The serialized values included in the dpc record.
++/// A new [`DPCRecordValues`] type can be constructed from an [`AstRecord`] type.
+ pub struct DPCRecordValues {
+     pub serial_number: Vec<u8>,
+     pub owner: AccountAddress<Components>,
+@@ -46,15 +48,15 @@ pub struct DPCRecordValues {
+     pub commitment_randomness: Vec<u8>,
+ }
+ 
+-impl TryFrom<&RecordAst> for DPCRecordValues {
++impl TryFrom<&AstRecord> for DPCRecordValues {
+     type Error = DPCRecordValuesError;
+ 
+-    fn try_from(record: &RecordAst) -> Result<Self, Self::Error> {
+-        let parameters = record.values();
++    fn try_from(ast_record: &AstRecord) -> Result<Self, Self::Error> {
++        let parameters = ast_record.values();
+ 
+         // Lookup serial number
+         let serial_number_value = find_input(SERIAL_NUMBER_PARAMETER_STRING.to_owned(), &parameters)?;
+-        let serial_number = input_to_u8_vec(serial_number_value)?;
++        let serial_number = input_to_bytes(serial_number_value)?;
+ 
+         // Lookup record owner
+         let owner_value = find_input(OWNER_PARAMETER_STRING.to_owned(), &parameters)?;
+@@ -70,27 +72,27 @@ impl TryFrom<&RecordAst> for DPCRecordValues {
+ 
+         // Lookup record payload
+         let payload_value = find_input(PAYLOAD_PARAMETER_STRING.to_owned(), &parameters)?;
+-        let payload = input_to_u8_vec(payload_value)?;
++        let payload = input_to_bytes(payload_value)?;
+ 
+         // Lookup record birth program id
+         let birth_program_id_value = find_input(BIRTH_PROGRAM_ID_PARAMETER_STRING.to_owned(), &parameters)?;
+-        let birth_program_id = input_to_u8_vec(birth_program_id_value)?;
++        let birth_program_id = input_to_bytes(birth_program_id_value)?;
+ 
+         // Lookup record death program id
+         let death_program_id_value = find_input(DEATH_PROGRAM_ID_PARAMETER_STRING.to_owned(), &parameters)?;
+-        let death_program_id = input_to_u8_vec(death_program_id_value)?;
++        let death_program_id = input_to_bytes(death_program_id_value)?;
+ 
+         // Lookup record serial number nonce
+         let serial_number_nonce_value = find_input(SERIAL_NUMBER_NONCE_PARAMETER_STRING.to_owned(), &parameters)?;
+-        let serial_number_nonce = input_to_u8_vec(serial_number_nonce_value)?;
++        let serial_number_nonce = input_to_bytes(serial_number_nonce_value)?;
+ 
+         // Lookup record commitment
+         let commitment_value = find_input(COMMITMENT_PARAMETER_STRING.to_owned(), &parameters)?;
+-        let commitment = input_to_u8_vec(commitment_value)?;
++        let commitment = input_to_bytes(commitment_value)?;
+ 
+         // Lookup record commitment randomness
+         let commitment_randomness_value = find_input(COMMITMENT_RANDOMNESS_PARAMETER_STRING.to_owned(), &parameters)?;
+-        let commitment_randomness = input_to_u8_vec(commitment_randomness_value)?;
++        let commitment_randomness = input_to_bytes(commitment_randomness_value)?;
+ 
+         Ok(Self {
+             serial_number,
+diff --git a/state/src/record_commitment/record_commitment.rs b/state/src/record_commitment/record_commitment.rs
+index 89b633acf2..3dd4ea69e0 100644
+--- a/state/src/record_commitment/record_commitment.rs
++++ b/state/src/record_commitment/record_commitment.rs
+@@ -15,7 +15,7 @@
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use crate::{DPCRecordValues, RecordVerificationError};
+-use leo_ast::Record as RecordAst;
++use leo_ast::Record as AstRecord;
+ 
+ use snarkos_dpc::base_dpc::{
+     instantiated::{Components, RecordCommitment},
+@@ -26,12 +26,14 @@ use snarkos_utilities::{bytes::ToBytes, to_bytes, FromBytes};
+ 
+ use std::convert::TryFrom;
+ 
++/// Returns a serialized [`DPCRecordValues`] type if the record commitment is valid given the
++/// system parameters.
+ pub fn verify_record_commitment(
+     system_parameters: &SystemParameters<Components>,
+-    record_ast: &RecordAst,
++    ast_record: &AstRecord,
+ ) -> Result<DPCRecordValues, RecordVerificationError> {
+     // generate a dpc record from the typed record
+-    let record = DPCRecordValues::try_from(record_ast)?;
++    let record = DPCRecordValues::try_from(ast_record)?;
+ 
+     // verify record commitment
+     let record_commitment_input = to_bytes![
+diff --git a/state/src/utilities/input_value.rs b/state/src/utilities/input_value.rs
+index a04fde7c78..63da26329d 100644
+--- a/state/src/utilities/input_value.rs
++++ b/state/src/utilities/input_value.rs
+@@ -19,6 +19,8 @@ use leo_ast::{InputValue, Parameter};
+ 
+ use std::collections::HashMap;
+ 
++/// Returns the input parameter with the given name.
++/// If a parameter with the given name does not exist, then an error is returned.
+ pub fn find_input(
+     name: String,
+     parameters: &HashMap<Parameter, Option<InputValue>>,
+@@ -36,6 +38,8 @@ pub fn find_input(
+     }
+ }
+ 
++/// Returns the string of the integer input value.
++/// If the input value is not an integer, then an error is returned.
+ pub fn input_to_integer_string(input: InputValue) -> Result<String, InputValueError> {
+     match input {
+         InputValue::Integer(_type, string) => Ok(string),
+@@ -43,7 +47,9 @@ pub fn input_to_integer_string(input: InputValue) -> Result<String, InputValueEr
+     }
+ }
+ 
+-pub fn input_to_u8_vec(input: InputValue) -> Result<Vec<u8>, InputValueError> {
++/// Returns the given input value as u8 bytes.
++/// If the given input value cannot be serialized into bytes then an error is returned.
++pub fn input_to_bytes(input: InputValue) -> Result<Vec<u8>, InputValueError> {
+     let input_array = match input {
+         InputValue::Array(values) => values,
+         value => return Err(InputValueError::ExpectedBytes(value.to_string())),
+@@ -61,7 +67,9 @@ pub fn input_to_u8_vec(input: InputValue) -> Result<Vec<u8>, InputValueError> {
+     Ok(result_vec)
+ }
+ 
+-pub fn input_to_nested_u8_vec(input: InputValue) -> Result<Vec<Vec<u8>>, InputValueError> {
++/// Returns the given input value as an array of u8 bytes.
++/// If the given input value cannot be serialized into an array of bytes then an error is returned.
++pub fn input_to_nested_bytes(input: InputValue) -> Result<Vec<Vec<u8>>, InputValueError> {
+     let inner_arrays = match input {
+         InputValue::Array(arrays) => arrays,
+         value => return Err(InputValueError::ExpectedBytes(value.to_string())),
+@@ -70,7 +78,7 @@ pub fn input_to_nested_u8_vec(input: InputValue) -> Result<Vec<Vec<u8>>, InputVa
+     let mut result_vec = Vec::with_capacity(inner_arrays.len());
+ 
+     for input_array in inner_arrays {
+-        let array = input_to_u8_vec(input_array)?;
++        let array = input_to_bytes(input_array)?;
+ 
+         result_vec.push(array);
+     }

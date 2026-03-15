@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Human Judge — bugeval{% endblock %}
+{% block content %}
+<h1>Human Judge Calibration</h1>
+
+<div class="card" style="display:flex;align-items:center;gap:20px;">
+  <form method="get">
+    <select name="run" onchange="this.form.submit()">
+      <option value="">Select run…</option>
+      {% for r in runs %}<option value="{{ r }}" {% if r == selected_run %}selected{% endif %}>{{ r }}</option>{% endfor %}
+    </select>
+  </form>
+  {% if selected_run %}
+  <div>
+    {% if kappa_report %}
+    <span class="kappa-display {% if kappa_report.calibrated %}kappa-ok{% else %}kappa-bad{% endif %}">
+      κ = {{ "%.3f" | format(kappa_report.kappa) }}
+    </span>
+    <span class="text-muted">({{ kappa_report.n_pairs }} pairs · threshold {{ kappa_report.threshold }})</span>
+    {% if kappa_report.calibrated %}
+    <span class="badge badge-green">CALIBRATED</span>
+    {% else %}
+    <span class="badge badge-red">NOT CALIBRATED</span>
+    {% endif %}
+    {% else %}
+    <span class="text-muted">No calibration data yet.</span>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if selected_run and scores %}
+<h2>Score Cases</h2>
+<p class="text-muted">Score each case 0–3. Scores are saved immediately and kappa is recomputed.</p>
+
+{% set tool_labels = {} %}
+{% for real, label in tool_map.items() %}{% set _ = tool_labels.update({real: label}) %}{% endfor %}
+
+<table>
+  <thead>
+    <tr>
+      <th>Case</th>
+      <th>Tool (blinded)</th>
+      <th>LLM Score</th>
+      <th>Comments</th>
+      <th>Your Score</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for s in scores %}
+    {% set key = (s.test_case_id, s.tool) %}
+    {% set nr = normalized.get(key) %}
+    <tr>
+      <td>{{ s.test_case_id }}</td>
+      <td>{{ tool_labels.get(s.tool, s.tool) }}</td>
+      <td>
+        <span class="badge {{ scoring_badge_classes.get(s.score, 'badge-green') }}">{{ s.score }}</span>
+      </td>
+      <td style="max-width:300px;font-size:12px;">
+        {% if nr and nr.comments %}
+          {% for c in nr.comments[:2] %}
+          <div>{{ c.body[:150] }}{% if c.body|length > 150 %}…{% endif %}</div>
+          {% endfor %}
+          {% if nr.comments|length > 2 %}<span class="text-muted">+{{ nr.comments|length - 2 }} more</span>{% endif %}
+        {% else %}(none){% endif %}
+      </td>
+      <td>
+        <form method="post" action="/human-judge/score" style="display:flex;gap:8px;align-items:center;">
+          <input type="hidden" name="run_id" value="{{ selected_run }}">
+          <input type="hidden" name="case_id" value="{{ s.test_case_id }}">
+          <input type="hidden" name="tool" value="{{ s.tool }}">
+          <div class="score-radio">
+            {% for v in scoring_scale %}
+            <label><input type="radio" name="human_score" value="{{ v }}" required> {{ v }}</label>
+            {% endfor %}
+          </div>
+          <input type="text" name="notes" placeholder="notes" style="width:120px;padding:3px 6px;border:1px solid #ccc;border-radius:4px;font-size:12px;">
+          <button type="submit" class="btn btn-primary btn-sm">Save</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% elif selected_run %}
+<div class="card text-muted">No judge scores found in this run. Run <code>bugeval judge</code> first.</div>
+{% endif %}
+
+{% if kappa_report and kappa_report.pairs %}
+<h2>Scored Pairs</h2>
+<table>
+  <thead><tr><th>Case</th><th>Tool</th><th>LLM</th><th>Human</th><th>Match</th></tr></thead>
+  <tbody>
+    {% for p in kappa_report.pairs %}
+    <tr>
+      <td>{{ p.test_case_id }}</td>
+      <td>{{ p.tool }}</td>
+      <td>{{ p.llm }}</td>
+      <td>{{ p.human }}</td>
+      <td>{% if p.llm == p.human %}<span class="badge badge-green">✓</span>{% else %}<span class="badge badge-red">✗</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

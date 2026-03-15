@@ -1,0 +1,147 @@
+diff --git a/ast-passes/src/canonicalization/canonicalizer.rs b/ast-passes/src/canonicalization/canonicalizer.rs
+index 410b2610e6..cd8e7a294e 100644
+--- a/ast-passes/src/canonicalization/canonicalizer.rs
++++ b/ast-passes/src/canonicalization/canonicalizer.rs
+@@ -133,6 +133,19 @@ impl Canonicalizer {
+         }
+     }
+ 
++    fn canonicalize_circuit_implied_variable_definition(
++        &mut self,
++        member: &CircuitImpliedVariableDefinition,
++    ) -> CircuitImpliedVariableDefinition {
++        CircuitImpliedVariableDefinition {
++            identifier: member.identifier.clone(),
++            expression: member
++                .expression
++                .as_ref()
++                .map(|expr| self.canonicalize_expression(expr)),
++        }
++    }
++
+     fn canonicalize_expression(&mut self, expression: &Expression) -> Expression {
+         match expression {
+             Expression::Unary(unary) => {
+@@ -270,7 +283,11 @@ impl Canonicalizer {
+ 
+                 return Expression::CircuitInit(CircuitInitExpression {
+                     name,
+-                    members: circuit_init.members.clone(),
++                    members: circuit_init
++                        .members
++                        .iter()
++                        .map(|member| self.canonicalize_circuit_implied_variable_definition(member))
++                        .collect(),
+                     span: circuit_init.span.clone(),
+                 });
+             }
+@@ -292,7 +309,11 @@ impl Canonicalizer {
+             Expression::Call(call) => {
+                 return Expression::Call(CallExpression {
+                     function: Box::new(self.canonicalize_expression(&call.function)),
+-                    arguments: call.arguments.clone(),
++                    arguments: call
++                        .arguments
++                        .iter()
++                        .map(|arg| self.canonicalize_expression(arg))
++                        .collect(),
+                     span: call.span.clone(),
+                 });
+             }
+@@ -447,11 +468,31 @@ impl Canonicalizer {
+         }
+     }
+ 
++    fn canonicalize_function_input(&mut self, input: &FunctionInput) -> FunctionInput {
++        if let FunctionInput::Variable(variable) = input {
++            if variable.type_.is_self() {
++                return FunctionInput::Variable(FunctionInputVariable {
++                    identifier: variable.identifier.clone(),
++                    const_: variable.const_,
++                    mutable: variable.mutable,
++                    type_: Type::CircuitOrAlias(self.circuit_name.as_ref().unwrap().clone()),
++                    span: variable.span.clone(),
++                });
++            }
++        }
++
++        input.clone()
++    }
++
+     fn canonicalize_circuit_member(&mut self, circuit_member: &CircuitMember) -> CircuitMember {
+         match circuit_member {
+             CircuitMember::CircuitVariable(_, _) => {}
+             CircuitMember::CircuitFunction(function) => {
+-                let input = function.input.clone();
++                let input = function
++                    .input
++                    .iter()
++                    .map(|input| self.canonicalize_function_input(input))
++                    .collect();
+                 let output = self.canonicalize_self_type(function.output.as_ref());
+                 let block = self.canonicalize_block(&function.block);
+ 
+diff --git a/tests/compiler/circuits/big_self_in_circuit_replacement.leo b/tests/compiler/circuits/big_self_in_circuit_replacement.leo
+index 7dee75cedf..7f0e58b378 100644
+--- a/tests/compiler/circuits/big_self_in_circuit_replacement.leo
++++ b/tests/compiler/circuits/big_self_in_circuit_replacement.leo
+@@ -5,23 +5,29 @@ input_file: input/dummy.in
+ */
+ 
+ circuit Foo {
+-  x: u32;
++    x: u32;
+ 
+-  function new() -> Self {
+-    let new: Self = Self {
+-      x: 1u32
+-    };
++    function new() -> Self {
++        let new: Self = Self {
++            x: 1u32
++        };
+ 
+-    return new;
+-  }
++        return new;
++    }
+ 
+-  function etc() {
+-      let y = [0u32, 1, 2, 3];
+-      y[Self {x: 0}.x] += 2;
+-  }
++    function etc() {
++        let y = [0u32, 1, 2, 3];
++        y[Self {x: 0}.x] += 2;
++    }
++
++    function func() {
++        const x: Self = Foo {x: Self {x: 1}.x};
++    }
++
++    function self_circ(x: Self) {}
+ }
+ 
+ function main(y: bool) -> bool {
+-  let foo: Foo = Foo::new();
+-  return foo.x == 1u32 && y;
++    let foo: Foo = Foo::new();
++    return foo.x == 1u32 && y;
+ }
+\ No newline at end of file
+diff --git a/tests/expectations/compiler/compiler/circuits/big_self_in_circuit_replacement.leo.out b/tests/expectations/compiler/compiler/circuits/big_self_in_circuit_replacement.leo.out
+index 0fc5a81aef..c504804bcc 100644
+--- a/tests/expectations/compiler/compiler/circuits/big_self_in_circuit_replacement.leo.out
++++ b/tests/expectations/compiler/compiler/circuits/big_self_in_circuit_replacement.leo.out
+@@ -16,7 +16,7 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: 58f66e3a45b1752bb5dbb454adbbe6136394a7a87bc7b812d154aec1d5eac816
+-    imports_resolved_ast: 58f66e3a45b1752bb5dbb454adbbe6136394a7a87bc7b812d154aec1d5eac816
+-    canonicalized_ast: f7359bbb8cecd0923c0aa7dd7fd6b01cb2c64e45f1e777709fb14d4e6ba0ee5a
+-    type_inferenced_ast: f3a0378b8b60f66ca164be498224592907216262a54a92d878e52f0a85f53389
++    initial_ast: 8ccdbe000ca6a2ae3b7cf8601d5b6a922106181fe3f1b8aede16c5661a816b93
++    imports_resolved_ast: 8ccdbe000ca6a2ae3b7cf8601d5b6a922106181fe3f1b8aede16c5661a816b93
++    canonicalized_ast: 551e7de9ff8d1391a435861819576c9ac1a0ff93818c7a907830be890e27311f
++    type_inferenced_ast: b83403b86ddd7a10d070a4537a95ac03075e292d3004cdb667564b630dcae805

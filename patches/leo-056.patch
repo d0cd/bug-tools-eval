@@ -1,0 +1,27 @@
+diff --git a/compiler/src/expression/identifier/identifier.rs b/compiler/src/expression/identifier/identifier.rs
+index de30d83912..a23634b082 100644
+--- a/compiler/src/expression/identifier/identifier.rs
++++ b/compiler/src/expression/identifier/identifier.rs
+@@ -49,7 +49,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         } else if let Some(value) = self.get(&unresolved_identifier.name) {
+             // Check imported file scope
+             value.clone()
+-        } else if expected_type.is_some() && expected_type.unwrap() == Type::Address {
++        } else if expected_type == Some(Type::Address) {
+             // If we expect an address type, try to return an address
+             let address = Address::constant(unresolved_identifier.name, &unresolved_identifier.span)?;
+ 
+diff --git a/leo/commands/run.rs b/leo/commands/run.rs
+index 29e3dce217..8f9d688aab 100644
+--- a/leo/commands/run.rs
++++ b/leo/commands/run.rs
+@@ -61,8 +61,7 @@ impl CLI for RunCommand {
+             &prepared_verifying_key,
+             &vec![],
+             &proof,
+-        )
+-        .unwrap();
++        )?;
+ 
+         // End the timer
+         let end = start.elapsed().as_millis();

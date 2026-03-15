@@ -1,0 +1,40 @@
+diff --git a/asg/src/expression/call.rs b/asg/src/expression/call.rs
+index ada5458e5c..d0ae36f32e 100644
+--- a/asg/src/expression/call.rs
++++ b/asg/src/expression/call.rs
+@@ -71,7 +71,7 @@ impl<'a> ExpressionNode<'a> for CallExpression<'a> {
+     }
+ 
+     fn is_mut_ref(&self) -> bool {
+-        false
++        true
+     }
+ 
+     fn const_value(&self) -> Option<ConstValue> {
+diff --git a/compiler/tests/circuits/mutable_call_immutable_context.leo b/compiler/tests/circuits/mutable_call_immutable_context.leo
+index 91aac73011..d235d11cb7 100644
+--- a/compiler/tests/circuits/mutable_call_immutable_context.leo
++++ b/compiler/tests/circuits/mutable_call_immutable_context.leo
+@@ -5,8 +5,21 @@ circuit TestMe {
+         self.x += 1;
+         return self.x;
+     }
++
++    function new() -> Self {
++        return Self { x: 1u8 };
++    }
++}
++
++function my_fn() -> TestMe {
++  return TestMe { x: 0u8 };
+ }
+ 
+ function main () {
+     const t = TestMe {x: 6u8}.test_me();
++    console.assert(t == 7u8);
++    const u = my_fn().test_me();
++    console.assert(u == 1u8);
++    const v = TestMe::new().test_me();
++    console.assert(v == 2u8);
+ }
+\ No newline at end of file

@@ -1,0 +1,1166 @@
+diff --git a/.circleci/config.yml b/.circleci/config.yml
+old mode 100644
+new mode 100755
+index 6c50d091a8..0d8c64240d
+--- a/.circleci/config.yml
++++ b/.circleci/config.yml
+@@ -131,6 +131,7 @@ jobs:
+           name: test examples example
+           command: |
+             export LEO=/home/circleci/project/project/bin/leo
++            export EXAMPLES=/home/circleci/project/project/examples
+             ./project/.circleci/test-examples.sh
+ 
+ workflows:
+@@ -148,4 +149,4 @@ workflows:
+             - leo-executable
+       - test-examples:
+           requires:
+-            - leo-executable
+\ No newline at end of file
++            - leo-executable
+diff --git a/.circleci/leo-clean.sh b/.circleci/leo-clean.sh
+index d2ede6a74d..8ea352f345 100755
+--- a/.circleci/leo-clean.sh
++++ b/.circleci/leo-clean.sh
+@@ -1,10 +1,10 @@
+ # Create a new Leo program named `foo`.
+-$LEO new foo
++$LEO new foo || exit
+ ls -la
+ cd foo && ls -la
+ 
+ # Run `leo build`.
+-$LEO build
++$LEO build || exit
+ 
+ # Assert that the 'build' folder exists.
+ if [ "$(ls -A build)" ]; then
+@@ -15,7 +15,7 @@ else
+ fi
+ 
+ # Run `leo clean`
+-$LEO clean
++$LEO clean || exit
+ 
+ # Assert that the 'build' folder is empty.
+ if [ "$(ls -A build)" ]; then
+diff --git a/.circleci/leo-new.sh b/.circleci/leo-new.sh
+index 795db42862..d152c8a3ce 100755
+--- a/.circleci/leo-new.sh
++++ b/.circleci/leo-new.sh
+@@ -3,7 +3,8 @@ echo "
+ Step 4: Downloading parameters. This may take a few minutes..."
+ 
+ # Create a new dummy Leo project.
+-$LEO new dummy > /dev/null 2>&1 && cd dummy
++$LEO new dummy || exit
++cd dummy || exit
+ 
+ # Attempt to compile the dummy program until it passes.
+ # This is necessary to ensure that the universal parameters are downloaded.
+@@ -13,7 +14,7 @@ DONE=1
+ 
+ while [ $DONE -ne 0 ]
+ do
+-      $LEO build > /dev/null 2>&1
++      $LEO build
+       DONE=$?
+       sleep 0.5
+ done
+@@ -22,4 +23,4 @@ done
+ $LEO run || exit
+ 
+ # Remove the dummy program.
+-cd .. && rm -rf dummy
+\ No newline at end of file
++cd .. && rm -rf dummy
+diff --git a/.circleci/test-examples.sh b/.circleci/test-examples.sh
+index 3339a6dbdc..26104a7111 100755
+--- a/.circleci/test-examples.sh
++++ b/.circleci/test-examples.sh
+@@ -1,155 +1,274 @@
+-#!/bin/bash
+-# First check that Leo is installed.
+-if ! command -v leo &> /dev/null
+-then
+-    echo "leo is not installed."
+-    exit
+-fi
+-
+-# Clone the 'leo' repository, or pull if it already exists.
+-git clone https://github.com/AleoHQ/leo.git leo 2> /dev/null || (cd leo ; git pull)
+-
+-# Install 'leo'.
+-cd leo && cargo install --path . && cd ..
++# Alias the leo command to use the local binary.
++# Note: Use a full path for $LEO when running locally.
++leo() {
++  $LEO "$@"
++}
+ 
+ # Build and run the auction Leo program.
++echo "Building and running the \`auction\` program..."
+ (
+-  cd ./project/examples/auction || exit
+-  $LEO run place_bid
+-  $LEO run resolve
+-  $LEO run finish
+-
+-  chmod +x ./run.sh
+-  ./run.sh
++  cd $EXAMPLES/auction || exit
++  $LEO run place_bid || exit
++  $LEO run resolve || exit
++  $LEO run finish || exit
++
++  chmod +x $EXAMPLES/auction/run.sh || exit
++  export -f leo || exit
++  $EXAMPLES/auction/run.sh || exit
+ )
++# Check that the auction program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`auction\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the basic_bank Leo program.
++echo "Building and running the \`basic_bank\` program..."
+ (
+-  cd ./project/examples/basic_bank || exit
+-  $LEO run issue
+-  $LEO run deposit
+-  $LEO run withdraw
+-
+-  chmod +x ./run.sh
+-  ./run.sh
++  cd $EXAMPLES/basic_bank || exit
++  $LEO run issue || exit
++  $LEO run deposit || exit
++  $LEO run withdraw || exit
++
++  chmod +x $EXAMPLES/basic_bank/run.sh || exit
++  export -f leo || exit
++  $EXAMPLES/basic_bank/run.sh || exit
+ )
++# Check that the basic_bank program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`basic_bank\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the battleship Leo program.
++echo "Building and running the \`battleship\` program..."
++which leo
+ (
+-  cd ./project/examples/battleship || exit
++  cd $EXAMPLES/battleship || exit
+ 
+-  chmod +x ./run.sh
+-  ./run.sh
++  chmod +x $EXAMPLES/battleship/run.sh || exit
++  export -f leo || exit
++  $EXAMPLES/battleship/run.sh || exit
+ )
++# Check that the battleship program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`battleship\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the bubblesort Leo program.
++echo "Building and running the \`bubblesort\` program..."
+ (
+-  cd ./project/examples/bubblesort || exit
+-  $LEO run bubblesort
++  cd $EXAMPLES/bubblesort || exit
++  $LEO run bubble_sort || exit
+ )
++# Check that the bubblesort program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`bubblesort\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the core example Leo program.
++echo "Building and running the \`core\` program..."
+ (
+-  cd ./project/examples/core || exit
+-  $LEO run main
++  cd $EXAMPLES/core || exit
++  $LEO run main || exit
+ )
++# Check that the core program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`core\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the groups example Leo program.
++echo "Building and running the \`groups\` program..."
+ (
+-  cd ./project/examples/groups || exit
+-  $LEO run main
++  cd $EXAMPLES/groups || exit
++  $LEO run main || exit
+ )
++# Check that the groups program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`groups\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+-# Build and run the hackers-delight/ntzdebruijin program.
++# Build and run the hackers-delight/ntzdebruijn program.
++echo "Building and running the \`hackers-delight/ntzdebruijn\` program..."
+ (
+-  cd ./project/examples/hackers-delight/ntzdebruijin || exit
+-  $LEO run
++  cd $EXAMPLES/hackers-delight/ntzdebruijn || exit
++  $LEO run || exit
+ )
++# Check that the hackers-delight/ntzdebruijn program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`hackers-delight/ntzdebruijn\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the hackers-delight/ntzgaudet program.
++echo "Building and running the \`hackers-delight/ntzgaudet\` program..."
+ (
+-  cd ./project/examples/hackers-delight/ntzgaudet || exit
+-  $LEO run
++  cd $EXAMPLES/hackers-delight/ntzgaudet || exit
++  $LEO run || exit
+ )
++# Check that the hackers-delight/ntzgaudet program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`hackers-delight/ntzgaudet\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the hackers-delight/ntzloops program.
++echo "Building and running the \`hackers-delight/ntzloops\` program..."
+ (
+-  cd ./project/examples/hackers-delight/ntzloops || exit
+-  $LEO run
++  cd $EXAMPLES/hackers-delight/ntzloops || exit
++  $LEO run || exit
+ )
++# Check that the hackers-delight/ntzloops program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`hackers-delight/ntzloops\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the hackers-delight/ntzmasks program.
++echo "Building and running the \`hackers-delight/ntzmasks\` program..."
+ (
+-  cd ./project/examples/hackers-delight/ntzmasks || exit
+-  $LEO run
++  cd $EXAMPLES/hackers-delight/ntzmasks || exit
++  $LEO run || exit
+ )
++# Check that the hackers-delight/ntzmasks program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`hackers-delight/ntzmasks\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the hackers-delight/ntzreisers program.
++echo "Building and running the \`hackers-delight/ntzreisers\` program..."
+ (
+-  cd ./project/examples/hackers-delight/ntzreisers || exit
+-  $LEO run
++  cd $EXAMPLES/hackers-delight/ntzreisers || exit
++  $LEO run || exit
+ )
++# Check that the hackers-delight/ntzreisers program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`hackers-delight/ntzreisers\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the hackers-delight/ntzseals program.
++echo "Building and running the \`hackers-delight/ntzseals\` program..."
+ (
+-  cd ./project/examples/hackers-delight/ntzseals || exit
+-  $LEO run
++  cd $EXAMPLES/hackers-delight/ntzseals || exit
++  $LEO run || exit
+ )
++# Check that the hackers-delight/ntzseals program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`hackers-delight/ntzseals\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the hackers-delight/ntzsearchtree program.
++echo "Building and running the \`hackers-delight/ntzsearchtree\` program..."
+ (
+-  cd ./project/examples/hackers-delight/ntzsearchtree || exit
+-  $LEO run
++  cd $EXAMPLES/hackers-delight/ntzsearchtree || exit
++  $LEO run || exit
+ )
++# Check that the hackers-delight/ntzsearchtree program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`hackers-delight/ntzsearchtree\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the hackers-delight/ntzsmallvals program.
++echo "Building and running the \`hackers-delight/ntzsmallvals\` program..."
+ (
+-  cd ./project/examples/hackers-delight/ntzsmallvals || exit
+-  $LEO run
++  cd $EXAMPLES/hackers-delight/ntzsmallvals || exit
++  $LEO run || exit
+ )
++# Check that the hackers-delight/ntzsmallvals program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`hackers-delight/ntzsmallvals\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the helloworld Leo program.
++echo "Building and running the \`helloworld\` program..."
+ (
+-  cd ./project/examples/helloworld || exit
+-  $LEO run main
++  cd $EXAMPLES/helloworld || exit
++  $LEO run main || exit
+ )
++# Check that the helloworld program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`helloworld\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+-# Build and run the import point example Leo program.
+-(
+-  cd ./project/examples/import_point || exit
+-  $LEO run main
+-)
+ 
+ # Build and run the interest example Leo programs.
++echo "Building and running the \`interest\` programs..."
+ (
+-  cd ./project/examples/import_point || exit
++  cd $EXAMPLES/interest || exit
+ 
+   # Run the fixed period interest program.
+-  $LEO run fixed_period_interest
++  $LEO run fixed_iteration_interest || exit
+ 
+   # Run the bounded period interest program.
+-  $LEO run bounded_period_interest
++  $LEO run bounded_iteration_interest || exit
+ )
++# Check that the interest programs ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`interest\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the message example Leo program.
++echo "Building and running the \`message\` program..."
+ (
+-  cd ./project/examples/message || exit
+-  $LEO run main
++  cd $EXAMPLES/message || exit
++  $LEO run main || exit
+ )
++# Check that the message program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`message\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the tic tac toe example Leo program.
++echo "Building and running the \`tictactoe\` program..."
+ (
+-  cd ./project/examples/tictactoe || exit
+-  $LEO run new
+-  $LEO run make_move
++  cd $EXAMPLES/tictactoe || exit
++  $LEO run new || exit
++  $LEO run make_move || exit
+ 
+-  chmod +x ./run.sh
+-  ./run.sh
++  chmod +x $EXAMPLES/tictactoe/run.sh || exit
++  export -f leo
++  $EXAMPLES/tictactoe/run.sh || exit
+ )
++# Check that the tic tac toe program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`tictactoe\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the simple token example programs.
++echo "Building and running the \`simple_token\` programs..."
+ (
+-  cd ./project/examples/simple_token || exit
++  cd $EXAMPLES/simple_token || exit
+ 
+   # Run the mint program.
+   $LEO run mint
+@@ -157,40 +276,68 @@ cd leo && cargo install --path . && cd ..
+   # Run the transfer program.
+   $LEO run transfer
+ )
++# Check that the simple token programs ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`simple_token\` programs failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the token example program.
++echo "Building and running the \`token\` program..."
+ (
+-  cd ./project/examples/token || exit
++  cd $EXAMPLES/token || exit
+ 
+   # Run the mint_public function.
+-  $LEO run mint_public
++  $LEO run mint_public || exit
+ 
+   # Run the mint_private function.
+-  $LEO run mint_private
++  $LEO run mint_private || exit
+ 
+   # Run the transfer_public function.
+-  $LEO run transfer_public
++  $LEO run transfer_public || exit
+ 
+   # Run the transfer_private function.
+-  $LEO run transfer_private
++  $LEO run transfer_private || exit
+ 
+   # Run the transfer_private_to_public function.
+-  $LEO run transfer_private_to_public
++  $LEO run transfer_private_to_public || exit
+ 
+   # Run the transfer_public_to_private function.
+-  $LEO run transfer_public_to_private
++  $LEO run transfer_public_to_private || exit
+ )
++# Check that the token program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`token\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the two-adicity program.
++echo "Building and running the \`twoadicity\` program..."
+ (
+-  cd ./project/examples/twoadicity || exit
+-  $LEO run main
++  cd $EXAMPLES/twoadicity || exit
++  $LEO run main || exit
+ )
++# Check that the two-adicity program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`twoadicity\` program failed to run successfully."
++    exit $EXITCODE
++fi
+ 
+ # Build and run the vote Leo program.
++echo "Building and running the \`vote\` program..."
+ (
+-  cd ./project/examples/vote || exit
++  cd $EXAMPLES/vote || exit
+ 
+-  chmod +x ./run.sh
+-  ./run.sh
+-)
+\ No newline at end of file
++  chmod +x $EXAMPLES/vote/run.sh || exit
++  export -f leo
++  $EXAMPLES/vote/run.sh || exit
++)
++# Check that the vote program ran successfully.
++EXITCODE=$?
++if [ $EXITCODE -ne 0 ]; then
++    echo "The \`vote\` program failed to run successfully."
++    exit $EXITCODE
++fi
+diff --git a/Cargo.lock b/Cargo.lock
+index 47e8afd6d3..7b0650784d 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -70,11 +70,10 @@ dependencies = [
+ 
+ [[package]]
+ name = "aleo"
+-version = "0.3.4"
++version = "0.3.3"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "c1e4929cda45548d053c11a8e08eb0c530361b441f31ad7cf6f066289368d1df"
++checksum = "17259b13bd25bf6fdc8d6a207fd690daca08640dd364d7072ba425b5a5bfa6cd"
+ dependencies = [
+- "aleo-rust",
+  "anyhow",
+  "clap",
+  "colored",
+@@ -82,7 +81,6 @@ dependencies = [
+  "parking_lot",
+  "rand",
+  "rand_chacha",
+- "rpassword",
+  "self_update 0.32.0",
+  "serde",
+  "serde_json",
+@@ -93,22 +91,6 @@ dependencies = [
+  "warp",
+ ]
+ 
+-[[package]]
+-name = "aleo-rust"
+-version = "0.3.4"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "34efc6c260c8e720f02a96e72748e6d9392b985dd0883d923882a20500274eef"
+-dependencies = [
+- "anyhow",
+- "indexmap",
+- "once_cell",
+- "rand",
+- "serde_json",
+- "snarkvm",
+- "snarkvm-wasm",
+- "ureq",
+-]
+-
+ [[package]]
+ name = "aleo-std"
+ version = "0.1.15"
+@@ -932,10 +914,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "c05aeb6a22b8f62540c194aac980f2115af067bfe15a0734d7277a768d396b31"
+ dependencies = [
+  "cfg-if",
+- "js-sys",
+  "libc",
+  "wasi",
+- "wasm-bindgen",
+ ]
+ 
+ [[package]]
+@@ -2123,27 +2103,6 @@ dependencies = [
+  "winapi",
+ ]
+ 
+-[[package]]
+-name = "rpassword"
+-version = "7.2.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "6678cf63ab3491898c0d021b493c94c9b221d91295294a2a5746eacbe5928322"
+-dependencies = [
+- "libc",
+- "rtoolbox",
+- "winapi",
+-]
+-
+-[[package]]
+-name = "rtoolbox"
+-version = "0.0.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "034e22c514f5c0cb8a10ff341b9b048b5ceb21591f31c8f44c43b960f9b3524a"
+-dependencies = [
+- "libc",
+- "winapi",
+-]
+-
+ [[package]]
+ name = "rustc-demangle"
+ version = "0.1.21"
+@@ -2945,13 +2904,11 @@ dependencies = [
+  "parking_lot",
+  "paste",
+  "rand",
+- "reqwest",
+  "serde_json",
+  "sha2",
+  "snarkvm-curves",
+  "snarkvm-utilities",
+  "thiserror",
+- "wasm-bindgen-futures",
+ ]
+ 
+ [[package]]
+@@ -3030,20 +2987,6 @@ dependencies = [
+  "syn 1.0.107",
+ ]
+ 
+-[[package]]
+-name = "snarkvm-wasm"
+-version = "0.9.13"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "eab1c2fc59610557d3f4e8c215d43bdb90748aec810ba0b04e6fa7d1b6543ece"
+-dependencies = [
+- "getrandom",
+- "rand",
+- "serde",
+- "snarkvm-console",
+- "snarkvm-utilities",
+- "wasm-bindgen",
+-]
+-
+ [[package]]
+ name = "socket2"
+ version = "0.4.7"
+@@ -3632,8 +3575,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "31f8dcbc21f30d9b8f2ea926ecb58f6b91192c17e9d33594b3df58b2007ca53b"
+ dependencies = [
+  "cfg-if",
+- "serde",
+- "serde_json",
+  "wasm-bindgen-macro",
+ ]
+ 
+diff --git a/Cargo.toml b/Cargo.toml
+index d5ee7217b9..7622ea61b9 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -50,7 +50,7 @@ ci_skip = [ "leo-compiler/ci_skip" ]
+ noconfig = [ ]
+ 
+ [dependencies.aleo]
+-version = "0.3.4"
++version = "=0.3.3"
+ 
+ [dependencies.leo-ast]
+ path = "./compiler/ast"
+diff --git a/compiler/passes/src/code_generation/generator.rs b/compiler/passes/src/code_generation/generator.rs
+index 7367445e17..4734945b6c 100644
+--- a/compiler/passes/src/code_generation/generator.rs
++++ b/compiler/passes/src/code_generation/generator.rs
+@@ -28,7 +28,7 @@ pub struct CodeGenerator<'a> {
+     /// The struct dependency graph for the program.
+     pub(crate) struct_graph: &'a StructGraph,
+     /// The call graph for the program.
+-    pub(crate) call_graph: &'a CallGraph,
++    pub(crate) _call_graph: &'a CallGraph,
+     /// A counter to track the next available register.
+     pub(crate) next_register: u64,
+     /// Reference to the current function.
+@@ -47,12 +47,12 @@ pub struct CodeGenerator<'a> {
+ 
+ impl<'a> CodeGenerator<'a> {
+     /// Initializes a new `CodeGenerator`.
+-    pub fn new(symbol_table: &'a SymbolTable, struct_graph: &'a StructGraph, call_graph: &'a CallGraph) -> Self {
++    pub fn new(symbol_table: &'a SymbolTable, struct_graph: &'a StructGraph, _call_graph: &'a CallGraph) -> Self {
+         // Initialize variable mapping.
+         Self {
+             symbol_table,
+             struct_graph,
+-            call_graph,
++            _call_graph,
+             next_register: 0,
+             current_function: None,
+             variable_mapping: IndexMap::new(),
+diff --git a/compiler/passes/src/code_generation/visit_program.rs b/compiler/passes/src/code_generation/visit_program.rs
+index 9150ce232f..9516b3e985 100644
+--- a/compiler/passes/src/code_generation/visit_program.rs
++++ b/compiler/passes/src/code_generation/visit_program.rs
+@@ -62,9 +62,12 @@ impl<'a> CodeGenerator<'a> {
+             &order
+                 .into_iter()
+                 .map(|name| {
+-                    // Note that this unwrap is safe since type checking guarantees that all structs are declared.
+-                    let struct_ = program_scope.structs.get(&name).unwrap();
+-                    self.visit_struct_or_record(struct_)
++                    match program_scope.structs.get(&name) {
++                        // If the struct is found, it is a local struct.
++                        Some(struct_) => self.visit_struct_or_record(struct_),
++                        // If the struct is not found, it is an imported struct.
++                        None => String::new(),
++                    }
+                 })
+                 .join("\n"),
+         );
+@@ -81,18 +84,14 @@ impl<'a> CodeGenerator<'a> {
+                 .join("\n"),
+         );
+ 
+-        // Get the post-order ordering of the call graph.
+-        // Note that the unwrap is safe since type checking guarantees that the call graph is acyclic.
+-        let order = self.call_graph.post_order().unwrap();
+-
+-        // Visit each function in the post-ordering and produce an Aleo function.
++        // Visit each function in the program scope and produce an Aleo function.
++        // Note that in the function inlining pass, we reorder the functions such that they are in post-order.
++        // In other words, a callee function precedes its caller function in the program scope.
+         program_string.push_str(
+-            &order
+-                .into_iter()
+-                .map(|function_name| {
+-                    // Note that this unwrap is safe since type checking guarantees that all functions are declared.
+-                    let function = program_scope.functions.get(&function_name).unwrap();
+-
++            &program_scope
++                .functions
++                .values()
++                .map(|function| {
+                     // Set the `is_transition_function` flag.
+                     self.is_transition_function = matches!(function.variant, Variant::Transition);
+ 
+diff --git a/compiler/passes/src/function_inlining/inline_expression.rs b/compiler/passes/src/function_inlining/inline_expression.rs
+index 21d1c08565..a957f245d5 100644
+--- a/compiler/passes/src/function_inlining/inline_expression.rs
++++ b/compiler/passes/src/function_inlining/inline_expression.rs
+@@ -28,6 +28,11 @@ impl ExpressionReconstructor for FunctionInliner<'_> {
+     type AdditionalOutput = Vec<Statement>;
+ 
+     fn reconstruct_call(&mut self, input: CallExpression) -> (Expression, Self::AdditionalOutput) {
++        // Type checking guarantees that only functions local to the program scope can be inlined.
++        if input.external.is_some() {
++            return (Expression::Call(input), Default::default());
++        }
++
+         // Get the name of the callee function.
+         let function_name = match *input.function {
+             Expression::Identifier(identifier) => identifier.name,
+diff --git a/compiler/passes/src/function_inlining/inline_program.rs b/compiler/passes/src/function_inlining/inline_program.rs
+index d954327044..8bf6815161 100644
+--- a/compiler/passes/src/function_inlining/inline_program.rs
++++ b/compiler/passes/src/function_inlining/inline_program.rs
+@@ -27,14 +27,22 @@ impl ProgramReconstructor for FunctionInliner<'_> {
+ 
+         // Reconstruct and accumulate each of the functions in post-order.
+         for function_name in order.into_iter() {
+-            // Note that this unwrap is safe since type checking guarantees that all functions are declared.
+-            let function = input.functions.remove(&function_name).unwrap();
+-            // Reconstruct the function.
+-            let reconstructed_function = self.reconstruct_function(function);
+-            // Add the reconstructed function to the mapping.
+-            self.reconstructed_functions
+-                .insert(function_name, reconstructed_function);
++            // None: If `function_name` is not in `input.functions`, then it must be an external function.
++            // TODO: Check that this is indeed an external function. Requires a redesign of the symbol table.
++            if let Some(function) = input.functions.remove(&function_name) {
++                // Reconstruct the function.
++                let reconstructed_function = self.reconstruct_function(function);
++                // Add the reconstructed function to the mapping.
++                self.reconstructed_functions
++                    .insert(function_name, reconstructed_function);
++            }
+         }
++        // Check that `input.functions` is empty.
++        // This is a sanity check to ensure that functions in the program scope have been processed.
++        assert!(
++            input.functions.is_empty(),
++            "All functions in the program scope should have been processed."
++        );
+ 
+         // Note that this intentionally clears `self.reconstructed_functions` for the next program scope.
+         let functions = core::mem::take(&mut self.reconstructed_functions);
+diff --git a/compiler/passes/src/type_checking/check_expressions.rs b/compiler/passes/src/type_checking/check_expressions.rs
+index c58c31fe27..2c1c274eee 100644
+--- a/compiler/passes/src/type_checking/check_expressions.rs
++++ b/compiler/passes/src/type_checking/check_expressions.rs
+@@ -465,6 +465,11 @@ impl<'a> ExpressionVisitor<'a> for TypeChecker<'a> {
+                         }
+                     }
+ 
++                    // Check that the call is not to an external `inline` function.
++                    if func.variant == Variant::Inline && input.external.is_some() {
++                        self.emit_err(TypeCheckerError::cannot_call_external_inline_function(input.span));
++                    }
++
+                     let ret = self.assert_and_return_type(func.output_type, expected, input.span());
+ 
+                     // Check number of function arguments.
+diff --git a/errors/src/errors/type_checker/type_checker_error.rs b/errors/src/errors/type_checker/type_checker_error.rs
+index 8b607b322a..33d3049687 100644
+--- a/errors/src/errors/type_checker/type_checker_error.rs
++++ b/errors/src/errors/type_checker/type_checker_error.rs
+@@ -566,4 +566,11 @@ create_messages!(
+         msg: format!("A struct cannot have a member with mode `constant`, `private`, or `public`."),
+         help: None,
+     }
++
++    @formatted
++    cannot_call_external_inline_function {
++        args: (),
++        msg: format!("Cannot call an external `inline` function."),
++        help: None,
++    }
+ );
+diff --git a/examples/auction/run.sh b/examples/auction/run.sh
+index 826b84ecf4..7fd9f8d95e 100755
+--- a/examples/auction/run.sh
++++ b/examples/auction/run.sh
+@@ -1,11 +1,3 @@
+-#!/bin/bash
+-# First check that Leo is installed.
+-if ! command -v leo &> /dev/null
+-then
+-    echo "leo is not installed."
+-    exit
+-fi
+-
+ # The private key and address of the first bidder.
+ # Swap these into program.json, when running transactions as the first bidder.
+ # "private_key": "APrivateKey1zkpG9Af9z5Ha4ejVyMCqVFXRKknSm8L1ELEwcc4htk9YhVK"
+@@ -61,7 +53,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run place_bid aleo1yzlta2q5h8t0fqe0v6dyh9mtv4aggd53fgzr068jvplqhvqsnvzq7pj2ke 10u64
++leo run place_bid aleo1yzlta2q5h8t0fqe0v6dyh9mtv4aggd53fgzr068jvplqhvqsnvzq7pj2ke 10u64 || exit
+ 
+ # Swap in the private key and address of the second bidder to program.json.
+ echo "{
+@@ -90,7 +82,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run place_bid aleo1esqchvevwn7n5p84e735w4dtwt2hdtu4dpguwgwy94tsxm2p7qpqmlrta4 90u64
++leo run place_bid aleo1esqchvevwn7n5p84e735w4dtwt2hdtu4dpguwgwy94tsxm2p7qpqmlrta4 90u64 || exit
+ 
+ # Swap in the private key and address of the auctioneer to program.json.
+ echo "{
+@@ -132,7 +124,7 @@ leo run resolve "{
+         amount: 90u64.private,
+         is_winner: false.private,
+         _nonce: 5952811863753971450641238938606857357746712138665944763541786901326522216736group.public
+-    }"
++    }" || exit
+ 
+ # Have the auctioneer finish the auction.
+ echo "
+@@ -155,7 +147,7 @@ leo run finish "{
+         amount: 90u64.private,
+         is_winner: false.private,
+         _nonce: 5952811863753971450641238938606857357746712138665944763541786901326522216736group.public
+-    }"
++    }" || exit
+ 
+ 
+ 
+diff --git a/examples/basic_bank/run.sh b/examples/basic_bank/run.sh
+index ba01bfdc15..b06c0e4554 100755
+--- a/examples/basic_bank/run.sh
++++ b/examples/basic_bank/run.sh
+@@ -1,11 +1,3 @@
+-#!/bin/bash
+-# First check that Leo is installed.
+-if ! command -v leo &> /dev/null
+-then
+-    echo "leo is not installed."
+-    exit
+-fi
+-
+ # The private key and address of the bank.
+ # Swap these into program.json, when running transactions as the first bidder.
+ # "private_key": "APrivateKey1zkpHtqVWT6fSHgUMNxsuVf7eaR6id2cj7TieKY1Z8CP5rCD",
+@@ -69,7 +61,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run issue aleo1zeklp6dd8e764spe74xez6f8w27dlua3w7hl4z2uln03re52egpsv46ngg 100u64;
++leo run issue aleo1zeklp6dd8e764spe74xez6f8w27dlua3w7hl4z2uln03re52egpsv46ngg 100u64 || exit
+ 
+ # Swap in the private key and address of the user to program.json.
+ echo "{
+@@ -129,7 +121,7 @@ leo run deposit "{
+     gates: 0u64.private,
+     amount: 100u64.private,
+     _nonce: 4668394794828730542675887906815309351994017139223602571716627453741502624516group.public
+-}"  50u64
++}"  50u64 || exit
+ 
+ echo "
+ ###############################################################################
+@@ -225,4 +217,4 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run withdraw aleo1t0uer3jgtsgmx5tq6x6f9ecu8tr57rzzfnc2dgmcqldceal0ls9qf6st7a 50u64 1234u64 15u64;
++leo run withdraw aleo1t0uer3jgtsgmx5tq6x6f9ecu8tr57rzzfnc2dgmcqldceal0ls9qf6st7a 50u64 1234u64 15u64 || exit
+diff --git a/examples/battleship/run.sh b/examples/battleship/run.sh
+index 3181d325a3..eb0596d833 100755
+--- a/examples/battleship/run.sh
++++ b/examples/battleship/run.sh
+@@ -1,11 +1,3 @@
+-#!/bin/bash
+-# First check that Leo is installed.
+-if ! command -v leo &> /dev/null
+-then
+-    echo "leo is not installed."
+-    exit
+-fi
+-
+ # Follow along in the README.md for a detailed explanation of each step.
+ 
+ # 1: Initializing Player 1
+@@ -38,7 +30,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run initialize_board 34084860461056u64 551911718912u64 7u64 1157425104234217472u64 aleo1wyvu96dvv0auq9e4qme54kjuhzglyfcf576h0g3nrrmrmr0505pqd6wnry
++leo run initialize_board 34084860461056u64 551911718912u64 7u64 1157425104234217472u64 aleo1wyvu96dvv0auq9e4qme54kjuhzglyfcf576h0g3nrrmrmr0505pqd6wnry || exit
+ 
+ echo "
+ ✅ Successfully initialized Player 1's board."
+@@ -61,7 +53,7 @@ leo run offer_battleship '{
+   player_2: aleo1wyvu96dvv0auq9e4qme54kjuhzglyfcf576h0g3nrrmrmr0505pqd6wnry.private,
+   game_started: false.private,
+   _nonce: 3887646704618532506963887075433683846689834495661101507703164090915348189037group.public
+-}'
++}' || exit
+ echo "
+ ✅ Successfully passed the board to Player 2."
+ 
+@@ -86,7 +78,7 @@ echo "
+     \"license\": \"MIT\"
+   }" > program.json
+ 
+-  leo run initialize_board 31u64 2207646875648u64 224u64 9042383626829824u64 aleo15g9c69urtdhvfml0vjl8px07txmxsy454urhgzk57szmcuttpqgq5cvcdy
++  leo run initialize_board 31u64 2207646875648u64 224u64 9042383626829824u64 aleo15g9c69urtdhvfml0vjl8px07txmxsy454urhgzk57szmcuttpqgq5cvcdy || exit
+ )
+ echo "
+ ✅ Successfully initialized Player 2's board."
+@@ -118,7 +110,7 @@ leo run start_battleship '{
+   player_2: aleo1wyvu96dvv0auq9e4qme54kjuhzglyfcf576h0g3nrrmrmr0505pqd6wnry.private,
+   prev_hit_or_miss: 0u64.private,
+   _nonce: 4374626042494973146987320062571809401151262172766172816829659487584978644457group.public
+-}'
++}' || exit
+ echo "
+ ✅ Successfully passed the board back to Player 1."
+ 
+@@ -161,7 +153,7 @@ echo "
+     player_2: aleo15g9c69urtdhvfml0vjl8px07txmxsy454urhgzk57szmcuttpqgq5cvcdy.private,
+     prev_hit_or_miss: 0u64.private,
+     _nonce: 3742551407126138397717446975757978589064777004441277005584760115236217735495group.public
+-  }' 1u64
++  }' 1u64 || exit
+ )
+ echo "
+ ✅ Successfully executed Player 1's turn."
+@@ -205,7 +197,7 @@ echo "
+     player_2: aleo1wyvu96dvv0auq9e4qme54kjuhzglyfcf576h0g3nrrmrmr0505pqd6wnry.private,
+     prev_hit_or_miss: 0u64.private,
+     _nonce: 5481529266389297320813092061136936339861329677911328036818179854958874588416group.public
+-  }' 2048u64
++  }' 2048u64 || exit
+ )
+ echo "
+ ✅ Successfully executed Player 2's turn."
+@@ -249,7 +241,7 @@ echo "
+     player_2: aleo15g9c69urtdhvfml0vjl8px07txmxsy454urhgzk57szmcuttpqgq5cvcdy.private,
+     prev_hit_or_miss: 1u64.private,
+     _nonce: 5851606198769770675504009323414373017067582072428989801313256693053765675198group.public
+-  }' 2u64
++  }' 2u64 || exit
+ )
+ echo "
+ ✅ Successfully executed Player 1's turn."
+@@ -293,7 +285,7 @@ echo "
+     player_2: aleo1wyvu96dvv0auq9e4qme54kjuhzglyfcf576h0g3nrrmrmr0505pqd6wnry.private,
+     prev_hit_or_miss: 0u64.private,
+     _nonce: 710336412388939616658264778971886770861024495941253598683184288448156545822group.public
+-  }' 4u64
++  }' 4u64 || exit
+ )
+ echo "
+ ✅ Successfully executed Player 2's turn."
+diff --git a/examples/helloworld/imports/point.leo b/examples/helloworld/imports/point.leo
+deleted file mode 100644
+index e69de29bb2..0000000000
+diff --git a/examples/tictactoe/run.sh b/examples/tictactoe/run.sh
+index 90ef8e498f..ac6fca6fcd 100755
+--- a/examples/tictactoe/run.sh
++++ b/examples/tictactoe/run.sh
+@@ -1,11 +1,3 @@
+-#!/bin/bash
+-# First check that Leo is installed.
+-if ! command -v leo &> /dev/null
+-then
+-    echo "leo is not installed."
+-    exit
+-fi
+-
+ # Create a new game.
+ echo "
+ ###############################################################################
+@@ -18,7 +10,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run new
++leo run new || exit
+ 
+ # Have the Player 1 make a move.
+ echo "
+@@ -32,7 +24,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run make_move 1u8 1u8 1u8 "{ r1: { c1: 0u8, c2: 0u8, c3: 0u8 }, r2: { c1: 0u8, c2: 0u8, c3: 0u8 }, r3: { c1: 0u8, c2: 0u8, c3: 0u8 } }"
++leo run make_move 1u8 1u8 1u8 "{ r1: { c1: 0u8, c2: 0u8, c3: 0u8 }, r2: { c1: 0u8, c2: 0u8, c3: 0u8 }, r3: { c1: 0u8, c2: 0u8, c3: 0u8 } }" || exit
+ 
+ # Have the Player 2 make a move.
+ echo "
+@@ -46,7 +38,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run make_move 2u8 2u8 2u8 "{ r1: { c1: 1u8, c2: 0u8, c3: 0u8 }, r2: { c1: 0u8, c2: 0u8, c3: 0u8 }, r3: { c1: 0u8, c2: 0u8, c3: 0u8 } }"
++leo run make_move 2u8 2u8 2u8 "{ r1: { c1: 1u8, c2: 0u8, c3: 0u8 }, r2: { c1: 0u8, c2: 0u8, c3: 0u8 }, r3: { c1: 0u8, c2: 0u8, c3: 0u8 } }" || exit
+ 
+ # Have the Player 1 make a move.
+ echo "
+@@ -60,7 +52,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run make_move 1u8 3u8 1u8 "{ r1: { c1: 1u8, c2: 0u8, c3: 0u8 }, r2: { c1: 0u8, c2: 2u8, c3: 0u8 }, r3: { c1: 0u8, c2: 0u8, c3: 0u8 } }"
++leo run make_move 1u8 3u8 1u8 "{ r1: { c1: 1u8, c2: 0u8, c3: 0u8 }, r2: { c1: 0u8, c2: 2u8, c3: 0u8 }, r3: { c1: 0u8, c2: 0u8, c3: 0u8 } }" || exit
+ 
+ # Have the Player 2 make a move.
+ echo "
+@@ -74,7 +66,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run make_move 2u8 2u8 1u8 "{ r1: { c1: 1u8, c2: 0u8, c3: 0u8 }, r2: { c1: 0u8, c2: 2u8, c3: 0u8 }, r3: { c1: 1u8, c2: 0u8, c3: 0u8 } }"
++leo run make_move 2u8 2u8 1u8 "{ r1: { c1: 1u8, c2: 0u8, c3: 0u8 }, r2: { c1: 0u8, c2: 2u8, c3: 0u8 }, r3: { c1: 1u8, c2: 0u8, c3: 0u8 } }" || exit
+ 
+ # Have the Player 1 make a move.
+ echo "
+@@ -88,7 +80,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run make_move 1u8 2u8 3u8 "{ r1: { c1: 1u8, c2: 0u8, c3: 0u8 }, r2: { c1: 2u8, c2: 2u8, c3: 0u8 }, r3: { c1: 1u8, c2: 0u8, c3: 0u8 } }"
++leo run make_move 1u8 2u8 3u8 "{ r1: { c1: 1u8, c2: 0u8, c3: 0u8 }, r2: { c1: 2u8, c2: 2u8, c3: 0u8 }, r3: { c1: 1u8, c2: 0u8, c3: 0u8 } }" || exit
+ 
+ # Have the Player 2 make a move.
+ echo "
+@@ -102,7 +94,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run make_move 2u8 1u8 2u8 "{ r1: { c1: 1u8, c2: 0u8, c3: 0u8 }, r2: { c1: 2u8, c2: 2u8, c3: 1u8 }, r3: { c1: 1u8, c2: 0u8, c3: 0u8 } }"
++leo run make_move 2u8 1u8 2u8 "{ r1: { c1: 1u8, c2: 0u8, c3: 0u8 }, r2: { c1: 2u8, c2: 2u8, c3: 1u8 }, r3: { c1: 1u8, c2: 0u8, c3: 0u8 } }" || exit
+ 
+ # Have the Player 1 make a move.
+ echo "
+@@ -116,7 +108,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run make_move 1u8 3u8 2u8 "{ r1: { c1: 1u8, c2: 2u8, c3: 0u8 }, r2: { c1: 2u8, c2: 2u8, c3: 1u8 }, r3: { c1: 1u8, c2: 0u8, c3: 0u8 } }"
++leo run make_move 1u8 3u8 2u8 "{ r1: { c1: 1u8, c2: 2u8, c3: 0u8 }, r2: { c1: 2u8, c2: 2u8, c3: 1u8 }, r3: { c1: 1u8, c2: 0u8, c3: 0u8 } }" || exit
+ 
+ # Have the Player 2 make a move.
+ echo "
+@@ -130,7 +122,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run make_move 2u8 3u8 3u8 "{ r1: { c1: 1u8, c2: 2u8, c3: 0u8 }, r2: { c1: 2u8, c2: 2u8, c3: 1u8 }, r3: { c1: 1u8, c2: 1u8, c3: 0u8 } }"
++leo run make_move 2u8 3u8 3u8 "{ r1: { c1: 1u8, c2: 2u8, c3: 0u8 }, r2: { c1: 2u8, c2: 2u8, c3: 1u8 }, r3: { c1: 1u8, c2: 1u8, c3: 0u8 } }" || exit
+ 
+ echo "
+ ###############################################################################
+@@ -143,7 +135,7 @@ echo "
+ ########                                                               ########
+ ###############################################################################
+ "
+-leo run make_move 1u8 1u8 3u8 "{ r1: { c1: 1u8, c2: 2u8, c3: 0u8 }, r2: { c1: 2u8, c2: 2u8, c3: 1u8 }, r3: { c1: 1u8, c2: 1u8, c3: 2u8 } }"
++leo run make_move 1u8 1u8 3u8 "{ r1: { c1: 1u8, c2: 2u8, c3: 0u8 }, r2: { c1: 2u8, c2: 2u8, c3: 1u8 }, r3: { c1: 1u8, c2: 1u8, c3: 2u8 } }" || exit
+ 
+ echo "
+ ###############################################################################
+diff --git a/examples/token/build/main.aleo b/examples/token/build/main.aleo
+index a1f69784ad..907bc1bb78 100644
+--- a/examples/token/build/main.aleo
++++ b/examples/token/build/main.aleo
+@@ -1,4 +1,4 @@
+-program token.aleo
++program token.aleo;
+ 
+ record token:
+     owner as address.private;
+@@ -8,10 +8,10 @@ record token:
+ mapping account:
+ 	key left as address.public;
+ 	value right as u64.public;
+-
+ function mint_public:
+     input r0 as address.public;
+     input r1 as u64.public;
++
+     finalize r0 r1;
+ 
+ finalize mint_public:
+@@ -28,6 +28,7 @@ function mint_private:
+ function transfer_public:
+     input r0 as address.public;
+     input r1 as u64.public;
++
+     finalize self.caller r0 r1;
+ 
+ finalize transfer_public:
+@@ -54,6 +55,7 @@ function transfer_private_to_public:
+     sub r0.amount r2 into r3;
+     cast r0.owner r0.gates r3 into r4 as token.record;
+     output r4 as token.record;
++
+     finalize r1 r2;
+ 
+ finalize transfer_private_to_public:
+@@ -66,10 +68,10 @@ function transfer_public_to_private:
+     input r1 as u64.public;
+     cast r0 0u64 r1 into r2 as token.record;
+     output r2 as token.record;
++
+     finalize self.caller r1;
+ 
+ finalize transfer_public_to_private:
+     input r0 as address.public;
+     input r1 as u64.public;
+     decrement account[r0] by r1;
+-
+diff --git a/examples/vote/run.sh b/examples/vote/run.sh
+index 4de92cf91b..859207ead3 100755
+--- a/examples/vote/run.sh
++++ b/examples/vote/run.sh
+@@ -1,11 +1,3 @@
+-#!/bin/bash
+-# First check that Leo is installed.
+-if ! command -v leo &> /dev/null
+-then
+-    echo "leo is not installed."
+-    exit
+-fi
+-
+ echo "
+ ###############################################################################
+ ########                                                               ########

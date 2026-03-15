@@ -1,0 +1,87 @@
+diff --git a/examples/broken_bank/run.sh b/examples/broken_bank/run.sh
+index feaa5dc4a7..765bde20a6 100755
+--- a/examples/broken_bank/run.sh
++++ b/examples/broken_bank/run.sh
+@@ -7,12 +7,12 @@ then
+ fi
+ 
+ # The private key and address of the bank.
+-# Swap these into program.json, when running transactions as the first bidder.
++# Swap these into program.json, when running transactions as the bank.
+ # "private_key": "APrivateKey1zkpHtqVWT6fSHgUMNxsuVf7eaR6id2cj7TieKY1Z8CP5rCD",
+ # "address": "aleo1t0uer3jgtsgmx5tq6x6f9ecu8tr57rzzfnc2dgmcqldceal0ls9qf6st7a"
+ 
+ # The private key and address of the user.
+-# Swap these into program.json, when running transactions as the second bidder.
++# Swap these into program.json, when running transactions as the user.
+ # "private_key": "APrivateKey1zkp75cpr5NNQpVWc5mfsD9Uf2wg6XvHknf82iwB636q3rtc"
+ # "address": "aleo1zeklp6dd8e764spe74xez6f8w27dlua3w7hl4z2uln03re52egpsv46ngg"
+ 
+diff --git a/examples/bubblesort/README.md b/examples/bubblesort/README.md
+index 15bc6bfbd1..cbffc77278 100644
+--- a/examples/bubblesort/README.md
++++ b/examples/bubblesort/README.md
+@@ -9,10 +9,10 @@ leo build
+ 
+ To run this program, run:
+ ```bash
+-leo run main
++leo run bubble_sort
+ ```
+ 
+-## Overview 
++## Overview
+ 
+ This example shows how to sort an array.
+ 
+diff --git a/examples/groups/README.md b/examples/groups/README.md
+index 251772baf0..c262b06c54 100644
+--- a/examples/groups/README.md
++++ b/examples/groups/README.md
+@@ -12,7 +12,7 @@ To run this program, run:
+ leo run main
+ ```
+ 
+-## Overview 
++## Overview
+ 
+ This example shows how to do basic operations over groups.
+ 
+@@ -21,7 +21,11 @@ It takes the input data from inputs/groups.in
+ 
+ ## Documentation Group Element
+ 
+-The set of affine points on the elliptic curve passed into the Leo compiler forms a group. Leo supports this set as a primitive data type. Group elements are special since their values can be defined as coordinate pairs ```(x, y)group```. The group type keyword group must be used when specifying a pair of group coordinates since implicit syntax would collide with normal tuple (a, b) values.
++The set of affine points on the elliptic curve passed into the Leo compiler forms a group.
++A subset of those points, defined by a chosen generator point, forms a subgroup of the group.
++Leo supports the set of points in this subgroup as a primitive data type.
++Group elements are special since their values can be defined as coordinate pairs ```(x, y)group```.
++The `group` type keyword group must be used when specifying a pair of group coordinates since implicit syntax would collide with normal tuple `(a, b)` values.
+ 
+ ```
+ let b = 0group; // the zero of the group
+@@ -32,4 +36,3 @@ let c = 2group; // 2 * the group generator
+ 
+ let d = (0, 1)group; // coordinate notation
+ ```
+-
+diff --git a/examples/simple_token/src/main.leo b/examples/simple_token/src/main.leo
+index c0f1c1f24b..8f7bb69188 100644
+--- a/examples/simple_token/src/main.leo
++++ b/examples/simple_token/src/main.leo
+@@ -11,7 +11,7 @@ record Token {
+ }
+ 
+ // The `mint` function initializes a new record with the
+-// to the receiver of tokens in `r1` for the receiver in `r0`.
++// specified number of tokens assigned to the specified receiver.
+ @program
+ function mint(owner: address, amount: u64) -> Token {
+     return Token {
+@@ -48,4 +48,4 @@ function transfer(token: Token, to: address, amount: u64) -> (Token, Token) {
+ 
+     // Output the sender's change record and the receiver's record.
+     return (remaining, transferred);
+-}
+\ No newline at end of file
++}

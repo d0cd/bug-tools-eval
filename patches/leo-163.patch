@@ -1,0 +1,257 @@
+diff --git a/compiler/src/value/value.rs b/compiler/src/value/value.rs
+index a37636f31e..fe8ba6a1b1 100644
+--- a/compiler/src/value/value.rs
++++ b/compiler/src/value/value.rs
+@@ -26,7 +26,7 @@ use crate::{
+     GroupType,
+     Integer,
+ };
+-use leo_typed::{Circuit, Function, Identifier, Span, Type};
++use leo_typed::{Circuit, Function, GroupValue, Identifier, Span, Type};
+ 
+ use snarkos_errors::gadgets::SynthesisError;
+ use snarkos_models::{
+@@ -85,7 +85,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedValue<F, G> {
+             Type::Address => Ok(ConstrainedValue::Address(Address::new(value, span)?)),
+             Type::Boolean => Ok(ConstrainedValue::Boolean(new_bool_constant(value, span)?)),
+             Type::Field => Ok(ConstrainedValue::Field(FieldType::constant(value, span)?)),
+-            Type::Group => Err(ValueError::implicit_group(span)),
++            Type::Group => Ok(ConstrainedValue::Group(G::constant(GroupValue::Single(value, span))?)),
+             Type::IntegerType(integer_type) => Ok(ConstrainedValue::Integer(Integer::new_constant(
+                 integer_type,
+                 value,
+diff --git a/examples/fibonacci/Leo.toml b/examples/fibonacci/Leo.toml
+index 9e35608c56..ad054e8e19 100644
+--- a/examples/fibonacci/Leo.toml
++++ b/examples/fibonacci/Leo.toml
+@@ -1,3 +1,6 @@
+ [package]
+ name = "fibonacci"
+ version = "0.1.0"
++description = "Returns a fibonnaci sequence"
++remote = "aleo/fibonacci"
++license = "LICENSE-MIT"
+diff --git a/examples/hello_world/.gitignore b/examples/hello-world/.gitignore
+similarity index 100%
+rename from examples/hello_world/.gitignore
+rename to examples/hello-world/.gitignore
+diff --git a/examples/hello-world/Leo.toml b/examples/hello-world/Leo.toml
+new file mode 100644
+index 0000000000..b4c5f858d9
+--- /dev/null
++++ b/examples/hello-world/Leo.toml
+@@ -0,0 +1,6 @@
++[package]
++name = "hello-world"
++version = "0.1.0"
++description = "Returns the sum of two u32 integers"
++remote = "aleo/hello-world"
++license = "LICENSE-MIT"
+diff --git a/examples/hello-world/inputs/hello-world.in b/examples/hello-world/inputs/hello-world.in
+new file mode 100644
+index 0000000000..684a41fbef
+--- /dev/null
++++ b/examples/hello-world/inputs/hello-world.in
+@@ -0,0 +1,6 @@
++[main]
++a: u32 = 1;
++b: u32 = 2;
++
++[registers]
++r0: u32 = 0;
+\ No newline at end of file
+diff --git a/examples/hello_world/inputs/hello_world.state b/examples/hello-world/inputs/hello-world.state
+similarity index 100%
+rename from examples/hello_world/inputs/hello_world.state
+rename to examples/hello-world/inputs/hello-world.state
+diff --git a/examples/hello-world/src/main.leo b/examples/hello-world/src/main.leo
+new file mode 100644
+index 0000000000..5cd23178f9
+--- /dev/null
++++ b/examples/hello-world/src/main.leo
+@@ -0,0 +1,5 @@
++// The 'hello-world' main function.
++function main(a: u32, b: u32) -> u32 {
++    let c: u32 = a + b;
++    return c
++}
+diff --git a/examples/hello_world/Leo.toml b/examples/hello_world/Leo.toml
+deleted file mode 100644
+index c0e09f8307..0000000000
+--- a/examples/hello_world/Leo.toml
++++ /dev/null
+@@ -1,3 +0,0 @@
+-[package]
+-name = "hello_world"
+-version = "0.1.0"
+diff --git a/examples/hello_world/inputs/hello_world.in b/examples/hello_world/inputs/hello_world.in
+deleted file mode 100644
+index 494a224d5d..0000000000
+--- a/examples/hello_world/inputs/hello_world.in
++++ /dev/null
+@@ -1,2 +0,0 @@
+-[registers]
+-r0: u32 = 0;
+\ No newline at end of file
+diff --git a/examples/hello_world/src/main.leo b/examples/hello_world/src/main.leo
+deleted file mode 100644
+index b51882a62f..0000000000
+--- a/examples/hello_world/src/main.leo
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// The 'hello_world' main function.
+-function main() -> u32 {
+-    let a: u32 = 1 + 1;
+-    return a
+-}
+diff --git a/examples/pedersen_hash/.gitignore b/examples/pedersen-hash/.gitignore
+similarity index 100%
+rename from examples/pedersen_hash/.gitignore
+rename to examples/pedersen-hash/.gitignore
+diff --git a/examples/pedersen-hash/Leo.toml b/examples/pedersen-hash/Leo.toml
+new file mode 100644
+index 0000000000..acbc713136
+--- /dev/null
++++ b/examples/pedersen-hash/Leo.toml
+@@ -0,0 +1,6 @@
++[package]
++name = "pedersen-hash"
++version = "0.1.0"
++description = "A 256bit hash function"
++remote = "aleo/pedersen-hash"
++license = "LICENSE-MIT"
+diff --git a/examples/pedersen_hash/inputs/pedersen_hash.in b/examples/pedersen-hash/inputs/pedersen-hash.in
+similarity index 100%
+rename from examples/pedersen_hash/inputs/pedersen_hash.in
+rename to examples/pedersen-hash/inputs/pedersen-hash.in
+diff --git a/examples/pedersen_hash/inputs/pedersen_hash.state b/examples/pedersen-hash/inputs/pedersen-hash.state
+similarity index 100%
+rename from examples/pedersen_hash/inputs/pedersen_hash.state
+rename to examples/pedersen-hash/inputs/pedersen-hash.state
+diff --git a/examples/pedersen_hash/src/main.leo b/examples/pedersen-hash/src/main.leo
+similarity index 94%
+rename from examples/pedersen_hash/src/main.leo
+rename to examples/pedersen-hash/src/main.leo
+index da62f8ebd5..bb93ab0158 100644
+--- a/examples/pedersen_hash/src/main.leo
++++ b/examples/pedersen-hash/src/main.leo
+@@ -17,7 +17,7 @@ circuit PedersenHash {
+     }
+ }
+ 
+-// The 'pedersen_hash' main function.
++// The 'pedersen-hash' main function.
+ function main() -> group {
+     const parameters = [1group; 256];
+     const pedersen = PedersenHash::new(parameters);
+diff --git a/examples/pedersen_hash/Leo.toml b/examples/pedersen_hash/Leo.toml
+deleted file mode 100644
+index e104d9d929..0000000000
+--- a/examples/pedersen_hash/Leo.toml
++++ /dev/null
+@@ -1,3 +0,0 @@
+-[package]
+-name = "pedersen_hash"
+-version = "0.1.0"
+diff --git a/examples/square_root/.gitignore b/examples/square-root/.gitignore
+similarity index 100%
+rename from examples/square_root/.gitignore
+rename to examples/square-root/.gitignore
+diff --git a/examples/square-root/Leo.toml b/examples/square-root/Leo.toml
+new file mode 100644
+index 0000000000..6cda034dc4
+--- /dev/null
++++ b/examples/square-root/Leo.toml
+@@ -0,0 +1,6 @@
++[package]
++name = "square-root"
++version = "0.1.0"
++description = "prove knowledge of the square root `a` of a number `b`"
++remote = "aleo/square-root"
++license = "LICENSE-MIT"
+diff --git a/examples/square_root/inputs/square_root.in b/examples/square-root/inputs/square-root.in
+similarity index 57%
+rename from examples/square_root/inputs/square_root.in
+rename to examples/square-root/inputs/square-root.in
+index bd12bc402f..1d6a8cf5d3 100644
+--- a/examples/square_root/inputs/square_root.in
++++ b/examples/square-root/inputs/square-root.in
+@@ -1,7 +1,7 @@
+ // The program input for square_root/src/main.leo
+ [main]
+-a: field = 337;
+-b: field = 113569;
++a: u32 = 337;
++b: u32 = 113569;
+ 
+ [registers]
+ r0: bool = false;
+\ No newline at end of file
+diff --git a/examples/square_root/inputs/square_root.state b/examples/square-root/inputs/square-root.state
+similarity index 100%
+rename from examples/square_root/inputs/square_root.state
+rename to examples/square-root/inputs/square-root.state
+diff --git a/examples/square-root/src/main.leo b/examples/square-root/src/main.leo
+new file mode 100644
+index 0000000000..5d69e2e375
+--- /dev/null
++++ b/examples/square-root/src/main.leo
+@@ -0,0 +1,5 @@
++// The 'square-root' main function.
++// prove knowledge of the square root `a` of a number `b`
++function main(a: u32, b: u32) -> bool {
++    return a * a == b
++}
+diff --git a/examples/square_root/Leo.toml b/examples/square_root/Leo.toml
+deleted file mode 100644
+index 28a89b9c2c..0000000000
+--- a/examples/square_root/Leo.toml
++++ /dev/null
+@@ -1,3 +0,0 @@
+-[package]
+-name = "square_root"
+-version = "0.1.0"
+diff --git a/examples/square_root/src/main.leo b/examples/square_root/src/main.leo
+deleted file mode 100644
+index 7b63b27007..0000000000
+--- a/examples/square_root/src/main.leo
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// The 'square_root' main function.
+-// prove knowledge of the square root `a` of a number `b`:
+-function main(a: field, b: field) -> bool {
+-    return a * a == b
+-}
+diff --git a/leo/commands/publish.rs b/leo/commands/publish.rs
+index 6b92d8df9d..7f7c50e82e 100644
+--- a/leo/commands/publish.rs
++++ b/leo/commands/publish.rs
+@@ -118,7 +118,7 @@ impl CLI for PublishCommand {
+ 
+             // If not logged in, then try logging in using JWT.
+             Err(_error) => {
+-                log::warn!("You should be logged before publish the package");
++                log::warn!("You should be logged in before attempting to publish a package");
+                 log::info!("Trying to log in using JWT...");
+                 let options = (None, None, None);
+ 
+diff --git a/package/src/root/manifest.rs b/package/src/root/manifest.rs
+index 57295a7bb7..f18c98b30b 100644
+--- a/package/src/root/manifest.rs
++++ b/package/src/root/manifest.rs
+@@ -95,10 +95,13 @@ impl Manifest {
+     fn template(&self) -> String {
+         format!(
+             r#"[package]
+-name = "{}"
++name = "{name}"
+ version = "0.1.0"
++description = "The {name} package"
++remote = "[AUTHOR]/{name}"
++license = "LICENSE-MIT"
+ "#,
+-            self.package.name
++            name = self.package.name
+         )
+     }
+ }

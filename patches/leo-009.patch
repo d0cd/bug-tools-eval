@@ -1,0 +1,67 @@
+diff --git a/asg/src/error/mod.rs b/asg/src/error/mod.rs
+index 8dd53d098f..7ee1eb62cf 100644
+--- a/asg/src/error/mod.rs
++++ b/asg/src/error/mod.rs
+@@ -172,6 +172,13 @@ impl AsgConvertError {
+         )
+     }
+ 
++    pub fn duplicate_function_definition(name: &str, span: &Span) -> Self {
++        Self::new_from_span(
++            format!("a function named \"{}\" already exists in this scope", name),
++            span,
++        )
++    }
++
+     pub fn index_into_non_tuple(name: &str, span: &Span) -> Self {
+         Self::new_from_span(format!("failed to index into non-tuple '{}'", name), span)
+     }
+diff --git a/asg/src/program/mod.rs b/asg/src/program/mod.rs
+index c38ab404e5..868b46e8b3 100644
+--- a/asg/src/program/mod.rs
++++ b/asg/src/program/mod.rs
+@@ -266,7 +266,13 @@ impl<'a> Program<'a> {
+ 
+             asg_function.fill_from_ast(function)?;
+ 
+-            functions.insert(name.name.to_string(), asg_function);
++            let name = name.name.to_string();
++
++            if functions.contains_key(&name) {
++                return Err(AsgConvertError::duplicate_function_definition(&name, &function.span));
++            }
++
++            functions.insert(name, asg_function);
+         }
+ 
+         let mut circuits = IndexMap::new();
+diff --git a/compiler/tests/function/duplicate_definition.leo b/compiler/tests/function/duplicate_definition.leo
+new file mode 100644
+index 0000000000..cddc9ce7f2
+--- /dev/null
++++ b/compiler/tests/function/duplicate_definition.leo
+@@ -0,0 +1,7 @@
++function main() {
++    console.log("{}", 1u8);  
++}
++
++function main() {
++    console.log("{}", 2u8);  
++}
+\ No newline at end of file
+diff --git a/compiler/tests/function/mod.rs b/compiler/tests/function/mod.rs
+index 6de6cd8153..8dfb865d90 100644
+--- a/compiler/tests/function/mod.rs
++++ b/compiler/tests/function/mod.rs
+@@ -211,3 +211,11 @@ fn test_array_params_direct_call() {
+ 
+     assert_satisfied(program);
+ }
++
++#[test]
++fn test_duplicate_function_definition() {
++    let program_string = include_str!("duplicate_definition.leo");
++    let error = parse_program(program_string).err().unwrap();
++
++    expect_asg_error(error);
++}

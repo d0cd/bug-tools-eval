@@ -1,0 +1,518 @@
+diff --git a/leo/cli/commands/build.rs b/leo/cli/commands/build.rs
+index d8441199b7..a212822fd5 100644
+--- a/leo/cli/commands/build.rs
++++ b/leo/cli/commands/build.rs
+@@ -105,11 +105,11 @@ fn handle_build<N: Network>(command: &LeoBuild, context: Context) -> Result<<Leo
+     for program in package.programs.iter() {
+         let (bytecode, build_path) = match &program.data {
+             leo_package::ProgramData::Bytecode(bytecode) => {
+-                // This was a network dependency, and we've downloaded its bytecode.
++                // This was a network dependency or local .aleo dependency, and we have its bytecode.
+                 (bytecode.clone(), imports_directory.join(format!("{}.aleo", program.name)))
+             }
+             leo_package::ProgramData::SourcePath(path) => {
+-                // This is a local dependency, so we must compile it.
++                // This is a local Leo dependency, so we must compile it.
+                 let build_path = if path == &main_source_path {
+                     build_directory.join("main.aleo")
+                 } else {
+diff --git a/leo/cli/commands/debug.rs b/leo/cli/commands/debug.rs
+index 03cf1fbb55..88fcbf39fd 100644
+--- a/leo/cli/commands/debug.rs
++++ b/leo/cli/commands/debug.rs
+@@ -70,7 +70,7 @@ fn handle_debug(command: &LeoDebug, context: Context, package: Option<Package>)
+         let private_key = context.get_private_key(&None)?;
+         let address = Address::try_from(&private_key)?;
+ 
+-        // Get the paths of all local dependencies.
++        // Get the paths of all local Leo dependencies.
+         let local_dependency_paths: Vec<PathBuf> = package
+             .programs
+             .iter()
+@@ -85,11 +85,11 @@ fn handle_debug(command: &LeoDebug, context: Context, package: Option<Package>)
+             .iter()
+             .flat_map(|program| match &program.data {
+                 ProgramData::SourcePath(..) => {
+-                    // It's a local dependency.
++                    // It's a local Leo dependency.
+                     Some(program.name)
+                 }
+                 ProgramData::Bytecode(..) => {
+-                    // It's a network dependency.
++                    // It's a network dependency or local .aleo dependency.
+                     None
+                 }
+             })
+diff --git a/leo/cli/commands/deploy.rs b/leo/cli/commands/deploy.rs
+index cda12f18f1..1b5db58567 100644
+--- a/leo/cli/commands/deploy.rs
++++ b/leo/cli/commands/deploy.rs
+@@ -17,15 +17,17 @@
+ use super::*;
+ 
+ use check_transaction::TransactionStatus;
+-use leo_package::{Manifest, NetworkName, Package, fetch_program_from_network};
++use leo_package::{NetworkName, Package, ProgramData, fetch_program_from_network};
+ 
+ #[cfg(not(feature = "only_testnet"))]
+ use snarkvm::prelude::{CanaryV0, MainnetV0};
+ use snarkvm::{
+     ledger::store::helpers::memory::BlockMemory,
+     prelude::{
++        ConsensusVersion,
+         Deployment,
+         Program,
++        ProgramID,
+         TestnetV0,
+         VM,
+         deployment_cost,
+@@ -36,11 +38,7 @@ use snarkvm::{
+ 
+ use aleo_std::StorageMode;
+ use colored::*;
+-use snarkvm::prelude::{ConsensusVersion, ProgramID};
+-use std::path::PathBuf;
+-
+-type DeploymentTask<N> =
+-    (ProgramID<N>, Program<N>, Option<Manifest>, Option<u64>, Option<u64>, Option<Record<N, Plaintext<N>>>);
++use std::{collections::HashSet, fs, path::PathBuf};
+ 
+ /// Deploys an Aleo program.
+ #[derive(Parser, Debug)]
+@@ -65,6 +63,14 @@ pub struct LeoDeploy {
+     pub(crate) build_options: BuildOptions,
+ }
+ 
++struct Task<N: Network> {
++    id: ProgramID<N>,
++    snarkvm_program: Program<N>,
++    is_local: bool,
++    priority_fee: Option<u64>,
++    record: Option<Record<N, Plaintext<N>>>,
++}
++
+ impl Command for LeoDeploy {
+     type Input = Package;
+     type Output = ();
+@@ -122,42 +128,61 @@ fn handle_deploy<N: Network>(
+     // Get the endpoint, accounting for overrides.
+     let endpoint = context.get_endpoint(&command.env_override.endpoint)?;
+ 
+-    // Get the programs and optional manifests for all the programs.
+-    let programs_and_manifests = package
+-        .get_programs_and_manifests(context.home()?)?
++    // Get all the programs but tests.
++    let programs = package.programs.iter().filter(|program| !program.is_test).cloned();
++
++    let programs_and_bytecode: Vec<(leo_package::Program, String)> = programs
+         .into_iter()
+-        .map(|(program_name, program_string, manifest)| {
+-            // Parse the program ID from the program name.
+-            let program_id = ProgramID::<N>::from_str(&format!("{}.aleo", program_name))
+-                .map_err(|e| CliError::custom(format!("Failed to parse program ID: {e}")))?;
+-            // Parse the program bytecode.
+-            let bytecode = Program::<N>::from_str(&program_string)
+-                .map_err(|e| CliError::custom(format!("Failed to parse program: {e}")))?;
+-            Ok((program_id, bytecode, manifest))
++        .map(|program| {
++            let bytecode = match &program.data {
++                ProgramData::Bytecode(s) => s.clone(),
++                ProgramData::SourcePath(..) => {
++                    // We need to read the bytecode from the filesystem.
++                    let aleo_name = format!("{}.aleo", program.name);
++                    let aleo_path = if package.manifest.program == aleo_name {
++                        // The main program in the package, so its .aleo file
++                        // will be in the build directory.
++                        package.build_directory().join("main.aleo")
++                    } else {
++                        // Some other dependency, so look in `imports`.
++                        package.imports_directory().join(aleo_name)
++                    };
++                    fs::read_to_string(aleo_path.clone())
++                        .map_err(|e| CliError::custom(format!("Failed to read file {}: {e}", aleo_path.display())))?
++                }
++            };
++
++            Ok((program, bytecode))
+         })
+-        .collect::<Result<Vec<_>>>()?;
++        .collect::<Result<_>>()?;
+ 
+     // Parse the fee options.
+-    let fee_options = parse_fee_options(&private_key, &command.fee_options, programs_and_manifests.len())?;
++    let fee_options = parse_fee_options(&private_key, &command.fee_options, programs_and_bytecode.len())?;
+ 
+-    // Zip up the programs and manifests with the fee options.
+-    let tasks = programs_and_manifests
++    let tasks: Vec<Task<N>> = programs_and_bytecode
+         .into_iter()
+         .zip(fee_options)
+-        .map(|((program, data, manifest), (base_fee, priority_fee, record))| {
+-            (program, data, manifest, base_fee, priority_fee, record)
++        .map(|((program, bytecode), (_base_fee, priority_fee, record))| {
++            let id_str = format!("{}.aleo", program.name);
++            let id =
++                id_str.parse().map_err(|e| CliError::custom(format!("Failed to parse program ID {id_str}: {e}")))?;
++            let snarkvm_program =
++                bytecode.parse().map_err(|e| CliError::custom(format!("Failed to parse program: {e}")))?;
++            Ok(Task { id, snarkvm_program, is_local: program.is_local, priority_fee, record })
+         })
+-        .collect::<Vec<_>>();
++        .collect::<Result<_>>()?;
+ 
+     // Split the tasks into local and remote dependencies.
+-    let (local, remote) = tasks.into_iter().partition::<Vec<_>, _>(|(_, _, manifest, _, _, _)| manifest.is_some());
++    let (local, remote) = tasks.into_iter().partition::<Vec<_>, _>(|task| task.is_local);
+ 
+     // Get the skipped programs.
+-    let skipped = local
++    let skipped: HashSet<ProgramID<N>> = local
+         .iter()
+-        .filter(|(program_id, _, _, _, _, _)| command.skip.iter().any(|skip| program_id.to_string().contains(skip)))
+-        .map(|(program_id, _, _, _, _, _)| *program_id)
+-        .collect::<Vec<_>>();
++        .filter_map(|task| {
++            let id_string = task.id.to_string();
++            command.skip.iter().any(|skip| id_string.contains(skip)).then_some(task.id)
++        })
++        .collect();
+ 
+     // Get the consensus version.
+     let consensus_version = get_consensus_version::<N>(&command.extra.consensus_version, &endpoint, network, &context)?;
+@@ -189,9 +214,9 @@ fn handle_deploy<N: Network>(
+     let vm = VM::from(ConsensusStore::<N, ConsensusMemory<N>>::open(StorageMode::Production)?)?;
+ 
+     // Load the remote dependencies into the VM.
+-    for (_, program, _, _, _, _) in remote {
++    for Task { snarkvm_program, .. } in remote {
+         // If the program is a remote dependency, add it to the VM.
+-        vm.process().write().add_program(&program)?;
++        vm.process().write().add_program(&snarkvm_program)?;
+     }
+ 
+     // Specify the query
+@@ -199,27 +224,34 @@ fn handle_deploy<N: Network>(
+ 
+     // For each of the programs, generate a deployment transaction.
+     let mut transactions = Vec::new();
+-    for (program_id, program, manifest, _, priority_fee, fee_record) in local {
++    for Task { id, snarkvm_program, priority_fee, record, .. } in local {
+         // If the program is a local dependency that is not skipped, generate a deployment transaction.
+         let mut deploy = || -> Result<()> {
+-            if manifest.is_some() && !skipped.contains(&program_id) {
+-                println!("📦 Creating deployment transaction for '{}'...\n", program_id.to_string().bold());
++            if !skipped.contains(&id) {
++                println!("📦 Creating deployment transaction for '{}'...\n", id.to_string().bold());
+                 // Generate the transaction.
+                 let transaction = vm
+-                    .deploy(&private_key, &program, fee_record.clone(), priority_fee.unwrap_or(0), Some(&query), rng)
++                    .deploy(
++                        &private_key,
++                        &snarkvm_program,
++                        record.clone(),
++                        priority_fee.unwrap_or(0),
++                        Some(&query),
++                        rng,
++                    )
+                     .map_err(|e| CliError::custom(format!("Failed to generate deployment transaction: {e}")))?;
+                 // Get the deployment.
+                 let deployment = transaction.deployment().expect("Expected a deployment in the transaction");
+                 // Print the deployment stats.
+-                print_deployment_stats(&program_id.to_string(), deployment, priority_fee)?;
++                print_deployment_stats(&id.to_string(), deployment, priority_fee)?;
+                 // Save the transaction.
+-                transactions.push((program_id, transaction));
++                transactions.push((id, transaction));
+             }
+             Ok(())
+         };
+         deploy()?;
+         // Add the program to the VM.
+-        vm.process().write().add_program(&program)?;
++        vm.process().write().add_program(&snarkvm_program)?;
+         if command.twice {
+             deploy()?;
+         }
+@@ -332,20 +364,18 @@ fn handle_deploy<N: Network>(
+ fn check_tasks_for_warnings<N: Network>(
+     endpoint: &str,
+     network: NetworkName,
+-    tasks: &[DeploymentTask<N>],
++    tasks: &[Task<N>],
+     action: &TransactionAction,
+ ) -> Vec<String> {
+     let mut warnings = Vec::new();
+-    for (program_id, _, manifest, _, _, _) in tasks {
+-        if manifest.is_none() || !action.broadcast {
++    for Task { id, is_local, .. } in tasks {
++        if !is_local || !action.broadcast {
+             continue;
+         }
+         // Check if the program exists on the network.
+-        if fetch_program_from_network(&program_id.to_string(), endpoint, network).is_ok() {
+-            warnings.push(format!(
+-                "The program '{}' already exists on the network. The deployment will likely fail.",
+-                program_id
+-            ));
++        if fetch_program_from_network(&id.to_string(), endpoint, network).is_ok() {
++            warnings
++                .push(format!("The program '{id}' already exists on the network. The deployment will likely fail.",));
+         }
+     }
+     warnings
+@@ -391,9 +421,9 @@ fn print_deployment_plan<N: Network>(
+     address: &Address<N>,
+     endpoint: &str,
+     network: &NetworkName,
+-    local: &[DeploymentTask<N>],
+-    skipped: &[ProgramID<N>],
+-    remote: &[DeploymentTask<N>],
++    local: &[Task<N>],
++    skipped: &HashSet<ProgramID<N>>,
++    remote: &[Task<N>],
+     warnings: &[String],
+     consensus_version: ConsensusVersion,
+     command: &LeoDeploy,
+@@ -416,12 +446,12 @@ fn print_deployment_plan<N: Network>(
+     if local.is_empty() {
+         println!("  (none)");
+     } else {
+-        for (name, _, _, _, priority_fee, record) in local.iter().filter(|(p, ..)| !skipped.contains(p)) {
++        for Task { id, priority_fee, record, .. } in local.iter().filter(|task| !skipped.contains(&task.id)) {
+             let priority_fee_str = priority_fee.map_or("0".into(), |v| v.to_string());
+             let record_str = if record.is_some() { "yes" } else { "no (public fee)" };
+             println!(
+                 "  • {}  │ priority fee: {}  │ fee record: {}",
+-                name.to_string().cyan(),
++                id.to_string().cyan(),
+                 priority_fee_str,
+                 record_str
+             );
+@@ -440,8 +470,8 @@ fn print_deployment_plan<N: Network>(
+     if !remote.is_empty() {
+         println!("\n{}", "🌐 Remote Dependencies:".bold().red());
+         println!("{}", "(Leo will not generate transactions for these programs)".bold().red());
+-        for (symbol, _, _, _, _, _) in remote {
+-            println!("  • {}", symbol.to_string().dimmed());
++        for Task { id, .. } in remote {
++            println!("  • {}", id.to_string().dimmed());
+         }
+     }
+ 
+diff --git a/leo/cli/commands/test.rs b/leo/cli/commands/test.rs
+index 7f29d7667c..35e516fdd2 100644
+--- a/leo/cli/commands/test.rs
++++ b/leo/cli/commands/test.rs
+@@ -64,7 +64,7 @@ fn handle_test(command: LeoTest, context: Context, package: Package) -> Result<(
+     let private_key = context.get_private_key::<TestnetV0>(&None)?;
+     let address = Address::try_from(&private_key)?;
+ 
+-    // Get the paths of all local dependencies.
++    // Get the paths of all local Leo dependencies.
+     let leo_paths: Vec<PathBuf> = package
+         .programs
+         .iter()
+@@ -78,18 +78,18 @@ fn handle_test(command: LeoTest, context: Context, package: Package) -> Result<(
+         .iter()
+         .flat_map(|program| match &program.data {
+             ProgramData::SourcePath(..) => {
+-                // It's a local dependency.
++                // It's a local Leo dependency.
+                 Some(program.name)
+             }
+             ProgramData::Bytecode(..) => {
+-                // It's a network dependency.
++                // It's a network dependency or a local .aleo dependency.
+                 None
+             }
+         })
+         .collect();
+     let imports_directory = package.imports_directory();
+ 
+-    // Get the paths to .aleo files in `imports` - but filter out the ones corresponding to local dependencies.
++    // Get the paths to .aleo files in `imports` - but filter out the ones corresponding to local Leo dependencies.
+     let aleo_paths: Vec<PathBuf> = imports_directory
+         .read_dir()
+         .ok()
+diff --git a/leo/package/src/package.rs b/leo/package/src/package.rs
+index ae694ecfcf..3b21adf2ed 100644
+--- a/leo/package/src/package.rs
++++ b/leo/package/src/package.rs
+@@ -334,12 +334,16 @@ impl Package {
+                 let program = match (new.path.as_ref(), new.location) {
+                     (Some(path), Location::Local) => {
+                         // It's a local dependency.
+-                        Program::from_path(name_symbol, path.clone())?
++                        if path.extension().and_then(|p| p.to_str()) == Some("aleo") && path.is_file() {
++                            Program::from_aleo_path(name_symbol, path)?
++                        } else {
++                            Program::from_package_path(name_symbol, path)?
++                        }
+                     }
+                     (Some(path), Location::Test) => {
+                         // It's a test dependency - the path points to the source file,
+                         // not a package.
+-                        Program::from_path_test(path, main_program.clone())?
++                        Program::from_test_path(path, main_program.clone())?
+                     }
+                     (_, Location::Network) => {
+                         // It's a network dependency.
+@@ -364,46 +368,6 @@ impl Package {
+ 
+         Ok(())
+     }
+-
+-    /// Get the program ID, program, and optional manifest for all programs in the package.
+-    /// This method assumes that the package has already been built (`leo build` has been run).
+-    #[allow(clippy::type_complexity)]
+-    pub fn get_programs_and_manifests<P: AsRef<Path>>(
+-        &self,
+-        home_path: P,
+-    ) -> Result<Vec<(String, String, Option<Manifest>)>> {
+-        self.get_programs_and_manifests_impl(home_path.as_ref())
+-    }
+-
+-    #[allow(clippy::type_complexity)]
+-    fn get_programs_and_manifests_impl(&self, home_path: &Path) -> Result<Vec<(String, String, Option<Manifest>)>> {
+-        self.programs
+-            .iter()
+-            .map(|program| {
+-                match &program.data {
+-                    ProgramData::Bytecode(bytecode) => Ok((program.name.to_string(), bytecode.clone(), None)),
+-                    ProgramData::SourcePath(path) => {
+-                        // Get the path to the built bytecode.
+-                        let bytecode_path = if path.as_path() == self.source_directory().join("main.leo") {
+-                            self.build_directory().join("main.aleo")
+-                        } else {
+-                            self.imports_directory().join(format!("{}.aleo", program.name))
+-                        };
+-                        // Fetch the bytecode.
+-                        let bytecode = std::fs::read_to_string(&bytecode_path)
+-                            .map_err(|e| PackageError::failed_to_read_file(bytecode_path.display(), e))?;
+-                        // Get the package from the directory.
+-                        let mut path = path.clone();
+-                        path.pop();
+-                        path.pop();
+-                        let package = Package::from_directory_no_graph(&path, home_path)?;
+-                        // Return the bytecode and the manifest.
+-                        Ok((program.name.to_string(), bytecode, Some(package.manifest.clone())))
+-                    }
+-                }
+-            })
+-            .collect::<Result<Vec<_>>>()
+-    }
+ }
+ 
+ fn main_template(name: &str) -> String {
+diff --git a/leo/package/src/program.rs b/leo/package/src/program.rs
+index ea9999fe23..ae1db696c9 100644
+--- a/leo/package/src/program.rs
++++ b/leo/package/src/program.rs
+@@ -31,17 +31,34 @@ pub struct Program {
+     pub name: Symbol,
+     pub data: ProgramData,
+     pub dependencies: IndexSet<Dependency>,
++    pub is_local: bool,
+     pub is_test: bool,
+ }
+ 
+ impl Program {
++    /// Given the location `path` of a `.aleo` file, read the filesystem
++    /// to obtain a `Program`.
++    pub fn from_aleo_path<P: AsRef<Path>>(name: Symbol, path: P) -> Result<Self> {
++        Self::from_aleo_path_impl(name, path.as_ref())
++    }
++
++    fn from_aleo_path_impl(name: Symbol, path: &Path) -> Result<Self> {
++        let bytecode = std::fs::read_to_string(path).map_err(|e| {
++            UtilError::util_file_io_error(format_args!("Trying to read aleo file at {}", path.display()), e)
++        })?;
++
++        let dependencies = parse_dependencies_from_aleo(name, &bytecode)?;
++
++        Ok(Program { name, data: ProgramData::Bytecode(bytecode), dependencies, is_local: true, is_test: false })
++    }
++
+     /// Given the location `path` of a local Leo package, read the filesystem
+     /// to obtain a `Program`.
+-    pub fn from_path<P: AsRef<Path>>(name: Symbol, path: P) -> Result<Self> {
+-        Self::from_path_impl(name, path.as_ref())
++    pub fn from_package_path<P: AsRef<Path>>(name: Symbol, path: P) -> Result<Self> {
++        Self::from_package_path_impl(name, path.as_ref())
+     }
+ 
+-    fn from_path_impl(name: Symbol, path: &Path) -> Result<Self> {
++    fn from_package_path_impl(name: Symbol, path: &Path) -> Result<Self> {
+         let manifest = Manifest::read_from_file(path.join(MANIFEST_FILENAME))?;
+         let manifest_symbol = crate::symbol(&manifest.program)?;
+         if name != manifest_symbol {
+@@ -77,17 +94,18 @@ impl Program {
+                 .into_iter()
+                 .map(|dependency| canonicalize_dependency_path_relative_to(path, dependency))
+                 .collect::<Result<IndexSet<_>, _>>()?,
++            is_local: true,
+             is_test: false,
+         })
+     }
+ 
+     /// Given the path to the source file of a test, create a `Program`.
+     ///
+-    /// Unlike `Program::from_path`, the path is to the source file,
++    /// Unlike `Program::from_package_path`, the path is to the source file,
+     /// and the name of the program is determined from the filename.
+     ///
+     /// `main_program` must be provided since every test is dependent on it.
+-    pub fn from_path_test<P: AsRef<Path>>(source_path: P, main_program: Dependency) -> Result<Self> {
++    pub fn from_test_path<P: AsRef<Path>>(source_path: P, main_program: Dependency) -> Result<Self> {
+         Self::from_path_test_impl(source_path.as_ref(), main_program)
+     }
+ 
+@@ -110,6 +128,7 @@ impl Program {
+             name: Symbol::intern(name),
+             data: ProgramData::SourcePath(source_path.to_path_buf()),
+             dependencies,
++            is_local: true,
+             is_test: true,
+         })
+     }
+@@ -189,19 +208,9 @@ impl Program {
+             }
+         };
+ 
+-        // Parse the program so we can get its imports.
+-        let svm_program: SvmProgram<TestnetV0> =
+-            bytecode.parse().map_err(|_| UtilError::snarkvm_parsing_error(name))?;
+-        let dependencies = svm_program
+-            .imports()
+-            .keys()
+-            .map(|program_id| {
+-                let name = program_id.to_string();
+-                Dependency { name, location: Location::Network, path: None }
+-            })
+-            .collect();
+-
+-        Ok(Program { name, data: ProgramData::Bytecode(bytecode), dependencies, is_test: false })
++        let dependencies = parse_dependencies_from_aleo(name, &bytecode)?;
++
++        Ok(Program { name, data: ProgramData::Bytecode(bytecode), dependencies, is_local: false, is_test: false })
+     }
+ }
+ 
+@@ -218,3 +227,17 @@ fn canonicalize_dependency_path_relative_to(base: &Path, mut dependency: Depende
+     }
+     Ok(dependency)
+ }
++
++/// Parse the `.aleo` file's imports and construct `Dependency`s.
++fn parse_dependencies_from_aleo(name: Symbol, bytecode: &str) -> Result<IndexSet<Dependency>> {
++    let svm_program: SvmProgram<TestnetV0> = bytecode.parse().map_err(|_| UtilError::snarkvm_parsing_error(name))?;
++    let dependencies = svm_program
++        .imports()
++        .keys()
++        .map(|program_id| {
++            let name = program_id.to_string();
++            Dependency { name, location: Location::Network, path: None }
++        })
++        .collect();
++    Ok(dependencies)
++}

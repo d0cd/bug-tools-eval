@@ -1,0 +1,2082 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index d4d06ce7..494002c2 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -30,7 +30,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "aleo"
+-version = "0.4.4"
++version = "0.4.5"
+ dependencies = [
+  "aleo-rust",
+  "anyhow",
+@@ -54,7 +54,7 @@ dependencies = [
+ 
+ [[package]]
+ name = "aleo-development-server"
+-version = "0.4.4"
++version = "0.4.5"
+ dependencies = [
+  "aleo-rust",
+  "anyhow",
+@@ -62,7 +62,7 @@ dependencies = [
+  "colored",
+  "env_logger",
+  "http",
+- "indexmap",
++ "indexmap 1.9.3",
+  "jsonwebtoken",
+  "once_cell",
+  "rand",
+@@ -77,12 +77,12 @@ dependencies = [
+ 
+ [[package]]
+ name = "aleo-rust"
+-version = "0.4.4"
++version = "0.4.5"
+ dependencies = [
+  "anyhow",
+  "bencher",
+  "clap",
+- "indexmap",
++ "indexmap 2.0.0",
+  "once_cell",
+  "rand",
+  "rand_chacha",
+@@ -157,14 +157,14 @@ checksum = "7e4f181fc1a372e8ceff89612e5c9b13f72bff5b066da9f8d6827ae65af492c4"
+ 
+ [[package]]
+ name = "aleo-wasm"
+-version = "0.4.4"
++version = "0.4.5"
+ dependencies = [
+  "aleo-rust",
+  "anyhow",
+  "console_error_panic_hook",
+  "getrandom",
+  "hex",
+- "indexmap",
++ "indexmap 2.0.0",
+  "js-sys",
+  "lazy_static",
+  "rand",
+@@ -756,9 +756,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "a2d328fc287c61314c4a61af7cfdcbd7e678e39778488c7cb13ec133ce0f4059"
+ dependencies = [
+  "fsio",
+- "indexmap",
++ "indexmap 1.9.3",
+ ]
+ 
++[[package]]
++name = "equivalent"
++version = "1.0.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "88bffebc5d80432c9b140ee17875ff173a8ab62faad5b257da912bd2f6c1c0a1"
++
+ [[package]]
+ name = "errno"
+ version = "0.3.1"
+@@ -950,7 +956,7 @@ dependencies = [
+  "futures-sink",
+  "futures-util",
+  "http",
+- "indexmap",
++ "indexmap 1.9.3",
+  "slab",
+  "tokio",
+  "tokio-util",
+@@ -1129,6 +1135,16 @@ checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
+ dependencies = [
+  "autocfg",
+  "hashbrown 0.12.3",
++]
++
++[[package]]
++name = "indexmap"
++version = "2.0.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "d5477fe2230a79769d8dc68e0eabf5437907c0457a5614a9e8dddb67f65eb65d"
++dependencies = [
++ "equivalent",
++ "hashbrown 0.14.0",
+  "rayon",
+  "serde",
+ ]
+@@ -1186,9 +1202,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "itertools"
+-version = "0.10.5"
++version = "0.11.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
++checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
+ dependencies = [
+  "either",
+ ]
+@@ -2028,7 +2044,7 @@ version = "1.0.97"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "bdf3bf93142acad5821c99197022e170842cdbc1c30482b98750c688c640842a"
+ dependencies = [
+- "indexmap",
++ "indexmap 1.9.3",
+  "itoa",
+  "ryu",
+  "serde",
+@@ -2115,15 +2131,15 @@ checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
+ 
+ [[package]]
+ name = "snarkvm"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "c3ec58e0b0292e6987e74a759c6d64c5902e73985dfa31bd3d967bceecbcf3c8"
++checksum = "fcb55d3117b1cb5f4ecba3afaede11536171f212aa1b4082dacb58cc5b198323"
+ dependencies = [
+  "anstyle",
+  "anyhow",
+  "clap",
+  "colored",
+- "indexmap",
++ "indexmap 2.0.0",
+  "num-format",
+  "once_cell",
+  "parking_lot",
+@@ -2144,9 +2160,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-algorithms"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "335c8d5b62427a3acfcd6747bd851202c100ac0fe79128f8e446705f1d1103cf"
++checksum = "0e3a127a0ea10ed55a63753c77b172bccf26f360de5a98bcfd9844429ee7e3b4"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -2155,7 +2171,7 @@ dependencies = [
+  "fxhash",
+  "hashbrown 0.14.0",
+  "hex",
+- "indexmap",
++ "indexmap 2.0.0",
+  "itertools",
+  "parking_lot",
+  "rand",
+@@ -2175,9 +2191,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "acedd9708201fef364f3c2d26f98b343d63a5115bc980d39a6d0d29d6fe9b692"
++checksum = "aa9d6c6ca5b7676b7965c2cee631def41ab96bc9f2fe324907f248231501fa12"
+ dependencies = [
+  "snarkvm-circuit-account",
+  "snarkvm-circuit-algorithms",
+@@ -2190,9 +2206,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-account"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d38e06c1545b749365f3d80c6a53a04b2a2f0da316390b8a3339e41365f1c22d"
++checksum = "0897e3d6130d098121d1798bbc8a08f734de4efe234abed5c01ebb588f6099ec"
+ dependencies = [
+  "snarkvm-circuit-algorithms",
+  "snarkvm-circuit-network",
+@@ -2202,9 +2218,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-algorithms"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "1b10e29f07b4d6c9a59ae3751ca8904f42ab4c27a39562ab4d56275879df75e8"
++checksum = "4c57658a5aa1effcef7c93a08af4c87ce7bdbd46fb2208f86358e2053555b81c"
+ dependencies = [
+  "snarkvm-circuit-types",
+  "snarkvm-console-algorithms",
+@@ -2213,9 +2229,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-collections"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "6227fc3243154ab12899bbd930a49cf2a38086140abfff902494184a6a0a8cbe"
++checksum = "d412403bb467901f7de68c76ff9bf53ed88b5391de2e68a04071af88b780f10f"
+ dependencies = [
+  "snarkvm-circuit-algorithms",
+  "snarkvm-circuit-types",
+@@ -2224,11 +2240,11 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-environment"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "56276e03677ada2086ad56bfa84f7b00cf7816e1fe1906f9e1606d94b8c91eb1"
++checksum = "a58a810f21aca59ee903e9db2bea29dc3fb7af82fde0bb50ec01e95359569226"
+ dependencies = [
+- "indexmap",
++ "indexmap 2.0.0",
+  "itertools",
+  "nom",
+  "num-traits",
+@@ -2243,15 +2259,15 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-environment-witness"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ae87eaa781657f16730f90baa746d46b346045c6900a62fb6d977f2bbe4fcdb5"
++checksum = "d0ac826726517bd503a375fce4d616f192bca407b0130ca14b5aa7ae1a901421"
+ 
+ [[package]]
+ name = "snarkvm-circuit-network"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2f8cb59930d613f1ff4227f104172f9add80a5f2660eca430d962b0e944a1510"
++checksum = "53b3fc9b80f027b0a55f84f56719305fd9dc89e9bfcff198afe5a4c48ee3cbfe"
+ dependencies = [
+  "snarkvm-circuit-algorithms",
+  "snarkvm-circuit-collections",
+@@ -2261,9 +2277,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-program"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "3cdf435d311e6d983f95e9916ca0eb1c80b5bf86f65636a1f74d00124e5ad188"
++checksum = "9eb64cee93771eb27ed58cabf286642e4ac33b0158a7b42431a751f8dd850303"
+ dependencies = [
+  "snarkvm-circuit-account",
+  "snarkvm-circuit-collections",
+@@ -2275,9 +2291,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-types"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "462301625a8c2e272ebd6cbf2c97132c25993f0e6ad8116b7f3af744bc076f84"
++checksum = "1ed4a945c7745e10fe67be911bb33cfed77e6b5a47b33a3c7dda2291cb206049"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-address",
+@@ -2291,9 +2307,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-types-address"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "7be9cbb979511fa342bf6ab8bc4b659915ab2c9d43303edac02c674a95cda93b"
++checksum = "8c84f049bd3503611bbf38f10e1a552cba2e480fb1913845d59ee23a173a8e86"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -2305,9 +2321,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-types-boolean"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "38d2221236daa48d03a236c1bd6c2e1b8c8f4a475b554901d6a22211ece40314"
++checksum = "7152b425a06f672d813fa5e6a729440def1f28e6823232317b14dbcdb2bf288f"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-console-types-boolean",
+@@ -2315,9 +2331,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-types-field"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "e62fbe7b885af5c29ed5933aec2ec363a1828ab7c6b40001e378140f0808480a"
++checksum = "26560433b704e4df9828a94b68564b234d5ce0cb548e42c544d828892d879766"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -2326,9 +2342,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-types-group"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2125088d1b185270c488ff4e107c59b2a96814056b053e994a27cfc9424f7c17"
++checksum = "18eb1f406e97d5e5c7703a8c9cc9bc4a261c7bdb8d2d553a87f41637001e37dd"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -2339,9 +2355,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-types-integers"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2d3d13050c95ffca0e06eef06e5c86c81719efb826440c43ff8479cf024aa733"
++checksum = "2230bc28497448c9841013ba6e22daff53161e417616e8661d70e87de59faa4c"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -2351,9 +2367,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-types-scalar"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d8d965ea8bd98c90343ac6809db9c47583b72de0802e4bd64aec6cdc8d7fac19"
++checksum = "3692e5a3f14bc8a9cdf470e4eb8e128d6fcca51bfc4b321c798aa61913c72ea2"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -2363,9 +2379,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-circuit-types-string"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "15b25418eb9c9a3d023e7d0cb01e39e2b86649e046d07c349db7c79880b310bd"
++checksum = "bbe0a730257aad4e7e1db33cbd1e804aeb636ca86113d381b09d62c468e74207"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -2376,9 +2392,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "25d2a4e462e239f20e647eceb8e69dee90fd75dff88473269e881fc557d7c53f"
++checksum = "7a52e5c7a899899edb585e206f54a364949e0dd4a0595427934a3949e260c0ed"
+ dependencies = [
+  "snarkvm-console-account",
+  "snarkvm-console-algorithms",
+@@ -2390,9 +2406,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-account"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "41b37e1eac20dbe127b67df30ab20f2e2190909d5b7b57048e22c6e06a355e8c"
++checksum = "4adbb5299fd6958ba24c043e67208a95db1aa148c7d4febd66aba16eb79264e7"
+ dependencies = [
+  "bs58",
+  "snarkvm-console-network",
+@@ -2401,9 +2417,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-algorithms"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "86d17199915cfa8723398df0e5d9b7eeeaab9d32a15db6adb2d610916e10bc64"
++checksum = "eaf84caf1eaac04f06a14f7818e519e6b4f5d9b4a26a62227d6cff1e9b5b5774"
+ dependencies = [
+  "blake2s_simd",
+  "smallvec",
+@@ -2414,9 +2430,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-collections"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8031e5798c6225b3d1d446f9dd6f20b0498bb0945976d1ef04dc591b08cdb9cd"
++checksum = "ce43d1d2ef86839cb24362004bcc70c90ba4247dd2cc43ea8fdc6ccf16633dc2"
+ dependencies = [
+  "aleo-std",
+  "rayon",
+@@ -2426,12 +2442,12 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-network"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "58a8da9fd34e9c4248e5431e9e4c91173fcf89e4ea86c5b10dfdd2b29fb03f88"
++checksum = "9a2837afb34a60e09bada60e3d164f8fc54f80029656e258d09a8ef9a749cc11"
+ dependencies = [
+  "anyhow",
+- "indexmap",
++ "indexmap 2.0.0",
+  "itertools",
+  "lazy_static",
+  "once_cell",
+@@ -2450,9 +2466,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-network-environment"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "164cca322118ffd941f6e17e546dfb4073c990bad1081a981d8411415ca5cb30"
++checksum = "3135fbd42d96c09670d6f6a90cf5bfaf3f59bb076f016d43e1f9752094d469c4"
+ dependencies = [
+  "anyhow",
+  "bech32",
+@@ -2468,13 +2484,13 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-program"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ecade8e8f1859fc0b32e2f9fda476093c0c747cf1dece1705472460736ef127e"
++checksum = "317c3637bdd3057498629779132b65e75290ee32930a3866519b4313783cc40f"
+ dependencies = [
+  "enum_index",
+  "enum_index_derive",
+- "indexmap",
++ "indexmap 2.0.0",
+  "num-derive",
+  "num-traits",
+  "once_cell",
+@@ -2488,9 +2504,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-types"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2e85bd30a6cfea0f7c5b2b70201d6dd3c252f291384a14fe4f1a1220def77db0"
++checksum = "8b82379c642dc8bcaeef24715dc197495c44a46b37942c33fd2f7dd101c8539b"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-address",
+@@ -2504,9 +2520,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-types-address"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "03f20fb0790ebeda6462dc6766074c5c8ef7b58d20abce83eaa80103c6f1ad0f"
++checksum = "f6b434896f9f30a559adaf72c1d3e389d55fc5b6f7c81b1436c90832836dc6d2"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -2516,18 +2532,18 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-types-boolean"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "7a692c5a4472213968bb8bcd03dbe151a301782d96bea7d766fbcb89b132991f"
++checksum = "cabb76ad8a178faf0808cc1ea050e73856f776707c1b764a5192740a2f79b863"
+ dependencies = [
+  "snarkvm-console-network-environment",
+ ]
+ 
+ [[package]]
+ name = "snarkvm-console-types-field"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ad4fd2d72d65c142de160979bc5878a965dbc8e78d6b28d0fbc7a39906cebc63"
++checksum = "27f787d254d43ea4aa962ac6930340f09e640ec70a4baa8795b51472539e1036"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -2535,9 +2551,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-types-group"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "1f54c6c511e461c741729fe7c038318c28c15e95935b57055c0f42449d296f11"
++checksum = "6f8f1e859c83f2a4e1ebd4a9805680497a7fbfe0615681c18311131a3ed47451"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -2547,9 +2563,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-types-integers"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "7b8a67edeb5420d1a1eee4d49ad46632d52fd45996b26fd2ad7d093972bfc00a"
++checksum = "41c6bb27e84d0b375a985cfbb27188615609d8faa986cb78ec298a1ad6752b21"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -2558,9 +2574,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-types-scalar"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "6d7037180bbdc14c48abe9824e5a98700c5dcbf90be2a08707a2c2ac3d383829"
++checksum = "50ca9aff825a47be71a85091f716512d8779d9ccad2d4443327de952ed18d4c7"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -2569,9 +2585,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-console-types-string"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a88ba46461891e2c408ca99f80bba907851f5e7f891179b589555fd3695369d6"
++checksum = "6bb4a67c4557ddbe258f22754379f22a57d8b3826ddf1c293b04ab23dcae14a9"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -2581,9 +2597,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-curves"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b8dd8615019ef05f8fbbf5c44e4aec6ca8eed3efb25c5846363d4d53de247d9e"
++checksum = "79a7aae73e06e3af3f5fc3a477628b215e9867a27949010bc38294c535f29f1a"
+ dependencies = [
+  "rand",
+  "rayon",
+@@ -2596,9 +2612,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-fields"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "cf559cff5dff6be05903469ce02920219f53b25435106588303459ec9e8f91c6"
++checksum = "40a364585eba401aa7a3e0b530720113afce8a1675603b32b119b8226d1a9903"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -2614,13 +2630,13 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-ledger"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ebf06e79b743aa86cee39857c98559b20ab0b18ef762655b18ce1a35b398306e"
++checksum = "4385f62cc5e84a376376f63f89ba20a19a61c68d513985cb1b2cb70869423e99"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+- "indexmap",
++ "indexmap 2.0.0",
+  "parking_lot",
+  "rand",
+  "rayon",
+@@ -2632,9 +2648,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-parameters"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "15363ea560f314a3268b979146cb700b106479e03b3a6ff3a4279fb2edfe0c2d"
++checksum = "f1d7b05d31785576ad85ef2789dc8fc90329ec0a1f02bd61c7d544f3f54bffde"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -2644,7 +2660,7 @@ dependencies = [
+  "curl",
+  "encoding",
+  "hex",
+- "indexmap",
++ "indexmap 2.0.0",
+  "itertools",
+  "js-sys",
+  "lazy_static",
+@@ -2660,16 +2676,16 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-synthesizer"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b49797c6f786b04001da7a138390548e239090e6817affd2ee772e27c2fa492f"
++checksum = "2628224ef7ee761ec0f2c77cbb7efc971f915d2c01883cc6f7089e063f5d5119"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+  "bincode",
+  "blake2",
+  "colored",
+- "indexmap",
++ "indexmap 2.0.0",
+  "itertools",
+  "once_cell",
+  "parking_lot",
+@@ -2695,9 +2711,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-synthesizer-coinbase"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "c5fe74b33c9c7b9aee4916e6d0924aad300edf6c92811bc02bbe3c877f4b042f"
++checksum = "88e702f8f13f8aa3ba1fc89e6c760f22358b1b3f0e9d4535bedd8a8c481819ba"
+ dependencies = [
+  "anyhow",
+  "bincode",
+@@ -2715,19 +2731,19 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-synthesizer-program"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ec8166c87af8b0165ecbb1f81aa5179898658c03d7ab6ee5e9785b6e11389bf4"
++checksum = "2f0bec7c66086c2fa8eceb18467dd0692c07b38e16a8a2aa74ab82d2a684e868"
+ dependencies = [
+- "indexmap",
++ "indexmap 2.0.0",
+  "snarkvm-console",
+ ]
+ 
+ [[package]]
+ name = "snarkvm-synthesizer-snark"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0f372fe459c1fe23a4f31f96f0d594604c8fdc435917b6d30651db50fefca028"
++checksum = "1721c7b2e4da47c355ed48efcae208dc46885a3a65290db80e4845814dd2ce14"
+ dependencies = [
+  "bincode",
+  "once_cell",
+@@ -2739,9 +2755,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-utilities"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "bb2bae5d086357c3d1ab1a1a0b1e6f3888d277fb7ef28f7e26bf47b3aac5cd50"
++checksum = "b16329751e82faca0c9ae2e14f9951e77669f28c488194bdae90a2d7905b5f55"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -2759,9 +2775,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-utilities-derives"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "86974a928d9799b7304d6c13df3f4ed73732c3fdeefcd4d0fff32cac5dca08a5"
++checksum = "d90f007329c4b49ed72e92267e8722c96a1b2e5461d4d2bfe0bbb44b46b3f9ec"
+ dependencies = [
+  "proc-macro2",
+  "quote 1.0.28",
+@@ -2770,9 +2786,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "snarkvm-wasm"
+-version = "0.12.5"
++version = "0.12.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "25425cc7e0ecefb7c4bfaa44f83de93cfff9de8fcd06b171c56f497ee2a47f4d"
++checksum = "b0799604f2c8ef45e3ac8dbc7bde188d5c776ba6094ff26b8965ecd19b1bd793"
+ dependencies = [
+  "getrandom",
+  "rand",
+diff --git a/Cargo.toml b/Cargo.toml
+index f472c4c3..c849ca25 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -1,6 +1,6 @@
+ [package]
+ name = "aleo"
+-version = "0.4.4"
++version = "0.4.5"
+ authors = [ "The Aleo Team <hello@aleo.org>" ]
+ description = "Aleo"
+ homepage = "https://aleo.org"
+@@ -21,27 +21,27 @@ edition = "2021"
+ members = [ "rust", "wasm", "rust/develop"]
+ 
+ [workspace.dependencies.aleo-rust]
+-version = "0.4.4"
++version = "0.4.5"
+ path = "rust"
+ default-features = false
+ 
+ [workspace.dependencies.snarkvm]
+-version = "=0.12.5"
++version = "=0.12.6"
+ 
+ [workspace.dependencies.snarkvm-circuit-network]
+-version = "=0.12.5"
++version = "=0.12.6"
+ 
+ [workspace.dependencies.snarkvm-console]
+-version = "=0.12.5"
++version = "=0.12.6"
+ 
+ [workspace.dependencies.snarkvm-console-network]
+-version = "=0.12.5"
++version = "=0.12.6"
+ 
+ [workspace.dependencies.snarkvm-synthesizer]
+-version = "=0.12.5"
++version = "=0.12.6"
+ 
+ [workspace.dependencies.snarkvm-wasm]
+-version = "=0.12.5"
++version = "=0.12.6"
+ 
+ [lib]
+ path = "cli/lib.rs"
+diff --git a/cli/commands/execute.rs b/cli/commands/execute.rs
+index e49ea34d..c6a9a433 100644
+--- a/cli/commands/execute.rs
++++ b/cli/commands/execute.rs
+@@ -21,7 +21,6 @@ use snarkvm::prelude::{Ciphertext, Identifier, Plaintext, PrivateKey, ProgramID,
+ use anyhow::{anyhow, ensure, Result};
+ use clap::Parser;
+ use colored::Colorize;
+-use snarkvm::circuit::AleoV0;
+ 
+ /// Executes an Aleo program function
+ #[derive(Debug, Parser)]
+@@ -117,7 +116,7 @@ impl Execute {
+ 
+         // Execute the program function
+         println!("Executing function {} from program: {}", function_string.bright_blue(), program_string.bright_blue());
+-        let result = program_manager.execute_program::<AleoV0>(
++        let result = program_manager.execute_program(
+             self.program_id,
+             self.function,
+             self.inputs.iter(),
+diff --git a/rust/Cargo.toml b/rust/Cargo.toml
+index ea520fc0..3ad3050c 100644
+--- a/rust/Cargo.toml
++++ b/rust/Cargo.toml
+@@ -1,6 +1,6 @@
+ [package]
+ name = "aleo-rust"
+-version = "0.4.4"
++version = "0.4.5"
+ authors = [ "The Aleo Team <hello@aleo.org>" ]
+ description = "Rust SDK for managing Aleo programs and communicating with the Aleo network"
+ homepage = "https://aleo.org"
+@@ -35,7 +35,7 @@ version = "1"
+ workspace = true
+ 
+ [dependencies.indexmap]
+-version = "1.9.3"
++version = "2.0"
+ 
+ [dependencies.once_cell]
+ version = "1.18.0"
+diff --git a/rust/develop/Cargo.toml b/rust/develop/Cargo.toml
+index 26cc24f8..f86d0893 100644
+--- a/rust/develop/Cargo.toml
++++ b/rust/develop/Cargo.toml
+@@ -1,6 +1,6 @@
+ [package]
+ name = "aleo-development-server"
+-version = "0.4.4"
++version = "0.4.5"
+ authors = [ "The Aleo Team <hello@aleo.org>" ]
+ description = "A REST API server for local or remote Aleo development"
+ homepage = "https://aleo.org"
+diff --git a/rust/develop/src/cli.rs b/rust/develop/src/cli.rs
+index b797f379..b47d8497 100644
+--- a/rust/develop/src/cli.rs
++++ b/rust/develop/src/cli.rs
+@@ -68,7 +68,7 @@ pub enum Command {
+ }
+ 
+ impl Command {
+-    pub fn parse(self) -> Result<Rest<Testnet3, AleoV0>> {
++    pub fn parse(self) -> Result<Rest<Testnet3>> {
+         match self {
+             Command::Start { server_address, key_ciphertext: key, peer, debug } => {
+                 Rest::initialize(server_address, key, peer, debug)
+diff --git a/rust/develop/src/lib.rs b/rust/develop/src/lib.rs
+index 56b51be2..f8c5ba46 100644
+--- a/rust/develop/src/lib.rs
++++ b/rust/develop/src/lib.rs
+@@ -149,14 +149,7 @@ use requests::*;
+ mod routes;
+ pub use routes::*;
+ 
+-use aleo_rust::{
+-    snarkvm_types::{Aleo, AleoV0},
+-    AleoAPIClient,
+-    Encryptor,
+-    ProgramManager,
+-    RecordFinder,
+-    TransferType,
+-};
++use aleo_rust::{AleoAPIClient, Encryptor, ProgramManager, RecordFinder, TransferType};
+ use snarkvm::{
+     console::{
+         account::{Address, PrivateKey},
+@@ -175,7 +168,7 @@ use warp::{reject, reply, Filter, Rejection, Reply};
+ 
+ /// Server object for the Aleo Development Server
+ #[derive(Clone)]
+-pub struct Rest<N: Network, A: Aleo<Network = N>> {
++pub struct Rest<N: Network> {
+     api_client: AleoAPIClient<N>,
+     /// Private key ciphertext for the account being used with the server
+     private_key_ciphertext: Option<Ciphertext<N>>,
+@@ -185,10 +178,9 @@ pub struct Rest<N: Network, A: Aleo<Network = N>> {
+     socket_address: SocketAddr,
+     /// Debug mode flag
+     debug: bool,
+-    phantom: std::marker::PhantomData<A>,
+ }
+ 
+-impl<N: Network, A: Aleo<Network = N>> Rest<N, A> {
++impl<N: Network> Rest<N> {
+     /// Initializes a new instance of the server.
+     pub fn initialize(
+         socket_address: Option<SocketAddr>,
+@@ -213,14 +205,7 @@ impl<N: Network, A: Aleo<Network = N>> Rest<N, A> {
+         };
+ 
+         // Initialize the server.
+-        let server = Self {
+-            api_client,
+-            private_key_ciphertext,
+-            record_finder,
+-            socket_address,
+-            debug,
+-            phantom: std::marker::PhantomData,
+-        };
++        let server = Self { api_client, private_key_ciphertext, record_finder, socket_address, debug };
+ 
+         // Print an initialization message and return the server
+         println!("{}", "\nStarting Aleo development server...".bright_blue());
+@@ -236,7 +221,7 @@ impl<N: Network, A: Aleo<Network = N>> Rest<N, A> {
+     }
+ }
+ 
+-impl<N: Network, A: Aleo<Network = N>> Rest<N, A> {
++impl<N: Network> Rest<N> {
+     /// Initializes the development server
+     pub async fn start(&mut self) {
+         let cors = warp::cors().allow_any_origin().allow_methods(vec!["GET", "POST", "OPTIONS"]).allow_headers(vec![
+diff --git a/rust/develop/src/routes.rs b/rust/develop/src/routes.rs
+index d1870b7b..152ebf63 100644
+--- a/rust/develop/src/routes.rs
++++ b/rust/develop/src/routes.rs
+@@ -16,7 +16,7 @@
+ 
+ use super::*;
+ 
+-impl<N: Network, A: Aleo<Network = N>> Rest<N, A> {
++impl<N: Network> Rest<N> {
+     /// Initializes the routes for the development server REST API
+     pub fn routes(&self) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+         // POST /deploy
+@@ -56,7 +56,7 @@ impl<N: Network, A: Aleo<Network = N>> Rest<N, A> {
+     }
+ }
+ 
+-impl<N: Network, A: Aleo<Network = N>> Rest<N, A> {
++impl<N: Network> Rest<N> {
+     // Get the private key if one is specified in the request or decrypt the local request
+     fn get_private_key(
+         private_key_ciphertext: Option<Ciphertext<N>>,
+@@ -146,7 +146,7 @@ impl<N: Network, A: Aleo<Network = N>> Rest<N, A> {
+         };
+ 
+         // Execute the program and return the resulting transaction id
+-        let transaction_id = spawn_blocking!(program_manager.execute_program::<A>(
++        let transaction_id = spawn_blocking!(program_manager.execute_program(
+             request.program_id,
+             request.program_function,
+             request.inputs.iter(),
+diff --git a/rust/src/api/blocking.rs b/rust/src/api/blocking.rs
+index 6b47e635..1dd2e3bc 100644
+--- a/rust/src/api/blocking.rs
++++ b/rust/src/api/blocking.rs
+@@ -103,7 +103,7 @@ impl<N: Network> AleoAPIClient<N> {
+     }
+ 
+     /// Get all mappings associated with a program.
+-    pub fn get_program_mappings(&self, program_id: impl TryInto<ProgramID<N>>) -> Result<IndexSet<Identifier<N>>> {
++    pub fn get_program_mappings(&self, program_id: impl TryInto<ProgramID<N>>) -> Result<Vec<Identifier<N>>> {
+         // Prepare the program ID.
+         let program_id = program_id.try_into().map_err(|_| anyhow!("Invalid program ID"))?;
+         // Perform the request.
+@@ -355,7 +355,6 @@ mod tests {
+         // Assert there's only one mapping in credits.aleo
+         assert_eq!(mappings.len(), 1);
+ 
+-        let mappings = mappings.into_iter().collect::<Vec<_>>();
+         let identifier = mappings[0];
+         // Assert the identifier is "account"
+         assert_eq!(identifier.to_string(), "account");
+diff --git a/rust/src/lib.rs b/rust/src/lib.rs
+index 4cffa9e5..4cd32175 100644
+--- a/rust/src/lib.rs
++++ b/rust/src/lib.rs
+@@ -81,7 +81,7 @@
+ //! ```no_run
+ //!   use aleo_rust::{
+ //!     AleoAPIClient, Encryptor, ProgramManager, RecordFinder,
+-//!     snarkvm_types::{Address, AleoV0, PrivateKey, Testnet3, Program},
++//!     snarkvm_types::{Address, PrivateKey, Testnet3, Program},
+ //!     TransferType
+ //!   };
+ //!   use rand::thread_rng;
+@@ -112,7 +112,7 @@
+ //!
+ //!   // Execute the function `hello` of the hello.aleo program with the arguments 5u32 and 3u32.
+ //!   // Specify 0 for the fee and provide a password to decrypt the private key stored in the program manager
+-//!   program_manager.execute_program::<AleoV0>("hello.aleo", "hello", ["5u32", "3u32"].into_iter(), 0, fee_record, Some("password")).unwrap();
++//!   program_manager.execute_program("hello.aleo", "hello", ["5u32", "3u32"].into_iter(), 0, fee_record, Some("password")).unwrap();
+ //!
+ //!   // ------------------
+ //!   // DEPLOY PROGRAM STEPS
+@@ -211,12 +211,7 @@ pub mod snarkvm_types {
+     };
+ }
+ #[cfg(feature = "full")]
+-use snarkvm::{
+-    circuit::Aleo,
+-    file::Manifest,
+-    package::Package,
+-    synthesizer::{helpers::memory::BlockMemory, Process},
+-};
++use snarkvm::{file::Manifest, package::Package};
+ 
+ pub use snarkvm_types::*;
+ 
+diff --git a/rust/src/program/execute.rs b/rust/src/program/execute.rs
+index 6dc5c656..ca6b1c35 100644
+--- a/rust/src/program/execute.rs
++++ b/rust/src/program/execute.rs
+@@ -20,7 +20,7 @@ impl<N: Network> ProgramManager<N> {
+     /// Execute a program function on the Aleo Network.
+     ///
+     /// To run this function successfully, the program must already be deployed on the Aleo Network
+-    pub fn execute_program<A: Aleo<Network = N>>(
++    pub fn execute_program(
+         &mut self,
+         program_id: impl TryInto<ProgramID<N>>,
+         function: impl TryInto<Identifier<N>>,
+@@ -54,7 +54,7 @@ impl<N: Network> ProgramManager<N> {
+         // Attempt to construct the execution transaction
+         println!("Building transaction..");
+         let query = self.api_client.as_ref().unwrap().base_url();
+-        let transaction = Self::create_execute_transaction::<A>(
++        let transaction = Self::create_execute_transaction(
+             &private_key,
+             fee,
+             inputs,
+@@ -79,7 +79,7 @@ impl<N: Network> ProgramManager<N> {
+     }
+ 
+     /// Create an execute transaction
+-    pub fn create_execute_transaction<A: Aleo<Network = N>>(
++    pub fn create_execute_transaction(
+         private_key: &PrivateKey<N>,
+         fee: u64,
+         inputs: impl ExactSizeIterator<Item = impl TryInto<Value<N>>>,
+@@ -90,7 +90,7 @@ impl<N: Network> ProgramManager<N> {
+     ) -> Result<Transaction<N>> {
+         // Initialize an RNG and query object for the transaction
+         let rng = &mut rand::thread_rng();
+-        let query = Query::<N, BlockMemory<N>>::from(query);
++        let query = Query::from(query);
+ 
+         // Check that the function exists in the program
+         let function_name = function.try_into().map_err(|_| anyhow!("Invalid function name"))?;
+@@ -101,31 +101,13 @@ impl<N: Network> ProgramManager<N> {
+             "Program {program_id:?} does not contain function {function_name:?}, aborting execution"
+         );
+ 
+-        // Create a new process to execute the program
+-        let mut process = Process::<N>::load()?;
+-        process.add_program(program)?;
+-
+-        // Create the execution authorization
+-        let authorization = process.authorize::<A, _>(private_key, program.id(), function_name, inputs, rng)?;
+-
+-        // Execute & prove the program authorization
+-        let (_, mut trace) = process.execute::<A>(authorization)?;
+-        let locator = program.id().to_string().add("/").add(&function_name.to_string());
+-        trace.prepare(query.clone())?;
+-        let execution = trace.prove_execution::<A, _>(&locator, rng)?;
+-
+-        // Execute & prove the fee
+-        let execution_id = execution.to_execution_id()?;
+-        let (_, _, mut trace) = process.execute_fee::<A, _>(private_key, fee_record, fee, execution_id, rng)?;
+-        trace.prepare(query)?;
+-        let fee_execution = trace.prove_fee::<A, _>(rng)?;
+-
+-        // Verify the execution and fee
+-        process.verify_execution(&execution)?;
+-        process.verify_fee(&fee_execution, execution_id)?;
++        // Create an ephemeral SnarkVM to store the programs
++        let store = ConsensusStore::<N, ConsensusMemory<N>>::open(None)?;
++        let vm = VM::<N, ConsensusMemory<N>>::from(store)?;
++        let _ = &vm.process().write().add_program(program);
+ 
+         // Create an execution transaction
+-        Transaction::from_execution(execution, Some(fee_execution))
++        vm.execute(private_key, (program_id, function_name), inputs, Some((fee_record, fee)), Some(query), rng)
+     }
+ }
+ 
+@@ -155,7 +137,7 @@ mod tests {
+         for i in 0..5 {
+             let fee_record = record_finder.find_one_record(&private_key, fee).unwrap();
+             // Test execution of a on chain program is successful
+-            let execution = program_manager.execute_program::<AleoV0>(
++            let execution = program_manager.execute_program(
+                 "credits_import_test.aleo",
+                 "test",
+                 ["1312u32", "62131112u32"].into_iter(),
+@@ -179,7 +161,7 @@ mod tests {
+         for i in 0..5 {
+             let fee_record = record_finder.find_one_record(&private_key, fee).unwrap();
+             // Test execution of an on chain program is successful using an encrypted private key
+-            let execution = program_manager.execute_program::<AleoV0>(
++            let execution = program_manager.execute_program(
+                 "credits_import_test.aleo",
+                 "test",
+                 ["1337u32", "42u32"].into_iter(),
+@@ -198,7 +180,7 @@ mod tests {
+         for i in 0..5 {
+             let fee_record = record_finder.find_one_record(&private_key, finalize_fee).unwrap();
+             // Test execution of an on chain program is successful using an encrypted private key
+-            let execution = program_manager.execute_program::<AleoV0>(
++            let execution = program_manager.execute_program(
+                 "finalize_test.aleo",
+                 "increase_counter",
+                 ["0u32", "42u32"].into_iter(),
+@@ -228,7 +210,7 @@ mod tests {
+             ProgramManager::<Testnet3>::new(Some(recipient_private_key), None, Some(api_client), None).unwrap();
+ 
+         // Assert that execution fails if record's available microcredits are below the fee
+-        let execution = program_manager.execute_program::<AleoV0>(
++        let execution = program_manager.execute_program(
+             "hello.aleo",
+             "hello",
+             ["5u32", "6u32"].into_iter(),
+@@ -240,7 +222,7 @@ mod tests {
+         assert!(execution.is_err());
+ 
+         // Assert that execution fails if a fee is specified but no records are
+-        let execution = program_manager.execute_program::<AleoV0>(
++        let execution = program_manager.execute_program(
+             "hello.aleo",
+             "hello",
+             ["5u32", "6u32"].into_iter(),
+@@ -253,7 +235,7 @@ mod tests {
+ 
+         // Assert that execution fails if the program is not found
+         let randomized_program_id = random_program_id(16);
+-        let execution = program_manager.execute_program::<AleoV0>(
++        let execution = program_manager.execute_program(
+             &randomized_program_id,
+             "hello",
+             ["5u32", "6u32"].into_iter(),
+@@ -265,7 +247,7 @@ mod tests {
+         assert!(execution.is_err());
+ 
+         // Assert that execution fails if the function is not found
+-        let execution = program_manager.execute_program::<AleoV0>(
++        let execution = program_manager.execute_program(
+             "hello.aleo",
+             "random_function",
+             ["5u32", "6u32"].into_iter(),
+@@ -277,7 +259,7 @@ mod tests {
+         assert!(execution.is_err());
+ 
+         // Assert that execution fails if the function is not found
+-        let execution = program_manager.execute_program::<AleoV0>(
++        let execution = program_manager.execute_program(
+             "hello.aleo",
+             "random_function",
+             ["5u32", "6u32"].into_iter(),
+diff --git a/rust/src/program/transfer.rs b/rust/src/program/transfer.rs
+index b75964d4..5721b9b4 100644
+--- a/rust/src/program/transfer.rs
++++ b/rust/src/program/transfer.rs
+@@ -37,7 +37,7 @@ impl<N: Network> ProgramManager<N> {
+                 "Credits in amount record must greater than transfer amount specified"
+             );
+         }
+-        ensure!(fee_record.microcredits()? >= fee, "Fee must be greater than 0");
++        ensure!(fee_record.microcredits()? >= fee, "Fee must be greater than the fee specified in the record");
+ 
+         // Specify the network state query
+         let query = Query::from(self.api_client.as_ref().unwrap().base_url());
+diff --git a/sdk/package.json b/sdk/package.json
+index 81eeb96a..439caae8 100644
+--- a/sdk/package.json
++++ b/sdk/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@aleohq/sdk",
+-  "version": "0.4.4",
++  "version": "0.4.5",
+   "description": "A Software Development Kit (SDK) for Zero-Knowledge Transactions",
+   "collaborators": [
+     "The Aleo Team <hello@aleo.org>"
+@@ -35,7 +35,7 @@
+   },
+   "homepage": "https://github.com/AleoHQ/sdk#readme",
+   "dependencies": {
+-    "@aleohq/aleo-nodejs": "0.4.4",
++    "@aleohq/nodejs": "0.4.5",
+     "axios": "^1.1.3",
+     "jsdoc": "^3.6.11",
+     "unfetch": "^5.0.0"
+diff --git a/sdk/src/account.ts b/sdk/src/account.ts
+index 737192ed..c50dc0c8 100644
+--- a/sdk/src/account.ts
++++ b/sdk/src/account.ts
+@@ -5,7 +5,7 @@ import {
+   ViewKey,
+   PrivateKeyCiphertext,
+   RecordCiphertext,
+-} from "@aleohq/aleo-nodejs";
++} from "@aleohq/nodejs";
+ 
+ interface AccountParam {
+   privateKey?: string;
+diff --git a/sdk/src/aleo_network_client.ts b/sdk/src/aleo_network_client.ts
+index 17a1536b..616f1b02 100644
+--- a/sdk/src/aleo_network_client.ts
++++ b/sdk/src/aleo_network_client.ts
+@@ -1,6 +1,6 @@
+ import axios from "axios";
+ import { Account, Block, Transaction, Transition } from ".";
+-import { RecordCiphertext, RecordPlaintext, PrivateKey } from "@aleohq/aleo-nodejs";
++import { RecordCiphertext, RecordPlaintext, PrivateKey } from "@aleohq/nodejs";
+ 
+ /**
+  * Connection management class that encapsulates REST calls to publicly exposed endpoints of Aleo nodes.
+diff --git a/sdk/src/index.ts b/sdk/src/index.ts
+index bb22d2c3..fede3e79 100644
+--- a/sdk/src/index.ts
++++ b/sdk/src/index.ts
+@@ -8,6 +8,6 @@ import { Transaction } from "./models/transaction";
+ import { Transition } from "./models/transition";
+ import { DevelopmentClient } from "./development_client";
+ 
+-import { Address, PrivateKey, Signature, ViewKey } from "@aleohq/aleo-nodejs";
++import { Address, PrivateKey, Signature, ViewKey } from "@aleohq/nodejs";
+ 
+ export { Account, Address, AleoNetworkClient, Block, DevelopmentClient, Execution, Input, PrivateKey, Output, Signature, Transaction, Transition, ViewKey };
+diff --git a/sdk/tests/account.test.ts b/sdk/tests/account.test.ts
+index 5f2b8524..7c97dc29 100644
+--- a/sdk/tests/account.test.ts
++++ b/sdk/tests/account.test.ts
+@@ -1,5 +1,5 @@
+ import { Account } from '../src'
+-import { PrivateKey, ViewKey, Address, RecordCiphertext } from '@aleohq/aleo-nodejs';
++import { PrivateKey, ViewKey, Address, RecordCiphertext } from '@aleohq/nodejs';
+ import { seed, message, beaconPrivateKeyString, beaconViewKeyString, beaconAddressString, recordCiphertextString, foreignCiphertextString, recordPlaintextString } from './data/account-data';
+ 
+ 
+diff --git a/sdk/tests/wasm.test.ts b/sdk/tests/wasm.test.ts
+index 2b9f6682..51a10747 100644
+--- a/sdk/tests/wasm.test.ts
++++ b/sdk/tests/wasm.test.ts
+@@ -1,4 +1,4 @@
+-import { Address, PrivateKey, ViewKey, Signature, RecordCiphertext, RecordPlaintext, PrivateKeyCiphertext } from "@aleohq/aleo-nodejs";
++import { Address, PrivateKey, ViewKey, Signature, RecordCiphertext, RecordPlaintext, PrivateKeyCiphertext } from "@aleohq/nodejs";
+ import {
+     seed,
+     message,
+diff --git a/wasm/Cargo.toml b/wasm/Cargo.toml
+index 744e0d3e..0f1c0b01 100644
+--- a/wasm/Cargo.toml
++++ b/wasm/Cargo.toml
+@@ -1,6 +1,6 @@
+ [package]
+ name = "aleo-wasm"
+-version = "0.4.4"
++version = "0.4.5"
+ authors = [ "The Aleo Team <hello@aleo.org>" ]
+ description = "WebAssembly based toolkit for developing zero knowledge applications with Aleo"
+ homepage = "https://aleo.org"
+@@ -33,7 +33,7 @@ version = "0.2"
+ features = [ "js" ]
+ 
+ [dependencies.indexmap]
+-version = "1.7"
++version = "2.0.0"
+ 
+ [dependencies.lazy_static]
+ version = "1.4.0"
+@@ -100,16 +100,16 @@ browser = [ ]
+ 
+ ## Profiles
+ [profile.release]
+-opt-level = 4
++opt-level = 3
+ lto = true
+ 
+ [profile.dev]
+-opt-level = 4
++opt-level = 3
+ lto = "thin"
+ incremental = true
+ 
+ [package.metadata.wasm-pack.profile.debug]
+-wasm-opt = ["-O4"]
++wasm-opt = ["-O3"]
+ 
+ [package.metadata.wasm-pack.profile.release]
+-wasm-opt = ["-O4"]
+\ No newline at end of file
++wasm-opt = ["-O3"]
+\ No newline at end of file
+diff --git a/wasm/src/programs/macros.rs b/wasm/src/programs/macros.rs
+index ef4c5de8..5ae61761 100644
+--- a/wasm/src/programs/macros.rs
++++ b/wasm/src/programs/macros.rs
+@@ -91,7 +91,7 @@ macro_rules! execute_program {
+ }
+ 
+ #[macro_export]
+-macro_rules! fee_inclusion_proof {
++macro_rules! execute_fee {
+     ($process:expr, $private_key:expr, $fee_record:expr, $fee_microcredits:expr, $submission_url:expr, $fee_proving_key:expr, $fee_verifying_key:expr, $execution_id:expr) => {{
+         if (($fee_proving_key.is_some() && $fee_verifying_key.is_none())
+             || ($fee_proving_key.is_none() && $fee_verifying_key.is_some()))
+@@ -121,7 +121,7 @@ macro_rules! fee_inclusion_proof {
+ 
+         log("Executing fee program");
+         let fee_record_native = RecordPlaintextNative::from_str(&$fee_record.to_string()).unwrap();
+-        let (_, _, trace) = $process
++        let (_, _, mut trace) = $process
+             .execute_fee::<CurrentAleo, _>(
+                 &$private_key,
+                 fee_record_native,
+@@ -131,6 +131,7 @@ macro_rules! fee_inclusion_proof {
+             )
+             .map_err(|err| err.to_string())?;
+ 
++        trace.prepare_async::<CurrentBlockMemory, _>(&$submission_url).await.map_err(|err| err.to_string())?;
+         let fee = trace.prove_fee::<CurrentAleo, _>(&mut StdRng::from_entropy()).map_err(|e|e.to_string())?;
+ 
+         log("Verifying fee execution");
+diff --git a/wasm/src/programs/manager/deploy.rs b/wasm/src/programs/manager/deploy.rs
+index 39a61289..298eb02f 100644
+--- a/wasm/src/programs/manager/deploy.rs
++++ b/wasm/src/programs/manager/deploy.rs
+@@ -17,29 +17,25 @@
+ use super::*;
+ 
+ use crate::{
+-    fee_inclusion_proof,
++    execute_fee,
+     get_process,
+     log,
+     types::{
+         CurrentAleo,
+-        CurrentNetwork,
++        CurrentBlockMemory,
++        DeploymentNative,
+         ProcessNative,
+         ProgramIDNative,
+         ProgramNative,
+         ProgramOwnerNative,
+         RecordPlaintextNative,
+-        TransactionLeafNative,
+         TransactionNative,
+     },
+-    utils::to_bits,
+     PrivateKey,
+     RecordPlaintext,
+     Transaction,
+ };
+ 
+-use aleo_rust::{Network, ToBytes};
+-use snarkvm_console::program::{ToBits, TRANSACTION_DEPTH};
+-
+ use js_sys::{Object, Reflect};
+ use rand::{rngs::StdRng, SeedableRng};
+ use std::str::FromStr;
+@@ -68,7 +64,7 @@ impl ProgramManager {
+         imports: Option<Object>,
+         fee_credits: f64,
+         fee_record: RecordPlaintext,
+-        _url: String,
++        url: String,
+         cache: bool,
+         fee_proving_key: Option<ProvingKey>,
+         fee_verifying_key: Option<VerifyingKey>,
+@@ -106,7 +102,7 @@ impl ProgramManager {
+                 .map_err(|_| "Import resolution failed".to_string())?;
+         }
+ 
+-        log("Create and validate deployment");
++        log("Create deployment");
+         let deployment =
+             process.deploy::<CurrentAleo, _>(&program, &mut StdRng::from_entropy()).map_err(|err| err.to_string())?;
+         if deployment.program().functions().is_empty() {
+@@ -114,55 +110,34 @@ impl ProgramManager {
+         }
+ 
+         log("Ensure the fee is sufficient to pay for the deployment");
+-        let deployment_fee = deployment.to_bytes_le().map_err(|err| err.to_string())?.len();
+-        if fee_microcredits < deployment_fee as u64 {
+-            return Err("Fee is not sufficient to pay for the deployment transaction".to_string());
++        let (minimum_deployment_cost, (_, _)) = DeploymentNative::cost(&deployment).map_err(|err| err.to_string())?;
++        if fee_microcredits < minimum_deployment_cost {
++            return Err(format!(
++                "Fee is too low to pay for the deployment. The minimum fee is {} credits",
++                minimum_deployment_cost as f64 / 1_000_000.0
++            ));
+         }
+ 
+-        log("Verify the deployment and fees");
+-        process
+-            .verify_deployment::<CurrentAleo, _>(&deployment, &mut StdRng::from_entropy())
+-            .map_err(|err| err.to_string())?;
+-
+         let deployment_id = deployment.to_deployment_id().map_err(|e| e.to_string())?;
+ 
+-        let fee = fee_inclusion_proof!(
++        let fee = execute_fee!(
+             process,
+             private_key,
+             fee_record,
+             fee_microcredits,
+-            _url,
++            url,
+             fee_proving_key,
+             fee_verifying_key,
+             deployment_id
+         );
+ 
+-        log("Create the deployment transaction");
+-        TransactionNative::check_deployment_size(&deployment).map_err(|err| err.to_string())?;
+-        let leaves = program
+-            .functions()
+-            .values()
+-            .enumerate()
+-            .map(|(index, function)| {
+-                // Construct the transaction leaf.
+-                let id = CurrentNetwork::hash_bhp1024(&to_bits(function.to_bytes_le()?))?;
+-                Ok(TransactionLeafNative::new_deployment(index as u16, id).to_bits_le())
+-            })
+-            .chain(
+-                // Add the transaction fee to the leaves.
+-                [Ok(TransactionLeafNative::new_fee(
+-                    program.functions().len() as u16, // The last index.
+-                    **fee.transition_id(),
+-                )
+-                .to_bits_le())]
+-                .into_iter(),
+-            );
+-
+-        let id = CurrentNetwork::merkle_tree_bhp::<TRANSACTION_DEPTH>(
+-            &leaves.collect::<anyhow::Result<Vec<_>>>().map_err(|err| err.to_string())?,
+-        )
+-        .map_err(|err| err.to_string())?;
+-        let owner = ProgramOwnerNative::new(&private_key, *id.root(), &mut StdRng::from_entropy())
++        log("Create the program owner");
++        let owner = ProgramOwnerNative::new(&private_key, deployment_id, &mut StdRng::from_entropy())
++            .map_err(|err| err.to_string())?;
++
++        log("Verify the deployment and fees");
++        process
++            .verify_deployment::<CurrentAleo, _>(&deployment, &mut StdRng::from_entropy())
+             .map_err(|err| err.to_string())?;
+ 
+         log("Creating deployment transaction");
+diff --git a/wasm/src/programs/manager/execute.rs b/wasm/src/programs/manager/execute.rs
+index 04b2e5ea..95942605 100644
+--- a/wasm/src/programs/manager/execute.rs
++++ b/wasm/src/programs/manager/execute.rs
+@@ -18,10 +18,19 @@ use super::*;
+ use std::ops::Add;
+ 
+ use crate::{
++    execute_fee,
+     execute_program,
+     get_process,
+     log,
+-    types::{CurrentAleo, CurrentBlockMemory, IdentifierNative, ProcessNative, ProgramNative, TransactionNative},
++    types::{
++        CurrentAleo,
++        CurrentBlockMemory,
++        IdentifierNative,
++        ProcessNative,
++        ProgramNative,
++        RecordPlaintextNative,
++        TransactionNative,
++    },
+     ExecutionResponse,
+     PrivateKey,
+     RecordPlaintext,
+@@ -116,15 +125,15 @@ impl ProgramManager {
+         fee_verifying_key: Option<VerifyingKey>,
+     ) -> Result<Transaction, String> {
+         log(&format!("Executing function: {function} on-chain"));
+-        Self::validate_amount(fee_credits, &fee_record, true)?;
++        let fee_microcredits = Self::validate_amount(fee_credits, &fee_record, true)?;
+ 
+         let mut new_process;
+         let process = get_process!(self, cache, new_process);
+         let stack = process.get_stack("credits.aleo").map_err(|e| e.to_string())?;
+         let fee_identifier = IdentifierNative::from_str("fee").map_err(|e| e.to_string())?;
+         if !stack.contains_proving_key(&fee_identifier) && fee_proving_key.is_some() && fee_verifying_key.is_some() {
+-            let fee_proving_key = fee_proving_key.unwrap();
+-            let fee_verifying_key = fee_verifying_key.unwrap();
++            let fee_proving_key = fee_proving_key.clone().unwrap();
++            let fee_verifying_key = fee_verifying_key.clone().unwrap();
+             stack
+                 .insert_proving_key(&fee_identifier, ProvingKeyNative::from(fee_proving_key))
+                 .map_err(|e| e.to_string())?;
+@@ -133,24 +142,35 @@ impl ProgramManager {
+                 .map_err(|e| e.to_string())?;
+         }
+ 
++        log("Executing program");
+         let (_, mut trace) =
+             execute_program!(process, inputs, program, function, private_key, proving_key, verifying_key);
+ 
+-        // Prepare the inclusion proofs for the fee & execution
++        log("Preparing inclusion proofs for execution");
+         trace.prepare_async::<CurrentBlockMemory, _>(&url).await.map_err(|err| err.to_string())?;
+ 
+-        // Prove the execution and fee
++        log("Proving execution");
+         let program = ProgramNative::from_str(&program).map_err(|err| err.to_string())?;
+         let locator = program.id().to_string().add("/").add(&function);
+         let execution = trace
+             .prove_execution::<CurrentAleo, _>(&locator, &mut StdRng::from_entropy())
+             .map_err(|e| e.to_string())?;
+-        let fee = trace.prove_fee::<CurrentAleo, _>(&mut StdRng::from_entropy()).map_err(|e| e.to_string())?;
+         let execution_id = execution.to_execution_id().map_err(|e| e.to_string())?;
+ 
+-        // Verify the execution and fee
++        log("Executing fee");
++        let fee = execute_fee!(
++            process,
++            private_key,
++            fee_record,
++            fee_microcredits,
++            url,
++            fee_proving_key,
++            fee_verifying_key,
++            execution_id
++        );
++
++        // Verify the execution
+         process.verify_execution(&execution).map_err(|err| err.to_string())?;
+-        process.verify_fee(&fee, execution_id).map_err(|err| err.to_string())?;
+ 
+         log("Creating execution transaction");
+         let transaction = TransactionNative::from_execution(execution, Some(fee)).map_err(|err| err.to_string())?;
+diff --git a/wasm/src/programs/manager/join.rs b/wasm/src/programs/manager/join.rs
+index a28c4b5b..e0a7773a 100644
+--- a/wasm/src/programs/manager/join.rs
++++ b/wasm/src/programs/manager/join.rs
+@@ -17,10 +17,19 @@
+ use super::*;
+ 
+ use crate::{
++    execute_fee,
+     execute_program,
+     get_process,
+     log,
+-    types::{CurrentAleo, CurrentBlockMemory, IdentifierNative, ProcessNative, ProgramNative, TransactionNative},
++    types::{
++        CurrentAleo,
++        CurrentBlockMemory,
++        IdentifierNative,
++        ProcessNative,
++        ProgramNative,
++        RecordPlaintextNative,
++        TransactionNative,
++    },
+     PrivateKey,
+     RecordPlaintext,
+     Transaction,
+@@ -67,7 +76,7 @@ impl ProgramManager {
+         fee_verifying_key: Option<VerifyingKey>,
+     ) -> Result<Transaction, String> {
+         log("Executing join program");
+-        Self::validate_amount(fee_credits, &fee_record, true)?;
++        let fee_microcredits = Self::validate_amount(fee_credits, &fee_record, true)?;
+ 
+         log("Setup program and inputs");
+         let program = ProgramNative::credits().unwrap().to_string();
+@@ -80,8 +89,8 @@ impl ProgramManager {
+         let stack = process.get_stack("credits.aleo").map_err(|e| e.to_string())?;
+         let fee_identifier = IdentifierNative::from_str("fee").map_err(|e| e.to_string())?;
+         if !stack.contains_proving_key(&fee_identifier) && fee_proving_key.is_some() && fee_verifying_key.is_some() {
+-            let fee_proving_key = fee_proving_key.unwrap();
+-            let fee_verifying_key = fee_verifying_key.unwrap();
++            let fee_proving_key = fee_proving_key.clone().unwrap();
++            let fee_verifying_key = fee_verifying_key.clone().unwrap();
+             stack
+                 .insert_proving_key(&fee_identifier, ProvingKeyNative::from(fee_proving_key))
+                 .map_err(|e| e.to_string())?;
+@@ -90,22 +99,33 @@ impl ProgramManager {
+                 .map_err(|e| e.to_string())?;
+         }
+ 
++        log("Executing the join function");
+         let (_, mut trace) =
+             execute_program!(process, inputs, program, "join", private_key, join_proving_key, join_verifying_key);
+ 
+-        // Prepare the inclusion proofs for the fee & execution
++        log("Preparing inclusion proof for the join execution");
+         trace.prepare_async::<CurrentBlockMemory, _>(&url).await.map_err(|err| err.to_string())?;
+ 
+-        // Prove the execution and fee
++        log("Proving the join execution");
+         let execution = trace
+             .prove_execution::<CurrentAleo, _>("credits.aleo/join", &mut StdRng::from_entropy())
+             .map_err(|e| e.to_string())?;
+-        let fee = trace.prove_fee::<CurrentAleo, _>(&mut StdRng::from_entropy()).map_err(|e| e.to_string())?;
+         let execution_id = execution.to_execution_id().map_err(|e| e.to_string())?;
+ 
+-        // Verify the execution and fee
++        log("Verifying the join execution");
+         process.verify_execution(&execution).map_err(|err| err.to_string())?;
+-        process.verify_fee(&fee, execution_id).map_err(|err| err.to_string())?;
++
++        log("Executing the fee");
++        let fee = execute_fee!(
++            process,
++            private_key,
++            fee_record,
++            fee_microcredits,
++            url,
++            fee_proving_key,
++            fee_verifying_key,
++            execution_id
++        );
+ 
+         log("Creating execution transaction for join");
+         let transaction = TransactionNative::from_execution(execution, Some(fee)).map_err(|err| err.to_string())?;
+diff --git a/wasm/src/programs/manager/split.rs b/wasm/src/programs/manager/split.rs
+index 4d2aca66..51534d7d 100644
+--- a/wasm/src/programs/manager/split.rs
++++ b/wasm/src/programs/manager/split.rs
+@@ -70,18 +70,19 @@ impl ProgramManager {
+         let mut new_process;
+         let process = get_process!(self, cache, new_process);
+ 
++        log("Executing the split function");
+         let (_, mut trace) =
+             execute_program!(process, inputs, program, "split", private_key, split_proving_key, split_verifying_key);
+ 
+-        // Prepare the inclusion proofs for the fee & execution
++        log("Preparing the inclusion proof for the split execution");
+         trace.prepare_async::<CurrentBlockMemory, _>(&url).await.map_err(|err| err.to_string())?;
+ 
+-        // Prove the execution and fee
++        log("Proving the split execution");
+         let execution = trace
+             .prove_execution::<CurrentAleo, _>("credits.aleo/split", &mut StdRng::from_entropy())
+             .map_err(|e| e.to_string())?;
+ 
+-        // Verify the execution and fee
++        log("Verifying the split execution");
+         process.verify_execution(&execution).map_err(|err| err.to_string())?;
+ 
+         log("Creating execution transaction for split");
+diff --git a/wasm/src/programs/manager/transfer.rs b/wasm/src/programs/manager/transfer.rs
+index 4e4a76cb..e99ad4ce 100644
+--- a/wasm/src/programs/manager/transfer.rs
++++ b/wasm/src/programs/manager/transfer.rs
+@@ -17,10 +17,19 @@
+ use super::*;
+ 
+ use crate::{
++    execute_fee,
+     execute_program,
+     get_process,
+     log,
+-    types::{CurrentAleo, CurrentBlockMemory, IdentifierNative, ProcessNative, ProgramNative, TransactionNative},
++    types::{
++        CurrentAleo,
++        CurrentBlockMemory,
++        IdentifierNative,
++        ProcessNative,
++        ProgramNative,
++        RecordPlaintextNative,
++        TransactionNative,
++    },
+     PrivateKey,
+     RecordPlaintext,
+     Transaction,
+@@ -77,48 +86,44 @@ impl ProgramManager {
+         } else {
+             (amount_credits * 1_000_000.0) as u64
+         };
+-        Self::validate_amount(fee_credits, &fee_record, true)?;
++        let fee_microcredits = Self::validate_amount(fee_credits, &fee_record, true)?;
+ 
+         log("Setup the program and inputs");
+         let program = ProgramNative::credits().unwrap().to_string();
+         let inputs = Array::new_with_length(3);
+ 
+-        let transfer_type = match transfer_type.as_str() {
+-            "private" => "transfer_".to_string().add("private"),
+-            "private_to_public" => "transfer_".to_string().add("private_to_public"),
+-            "public" => "transfer_".to_string().add("public"),
+-            "public_to_private" => "transfer_".to_string().add("public_to_private"),
+-            _ => transfer_type,
+-        };
++        let transfer_type = transfer_type.as_str();
++        log("Transfer Type is:");
++        log(transfer_type);
+ 
+-        let transfer_type = match transfer_type.as_str() {
+-            "transfer_private" => {
++        let transfer_type = match transfer_type {
++            "private" => {
+                 if amount_record.is_none() {
+                     return Err("Amount record must be provided for private transfers".to_string());
+                 }
+                 inputs.set(0u32, wasm_bindgen::JsValue::from_str(&amount_record.unwrap().to_string()));
+                 inputs.set(1u32, wasm_bindgen::JsValue::from_str(&recipient));
+                 inputs.set(2u32, wasm_bindgen::JsValue::from_str(&amount_microcredits.to_string().add("u64")));
+-                transfer_type
++                "transfer_private"
+             }
+-            "transfer_private_to_public" => {
++            "private_to_public" => {
+                 if amount_record.is_none() {
+                     return Err("Amount record must be provided for private transfers".to_string());
+                 }
+                 inputs.set(0u32, wasm_bindgen::JsValue::from_str(&amount_record.unwrap().to_string()));
+                 inputs.set(1u32, wasm_bindgen::JsValue::from_str(&recipient));
+                 inputs.set(2u32, wasm_bindgen::JsValue::from_str(&amount_microcredits.to_string().add("u64")));
+-                transfer_type
++                "transfer_private_to_public"
+             }
+-            "transfer_public" => {
++            "public" => {
+                 inputs.set(0u32, wasm_bindgen::JsValue::from_str(&recipient));
+                 inputs.set(1u32, wasm_bindgen::JsValue::from_str(&amount_microcredits.to_string().add("u64")));
+-                transfer_type
++                "transfer_public"
+             }
+-            "transfer_public_to_private" => {
++            "public_to_private" => {
+                 inputs.set(1u32, wasm_bindgen::JsValue::from_str(&recipient));
+                 inputs.set(2u32, wasm_bindgen::JsValue::from_str(&amount_microcredits.to_string().add("u64")));
+-                transfer_type
++                "transfer_public_to_private"
+             }
+             _ => return Err("Invalid transfer type".to_string()),
+         };
+@@ -128,8 +133,8 @@ impl ProgramManager {
+         let fee_identifier = IdentifierNative::from_str("fee").map_err(|e| e.to_string())?;
+         let stack = process.get_stack("credits.aleo").map_err(|e| e.to_string())?;
+         if !stack.contains_proving_key(&fee_identifier) && fee_proving_key.is_some() && fee_verifying_key.is_some() {
+-            let fee_proving_key = fee_proving_key.unwrap();
+-            let fee_verifying_key = fee_verifying_key.unwrap();
++            let fee_proving_key = fee_proving_key.clone().unwrap();
++            let fee_verifying_key = fee_verifying_key.clone().unwrap();
+             stack
+                 .insert_proving_key(&fee_identifier, ProvingKeyNative::from(fee_proving_key))
+                 .map_err(|e| e.to_string())?;
+@@ -138,6 +143,7 @@ impl ProgramManager {
+                 .map_err(|e| e.to_string())?;
+         }
+ 
++        log("Executing transfer function");
+         let (_, mut trace) = execute_program!(
+             process,
+             inputs,
+@@ -148,19 +154,29 @@ impl ProgramManager {
+             transfer_verifying_key
+         );
+ 
+-        // Prepare the inclusion proofs for the fee & execution
++        log("Preparing the inclusion proof for the transfer execution");
+         trace.prepare_async::<CurrentBlockMemory, _>(&url).await.map_err(|err| err.to_string())?;
+ 
+-        // Prove the execution and fee
++        log("Proving the transfer execution");
+         let execution = trace
+             .prove_execution::<CurrentAleo, _>("credits.aleo/transfer", &mut StdRng::from_entropy())
+             .map_err(|e| e.to_string())?;
+-        let fee = trace.prove_fee::<CurrentAleo, _>(&mut StdRng::from_entropy()).map_err(|e| e.to_string())?;
+         let execution_id = execution.to_execution_id().map_err(|e| e.to_string())?;
+ 
+-        // Verify the execution and fee
++        log("Verifying the transfer execution");
+         process.verify_execution(&execution).map_err(|err| err.to_string())?;
+-        process.verify_fee(&fee, execution_id).map_err(|err| err.to_string())?;
++
++        log("Executing the fee");
++        let fee = execute_fee!(
++            process,
++            private_key,
++            fee_record,
++            fee_microcredits,
++            url,
++            fee_proving_key,
++            fee_verifying_key,
++            execution_id
++        );
+ 
+         log("Creating execution transaction for transfer");
+         let transaction = TransactionNative::from_execution(execution, Some(fee)).map_err(|err| err.to_string())?;
+diff --git a/wasm/src/types.rs b/wasm/src/types.rs
+index c5a1ce6c..c4883939 100644
+--- a/wasm/src/types.rs
++++ b/wasm/src/types.rs
+@@ -28,10 +28,11 @@ pub use aleo_rust::{
+     ViewKey,
+ };
+ use snarkvm_circuit_network::AleoV0;
+-use snarkvm_console::program::{ProgramOwner, Response, TransactionLeaf};
++use snarkvm_console::program::{ProgramOwner, Response};
+ use snarkvm_synthesizer::{
+     helpers::memory::BlockMemory,
+     snark::{ProvingKey, VerifyingKey},
++    Deployment,
+     Process,
+     Program,
+     Transaction,
+@@ -57,13 +58,13 @@ pub type RecordPlaintextNative = Record<CurrentNetwork, PlaintextNative>;
+ 
+ // Program types
+ pub type CurrentBlockMemory = BlockMemory<CurrentNetwork>;
++pub type DeploymentNative = Deployment<CurrentNetwork>;
+ pub type IdentifierNative = Identifier<CurrentNetwork>;
+ pub type ProcessNative = Process<CurrentNetwork>;
+-pub type ProgramNative = Program<CurrentNetwork>;
+ pub type ProgramIDNative = ProgramID<CurrentNetwork>;
++pub type ProgramNative = Program<CurrentNetwork>;
+ pub type ProgramOwnerNative = ProgramOwner<CurrentNetwork>;
+ pub type ProvingKeyNative = ProvingKey<CurrentNetwork>;
+ pub type ResponseNative = Response<CurrentNetwork>;
+-pub type TransactionLeafNative = TransactionLeaf<CurrentNetwork>;
+ pub type TransactionNative = Transaction<CurrentNetwork>;
+ pub type VerifyingKeyNative = VerifyingKey<CurrentNetwork>;
+diff --git a/website/src/tabs/develop/Deploy.js b/website/src/tabs/develop/Deploy.js
+index d1a072c9..402e5716 100644
+--- a/website/src/tabs/develop/Deploy.js
++++ b/website/src/tabs/develop/Deploy.js
+@@ -21,7 +21,8 @@ export const Deploy = () => {
+         let worker = new Worker("./worker.js");
+         worker.addEventListener("message", ev => {
+             if (ev.data.type == 'DEPLOY_TRANSACTION_COMPLETED') {
+-                axios.post(peerUrl() + "/testnet3/transaction/broadcast", ev.data.deployTransaction, {
++                let [deployTransaction, url] = ev.data.deployTransaction;
++                axios.post(url + "/testnet3/transaction/broadcast", deployTransaction, {
+                     headers: {
+                         'Content-Type': 'application/json',
+                     }
+@@ -96,9 +97,9 @@ export const Deploy = () => {
+         setLoading(false)
+         setTransactionID(null);
+         setDeploymentError(null);
+-        setProgram("program hello.aleo;\n" +
++        setProgram("program hello_hello.aleo;\n" +
+             "\n" +
+-            "function main:\n" +
++            "function hello:\n" +
+             "    input r0 as u32.public;\n" +
+             "    input r1 as u32.private;\n" +
+             "    add r0 r1 into r2;\n" +
+diff --git a/website/src/tabs/develop/Execute.js b/website/src/tabs/develop/Execute.js
+index 81b5b290..77e1f603 100644
+--- a/website/src/tabs/develop/Execute.js
++++ b/website/src/tabs/develop/Execute.js
+@@ -57,8 +57,8 @@ export const Execute = () => {
+                 setExecutionError(null);
+                 setProgramResponse(ev.data.outputs);
+             } else if (ev.data.type == 'EXECUTION_TRANSACTION_COMPLETED') {
+-                let object = JSON.parse(ev.data.executeTransaction);
+-                axios.post(peerUrl() + "/testnet3/transaction/broadcast", ev.data.executeTransaction, {
++                let [transaction, url] = ev.data.executeTransaction;
++                axios.post(url + "/testnet3/transaction/broadcast", transaction, {
+                     headers: {
+                         'Content-Type': 'application/json',
+                     }
+@@ -159,8 +159,8 @@ export const Execute = () => {
+         setProgramResponse(null);
+         setTransactionID(null);
+         setExecutionError(null);
+-        setProgramID("hello.aleo");
+-        setProgram("program hello.aleo;\n" +
++        setProgramID("hello_hello.aleo");
++        setProgram("program hello_hello.aleo;\n" +
+             "\n" +
+             "function hello:\n" +
+             "    input r0 as u32.public;\n" +
+diff --git a/website/src/tabs/develop/Join.js b/website/src/tabs/develop/Join.js
+index 012f236e..e6821495 100644
+--- a/website/src/tabs/develop/Join.js
++++ b/website/src/tabs/develop/Join.js
+@@ -19,7 +19,8 @@ export const Join = () => {
+         let worker = new Worker("./worker.js");
+         worker.addEventListener("message", ev => {
+             if (ev.data.type == 'JOIN_TRANSACTION_COMPLETED') {
+-                axios.post(peerUrl() + "/testnet3/transaction/broadcast", ev.data.joinTransaction, {
++                let [transaction, url] = ev.data.joinTransaction
++                axios.post(url + "/testnet3/transaction/broadcast", transaction, {
+                     headers: {
+                         'Content-Type': 'application/json',
+                     }
+diff --git a/website/src/tabs/develop/Split.js b/website/src/tabs/develop/Split.js
+index 8303bdc3..4f52de9f 100644
+--- a/website/src/tabs/develop/Split.js
++++ b/website/src/tabs/develop/Split.js
+@@ -17,7 +17,8 @@ export const Split = () => {
+         let worker = new Worker("./worker.js");
+         worker.addEventListener("message", ev => {
+             if (ev.data.type == 'SPLIT_TRANSACTION_COMPLETED') {
+-                axios.post(peerUrl() + "/testnet3/transaction/broadcast", ev.data.splitTransaction, {
++                let [transaction, url] = ev.data.splitTransaction;
++                axios.post(url + "/testnet3/transaction/broadcast", transaction, {
+                     headers: {
+                         'Content-Type': 'application/json',
+                     }
+diff --git a/website/src/tabs/develop/Transfer.js b/website/src/tabs/develop/Transfer.js
+index d0935a7a..6f31b05a 100644
+--- a/website/src/tabs/develop/Transfer.js
++++ b/website/src/tabs/develop/Transfer.js
+@@ -21,7 +21,8 @@ export const Transfer = () => {
+         let worker = new Worker("./worker.js");
+         worker.addEventListener("message", ev => {
+             if (ev.data.type == 'TRANSFER_TRANSACTION_COMPLETED') {
+-                axios.post(peerUrl() + "/testnet3/transaction/broadcast", ev.data.transferTransaction, {
++                let [transaction, url] = ev.data.transferTransaction
++                axios.post(url + "/testnet3/transaction/broadcast", transaction, {
+                     headers: {
+                         'Content-Type': 'application/json',
+                     }
+@@ -82,7 +83,7 @@ export const Transfer = () => {
+             type: 'ALEO_TRANSFER',
+             privateKey: privateKeyString(),
+             amountCredits: amount,
+-            transfer_type: "transfer_private",
++            transfer_type: "private",
+             recipient: recipientString(),
+             amountRecord: amountRecordString(),
+             fee: feeAmount,
+diff --git a/website/src/workers/keys.js b/website/src/workers/keys.js
+index e2e1126f..e5ca3145 100644
+--- a/website/src/workers/keys.js
++++ b/website/src/workers/keys.js
+@@ -1,11 +1,11 @@
+-const FEE_PROVER_URL = "https://testnet3.parameters.aleo.org/fee.prover.0bfc24f";
+-const FEE_VERIFIER_URL = "https://testnet3.parameters.aleo.org/fee.verifier.44783e8";
+-const JOIN_PROVER_URL = "https://testnet3.parameters.aleo.org/join.prover.6856be2";
+-const JOIN_VERIFIER_URL = "https://testnet3.parameters.aleo.org/join.verifier.9c946a3";
+-const SPLIT_PROVER_URL = "https://testnet3.parameters.aleo.org/split.prover.8469bca";
+-const SPLIT_VERIFIER_URL = "https://testnet3.parameters.aleo.org/split.verifier.ba3bdd9";
+-const TRANSFER_PRIVATE_PROVER_URL = "https://testnet3.parameters.aleo.org/transfer.prover.2a9a6f2";
+-const TRANSFER_PRIVATE_VERIFIER_URL = "https://testnet3.parameters.aleo.org/transfer.verifier.3a59762";
++const FEE_PROVER_URL = "https://testnet3.parameters.aleo.org/fee.prover.36542ce";
++const FEE_VERIFIER_URL = "https://testnet3.parameters.aleo.org/fee.verifier.2de311b";
++const JOIN_PROVER_URL = "https://testnet3.parameters.aleo.org/join.prover.da05baf";
++const JOIN_VERIFIER_URL = "https://testnet3.parameters.aleo.org/join.verifier.1489109";
++const SPLIT_PROVER_URL = "https://testnet3.parameters.aleo.org/split.prover.8c585f2";
++const SPLIT_VERIFIER_URL = "https://testnet3.parameters.aleo.org/split.verifier.8281688";
++const TRANSFER_PRIVATE_PROVER_URL = "https://testnet3.parameters.aleo.org/transfer_private.prover.2a9a6f2";
++const TRANSFER_PRIVATE_VERIFIER_URL = "https://testnet3.parameters.aleo.org/transfer_private.verifier.3a59762";
+ const TRANSFER_PRIVATE_TO_PUBLIC_PROVER_URL = "https://testnet3.parameters.aleo.org/transfer_private_to_public.prover.cf3b952";
+ const TRANSFER_PRIVATE_TO_PUBLIC_VERIFIER_URL = "https://testnet3.parameters.aleo.org/transfer_private_to_public.verifier.5bd459b";
+ const TRANSFER_PUBLIC_PROVER_URL = "https://testnet3.parameters.aleo.org/transfer_public.prover.1117f0a";
+diff --git a/website/src/workers/worker.js b/website/src/workers/worker.js
+index d3be2621..d2098b87 100644
+--- a/website/src/workers/worker.js
++++ b/website/src/workers/worker.js
+@@ -26,11 +26,15 @@ const aleoProgramManager = new aleo.ProgramManager();
+ const getFunctionKeys = async (proverUrl, verifierUrl) => {
+     console.log("Downloading proving and verifying keys from: ", proverUrl, verifierUrl);
+     let proofResponse = await fetch(proverUrl);
++    console.log("Getting array buffer");
+     let proofBuffer = await proofResponse.arrayBuffer();
+     let verificationResponse = await fetch(verifierUrl);
+     let verificationBuffer = await verificationResponse.arrayBuffer();
++    console.log("Proving and verifying key binaries downloaded");
++    console.log("Creating proving and verifying keys...");
+     let provingKey = aleo.ProvingKey.fromBytes(new Uint8Array(proofBuffer));
+     let verifyingKey = aleo.VerifyingKey.fromBytes(new Uint8Array(verificationBuffer));
++    console.log("Proving and verifying keys created");
+     return [provingKey, verifyingKey];
+ }
+ 
+@@ -43,12 +47,12 @@ const validateProgram = (programString) => {
+     }
+ }
+ 
+-const programMatchesOnChain = async (programString) => {
++const programMatchesOnChain = async (programString, url) => {
+     const program = validateProgram(programString);
+     let onlineProgramText;
+     try {
+         const program_id = program.id();
+-        const program_url = `https://vm.aleo.org/api/testnet3/program/${program_id}`;
++        const program_url = `${url}/testnet3/program/${program_id}`;
+         const programResponse = await fetch(program_url);
+         onlineProgramText = await programResponse.json();
+     } catch (error) {
+@@ -121,7 +125,7 @@ self.addEventListener("message", ev => {
+ 
+         (async function() {
+             try {
+-                const programMatches = await programMatchesOnChain(remoteProgram);
++                const programMatches = await programMatchesOnChain(remoteProgram, url);
+                 if (!programMatches) {
+                     throw (`Program does not match the program deployed on the Aleo Network, cannot execute`);
+                 }
+@@ -147,8 +151,9 @@ self.addEventListener("message", ev => {
+ 
+                 console.log(`Web worker: On-chain execution transaction created in ${performance.now() - startTime} ms`);
+                 let transaction = executeTransaction.toString();
++                let transaction_and_url = [transaction, url]
+                 console.log(transaction);
+-                self.postMessage({type: 'EXECUTION_TRANSACTION_COMPLETED', executeTransaction: transaction});
++                self.postMessage({type: 'EXECUTION_TRANSACTION_COMPLETED', executeTransaction: transaction_and_url});
+             } catch (error) {
+                 console.log(error);
+                 self.postMessage({ type: 'ERROR', errorMessage: error.toString() });
+@@ -172,28 +177,38 @@ self.addEventListener("message", ev => {
+ 
+         (async function() {
+             try {
++                console.log("transfer type:", transfer_type);
+                 if (transfer_type === "public") {
+                     if (transferPublicProvingKey === null || transferPublicVerifyingKey === null) {
+                         [transferPublicProvingKey, transferPublicVerifyingKey] = await getFunctionKeys(TRANSFER_PUBLIC_PROVER_URL, TRANSFER_PUBLIC_VERIFIER_URL);
+-                    }
+-                } else if (transfer_type === "private") {
+-                    if (transferPrivateProvingKey === null || transferPrivateVerifyingKey === null) {
+-                        [transferPrivateProvingKey, transferPrivateVerifyingKey] = await getFunctionKeys(TRANSFER_PRIVATE_PROVER_URL, TRANSFER_PRIVATE_VERIFIER_URL);
++                        if (!aleoProgramManager.keyExists("credits.aleo", "transfer_public")) {
++                            aleoProgramManager.cacheKeypairInWasmMemory(aleo.Program.getCreditsProgram().toString(), "transfer_public", transferPublicProvingKey, transferPublicVerifyingKey);
++                        }
+                     }
+                 } else if (transfer_type === "publicToPrivate") {
+                     if (transferPublicToPrivateProvingKey === null || transferPublicToPrivateVerifyingKey === null) {
+                         [transferPublicToPrivateProvingKey, transferPublicToPrivateVerifyingKey] = await getFunctionKeys(TRANSFER_PUBLIC_TO_PRIVATE_PROVER_URL, TRANSFER_PUBLIC_TO_PRIVATE_VERIFIER_URL);
++                        if (!aleoProgramManager.keyExists("credits.aleo", "transfer_public_to_private")) {
++                            aleoProgramManager.cacheKeypairInWasmMemory(aleo.Program.getCreditsProgram().toString(), "transfer_public_to_private", transferPublicToPrivateProvingKey, transferPublicToPrivateVerifyingKey);
++                        }
+                     }
+                 } else if (transfer_type === "privateToPublic") {
+                     if (transferPrivateToPublicProvingKey === null || transferPrivateToPublicVerifyingKey === null) {
+                         [transferPrivateToPublicProvingKey, transferPrivateToPublicVerifyingKey] = await getFunctionKeys(TRANSFER_PRIVATE_TO_PUBLIC_PROVER_URL, TRANSFER_PRIVATE_TO_PUBLIC_VERIFIER_URL);
++                        if (!aleoProgramManager.keyExists("credits.aleo", "transfer_private_to_public")) {
++                            aleoProgramManager.cacheKeypairInWasmMemory(aleo.Program.getCreditsProgram().toString(), "transfer_private_to_public", transferPrivateToPublicProvingKey, transferPrivateToPublicVerifyingKey);
++                        }
++                    }
++                } else if (transfer_type === "private") {
++                    if (transferPrivateProvingKey === null || transferPrivateVerifyingKey === null) {
++                        [transferPrivateProvingKey, transferPrivateVerifyingKey] = await getFunctionKeys(TRANSFER_PRIVATE_PROVER_URL, TRANSFER_PRIVATE_VERIFIER_URL);
++                        if (!aleoProgramManager.keyExists("credits.aleo", "transfer_private")) {
++                            aleoProgramManager.cacheKeypairInWasmMemory(aleo.Program.getCreditsProgram().toString(), "transfer_private", transferPrivateProvingKey, transferPrivateVerifyingKey);
++                        }
+                     }
+                 } else {
+                     throw (`Invalid transfer type`);
+                 }
+-                if (!aleoProgramManager.keyExists("credits.aleo", "transfer")) {
+-                    aleoProgramManager.cacheKeypairInWasmMemory(aleo.Program.getCreditsProgram().toString(), "transfer", transferPrivateProvingKey, transferPrivateVerifyingKey);
+-                }
+                 if (feeProvingKey === null || feeVerifyingKey === null) {
+                     [feeProvingKey, feeVerifyingKey] = await getFunctionKeys(FEE_PROVER_URL, FEE_VERIFIER_URL);
+                 }
+@@ -205,7 +220,7 @@ self.addEventListener("message", ev => {
+                     aleo.PrivateKey.from_string(privateKey),
+                     amountCredits,
+                     recipient,
+-                    "transfer_private",
++                    transfer_type,
+                     aleo.RecordPlaintext.fromString(amountRecord),
+                     fee,
+                     aleo.RecordPlaintext.fromString(feeRecord),
+@@ -215,8 +230,9 @@ self.addEventListener("message", ev => {
+ 
+                 console.log(`Web worker: Transfer transaction created in ${performance.now() - startTime} ms`);
+                 let transaction = transferTransaction.toString();
++                let transaction_and_url = [transaction, url]
+                 console.log(transaction);
+-                self.postMessage({type: 'TRANSFER_TRANSACTION_COMPLETED', transferTransaction: transaction});
++                self.postMessage({type: 'TRANSFER_TRANSACTION_COMPLETED', transferTransaction: transaction_and_url});
+             } catch (error) {
+                 console.log(error);
+                 self.postMessage({ type: 'ERROR', errorMessage: error.toString() });
+@@ -238,7 +254,7 @@ self.addEventListener("message", ev => {
+         (async function() {
+             try {
+                 try {
+-                    await programMatchesOnChain(program);
++                    await programMatchesOnChain(program, url);
+                     throw (`A program with the same name already exists on the Aleo Network, cannot deploy`);
+                 } catch (e) {
+                     if (e !== `Program does not exist on chain`) {
+@@ -251,9 +267,11 @@ self.addEventListener("message", ev => {
+                     [feeProvingKey, feeVerifyingKey] = await getFunctionKeys(FEE_PROVER_URL, FEE_VERIFIER_URL);
+                 }
+                 if (!aleoProgramManager.keyExists("credits.aleo", "fee")) {
++                    console.log("Caching fee keys");
+                     aleoProgramManager.cacheKeypairInWasmMemory(aleo.Program.getCreditsProgram().toString(), "fee", feeProvingKey, feeVerifyingKey);
+                 }
+ 
++                console.log("Deploying program..");
+                 let deployTransaction = await aleoProgramManager.deploy(
+                     aleo.PrivateKey.from_string(privateKey),
+                     program,
+@@ -266,8 +284,9 @@ self.addEventListener("message", ev => {
+ 
+                 console.log(`Web worker: Deployment transaction created in ${performance.now() - startTime} ms`);
+                 let transaction = deployTransaction.toString();
++                let transaction_and_url = [transaction, url]
+                 console.log(transaction);
+-                self.postMessage({type: 'DEPLOY_TRANSACTION_COMPLETED', deployTransaction: transaction});
++                self.postMessage({type: 'DEPLOY_TRANSACTION_COMPLETED', deployTransaction: transaction_and_url});
+             } catch (error) {
+                 console.log(error);
+                 self.postMessage({ type: 'ERROR', errorMessage: error.toString() });
+@@ -303,8 +322,9 @@ self.addEventListener("message", ev => {
+ 
+                 console.log(`Web worker: Split transaction created in ${performance.now() - startTime} ms`);
+                 let transaction = splitTransaction.toString();
++                let transaction_and_url = [transaction, url]
+                 console.log(transaction);
+-                self.postMessage({type: 'SPLIT_TRANSACTION_COMPLETED', splitTransaction: transaction});
++                self.postMessage({type: 'SPLIT_TRANSACTION_COMPLETED', splitTransaction: transaction_and_url});
+             } catch (error) {
+                 console.log(error);
+                 self.postMessage({ type: 'ERROR', errorMessage: error.toString() });
+@@ -351,8 +371,9 @@ self.addEventListener("message", ev => {
+ 
+                 console.log(`Web worker: Join transaction created in ${performance.now() - startTime} ms`);
+                 let transaction = joinTransaction.toString();
++                let transaction_and_url = [transaction, url]
+                 console.log(transaction);
+-                self.postMessage({ type: 'JOIN_TRANSACTION_COMPLETED', joinTransaction: transaction });
++                self.postMessage({ type: 'JOIN_TRANSACTION_COMPLETED', joinTransaction: transaction_and_url });
+             } catch (error) {
+                 console.log(error);
+                 self.postMessage({ type: 'ERROR', errorMessage: error.toString() });

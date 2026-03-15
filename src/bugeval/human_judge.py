@@ -12,6 +12,7 @@ import click
 import yaml
 
 from bugeval.judge_models import JudgeScore
+from bugeval.pr_eval_models import default_judging, default_scoring
 from bugeval.result_models import NormalizedResult
 
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -29,7 +30,7 @@ def cohen_kappa(scores_a: list[int], scores_b: list[int]) -> float:
     n = len(scores_a)
     if n == 0:
         return 0.0
-    cats = list(range(4))  # scores 0–3
+    cats = default_scoring().scale
     po = sum(1 for a, b in zip(scores_a, scores_b) if a == b) / n
     pe = sum(
         (sum(1 for a in scores_a if a == k) / n) * (sum(1 for b in scores_b if b == k) / n)
@@ -38,7 +39,7 @@ def cohen_kappa(scores_a: list[int], scores_b: list[int]) -> float:
     return (po - pe) / (1 - pe) if pe < 1.0 else 1.0
 
 
-def select_sample(scores: list[JudgeScore], sample_rate: float = 0.25) -> list[JudgeScore]:
+def select_sample(scores: list[JudgeScore], sample_rate: float | None = None) -> list[JudgeScore]:
     """Stratified random sample by tool, targeting approximately sample_rate of total.
 
     Each tool contributes proportionally to the sample (at least 1 per tool if possible).
@@ -48,17 +49,19 @@ def select_sample(scores: list[JudgeScore], sample_rate: float = 0.25) -> list[J
     if not scores:
         return []
 
+    resolved_rate = sample_rate if sample_rate is not None else default_judging().human_sample_rate
+
     # Stratify by tool to ensure proportional tool coverage
     by_tool: dict[str, list[JudgeScore]] = {}
     for s in scores:
         by_tool.setdefault(s.tool, []).append(s)
 
-    total_n = max(1, round(len(scores) * sample_rate))
+    total_n = max(1, round(len(scores) * resolved_rate))
     sampled: list[JudgeScore] = []
 
     # Proportional allocation per tool (at least 1 per tool if possible)
     for tool, tool_scores in by_tool.items():
-        tool_n = max(1, round(len(tool_scores) * sample_rate))
+        tool_n = max(1, round(len(tool_scores) * resolved_rate))
         sampled.extend(random.sample(tool_scores, min(tool_n, len(tool_scores))))
 
     # Trim to target if over-allocated (can happen with many small strata)
@@ -90,7 +93,7 @@ def export_sample(
     scores: list[JudgeScore],
     run_dir: Path,
     output_path: Path,
-    sample_rate: float = 0.25,
+    sample_rate: float | None = None,
     results: dict[tuple[str, str], NormalizedResult] | None = None,
 ) -> None:
     """Select sample, blind tool names, write CSV for human raters.
@@ -162,7 +165,7 @@ def import_scores(input_path: Path, run_dir: Path) -> None:
             )
             continue
 
-        if human_score not in range(4):  # 0-3 only
+        if human_score not in default_scoring().scale:
             click.echo(
                 f"Warning: human_score {human_score} out of range [0-3] in row {row.get('row_id')}",
                 err=True,
@@ -202,10 +205,11 @@ def compute_kappa_report(run_dir: Path) -> dict[str, Any]:
     scores_dir = run_dir / "scores"
     hj_dir = run_dir / "human_judge"
 
-    if not scores_dir.exists():
-        return {"kappa": 0.0, "n_pairs": 0, "threshold": 0.85, "calibrated": False, "pairs": []}
-    if not hj_dir.exists():
-        return {"kappa": 0.0, "n_pairs": 0, "threshold": 0.85, "calibrated": False, "pairs": []}
+    threshold = default_judging().calibration_threshold
+    if not scores_dir.exists() or not hj_dir.exists():
+        return {
+            "kappa": 0.0, "n_pairs": 0, "threshold": threshold, "calibrated": False, "pairs": []
+        }
 
     llm_lookup: dict[tuple[str, str], int] = {}
     for path in scores_dir.glob("*.yaml"):
@@ -236,7 +240,6 @@ def compute_kappa_report(run_dir: Path) -> dict[str, Any]:
             )
 
     kappa = cohen_kappa(llm_scores, human_scores)
-    threshold = 0.85
     return {
         "kappa": kappa,
         "n_pairs": len(pairs),

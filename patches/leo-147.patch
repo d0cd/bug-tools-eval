@@ -1,0 +1,153 @@
+diff --git a/asg/src/statement/iteration.rs b/asg/src/statement/iteration.rs
+index 26cfd2ba74..b13b1a6aae 100644
+--- a/asg/src/statement/iteration.rs
++++ b/asg/src/statement/iteration.rs
+@@ -57,6 +57,19 @@ impl<'a> FromAst<'a, leo_ast::IterationStatement> for &'a Statement<'a> {
+         let expected_index_type = Some(PartialType::Integer(None, Some(IntegerType::U32)));
+         let start = <&Expression<'a>>::from_ast(scope, &statement.start, expected_index_type.clone())?;
+         let stop = <&Expression<'a>>::from_ast(scope, &statement.stop, expected_index_type)?;
++
++        // Return an error if start or stop is not constant.
++        if !start.is_consty() {
++            return Err(AsgConvertError::unexpected_nonconst(
++                &start.span().cloned().unwrap_or_default(),
++            ));
++        }
++        if !stop.is_consty() {
++            return Err(AsgConvertError::unexpected_nonconst(
++                &stop.span().cloned().unwrap_or_default(),
++            ));
++        }
++
+         let variable = scope.alloc_variable(RefCell::new(InnerVariable {
+             id: scope.context.get_id(),
+             name: statement.variable.clone(),
+diff --git a/compiler/src/compiler.rs b/compiler/src/compiler.rs
+index 20f44daa25..4cb6692e27 100644
+--- a/compiler/src/compiler.rs
++++ b/compiler/src/compiler.rs
+@@ -224,7 +224,31 @@ impl<'a, F: PrimeField, G: GroupType<F>> Compiler<'a, F, G> {
+         let content = fs::read_to_string(&self.main_file_path)
+             .map_err(|e| CompilerError::FileReadError(self.main_file_path.clone(), e))?;
+ 
+-        self.parse_program_from_string(&content)
++        self.parse_program_from_string(&content).map_err(|mut error| {
++            // Return a formatted error with file path and code text.
++
++            let path = match error.get_path().map(|x| x.to_string()) {
++                // Get the file path if it exists
++                Some(path) => path,
++
++                // If a file path does not exist, then insert the main file path.
++                None => match self.main_file_path.clone().into_os_string().into_string() {
++                    Err(e) => return CompilerError::FileStringError(e),
++                    Ok(path) => path,
++                },
++            };
++
++            // Resolve the code text using the file path.
++            let content = match self.resolve_content(&path) {
++                Err(e) => return e,
++                Ok(x) => x,
++            };
++
++            // Update the formatted error.
++            error.set_path(&path, &content[..]);
++
++            error
++        })
+     }
+ 
+     ///
+diff --git a/compiler/src/errors/compiler.rs b/compiler/src/errors/compiler.rs
+index be76b88c7f..a9d13e6b24 100644
+--- a/compiler/src/errors/compiler.rs
++++ b/compiler/src/errors/compiler.rs
+@@ -23,7 +23,7 @@ use leo_parser::SyntaxError;
+ use leo_state::LocalDataVerificationError;
+ 
+ use bincode::Error as SerdeError;
+-use std::path::PathBuf;
++use std::{ffi::OsString, path::PathBuf};
+ 
+ #[derive(Debug, Error)]
+ pub enum CompilerError {
+@@ -51,6 +51,9 @@ pub enum CompilerError {
+     #[error("Cannot read from the provided file path '{:?}': {}", _0, _1)]
+     FileReadError(PathBuf, std::io::Error),
+ 
++    #[error("Cannot parse file string `{:?}`", _0)]
++    FileStringError(OsString),
++
+     #[error("{}", _0)]
+     LocalDataVerificationError(#[from] LocalDataVerificationError),
+ 
+diff --git a/compiler/tests/statements/iteration_input.in b/compiler/tests/statements/iteration_input.in
+new file mode 100644
+index 0000000000..8d27f19dde
+--- /dev/null
++++ b/compiler/tests/statements/iteration_input.in
+@@ -0,0 +1,2 @@
++[main]
++x: u8 = 1;
+\ No newline at end of file
+diff --git a/compiler/tests/statements/iteration_input.leo b/compiler/tests/statements/iteration_input.leo
+new file mode 100644
+index 0000000000..0ab62ab310
+--- /dev/null
++++ b/compiler/tests/statements/iteration_input.leo
+@@ -0,0 +1,5 @@
++function main(x: u8) {
++    for i in 0..x {
++        console.log("{}", i);
++    }
++}
+\ No newline at end of file
+diff --git a/compiler/tests/statements/iteration_variable.leo b/compiler/tests/statements/iteration_variable.leo
+new file mode 100644
+index 0000000000..d3d82b2664
+--- /dev/null
++++ b/compiler/tests/statements/iteration_variable.leo
+@@ -0,0 +1,7 @@
++function main() {
++    let x: u32 = 5;
++
++    for i in 0..x {
++        console.log("{}", i);
++    }
++}
+\ No newline at end of file
+diff --git a/compiler/tests/statements/mod.rs b/compiler/tests/statements/mod.rs
+index 3aeb3f858b..8566d67576 100644
+--- a/compiler/tests/statements/mod.rs
++++ b/compiler/tests/statements/mod.rs
+@@ -14,7 +14,7 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{assert_satisfied, expect_asg_error, generate_main_input, parse_program};
++use crate::{assert_satisfied, expect_asg_error, generate_main_input, parse_program, parse_program_with_input};
+ use leo_ast::InputValue;
+ 
+ pub mod conditional;
+@@ -72,3 +72,20 @@ fn test_block() {
+ 
+     assert_satisfied(program);
+ }
++
++#[test]
++fn test_iteration_input() {
++    let input_string = include_str!("iteration_input.in");
++    let program_string = include_str!("iteration_input.leo");
++    let error = parse_program_with_input(program_string, input_string).err().unwrap();
++
++    expect_asg_error(error);
++}
++
++#[test]
++fn test_iteration_variable() {
++    let program_string = include_str!("iteration_variable.leo");
++    let program = parse_program(program_string).unwrap();
++
++    assert_satisfied(program);
++}

@@ -1,10 +1,10 @@
 """Tests for the curate command: prompt construction, response parsing, CLI."""
 
 import json
-from collections.abc import AsyncIterator
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from anthropic.types import TextBlock
 from click.testing import CliRunner
 
 from bugeval.curate import build_curation_prompt, curate, parse_llm_response
@@ -164,18 +164,14 @@ class TestCurateCliHelp:
         assert "--output-dir" in result.output
 
 
-def make_mock_query(response_data: dict[str, object]):
-    """Return an async generator function that yields a single mock AssistantMessage."""
+def make_mock_client(response_data: dict[str, object]) -> MagicMock:
+    """Return a mock Anthropic client whose messages.create returns the given data."""
     text = json.dumps(response_data)
-
-    async def _mock_query(
-        prompt: str, options: object = None
-    ) -> AsyncIterator[MagicMock]:
-        msg = MagicMock()
-        msg.content = [MagicMock(text=text)]
-        yield msg
-
-    return _mock_query
+    mock_response = MagicMock()
+    mock_response.content = [TextBlock(type="text", text=text)]
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = mock_response
+    return mock_client
 
 
 class TestCurateDryRun:
@@ -185,7 +181,7 @@ class TestCurateDryRun:
         save_candidates(candidates, candidates_path)
 
         runner = CliRunner()
-        with patch("bugeval.curate.query") as mock_query:
+        with patch("bugeval.curate.Anthropic") as mock_cls:
             result = runner.invoke(
                 curate,
                 [
@@ -197,7 +193,7 @@ class TestCurateDryRun:
                 ],
             )
         assert result.exit_code == 0
-        mock_query.assert_not_called()
+        mock_cls.assert_not_called()
 
     def test_dry_run_prints_candidate_info(self, tmp_path: Path) -> None:
         candidate = make_candidate(42)
@@ -205,7 +201,7 @@ class TestCurateDryRun:
         save_candidates([candidate], candidates_path)
 
         runner = CliRunner()
-        with patch("bugeval.curate.query"):
+        with patch("bugeval.curate.Anthropic"):
             result = runner.invoke(
                 curate,
                 [
@@ -230,7 +226,8 @@ class TestCurateControls:
 
         cases_dir = tmp_path / "cases"
         runner = CliRunner()
-        with patch("bugeval.curate.query", new=make_mock_query(make_llm_response_data())):
+        mock_client = make_mock_client(make_llm_response_data())
+        with patch("bugeval.curate.Anthropic", return_value=mock_client):
             result = runner.invoke(
                 curate,
                 ["--candidates", str(candidates_path), "--output-dir", str(cases_dir),
@@ -247,11 +244,10 @@ class TestCurateControls:
         cases_dir = tmp_path / "cases"
         runner = CliRunner()
 
-        async def always_fail(prompt: str, options: object = None) -> AsyncIterator[MagicMock]:
-            raise RuntimeError("SDK failure")
-            yield  # make it an async generator  # noqa: unreachable
+        mock_client = MagicMock()
+        mock_client.messages.create.side_effect = RuntimeError("API failure")
 
-        with patch("bugeval.curate.query", new=always_fail):
+        with patch("bugeval.curate.Anthropic", return_value=mock_client):
             result = runner.invoke(
                 curate,
                 ["--candidates", str(candidates_path), "--output-dir", str(cases_dir),
@@ -277,26 +273,16 @@ class TestCurateControls:
         checkpoint = cases_dir / ".curate_checkpoint.json"
         checkpoint.write_text(json.dumps([done_commit]))
 
-        call_count = 0
-
-        async def counting_query(
-            prompt: str, options: object = None
-        ) -> AsyncIterator[MagicMock]:
-            nonlocal call_count
-            call_count += 1
-            msg = MagicMock()
-            msg.content = [MagicMock(text=json.dumps(make_llm_response_data()))]
-            yield msg
-
+        mock_client = make_mock_client(make_llm_response_data())
         runner = CliRunner()
-        with patch("bugeval.curate.query", new=counting_query):
+        with patch("bugeval.curate.Anthropic", return_value=mock_client):
             runner.invoke(
                 curate,
                 ["--candidates", str(candidates_path), "--output-dir", str(cases_dir),
                  "--api-delay", "0"],
             )
         # Only 2 of 3 candidates should have been processed (first was checkpointed)
-        assert call_count == 2
+        assert mock_client.messages.create.call_count == 2
 
     def test_shard_splits_candidates(self, tmp_path: Path) -> None:
         # 6 candidates; shard 0/3 should process indices 0, 3 → 2 cases
@@ -309,7 +295,8 @@ class TestCurateControls:
 
         cases_dir = tmp_path / "cases"
         runner = CliRunner()
-        with patch("bugeval.curate.query", new=make_mock_query(make_llm_response_data())):
+        mock_client = make_mock_client(make_llm_response_data())
+        with patch("bugeval.curate.Anthropic", return_value=mock_client):
             result = runner.invoke(
                 curate,
                 ["--candidates", str(candidates_path), "--output-dir", str(cases_dir),
@@ -342,25 +329,15 @@ class TestCurateControls:
         checkpoint = cases_dir / ".curate_checkpoint.json"
         checkpoint.write_text(json.dumps([candidates[0].fix_commit]))
 
-        call_count = 0
-
-        async def counting_query(
-            prompt: str, options: object = None
-        ) -> AsyncIterator[MagicMock]:
-            nonlocal call_count
-            call_count += 1
-            msg = MagicMock()
-            msg.content = [MagicMock(text=json.dumps(make_llm_response_data()))]
-            yield msg
-
+        mock_client = make_mock_client(make_llm_response_data())
         runner = CliRunner()
-        with patch("bugeval.curate.query", new=counting_query):
+        with patch("bugeval.curate.Anthropic", return_value=mock_client):
             runner.invoke(
                 curate,
                 ["--candidates", str(candidates_path), "--output-dir", str(cases_dir),
                  "--api-delay", "0", "--no-checkpoint"],
             )
-        assert call_count == 1  # processed despite checkpoint
+        assert mock_client.messages.create.call_count == 1  # processed despite checkpoint
 
 
 class TestCurateWithMockedApi:
@@ -371,7 +348,8 @@ class TestCurateWithMockedApi:
 
         cases_dir = tmp_path / "cases"
         runner = CliRunner()
-        with patch("bugeval.curate.query", new=make_mock_query(make_llm_response_data())):
+        mock_client = make_mock_client(make_llm_response_data())
+        with patch("bugeval.curate.Anthropic", return_value=mock_client):
             result = runner.invoke(
                 curate,
                 [
@@ -395,7 +373,8 @@ class TestCurateWithMockedApi:
 
         cases_dir = tmp_path / "cases"
         runner = CliRunner()
-        with patch("bugeval.curate.query", new=make_mock_query(make_llm_response_data())):
+        mock_client = make_mock_client(make_llm_response_data())
+        with patch("bugeval.curate.Anthropic", return_value=mock_client):
             result = runner.invoke(
                 curate,
                 [

@@ -1,0 +1,279 @@
+diff --git a/cli/src/commands/developer/execute.rs b/cli/src/commands/developer/execute.rs
+index 41f188246..5e0ebac0d 100644
+--- a/cli/src/commands/developer/execute.rs
++++ b/cli/src/commands/developer/execute.rs
+@@ -194,7 +194,7 @@ impl Execute {
+         if self.record.is_none() && !is_static_query {
+             // Fetch the public balance.
+             let address = Address::try_from(&private_key)?;
+-            let public_balance = Developer::get_public_balance(&endpoint, &address)
++            let public_balance = Developer::get_public_balance::<N>(&endpoint, &address)
+                 .with_context(|| "Failed to check for sufficient funds to send transaction")?;
+ 
+             // Check if the public balance is sufficient.
+diff --git a/cli/src/commands/developer/mod.rs b/cli/src/commands/developer/mod.rs
+index 566d5f71f..554d4efb5 100644
+--- a/cli/src/commands/developer/mod.rs
++++ b/cli/src/commands/developer/mod.rs
+@@ -30,6 +30,7 @@ pub use transfer_private::*;
+ 
+ use crate::helpers::{args::network_id_parser, logger::initialize_terminal_logger};
+ 
++use snarkos_node_rest::{API_VERSION_V1, API_VERSION_V2};
+ use snarkvm::{package::Package, prelude::*};
+ 
+ use anyhow::{Context, Result, anyhow, bail, ensure};
+@@ -184,20 +185,28 @@ impl Developer {
+     ///  - `base_url`: the hostname (and path prefix) of the node to query. this must exclude the network name.
+     ///  - `route`: the route to the endpoint (e.g., `stateRoot/latest`). This cannot start with a slash.
+     fn build_endpoint<N: Network>(base_url: &http::Uri, route: &str) -> Result<String> {
+-        const API_VERSION: &str = "v2";
+-
+         // This function is only called internally but check for additional sanity.
+         ensure!(!route.starts_with('/'), "path cannot start with a slash");
+ 
+-        // Work around a bug in the `http` crate where empty paths will be set to '/' but other paths are not appended with a slash.
+-        // See [this issue](https://github.com/hyperium/http/issues/507).
+-        let path = if base_url.path().ends_with('/') {
+-            format!("{base_url}{API_VERSION}/{network}/{route}", network = N::SHORT_NAME)
++        // If the route already ends with a version segment (v1 or v2), don't prepend a version.
++        let route_has_version_suffix = {
++            let r = base_url.path().trim_end_matches('/');
++            r.ends_with(API_VERSION_V1) || r.ends_with(API_VERSION_V2)
++        };
++
++        // Work around a bug in the `http` crate where empty paths will be set to '/'
++        // but other paths are not appended with a slash.
++        // See https://github.com/hyperium/http/issues/507
++        let sep = if base_url.path().ends_with('/') { "" } else { "/" };
++
++        // Build "{base}/{maybe_version}/{network}/{route}"
++        let prefix = if route_has_version_suffix {
++            format!("{}/", N::SHORT_NAME)
+         } else {
+-            format!("{base_url}/{API_VERSION}/{network}/{route}", network = N::SHORT_NAME)
++            format!("{}/{}/", API_VERSION_V2, N::SHORT_NAME)
+         };
+ 
+-        Ok(path)
++        Ok(format!("{base_url}{sep}{prefix}{route}"))
+     }
+ 
+     /// Converts the returned JSON error (if any) into an anyhow Error chain.
+@@ -363,7 +372,7 @@ impl Developer {
+             let broadcast_endpoint = if let Some(url) = broadcast_value {
+                 url.to_string()
+             } else {
+-                format!("{endpoint}v2/{}/transaction/broadcast", N::SHORT_NAME)
++                Self::build_endpoint::<N>(endpoint, "transaction/broadcast")?
+             };
+ 
+             let result: Result<String> = match Self::http_post_json(&broadcast_endpoint, &transaction) {
+diff --git a/node/rest/src/lib.rs b/node/rest/src/lib.rs
+index afd95d8be..957720e02 100644
+--- a/node/rest/src/lib.rs
++++ b/node/rest/src/lib.rs
+@@ -67,6 +67,10 @@ use tower_http::{
+ /// The default port used for the REST API
+ pub const DEFAULT_REST_PORT: u16 = 3030;
+ 
++/// The API version prefixes.
++pub const API_VERSION_V1: &str = "v1";
++pub const API_VERSION_V2: &str = "v2";
++
+ /// A REST API server for the ledger.
+ #[derive(Clone)]
+ pub struct Rest<N: Network, C: ConsensusStorage<N>, R: Routing<N>> {
+@@ -265,12 +269,13 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
+             self.build_routes(rest_rps).layer(middleware::map_response(v1_error_middleware)),
+         );
+         let v1_router = axum::Router::new().nest(
+-            &format!("/v1/{}", N::SHORT_NAME),
++            &format!("/{API_VERSION_V1}/{}", N::SHORT_NAME),
+             self.build_routes(rest_rps).layer(middleware::map_response(v1_error_middleware)),
+         );
+ 
+         // Add the v2 API under "/v2".
+-        let v2_router = axum::Router::new().nest(&format!("/v2/{}", N::SHORT_NAME), self.build_routes(rest_rps));
++        let v2_router =
++            axum::Router::new().nest(&format!("/{API_VERSION_V2}/{}", N::SHORT_NAME), self.build_routes(rest_rps));
+ 
+         // Combine all routes.
+         let router = default_router.merge(v1_router).merge(v2_router);
+@@ -367,7 +372,7 @@ mod tests {
+                 )
+         };
+         let router_v1 = build_routes().route_layer(middleware::map_response(v1_error_middleware));
+-        let router_v2 = Router::new().nest("/v2", build_routes());
++        let router_v2 = Router::new().nest(&format!("/{API_VERSION_V2}"), build_routes());
+         router_v1.merge(router_v2)
+     }
+ 
+diff --git a/node/rest/src/routes.rs b/node/rest/src/routes.rs
+index eadefa8ef..beb793379 100644
+--- a/node/rest/src/routes.rs
++++ b/node/rest/src/routes.rs
+@@ -613,11 +613,33 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
+ 
+     // POST /<network>/transaction/broadcast
+     // POST /<network>/transaction/broadcast?check_transaction={true}
++    //
++    // Transaction Broadcast Flow
++    //
++    // /transaction/broadcast
++    //         |
++    //    +----+---------------------------+
++    //    |                               |
++    //    v                               v
++    // Without Query Params        With Query Param
++    //                                check_transaction=true
++    //    |                               |
++    //    +---------+                     +---------+
++    //    |         |                     |         |
++    //    v         v                     v         v
++    // Synced   Not Synced            Synced   Not Synced
++    //    |         |                     |         |
++    //    v         v                     v         v
++    //   200       200        check_transaction  check_transaction
++    //                           +---------+        +---------+
++    //                           |         |        |         |
++    //                           v         v        v         v
++    //                          200       422      203       503
+     pub(crate) async fn transaction_broadcast(
+         State(rest): State<Self>,
+         check_transaction: Query<CheckTransaction>,
+         json_result: Result<Json<Transaction<N>>, JsonRejection>,
+-    ) -> Result<ErasedJson, RestError> {
++    ) -> Result<impl axum::response::IntoResponse, RestError> {
+         let Json(tx) = match json_result {
+             Ok(json) => json,
+             Err(JsonRejection::JsonDataError(err)) => {
+@@ -627,9 +649,6 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
+             Err(other_rejection) => return Err(other_rejection.into()),
+         };
+ 
+-        // Determine transaction type.
+-        let is_exec = tx.is_execute();
+-
+         // If the transaction exceeds the transaction size limit, return an error.
+         // The buffer is initially roughly sized to hold a `transfer_public`,
+         // most transactions will be smaller and this reduces unnecessary allocations.
+@@ -646,20 +665,15 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
+             transaction: Data::Object(tx.clone()),
+         });
+ 
+-        // Broadcast the transaction.
+-        rest.routing.propagate(message, &[]);
++        // Check if the node is within sync leniency.
++        let is_within_sync_leniency = rest.routing.is_within_sync_leniency();
+ 
+-        // Do not process the transaction if the node is too far behind.
+-        if !rest.routing.is_within_sync_leniency() {
+-            return Err(RestError::service_unavailable(anyhow!(
+-                "Broadcasted transaction '{}', but will not process it (node is syncing)",
+-                fmt_id(tx_id)
+-            )));
+-        }
++        // Determine if we need to check the transaction.
++        let check_transaction = check_transaction.check_transaction.unwrap_or(false);
+ 
+-        if check_transaction.check_transaction.unwrap_or(false) {
++        if check_transaction {
+             // Select counter and limit based on transaction type.
+-            let (counter, limit, err_msg) = if is_exec {
++            let (counter, limit, err_msg) = if tx.is_execute() {
+                 (
+                     &rest.num_verifying_executions,
+                     VM::<N, C>::MAX_PARALLEL_EXECUTE_VERIFICATIONS,
+@@ -688,10 +702,16 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
+             }
+ 
+             // Perform the check.
+-            let res = rest
+-                .ledger
+-                .check_transaction_basic(&tx, None, &mut rand::thread_rng())
+-                .map_err(|err| RestError::unprocessable_entity(err.context("Invalid transaction")));
++            let res = rest.ledger.check_transaction_basic(&tx, None, &mut rand::thread_rng()).map_err(|err| {
++                match is_within_sync_leniency {
++                    // The transaction failed to verify.
++                    true => RestError::unprocessable_entity(err.context("Invalid transaction")),
++                    // The node is out of sync and may not be able to properly validate the transaction.
++                    false => {
++                        RestError::service_unavailable(err.context("Unable to validate transaction (node is syncing)"))
++                    }
++                }
++            });
+             // Release the slot.
+             counter.fetch_sub(1, Ordering::Relaxed);
+             // Propagate error if any.
+@@ -704,7 +724,16 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
+             consensus.add_unconfirmed_transaction(tx.clone()).await?;
+         }
+ 
+-        Ok(ErasedJson::pretty(tx_id))
++        // Broadcast the transaction.
++        rest.routing.propagate(message, &[]);
++
++        // Determine if the node is synced and if the transaction was checked.
++        match !is_within_sync_leniency && check_transaction {
++            // If the node is not synced and we validated the transaction, return a 203.
++            true => Ok((StatusCode::NON_AUTHORITATIVE_INFORMATION, ErasedJson::pretty(tx_id))),
++            // Otherwise, return a 200.
++            false => Ok((StatusCode::OK, ErasedJson::pretty(tx_id))),
++        }
+     }
+ 
+     // POST /<network>/solution/broadcast
+@@ -712,19 +741,23 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
+         State(rest): State<Self>,
+         Json(solution): Json<Solution<N>>,
+     ) -> Result<ErasedJson, RestError> {
+-        // Do not process the solution if the node is too far behind.
+-        if !rest.routing.is_within_sync_leniency() {
+-            return Err(RestError::service_unavailable(anyhow!(
+-                "Unable to broadcast solution '{}' (node is syncing)",
+-                fmt_id(solution.id())
+-            )));
+-        }
++        // Check if the node is within sync leniency.
++        let is_within_sync_leniency = rest.routing.is_within_sync_leniency();
+ 
+         // If the consensus module is enabled, add the unconfirmed solution to the memory pool.
+         // Otherwise, verify it prior to broadcasting.
+         match rest.consensus {
+             // Add the unconfirmed solution to the memory pool.
+-            Some(consensus) => consensus.add_unconfirmed_solution(solution).await?,
++            Some(consensus) => {
++                // Do not process the solution if the node is too far behind.
++                if !is_within_sync_leniency {
++                    return Err(RestError::service_unavailable(anyhow!(
++                        "Unable to broadcast solution '{}' (node is syncing)",
++                        fmt_id(solution.id())
++                    )));
++                }
++                consensus.add_unconfirmed_solution(solution).await?
++            }
+             // Verify the solution.
+             None => {
+                 // Compute the current epoch hash.
+@@ -749,9 +782,17 @@ impl<N: Network, C: ConsensusStorage<N>, R: Routing<N>> Rest<N, C, R> {
+                 {
+                     Ok(Ok(())) => {}
+                     Ok(Err(err)) => {
+-                        return Err(RestError::unprocessable_entity(
+-                            err.context(format!("Invalid solution '{}'", fmt_id(solution.id()))),
+-                        ));
++                        return match is_within_sync_leniency {
++                            // The solution failed to verify.
++                            true => Err(RestError::unprocessable_entity(
++                                err.context(format!("Invalid solution '{}'", fmt_id(solution.id()))),
++                            )),
++                            // The node is out of sync and may not be able to properly validate the solution.
++                            false => Err(RestError::service_unavailable(anyhow!(
++                                "Unable to validate solution '{}' (node is syncing)",
++                                fmt_id(solution.id())
++                            ))),
++                        };
+                     }
+                     Err(err) => {
+                         return Err(RestError::internal_server_error(anyhow!("Tokio error: {err}")));

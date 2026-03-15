@@ -1,0 +1,992 @@
+diff --git a/synthesizer/process/src/finalize.rs b/synthesizer/process/src/finalize.rs
+index ee1c28906..2f86675e7 100644
+--- a/synthesizer/process/src/finalize.rs
++++ b/synthesizer/process/src/finalize.rs
+@@ -13,10 +13,12 @@
+ // limitations under the License.
+ 
+ use super::*;
+-use console::program::{Future, Register};
++use console::program::{FinalizeType, Future, Register};
+ use synthesizer_program::{Await, FinalizeRegistersState, Operand};
+ use utilities::handle_halting;
+ 
++use std::collections::HashSet;
++
+ impl<N: Network> Process<N> {
+     /// Finalizes the deployment and fee.
+     /// This method assumes the given deployment **is valid**.
+@@ -209,13 +211,13 @@ fn finalize_transition<N: Network, P: FinalizeStorage<N>>(
+     states.push(initialize_finalize_state(state, future, stack, *transition.id())?);
+ 
+     // While there are active finalize states, finalize them.
+-    while let Some(FinalizeState {
++    'outer: while let Some(FinalizeState {
+         mut counter,
+         finalize,
+         mut registers,
+         stack,
+         mut call_counter,
+-        mut recent_call_locator,
++        mut awaited,
+     }) = states.pop()
+     {
+         // Evaluate the commands.
+@@ -253,18 +255,16 @@ fn finalize_transition<N: Network, P: FinalizeStorage<N>>(
+                     }
+                 }
+                 Command::Await(await_) => {
+-                    // Check that the `await` register's locator is greater than the last seen call locator.
+-                    // This ensures that futures are invoked in the order they are called.
+-                    let locator = *match await_.register() {
+-                        Register::Locator(locator) => locator,
+-                        Register::Access(..) => bail!("The 'await' register must be a locator"),
++                    // Check that the `await` register's is a locator.
++                    if let Register::Access(_, _) = await_.register() {
++                        bail!("The 'await' register must be a locator")
+                     };
+-                    if let Some(recent_call_locator) = recent_call_locator {
+-                        ensure!(
+-                            locator > recent_call_locator,
+-                            "Await register's locator '{locator}' must be greater than the last seen call locator '{recent_call_locator}'",
+-                        )
+-                    }
++                    // Check that the future has not previously been awaited.
++                    ensure!(
++                        !awaited.contains(await_.register()),
++                        "The future register '{}' has already been awaited",
++                        await_.register()
++                    );
+ 
+                     // Get the current transition ID.
+                     let transition_id = registers.transition_id();
+@@ -288,23 +288,22 @@ fn finalize_transition<N: Network, P: FinalizeStorage<N>>(
+                         Err(_) => bail!("'finalize' failed to evaluate command ({command})"),
+                     };
+ 
+-                    // Set the last seen call locator.
+-                    recent_call_locator = Some(locator);
+                     // Increment the call counter.
+                     call_counter += 1;
+                     // Increment the counter.
+                     counter += 1;
++                    // Add the awaited register to the tracked set.
++                    awaited.insert(await_.register().clone());
+ 
+                     // Aggregate the caller state.
+-                    let caller_state =
+-                        FinalizeState { counter, finalize, registers, stack, call_counter, recent_call_locator };
++                    let caller_state = FinalizeState { counter, finalize, registers, stack, call_counter, awaited };
+ 
+                     // Push the caller state onto the stack.
+                     states.push(caller_state);
+                     // Push the callee state onto the stack.
+                     states.push(callee_state);
+ 
+-                    break;
++                    continue 'outer;
+                 }
+                 _ => {
+                     let result =
+@@ -323,6 +322,18 @@ fn finalize_transition<N: Network, P: FinalizeStorage<N>>(
+                 }
+             };
+         }
++        // Check that all future registers have been awaited.
++        let mut unawaited = Vec::new();
++        for input in finalize.inputs() {
++            if matches!(input.finalize_type(), FinalizeType::Future(_)) && !awaited.contains(input.register()) {
++                unawaited.push(input.register().clone());
++            }
++        }
++        ensure!(
++            unawaited.is_empty(),
++            "The following future registers have not been awaited: {}",
++            unawaited.iter().map(|r| r.to_string()).collect::<Vec<_>>().join(", ")
++        );
+     }
+ 
+     // Return the finalize operations.
+@@ -341,8 +352,8 @@ struct FinalizeState<'a, N: Network> {
+     stack: &'a Stack<N>,
+     // Call counter.
+     call_counter: usize,
+-    // Recent call register.
+-    recent_call_locator: Option<u64>,
++    // Awaited futures.
++    awaited: HashSet<Register<N>>,
+ }
+ 
+ // A helper function to initialize the finalize state.
+@@ -385,7 +396,7 @@ fn initialize_finalize_state<'a, N: Network>(
+         },
+     )?;
+ 
+-    Ok(FinalizeState { counter: 0, finalize, registers, stack, call_counter: 0, recent_call_locator: None })
++    Ok(FinalizeState { counter: 0, finalize, registers, stack, call_counter: 0, awaited: Default::default() })
+ }
+ 
+ // A helper function that sets up the await operation.
+diff --git a/synthesizer/process/src/stack/finalize_types/initialize.rs b/synthesizer/process/src/stack/finalize_types/initialize.rs
+index a87c5b50b..5331baacd 100644
+--- a/synthesizer/process/src/stack/finalize_types/initialize.rs
++++ b/synthesizer/process/src/stack/finalize_types/initialize.rs
+@@ -13,24 +13,16 @@
+ // limitations under the License.
+ 
+ use super::*;
+-use crate::RegisterTypes;
+-use synthesizer_program::{
+-    Await,
+-    Branch,
+-    CallOperator,
+-    CastType,
+-    Contains,
+-    Get,
+-    GetOrUse,
+-    RandChaCha,
+-    Remove,
+-    Set,
+-    MAX_ADDITIONAL_SEEDS,
+-};
+ 
+ impl<N: Network> FinalizeTypes<N> {
+     /// Initializes a new instance of `FinalizeTypes` for the given finalize.
+     /// Checks that the given finalize is well-formed for the given stack.
++    ///
++    /// Attention: To support user-defined ordering for awaiting on futures, this method does **not** check
++    /// that all input futures are awaited **exactly** once. It does however check that all input
++    /// futures are awaited at least once. This means that it is possible to deploy a program
++    /// whose finalize is not well-formed, but it is not possible to execute a program whose finalize
++    /// is not well-formed.
+     #[inline]
+     pub(super) fn initialize_finalize_types(
+         stack: &(impl StackMatches<N> + StackProgram<N>),
+@@ -53,31 +45,33 @@ impl<N: Network> FinalizeTypes<N> {
+             }
+         }
+ 
+-        // Initialize a list of consumed futures.
+-        let mut consumed_futures = Vec::new();
++        // Initialize the set of consumed futures.
++        let mut consumed_futures = HashSet::new();
+ 
+-        // Step 2. Check the commands are well-formed. Store the futures consumed by the `await` commands.
++        // Step 2. Check the commands are well-formed. Make sure all the input futures are awaited.
+         for command in finalize.commands() {
+             // Check the command opcode, operands, and destinations.
+             finalize_types.check_command(stack, finalize, command)?;
+ 
+-            // If the command is an `await`, add the future to the list of consumed futures.
++            // If the command is an `await`, add the future to the set of consumed futures.
+             if let Command::Await(await_) = command {
+                 // Note: `check_command` ensures that the register is a future. This is an additional check.
+                 let locator = match finalize_types.get_type(stack, await_.register())? {
+                     FinalizeType::Future(locator) => locator,
+                     FinalizeType::Plaintext(..) => bail!("Expected a future in '{await_}'"),
+                 };
+-                consumed_futures.push((await_.register(), locator));
++                consumed_futures.insert((await_.register(), locator));
+             }
+         }
+ 
+-        // Check that the input futures are consumed in the order they are passed in.
+-        ensure!(
+-            input_futures == consumed_futures,
+-            "Futures in finalize '{}' are not awaited in the order they are passed in.",
+-            finalize.name()
+-        );
++        // Check that all input futures are consumed.
++        for input_future in &input_futures {
++            ensure!(
++                consumed_futures.contains(input_future),
++                "Futures in finalize '{}' are not all awaited.",
++                finalize.name()
++            )
++        }
+ 
+         Ok(finalize_types)
+     }
+diff --git a/synthesizer/process/src/stack/finalize_types/mod.rs b/synthesizer/process/src/stack/finalize_types/mod.rs
+index 349423351..7b5e7c957 100644
+--- a/synthesizer/process/src/stack/finalize_types/mod.rs
++++ b/synthesizer/process/src/stack/finalize_types/mod.rs
+@@ -15,24 +15,48 @@
+ mod initialize;
+ mod matches;
+ 
++use crate::RegisterTypes;
++
+ use console::{
+     network::prelude::*,
+-    program::{ArrayType, Identifier, LiteralType, PlaintextType, Register, RegisterType, StructType},
++    program::{
++        Access,
++        ArrayType,
++        FinalizeType,
++        Identifier,
++        LiteralType,
++        Locator,
++        PlaintextType,
++        Register,
++        RegisterType,
++        StructType,
++    },
+ };
+ use synthesizer_program::{
++    Await,
++    Branch,
++    CallOperator,
++    CastType,
+     Command,
++    Contains,
+     Finalize,
++    Get,
++    GetOrUse,
+     Instruction,
+     InstructionTrait,
+     Opcode,
+     Operand,
+     Program,
++    RandChaCha,
++    Remove,
++    Set,
+     StackMatches,
+     StackProgram,
++    MAX_ADDITIONAL_SEEDS,
+ };
+ 
+-use console::program::{Access, FinalizeType, Locator};
+ use indexmap::IndexMap;
++use std::collections::HashSet;
+ 
+ #[derive(Clone, Default, PartialEq, Eq)]
+ pub struct FinalizeTypes<N: Network> {
+diff --git a/synthesizer/process/src/stack/register_types/initialize.rs b/synthesizer/process/src/stack/register_types/initialize.rs
+index abfec5a48..ba04cd388 100644
+--- a/synthesizer/process/src/stack/register_types/initialize.rs
++++ b/synthesizer/process/src/stack/register_types/initialize.rs
+@@ -13,7 +13,6 @@
+ // limitations under the License.
+ 
+ use super::*;
+-use synthesizer_program::CastType;
+ 
+ impl<N: Network> RegisterTypes<N> {
+     /// Initializes a new instance of `RegisterTypes` for the given closure.
+@@ -158,17 +157,17 @@ impl<N: Network> RegisterTypes<N> {
+         }
+ 
+         /* Additional checks. */
+-        // - All futures produces before the `async` call must be consumed by the `async` call, in the order in which they were produced.
++        // - All futures produces before the `async` call must be consumed by the `async` call.
+ 
+         // Get all registers containing futures.
+-        let mut future_registers = register_types
++        let mut future_registers: IndexSet<(Register<N>, Locator<N>)> = register_types
+             .destinations
+             .iter()
+             .filter_map(|(index, register_type)| match register_type {
+-                RegisterType::Future(locator) => Some((Register::Locator(*index), *locator)),
++                RegisterType::Future(locator) => Some((Register::<N>::Locator(*index), *locator)),
+                 _ => None,
+             })
+-            .collect::<Vec<_>>();
++            .collect();
+ 
+         match async_ {
+             // If no `async` instruction exists, then there should not be any future registers.
+@@ -179,26 +178,22 @@ impl<N: Network> RegisterTypes<N> {
+                     function.name()
+                 )
+             }
+-            // Otherwise, check that all the registers were consumed by the `async` call, in order.
++            // Otherwise, check that all the registers were consumed by the `async` call.
+             Some(async_) => {
+                 // Remove the last future, since this is the future created by the `async` call.
+                 future_registers.pop();
+-                // Get the register operands that are `future` types.
+-                let async_future_operands = async_
+-                    .operands()
+-                    .iter()
+-                    .filter_map(|operand| match operand {
+-                        Operand::Register(register) => match register_types.get_type(stack, register).ok() {
+-                            Some(RegisterType::Future(locator)) => Some((register.clone(), locator)),
+-                            _ => None,
+-                        },
+-                        _ => None,
+-                    })
+-                    .collect::<Vec<_>>();
+-                // Ensure the future operands are in the same order as the future registers.
++                // Check only the register operands that are `future` types.
++                for operand in async_.operands() {
++                    if let Operand::Register(register) = operand {
++                        if let Ok(RegisterType::Future(locator)) = register_types.get_type(stack, register) {
++                            assert!(future_registers.remove(&(register.clone(), locator)));
++                        }
++                    }
++                }
++                // Ensure that all the futures created are consumed in the async call.
+                 ensure!(
+-                    async_future_operands == future_registers,
+-                    "Function '{}' contains futures, but the 'async' instruction does not consume all of them in the order they were produced",
++                    future_registers.is_empty(),
++                    "Function '{}' contains futures, but the 'async' instruction does not consume all of the ones produced.",
+                     function.name()
+                 );
+             }
+diff --git a/synthesizer/process/src/stack/register_types/mod.rs b/synthesizer/process/src/stack/register_types/mod.rs
+index 725adf37b..558436d2d 100644
+--- a/synthesizer/process/src/stack/register_types/mod.rs
++++ b/synthesizer/process/src/stack/register_types/mod.rs
+@@ -33,6 +33,7 @@ use console::{
+ };
+ use synthesizer_program::{
+     CallOperator,
++    CastType,
+     Closure,
+     Function,
+     Instruction,
+@@ -45,7 +46,7 @@ use synthesizer_program::{
+ };
+ 
+ use console::program::{FinalizeType, Locator};
+-use indexmap::IndexMap;
++use indexmap::{IndexMap, IndexSet};
+ 
+ #[derive(Clone, Default, PartialEq, Eq)]
+ pub struct RegisterTypes<N: Network> {
+diff --git a/synthesizer/tests/expectations/vm/execute_and_finalize/branch_with_future.out b/synthesizer/tests/expectations/vm/execute_and_finalize/branch_with_future.out
+new file mode 100644
+index 000000000..3a06e71a8
+--- /dev/null
++++ b/synthesizer/tests/expectations/vm/execute_and_finalize/branch_with_future.out
+@@ -0,0 +1,87 @@
++errors: []
++outputs:
++- verified: true
++  execute:
++    branch_with_future.aleo/bar:
++      outputs:
++      - '{"type":"future","id":"532496450620712418776005524415557851464510738606851840427566557694094457416field","value":"{\n  program_id: branch_with_future.aleo,\n  function_name: bar,\n  arguments: [\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        true,\n        false\n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was rejected
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    branch_with_future.aleo/baz:
++      outputs:
++      - '{"type":"future","id":"2361104789285054083199413742429489255699437584612232911190625924778322773141field","value":"{\n  program_id: branch_with_future.aleo,\n  function_name: baz,\n  arguments: [\n    true,\n    true,\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        true,\n        true\n      ]\n    },\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        true,\n        true\n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was accepted
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    branch_with_future.aleo/baz:
++      outputs:
++      - '{"type":"future","id":"1402916336925887090902739558699125055972930142808753436804014281410394538962field","value":"{\n  program_id: branch_with_future.aleo,\n  function_name: baz,\n  arguments: [\n    true,\n    false,\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        true,\n        true\n      ]\n    },\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        true,\n        true\n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was rejected
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    branch_with_future.aleo/baz:
++      outputs:
++      - '{"type":"future","id":"4854465854553921857366813863818243323149456475014089875476988237222845632319field","value":"{\n  program_id: branch_with_future.aleo,\n  function_name: baz,\n  arguments: [\n    false,\n    true,\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        true,\n        true\n      ]\n    },\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        true,\n        true\n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was rejected
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    branch_with_future.aleo/baz:
++      outputs:
++      - '{"type":"future","id":"1843413419196646420029804437148613039974077777445552833060053892958356613072field","value":"{\n  program_id: branch_with_future.aleo,\n  function_name: baz,\n  arguments: [\n    false,\n    false,\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        true,\n        true\n      ]\n    },\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        true,\n        true\n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was accepted
++  add_next_block: succeeded.
++- verified: true
++  execute:
++    branch_with_future.aleo/qux:
++      outputs:
++      - '{"type":"future","id":"4155813596240727734849835492169467364143237381928187150511194654481173622979field","value":"{\n  program_id: branch_with_future.aleo,\n  function_name: qux,\n  arguments: [\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        true,\n        true\n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was rejected
++  add_next_block: succeeded.
++additional:
++- child_outputs:
++    child.aleo/foo:
++      outputs:
++      - '{"type":"future","id":"2487749389432670527861040461544484385987280869909415899406823322067698170131field","value":"{\n  program_id: child.aleo,\n  function_name: foo,\n  arguments: [\n    true,\n    false\n  ]\n}"}'
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"1552750769550300180863888227304037372030732227352329844272442427262662766242field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo19f7ldyn2txn950arxwzgmd69hc92agvaavuaghq3n86fv9sq25qsuu46xk,\n    3621u64\n  ]\n}"}'
++- child_outputs:
++    child.aleo/foo:
++      outputs:
++      - '{"type":"future","id":"5675773560018644127695284528745449800752793034919509694930020595083458168228field","value":"{\n  program_id: child.aleo,\n  function_name: foo,\n  arguments: [\n    true,\n    true\n  ]\n}"}'
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"2634439008532753204534514830736017501445183671582120008081059628732113476394field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo19f7ldyn2txn950arxwzgmd69hc92agvaavuaghq3n86fv9sq25qsuu46xk,\n    7974u64\n  ]\n}"}'
++- child_outputs:
++    child.aleo/foo:
++      outputs:
++      - '{"type":"future","id":"5447761632307658100656681318981387298919799131534949319449526066624527650299field","value":"{\n  program_id: child.aleo,\n  function_name: foo,\n  arguments: [\n    true,\n    true\n  ]\n}"}'
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"6306173585981495367473045331758800973636068968660127410351560251620260221186field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo19f7ldyn2txn950arxwzgmd69hc92agvaavuaghq3n86fv9sq25qsuu46xk,\n    7974u64\n  ]\n}"}'
++- child_outputs:
++    child.aleo/foo:
++      outputs:
++      - '{"type":"future","id":"2062142932006850709906801162715527667104306315077698583728145290870005626451field","value":"{\n  program_id: child.aleo,\n  function_name: foo,\n  arguments: [\n    true,\n    true\n  ]\n}"}'
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"7680156005998007920105257299281083414679923003481745043944797256160305851517field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo19f7ldyn2txn950arxwzgmd69hc92agvaavuaghq3n86fv9sq25qsuu46xk,\n    7974u64\n  ]\n}"}'
++- child_outputs:
++    child.aleo/foo:
++      outputs:
++      - '{"type":"future","id":"7482604575063255179687452060897359826557516744962030843253570433696575062636field","value":"{\n  program_id: child.aleo,\n  function_name: foo,\n  arguments: [\n    true,\n    true\n  ]\n}"}'
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"1415437982747222703874006561878974850596390844596974067519096492194544583450field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo19f7ldyn2txn950arxwzgmd69hc92agvaavuaghq3n86fv9sq25qsuu46xk,\n    7974u64\n  ]\n}"}'
++- child_outputs:
++    child.aleo/foo:
++      outputs:
++      - '{"type":"future","id":"2561320343493068993945324731576919050362474601020484141774343487194159903672field","value":"{\n  program_id: child.aleo,\n  function_name: foo,\n  arguments: [\n    true,\n    true\n  ]\n}"}'
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"2060794063933179252629426774876402405070127724003123596182268946753044534528field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo19f7ldyn2txn950arxwzgmd69hc92agvaavuaghq3n86fv9sq25qsuu46xk,\n    3521u64\n  ]\n}"}'
+diff --git a/synthesizer/tests/expectations/vm/execute_and_finalize/out_of_order_await_fail.out b/synthesizer/tests/expectations/vm/execute_and_finalize/future_not_all_awaited_fail.out
+similarity index 55%
+rename from synthesizer/tests/expectations/vm/execute_and_finalize/out_of_order_await_fail.out
+rename to synthesizer/tests/expectations/vm/execute_and_finalize/future_not_all_awaited_fail.out
+index 7d4109cee..1a5ea465e 100644
+--- a/synthesizer/tests/expectations/vm/execute_and_finalize/out_of_order_await_fail.out
++++ b/synthesizer/tests/expectations/vm/execute_and_finalize/future_not_all_awaited_fail.out
+@@ -1,3 +1,3 @@
+ errors:
+-- 'Failed to run `VM::deploy for program parent.aleo: Futures in finalize ''foo'' are not awaited in the order they are passed in.'
++- 'Failed to run `VM::deploy for program parent.aleo: Futures in finalize ''foo'' are not all awaited.'
+ outputs: []
+diff --git a/synthesizer/tests/expectations/vm/execute_and_finalize/future_out_of_order_fail.out b/synthesizer/tests/expectations/vm/execute_and_finalize/future_not_all_passed_to_async_call_fail.out
+similarity index 73%
+rename from synthesizer/tests/expectations/vm/execute_and_finalize/future_out_of_order_fail.out
+rename to synthesizer/tests/expectations/vm/execute_and_finalize/future_not_all_passed_to_async_call_fail.out
+index 0cea7546f..97eece89e 100644
+--- a/synthesizer/tests/expectations/vm/execute_and_finalize/future_out_of_order_fail.out
++++ b/synthesizer/tests/expectations/vm/execute_and_finalize/future_not_all_passed_to_async_call_fail.out
+@@ -1,3 +1,3 @@
+ errors:
+-- 'Failed to run `VM::deploy for program parent.aleo: Function ''foo'' contains futures, but the ''async'' instruction does not consume all of them in the order they were produced'
++- 'Failed to run `VM::deploy for program parent.aleo: Function ''foo'' contains futures, but the ''async'' instruction does not consume all of the ones produced.'
+ outputs: []
+diff --git a/synthesizer/tests/expectations/vm/execute_and_finalize/future_out_of_order.out b/synthesizer/tests/expectations/vm/execute_and_finalize/future_out_of_order.out
+new file mode 100644
+index 000000000..dbd7db8bc
+--- /dev/null
++++ b/synthesizer/tests/expectations/vm/execute_and_finalize/future_out_of_order.out
+@@ -0,0 +1,20 @@
++errors: []
++outputs:
++- verified: true
++  execute:
++    parent.aleo/foo:
++      outputs:
++      - '{"type":"future","id":"2800432798659636109311760728266518702216722358560231511586969859940363920599field","value":"{\n  program_id: parent.aleo,\n  function_name: foo,\n  arguments: [\n    {\n      program_id: child.aleo,\n      function_name: boo,\n      arguments: [\n        aleo16w8t56s7v6ud7vu33fr388ph0dq0c7yhp597cyjt88rr3nultcyqcyk9yy\n      ]\n    },\n    {\n      program_id: child.aleo,\n      function_name: boo,\n      arguments: [\n        aleo16w8t56s7v6ud7vu33fr388ph0dq0c7yhp597cyjt88rr3nultcyqcyk9yy\n      ]\n    },\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        aleo16w8t56s7v6ud7vu33fr388ph0dq0c7yhp597cyjt88rr3nultcyqcyk9yy\n      ]\n    },\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        aleo16w8t56s7v6ud7vu33fr388ph0dq0c7yhp597cyjt88rr3nultcyqcyk9yy\n      ]\n    },\n    {\n      program_id: child.aleo,\n      function_name: foo,\n      arguments: [\n        aleo16w8t56s7v6ud7vu33fr388ph0dq0c7yhp597cyjt88rr3nultcyqcyk9yy\n      ]\n    },\n    {\n      program_id: child.aleo,\n      function_name: boo,\n      arguments: [\n        aleo16w8t56s7v6ud7vu33fr388ph0dq0c7yhp597cyjt88rr3nultcyqcyk9yy\n      ]\n    }\n  \n  ]\n}"}'
++  speculate: the execution was accepted
++  add_next_block: succeeded.
++additional:
++- child_outputs:
++    child.aleo/foo:
++      outputs:
++      - '{"type":"future","id":"6676791758548562596189112643434721156252815151829937112707891746047243834715field","value":"{\n  program_id: child.aleo,\n  function_name: foo,\n  arguments: [\n    aleo16w8t56s7v6ud7vu33fr388ph0dq0c7yhp597cyjt88rr3nultcyqcyk9yy\n  ]\n}"}'
++    child.aleo/boo:
++      outputs:
++      - '{"type":"future","id":"21128041363373343068880429003753959002434542907901170296541458388272717335field","value":"{\n  program_id: child.aleo,\n  function_name: boo,\n  arguments: [\n    aleo16w8t56s7v6ud7vu33fr388ph0dq0c7yhp597cyjt88rr3nultcyqcyk9yy\n  ]\n}"}'
++    credits.aleo/fee_public:
++      outputs:
++      - '{"type":"future","id":"953029031292620288137751525127632509848556250295245196122226127267650177307field","value":"{\n  program_id: credits.aleo,\n  function_name: fee_public,\n  arguments: [\n    aleo1qr2ha4pfs5l28aze88yn6fhleeythklkczrule2v838uwj65n5gqxt9djx,\n    170808u64\n  ]\n}"}'
+diff --git a/synthesizer/tests/expectations/vm/execute_and_finalize/unawaited_future_fail.out b/synthesizer/tests/expectations/vm/execute_and_finalize/unawaited_future_fail.out
+deleted file mode 100644
+index 7d4109cee..000000000
+--- a/synthesizer/tests/expectations/vm/execute_and_finalize/unawaited_future_fail.out
++++ /dev/null
+@@ -1,3 +0,0 @@
+-errors:
+-- 'Failed to run `VM::deploy for program parent.aleo: Futures in finalize ''foo'' are not awaited in the order they are passed in.'
+-outputs: []
+diff --git a/synthesizer/tests/expectations/vm/execute_and_finalize/unused_future_fail.out b/synthesizer/tests/expectations/vm/execute_and_finalize/unused_future_fail.out
+deleted file mode 100644
+index 0cea7546f..000000000
+--- a/synthesizer/tests/expectations/vm/execute_and_finalize/unused_future_fail.out
++++ /dev/null
+@@ -1,3 +0,0 @@
+-errors:
+-- 'Failed to run `VM::deploy for program parent.aleo: Function ''foo'' contains futures, but the ''async'' instruction does not consume all of them in the order they were produced'
+-outputs: []
+diff --git a/synthesizer/tests/tests/vm/execute_and_finalize/branch_with_future.aleo b/synthesizer/tests/tests/vm/execute_and_finalize/branch_with_future.aleo
+new file mode 100644
+index 000000000..927e4b0db
+--- /dev/null
++++ b/synthesizer/tests/tests/vm/execute_and_finalize/branch_with_future.aleo
+@@ -0,0 +1,89 @@
++/*
++randomness: 95043801
++cases:
++    - program: branch_with_future.aleo
++      function: bar
++      inputs: []
++    - program: branch_with_future.aleo
++      function: baz
++      inputs: [true, true]
++    - program: branch_with_future.aleo
++      function: baz
++      inputs: [true, false]
++    - program: branch_with_future.aleo
++      function: baz
++      inputs: [false, true]
++    - program: branch_with_future.aleo
++      function: baz
++      inputs: [false, false]
++    - program: branch_with_future.aleo
++      function: qux
++      inputs: []
++*/
++
++program child.aleo;
++
++function foo:
++    input r0 as boolean.public;
++    input r1 as boolean.public;
++    async foo r0 r1 into r2;
++    output r2 as child.aleo/foo.future;
++
++finalize foo:
++    input r0 as boolean.public;
++    input r1 as boolean.public;
++    assert.eq r0 r1;
++
++
++/////////////////////////////////////////////////
++
++import child.aleo;
++
++program branch_with_future.aleo;
++
++function bar:
++    call child.aleo/foo true false into r0;
++    async bar r0 into r1;
++    output r1 as branch_with_future.aleo/bar.future;
++
++finalize bar:
++    input r0 as child.aleo/foo.future;
++    branch.eq true true to exit;
++    await r0;
++    position exit;
++
++function baz:
++    input r0 as boolean.public;
++    input r1 as boolean.public;
++    call child.aleo/foo true true into r2;
++    call child.aleo/foo true true into r3;
++    async baz r0 r1 r2 r3 into r4;
++    output r4 as branch_with_future.aleo/baz.future;
++
++finalize baz:
++    input r0 as boolean.public;
++    input r1 as boolean.public;
++    input r2 as child.aleo/foo.future;
++    input r3 as child.aleo/foo.future;
++    branch.eq r0 false to skip1;
++    await r2;
++    branch.eq true true to next;
++    position skip1;
++    await r3;
++    position next;
++    branch.eq r1 false to skip2;
++    await r3;
++    branch.eq true true to end;
++    position skip2;
++    await r2;
++    position end;
++
++function qux:
++    call child.aleo/foo true true into r0;
++    async qux r0 into r1;
++    output r1 as branch_with_future.aleo/qux.future;
++
++finalize qux:
++    input r0 as child.aleo/foo.future;
++    await r0;
++    await r0;
+diff --git a/synthesizer/tests/tests/vm/execute_and_finalize/future_not_all_awaited_fail.aleo b/synthesizer/tests/tests/vm/execute_and_finalize/future_not_all_awaited_fail.aleo
+new file mode 100644
+index 000000000..21f282a4d
+--- /dev/null
++++ b/synthesizer/tests/tests/vm/execute_and_finalize/future_not_all_awaited_fail.aleo
+@@ -0,0 +1,60 @@
++/*
++randomness: 45791624
++cases: []
++*/
++
++program child.aleo;
++
++mapping count:
++    key as address.public;
++    value as field.public;
++
++function foo:
++    async foo self.caller into r0;
++    output r0 as child.aleo/foo.future;
++
++finalize foo:
++    input r0 as address.public;
++    get.or_use count[r0] 0field into r1;
++    add r1 1field into r2;
++    set r2 into count[r0];
++
++function boo:
++    async boo self.caller into r0;
++    output r0 as child.aleo/boo.future;
++
++finalize boo:
++    input r0 as address.public;
++    get.or_use count[r0] 0field into r1;
++    add r1 1field into r2;
++    set r2 into count[r0];
++
++/////////////////////////////////////////////////
++
++import child.aleo;
++
++program parent.aleo;
++
++function foo:
++    call child.aleo/foo into r0;
++    call child.aleo/foo into r1;
++    call child.aleo/foo into r2;
++    call child.aleo/boo into r3;
++    call child.aleo/boo into r4;
++    call child.aleo/boo into r5;
++    async foo r5 r4 r1 r0 r2 r3 into r6;
++    output r6 as parent.aleo/foo.future;
++
++finalize foo:
++    input r0 as child.aleo/boo.future;
++    input r1 as child.aleo/boo.future;
++    input r2 as child.aleo/foo.future;
++    input r3 as child.aleo/foo.future;
++    input r4 as child.aleo/foo.future;
++    input r5 as child.aleo/boo.future;
++    await r4;
++    await r1;
++    await r2;
++    await r0;
++    await r5;
++
+diff --git a/synthesizer/tests/tests/vm/execute_and_finalize/future_not_all_passed_to_async_call_fail.aleo b/synthesizer/tests/tests/vm/execute_and_finalize/future_not_all_passed_to_async_call_fail.aleo
+new file mode 100644
+index 000000000..a6b168e07
+--- /dev/null
++++ b/synthesizer/tests/tests/vm/execute_and_finalize/future_not_all_passed_to_async_call_fail.aleo
+@@ -0,0 +1,59 @@
++/*
++randomness: 45791624
++cases: []
++*/
++
++program child.aleo;
++
++mapping count:
++    key as address.public;
++    value as field.public;
++
++function foo:
++    async foo self.caller into r0;
++    output r0 as child.aleo/foo.future;
++
++finalize foo:
++    input r0 as address.public;
++    get.or_use count[r0] 0field into r1;
++    add r1 1field into r2;
++    set r2 into count[r0];
++
++function boo:
++    async boo self.caller into r0;
++    output r0 as child.aleo/boo.future;
++
++finalize boo:
++    input r0 as address.public;
++    get.or_use count[r0] 0field into r1;
++    add r1 1field into r2;
++    set r2 into count[r0];
++
++/////////////////////////////////////////////////
++
++import child.aleo;
++
++program parent.aleo;
++
++function foo:
++    call child.aleo/foo into r0;
++    call child.aleo/foo into r1;
++    call child.aleo/foo into r2;
++    call child.aleo/boo into r3;
++    call child.aleo/boo into r4;
++    call child.aleo/boo into r5;
++    async foo r5 r4 r1 r0 r2 into r6;
++    output r6 as parent.aleo/foo.future;
++
++finalize foo:
++    input r0 as child.aleo/boo.future;
++    input r1 as child.aleo/boo.future;
++    input r2 as child.aleo/foo.future;
++    input r3 as child.aleo/foo.future;
++    input r4 as child.aleo/foo.future;
++    await r4;
++    await r1;
++    await r3;
++    await r2;
++    await r0;
++
+diff --git a/synthesizer/tests/tests/vm/execute_and_finalize/future_out_of_order.aleo b/synthesizer/tests/tests/vm/execute_and_finalize/future_out_of_order.aleo
+new file mode 100644
+index 000000000..fa23c8505
+--- /dev/null
++++ b/synthesizer/tests/tests/vm/execute_and_finalize/future_out_of_order.aleo
+@@ -0,0 +1,64 @@
++/*
++randomness: 45791624
++cases:
++  - program: parent.aleo
++    function: foo
++    inputs: []
++*/
++
++program child.aleo;
++
++mapping count:
++    key as address.public;
++    value as field.public;
++
++function foo:
++    async foo self.caller into r0;
++    output r0 as child.aleo/foo.future;
++
++finalize foo:
++    input r0 as address.public;
++    get.or_use count[r0] 0field into r1;
++    add r1 1field into r2;
++    set r2 into count[r0];
++
++function boo:
++    async boo self.caller into r0;
++    output r0 as child.aleo/boo.future;
++
++finalize boo:
++    input r0 as address.public;
++    get.or_use count[r0] 0field into r1;
++    add r1 1field into r2;
++    set r2 into count[r0];
++
++/////////////////////////////////////////////////
++
++import child.aleo;
++
++program parent.aleo;
++
++function foo:
++    call child.aleo/foo into r0;
++    call child.aleo/foo into r1;
++    call child.aleo/foo into r2;
++    call child.aleo/boo into r3;
++    call child.aleo/boo into r4;
++    call child.aleo/boo into r5;
++    async foo r5 r4 r1 r0 r2 r3 into r6;
++    output r6 as parent.aleo/foo.future;
++
++finalize foo:
++    input r0 as child.aleo/boo.future;
++    input r1 as child.aleo/boo.future;
++    input r2 as child.aleo/foo.future;
++    input r3 as child.aleo/foo.future;
++    input r4 as child.aleo/foo.future;
++    input r5 as child.aleo/boo.future;
++    await r4;
++    await r1;
++    await r3;
++    await r2;
++    await r0;
++    await r5;
++
+diff --git a/synthesizer/tests/tests/vm/execute_and_finalize/future_out_of_order_fail.aleo b/synthesizer/tests/tests/vm/execute_and_finalize/future_out_of_order_fail.aleo
+deleted file mode 100644
+index f2b6225a5..000000000
+--- a/synthesizer/tests/tests/vm/execute_and_finalize/future_out_of_order_fail.aleo
++++ /dev/null
+@@ -1,39 +0,0 @@
+-/*
+-randomness: 45791624
+-cases: []
+-*/
+-
+-program child.aleo;
+-
+-mapping count:
+-    key as address.public;
+-    value as field.public;
+-
+-function foo:
+-    async foo self.caller into r0;
+-    output r0 as child.aleo/foo.future;
+-
+-finalize foo:
+-    input r0 as address.public;
+-    get.or_use count[r0] 0field into r1;
+-    add r1 1field into r2;
+-    set r2 into count[r0];
+-
+-/////////////////////////////////////////////////
+-
+-import child.aleo;
+-
+-program parent.aleo;
+-
+-function foo:
+-    call child.aleo/foo into r0;
+-    call child.aleo/foo into r1;
+-    async foo r1 r0 into r2;
+-    output r2 as parent.aleo/foo.future;
+-
+-finalize foo:
+-    input r0 as child.aleo/foo.future;
+-    input r1 as child.aleo/foo.future;
+-    await r0;
+-    await r1;
+-
+diff --git a/synthesizer/tests/tests/vm/execute_and_finalize/out_of_order_await_fail.aleo b/synthesizer/tests/tests/vm/execute_and_finalize/out_of_order_await_fail.aleo
+deleted file mode 100644
+index b86f29b8b..000000000
+--- a/synthesizer/tests/tests/vm/execute_and_finalize/out_of_order_await_fail.aleo
++++ /dev/null
+@@ -1,39 +0,0 @@
+-/*
+-randomness: 45791624
+-cases: []
+-*/
+-
+-program child.aleo;
+-
+-mapping count:
+-    key as address.public;
+-    value as field.public;
+-
+-function foo:
+-    async foo self.caller into r0;
+-    output r0 as child.aleo/foo.future;
+-
+-finalize foo:
+-    input r0 as address.public;
+-    get.or_use count[r0] 0field into r1;
+-    add r1 1field into r2;
+-    set r2 into count[r0];
+-
+-/////////////////////////////////////////////////
+-
+-import child.aleo;
+-
+-program parent.aleo;
+-
+-function foo:
+-    call child.aleo/foo into r0;
+-    call child.aleo/foo into r1;
+-    async foo r0 r1 into r2;
+-    output r2 as parent.aleo/foo.future;
+-
+-finalize foo:
+-    input r0 as child.aleo/foo.future;
+-    input r1 as child.aleo/foo.future;
+-    await r1;
+-    await r0;
+-
+diff --git a/synthesizer/tests/tests/vm/execute_and_finalize/unawaited_future_fail.aleo b/synthesizer/tests/tests/vm/execute_and_finalize/unawaited_future_fail.aleo
+deleted file mode 100644
+index 26736dca7..000000000
+--- a/synthesizer/tests/tests/vm/execute_and_finalize/unawaited_future_fail.aleo
++++ /dev/null
+@@ -1,38 +0,0 @@
+-/*
+-randomness: 45791624
+-cases: []
+-*/
+-
+-program child.aleo;
+-
+-mapping count:
+-    key as address.public;
+-    value as field.public;
+-
+-function foo:
+-    async foo self.caller into r0;
+-    output r0 as child.aleo/foo.future;
+-
+-finalize foo:
+-    input r0 as address.public;
+-    get.or_use count[r0] 0field into r1;
+-    add r1 1field into r2;
+-    set r2 into count[r0];
+-
+-/////////////////////////////////////////////////
+-
+-import child.aleo;
+-
+-program parent.aleo;
+-
+-function foo:
+-    call child.aleo/foo into r0;
+-    call child.aleo/foo into r1;
+-    async foo r0 r1 into r2;
+-    output r2 as parent.aleo/foo.future;
+-
+-finalize foo:
+-    input r0 as child.aleo/foo.future;
+-    input r1 as child.aleo/foo.future;
+-    await r0;
+-
+diff --git a/synthesizer/tests/tests/vm/execute_and_finalize/unused_future_fail.aleo b/synthesizer/tests/tests/vm/execute_and_finalize/unused_future_fail.aleo
+deleted file mode 100644
+index 9277b9a3d..000000000
+--- a/synthesizer/tests/tests/vm/execute_and_finalize/unused_future_fail.aleo
++++ /dev/null
+@@ -1,37 +0,0 @@
+-/*
+-randomness: 45791624
+-cases: []
+-*/
+-
+-program child.aleo;
+-
+-mapping count:
+-    key as address.public;
+-    value as field.public;
+-
+-function foo:
+-    async foo self.caller into r0;
+-    output r0 as child.aleo/foo.future;
+-
+-finalize foo:
+-    input r0 as address.public;
+-    get.or_use count[r0] 0field into r1;
+-    add r1 1field into r2;
+-    set r2 into count[r0];
+-
+-/////////////////////////////////////////////////
+-
+-import child.aleo;
+-
+-program parent.aleo;
+-
+-function foo:
+-    call child.aleo/foo into r0;
+-    call child.aleo/foo into r1;
+-    async foo r0 into r2;
+-    output r2 as parent.aleo/foo.future;
+-
+-finalize foo:
+-    input r0 as child.aleo/foo.future;
+-    await r0;
+-

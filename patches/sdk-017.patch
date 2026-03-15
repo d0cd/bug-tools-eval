@@ -1,0 +1,215 @@
+diff --git a/website/src/tabs/advanced/DecryptAccount.jsx b/website/src/tabs/advanced/DecryptAccount.jsx
+index e88a3859..f0251621 100644
+--- a/website/src/tabs/advanced/DecryptAccount.jsx
++++ b/website/src/tabs/advanced/DecryptAccount.jsx
+@@ -43,7 +43,7 @@ export const DecryptAccount = () => {
+             : "";
+     };
+ 
+-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
++    const layout = { labelCol: { span: 6 }, wrapperCol: { span: 21 } };
+     useEffect(() => {}, [inputCiphertext, inputPassword]);
+     if (aleo !== null) {
+         const privateKey = () =>
+diff --git a/website/src/tabs/develop/Deploy.jsx b/website/src/tabs/develop/Deploy.jsx
+index be2a5e42..fae726a0 100644
+--- a/website/src/tabs/develop/Deploy.jsx
++++ b/website/src/tabs/develop/Deploy.jsx
+@@ -200,7 +200,7 @@ export const Deploy = () => {
+         return privateKey;
+     };
+ 
+-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
++    const layout = { labelCol: { span: 5 }, wrapperCol: { span: 21 } };
+     const privateKeyString = () => (privateKey !== null ? privateKey : "");
+     const programString = () => (program !== null ? program : "");
+     const feeRecordString = () =>
+diff --git a/website/src/tabs/develop/Join.jsx b/website/src/tabs/develop/Join.jsx
+index 67767a52..216cbea4 100644
+--- a/website/src/tabs/develop/Join.jsx
++++ b/website/src/tabs/develop/Join.jsx
+@@ -141,7 +141,7 @@ export const Join = () => {
+         return privateKey;
+     };
+ 
+-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
++    const layout = { labelCol: { span: 5 }, wrapperCol: { span: 21 } };
+     const privateKeyString = () => (privateKey !== null ? privateKey : "");
+     const feeRecordString = () => (joinFeeRecord !== null ? joinFeeRecord : "");
+     const recordOneString = () => (recordOne !== null ? recordOne : "");
+diff --git a/website/src/tabs/develop/Split.jsx b/website/src/tabs/develop/Split.jsx
+index fb5cc915..45569ac1 100644
+--- a/website/src/tabs/develop/Split.jsx
++++ b/website/src/tabs/develop/Split.jsx
+@@ -117,7 +117,7 @@ export const Split = () => {
+         return privateKey;
+     };
+ 
+-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
++    const layout = { labelCol: { span: 5 }, wrapperCol: { span: 21 } };
+     const amountString = () => (splitAmount !== null ? splitAmount : "");
+     const privateKeyString = () => (privateKey !== null ? privateKey : "");
+     const amountRecordString = () =>
+diff --git a/website/src/tabs/develop/Transfer.jsx b/website/src/tabs/develop/Transfer.jsx
+index c3f49e98..b692acf6 100644
+--- a/website/src/tabs/develop/Transfer.jsx
++++ b/website/src/tabs/develop/Transfer.jsx
+@@ -200,7 +200,7 @@ export const Transfer = () => {
+         },
+     ];
+ 
+-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
++    const layout = { labelCol: { span: 5}, wrapperCol: { span: 21 } };
+     const feeString = () => (transferFee !== null ? transferFee : "");
+     const amountString = () => (transferAmount !== null ? transferAmount : "");
+     const recipientString = () => (recipient !== null ? recipient : "");
+diff --git a/website/src/tabs/develop/execute/index.jsx b/website/src/tabs/develop/execute/index.jsx
+index 79dc02fa..66b650b4 100644
+--- a/website/src/tabs/develop/execute/index.jsx
++++ b/website/src/tabs/develop/execute/index.jsx
+@@ -19,7 +19,7 @@ import { useAleoWASM } from "../../../aleo-wasm-hook";
+ import { useEffect, useState } from "react";
+ import { NewAccount } from "../../account/NewAccount.jsx";
+ 
+-const layout = { labelCol: { span: 4 }, wrapperCol: { span: 18 } };
++const layout = { labelCol: { span: 5 }, wrapperCol: { span: 18 } };
+ 
+ export const Execute = () => {
+     const [form] = Form.useForm();
+diff --git a/website/src/tabs/record/DecryptRecord.css b/website/src/tabs/record/DecryptRecord.css
+index 0093be96..c5b60a94 100644
+--- a/website/src/tabs/record/DecryptRecord.css
++++ b/website/src/tabs/record/DecryptRecord.css
+@@ -1,3 +1,3 @@
+ .container {
+-    max-width: 750px;
++    max-width: 850px;
+ }
+\ No newline at end of file
+diff --git a/website/src/tabs/record/DecryptRecord.jsx b/website/src/tabs/record/DecryptRecord.jsx
+index 4b67b990..c8ffdee9 100644
+--- a/website/src/tabs/record/DecryptRecord.jsx
++++ b/website/src/tabs/record/DecryptRecord.jsx
+@@ -71,7 +71,7 @@ export const DecryptRecord = () => {
+         setIsOwner(null);
+     };
+ 
+-    const layout = { labelCol: { span: 4 }, wrapperCol: { span: 21 } };
++    const layout = { labelCol: { span: 4 }, wrapperCol: { span: 21 }};
+ 
+     if (aleo !== null) {
+         const recordPlaintext = () =>
+@@ -133,7 +133,7 @@ export const DecryptRecord = () => {
+                     }
+                 >
+                     <Form {...layout}>
+-                        <Form.Item label="Record (Ciphertext)" colon={false}>
++                        <Form.Item label="Ciphertext" colon={false}>
+                             <Input
+                                 name="recordCiphertext"
+                                 size="large"
+@@ -166,7 +166,7 @@ export const DecryptRecord = () => {
+                     {
+                         <Form {...layout}>
+                             <Divider />
+-                            <Form.Item label="Record (Plaintext)" colon={false}>
++                            <Form.Item label="Decrypted Record" colon={false}>
+                                 {plaintext ? (
+                                     <Row align="middle">
+                                         <Col span={23}>
+diff --git a/website/src/tabs/rest/GetBlockByHash.jsx b/website/src/tabs/rest/GetBlockByHash.jsx
+index 5095fe78..c3c54e11 100644
+--- a/website/src/tabs/rest/GetBlockByHash.jsx
++++ b/website/src/tabs/rest/GetBlockByHash.jsx
+@@ -39,7 +39,7 @@ export const GetBlockByHash = () => {
+         }
+     };
+ 
+-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
++    const layout = { labelCol: { span: 4 }, wrapperCol: { span: 21 } };
+ 
+     const blockString = useMemo(() => {
+         return blockByHash !== null ? blockByHash.toString() : ""
+diff --git a/website/src/tabs/rest/GetBlockByHeight.jsx b/website/src/tabs/rest/GetBlockByHeight.jsx
+index 1d2cee3a..d1a9fc36 100644
+--- a/website/src/tabs/rest/GetBlockByHeight.jsx
++++ b/website/src/tabs/rest/GetBlockByHeight.jsx
+@@ -41,7 +41,7 @@ export const GetBlockByHeight = () => {
+         }
+     };
+ 
+-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
++    const layout = { labelCol: { span: 4 }, wrapperCol: { span: 21 } };
+ 
+     const blockString = useMemo(() => {
+         return blockByHeight !== null ? blockByHeight.toString() : ""
+diff --git a/website/src/tabs/rest/GetMappingNames.jsx b/website/src/tabs/rest/GetMappingNames.jsx
+index 42adadc2..527b5f73 100644
+--- a/website/src/tabs/rest/GetMappingNames.jsx
++++ b/website/src/tabs/rest/GetMappingNames.jsx
+@@ -55,7 +55,7 @@ export const GetMappingNames = () => {
+         }
+     };
+ 
+-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
++    const layout = { labelCol: { span: 4 }, wrapperCol: { span: 21 } };
+ 
+     const mappingString = useMemo(() => {
+         return mapping !== null ? mapping : ""
+diff --git a/website/src/tabs/rest/GetMappingValue.jsx b/website/src/tabs/rest/GetMappingValue.jsx
+index 881db718..2073f6fe 100644
+--- a/website/src/tabs/rest/GetMappingValue.jsx
++++ b/website/src/tabs/rest/GetMappingValue.jsx
+@@ -79,7 +79,7 @@ export const GetMappingValue = () => {
+         }
+     };
+ 
+-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
++    const layout = { labelCol: { span: 4 }, wrapperCol: { span: 21 } };
+     const programIDString = () => (programID !== null ? programID : "");
+     const mappingNameString = () => (mappingName !== null ? mappingName : "");
+     const mappingKeyString = () => (mappingKey !== null ? mappingKey : "");
+@@ -122,7 +122,7 @@ export const GetMappingValue = () => {
+                     <Input
+                         name="mappingName"
+                         size="large"
+-                        placeholder="Mapping Name"
++                        placeholder="Name"
+                         value={mappingNameString()}
+                         allowClear={true}
+                         onChange={onMappingNameChange}
+@@ -132,7 +132,7 @@ export const GetMappingValue = () => {
+                     <Input
+                         name="mappingKey"
+                         size="large"
+-                        placeholder="Mapping Key"
++                        placeholder="Key"
+                         value={mappingKeyString()}
+                         allowClear={true}
+                         onChange={onMappingKeyChange}
+diff --git a/website/src/tabs/rest/GetProgram.jsx b/website/src/tabs/rest/GetProgram.jsx
+index cb6ce717..29156f47 100644
+--- a/website/src/tabs/rest/GetProgram.jsx
++++ b/website/src/tabs/rest/GetProgram.jsx
+@@ -53,7 +53,7 @@ export const GetProgram = () => {
+         }
+     };
+ 
+-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
++    const layout = { labelCol: { span: 4 }, wrapperCol: { span: 21 } };
+ 
+     const programString = useMemo(() => {
+         return program !== null ? program : ""
+diff --git a/website/src/tabs/rest/GetTransaction.jsx b/website/src/tabs/rest/GetTransaction.jsx
+index dcfdf2e0..56675d1c 100644
+--- a/website/src/tabs/rest/GetTransaction.jsx
++++ b/website/src/tabs/rest/GetTransaction.jsx
+@@ -39,7 +39,7 @@ export const GetTransaction = () => {
+         }
+     };
+ 
+-    const layout = { labelCol: { span: 3 }, wrapperCol: { span: 21 } };
++    const layout = { labelCol: { span: 4 }, wrapperCol: { span: 21 } };
+ 
+     const transactionString = useMemo(() => {
+         return transaction !== null ? transaction.toString() : ""

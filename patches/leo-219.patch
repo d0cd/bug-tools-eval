@@ -1,0 +1,870 @@
+diff --git a/ast/src/functions/function.rs b/ast/src/functions/function.rs
+index a554c9a4bb..e9ee6efe3d 100644
+--- a/ast/src/functions/function.rs
++++ b/ast/src/functions/function.rs
+@@ -77,13 +77,10 @@ impl Function {
+     }
+ 
+     ///
+-    /// Returns a vector of [&FunctionInput] removing `self` and `mut self` inputs.
++    /// Returns an iterator of [&FunctionInput] removing `self` and `mut self` inputs.
+     ///
+-    pub fn filter_self_inputs(&self) -> Vec<&FunctionInput> {
+-        self.input
+-            .iter()
+-            .filter(|input| !input.is_self())
+-            .collect::<Vec<&FunctionInput>>()
++    pub fn filter_self_inputs(&self) -> impl Iterator<Item = &FunctionInput> {
++        self.input.iter().filter(|input| !input.is_self())
+     }
+ 
+     fn format(&self, f: &mut fmt::Formatter) -> fmt::Result {
+diff --git a/compiler/src/console/assert.rs b/compiler/src/console/assert.rs
+index 66465bd11f..e3df68ba9d 100644
+--- a/compiler/src/console/assert.rs
++++ b/compiler/src/console/assert.rs
+@@ -16,7 +16,13 @@
+ 
+ //! Enforces an assert equals statement in a compiled Leo program.
+ 
+-use crate::{errors::ConsoleError, program::ConstrainedProgram, value::ConstrainedValue, GroupType};
++use crate::{
++    errors::ConsoleError,
++    get_indicator_value,
++    program::ConstrainedProgram,
++    value::ConstrainedValue,
++    GroupType,
++};
+ use leo_ast::{Expression, Span, Type};
+ 
+ use snarkos_models::{
+@@ -30,7 +36,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         cs: &mut CS,
+         file_scope: &str,
+         function_scope: &str,
+-        indicator: Option<Boolean>,
++        indicator: &Boolean,
+         expression: Expression,
+         span: &Span,
+     ) -> Result<(), ConsoleError> {
+@@ -42,12 +48,8 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+ 
+         // If the indicator bit is false, do not evaluate the assertion
+         // This is okay since we are not enforcing any constraints
+-        let false_boolean = Boolean::Constant(false);
+-
+-        if let Some(indicator_bool) = indicator {
+-            if indicator_bool.eq(&false_boolean) {
+-                return Ok(()); // continue execution
+-            }
++        if !get_indicator_value(indicator) {
++            return Ok(()); // Continue execution.
+         }
+ 
+         // Unwrap assertion value and handle errors
+diff --git a/compiler/src/console/console.rs b/compiler/src/console/console.rs
+index 1be1d801cb..23a7276cfa 100644
+--- a/compiler/src/console/console.rs
++++ b/compiler/src/console/console.rs
+@@ -16,7 +16,7 @@
+ 
+ //! Evaluates a macro in a compiled Leo program.
+ 
+-use crate::{errors::ConsoleError, program::ConstrainedProgram, GroupType};
++use crate::{errors::ConsoleError, program::ConstrainedProgram, statement::get_indicator_value, GroupType};
+ use leo_ast::{ConsoleFunction, ConsoleFunctionCall};
+ 
+ use snarkos_models::{
+@@ -30,7 +30,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         cs: &mut CS,
+         file_scope: &str,
+         function_scope: &str,
+-        indicator: Option<Boolean>,
++        indicator: &Boolean,
+         console: ConsoleFunctionCall,
+     ) -> Result<(), ConsoleError> {
+         match console.function {
+@@ -40,21 +40,21 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+             ConsoleFunction::Debug(string) => {
+                 let string = self.format(cs, file_scope, function_scope, string)?;
+ 
+-                if unwrap_indicator_value(indicator) {
++                if get_indicator_value(indicator) {
+                     tracing::debug!("{}", string);
+                 }
+             }
+             ConsoleFunction::Error(string) => {
+                 let string = self.format(cs, file_scope, function_scope, string)?;
+ 
+-                if unwrap_indicator_value(indicator) {
++                if get_indicator_value(indicator) {
+                     tracing::error!("{}", string);
+                 }
+             }
+             ConsoleFunction::Log(string) => {
+                 let string = self.format(cs, file_scope, function_scope, string)?;
+ 
+-                if unwrap_indicator_value(indicator) {
++                if get_indicator_value(indicator) {
+                     tracing::info!("{}", string);
+                 }
+             }
+@@ -63,16 +63,3 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         Ok(())
+     }
+ }
+-
+-// Return the indicator boolean gadget value or true if it is None
+-// This is okay since we are not enforcing any constraints
+-fn unwrap_indicator_value(indicator: Option<Boolean>) -> bool {
+-    let false_boolean = Boolean::constant(false);
+-
+-    if let Some(indicator_bool) = indicator {
+-        if indicator_bool.eq(&false_boolean) {
+-            return false;
+-        }
+-    }
+-    true
+-}
+diff --git a/compiler/src/errors/statement.rs b/compiler/src/errors/statement.rs
+index a70770ca53..b1e7cf908d 100644
+--- a/compiler/src/errors/statement.rs
++++ b/compiler/src/errors/statement.rs
+@@ -135,6 +135,22 @@ impl StatementError {
+         Self::new_from_span(message, span)
+     }
+ 
++    pub fn multiple_returns(span: Span) -> Self {
++        let message = "This function returns multiple times and produces unreachable circuits with undefined behavior."
++            .to_string();
++
++        Self::new_from_span(message, span)
++    }
++
++    pub fn no_returns(expected: Type, span: Span) -> Self {
++        let message = format!(
++            "function expected `{}` return type but no valid branches returned a result",
++            expected
++        );
++
++        Self::new_from_span(message, span)
++    }
++
+     pub fn select_fail(first: String, second: String, span: Span) -> Self {
+         let message = format!(
+             "Conditional select gadget failed to select between `{}` or `{}`",
+diff --git a/compiler/src/function/function.rs b/compiler/src/function/function.rs
+index fa7d97ed9f..4786fb7d5a 100644
+--- a/compiler/src/function/function.rs
++++ b/compiler/src/function/function.rs
+@@ -23,11 +23,11 @@ use crate::{
+     GroupType,
+ };
+ 
+-use leo_ast::{Expression, Function, FunctionInput, Type};
++use leo_ast::{Expression, Function, FunctionInput};
+ 
+ use snarkos_models::{
+     curves::{Field, PrimeField},
+-    gadgets::r1cs::ConstraintSystem,
++    gadgets::{r1cs::ConstraintSystem, utilities::boolean::Boolean},
+ };
+ 
+ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+@@ -46,7 +46,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         let mut_self = function.contains_mut_self();
+ 
+         // Store input values as new variables in resolved program
+-        for (input_model, input_expression) in function.filter_self_inputs().iter().zip(input.into_iter()) {
++        for (input_model, input_expression) in function.filter_self_inputs().zip(input.into_iter()) {
+             let (name, value) = match input_model {
+                 FunctionInput::InputKeyword(keyword) => {
+                     let value =
+@@ -92,13 +92,14 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+ 
+         // Evaluate every statement in the function and save all potential results
+         let mut results = vec![];
++        let indicator = Boolean::constant(true);
+ 
+         for statement in function.block.statements.iter() {
+             let mut result = self.enforce_statement(
+                 cs,
+                 scope,
+                 &function_name,
+-                None,
++                &indicator,
+                 statement.clone(),
+                 function.output.clone(),
+                 declared_circuit_reference,
+@@ -109,26 +110,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         }
+ 
+         // Conditionally select a result based on returned indicators
+-        let mut return_values = ConstrainedValue::Tuple(vec![]);
+-
+-        Self::conditionally_select_result(cs, &mut return_values, results, &function.span)?;
+-
+-        if let ConstrainedValue::Tuple(ref returns) = return_values {
+-            let return_types = match function.output {
+-                Some(Type::Tuple(types)) => types.len(),
+-                Some(_) => 1usize,
+-                None => 0usize,
+-            };
+-
+-            if return_types != returns.len() {
+-                return Err(FunctionError::return_arguments_length(
+-                    return_types,
+-                    returns.len(),
+-                    function.span.clone(),
+-                ));
+-            }
+-        }
+-
+-        Ok(return_values)
++        Self::conditionally_select_result(cs, function.output, results, &function.span)
++            .map_err(FunctionError::StatementError)
+     }
+ }
+diff --git a/compiler/src/function/result/result.rs b/compiler/src/function/result/result.rs
+index cec2a05810..1971dd7c4e 100644
+--- a/compiler/src/function/result/result.rs
++++ b/compiler/src/function/result/result.rs
+@@ -16,9 +16,16 @@
+ 
+ //! Enforces that one return value is produced in a compiled Leo program.
+ 
+-use crate::{errors::StatementError, program::ConstrainedProgram, value::ConstrainedValue, GroupType};
++use crate::{
++    check_return_type,
++    errors::StatementError,
++    get_indicator_value,
++    program::ConstrainedProgram,
++    value::ConstrainedValue,
++    GroupType,
++};
+ 
+-use leo_ast::Span;
++use leo_ast::{Span, Type};
+ 
+ use snarkos_models::{
+     curves::{Field, PrimeField},
+@@ -29,49 +36,82 @@ use snarkos_models::{
+ };
+ 
+ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+-    /// iterates through a vector of results and selects one based off of indicators
++    ///
++    /// Returns a conditionally selected result from the given possible function returns and
++    /// given function return type.
++    ///
+     pub fn conditionally_select_result<CS: ConstraintSystem<F>>(
+         cs: &mut CS,
+-        return_value: &mut ConstrainedValue<F, G>,
+-        results: Vec<(Option<Boolean>, ConstrainedValue<F, G>)>,
++        expected_return: Option<Type>,
++        results: Vec<(Boolean, ConstrainedValue<F, G>)>,
+         span: &Span,
+-    ) -> Result<(), StatementError> {
+-        // if there are no results, continue
+-        if results.is_empty() {
+-            return Ok(());
++    ) -> Result<ConstrainedValue<F, G>, StatementError> {
++        // Initialize empty return value.
++        let mut return_value = ConstrainedValue::Tuple(vec![]);
++
++        // If the function does not expect a return type, then make sure there are no returned results.
++        let return_type = match expected_return {
++            Some(return_type) => return_type,
++            None => {
++                if results.is_empty() {
++                    // If the function has no returns, then return an empty tuple.
++                    return Ok(return_value);
++                } else {
++                    return Err(StatementError::invalid_number_of_returns(
++                        0,
++                        results.len(),
++                        span.to_owned(),
++                    ));
++                }
++            }
++        };
++
++        // Error if the function or one of its branches does not return.
++        if results
++            .iter()
++            .find(|(indicator, _res)| get_indicator_value(indicator))
++            .is_none()
++        {
++            return Err(StatementError::no_returns(return_type, span.to_owned()));
+         }
+ 
+-        // If all indicators are none, then there are no branch conditions in the function.
+-        // We simply return the last result.
+-
+-        if results.iter().all(|(indicator, _res)| indicator.is_none()) {
+-            let result = &results[results.len() - 1].1;
+-
+-            *return_value = result.clone();
+-
+-            return Ok(());
++        // Find the return value
++        let mut ignored = vec![];
++        let mut found_return = false;
++        for (indicator, result) in results.into_iter() {
++            // Error if a statement returned a result with an incorrect type
++            let result_type = result.to_type(span)?;
++            check_return_type(&return_type, &result_type, span)?;
++
++            if get_indicator_value(&indicator) {
++                // Error if we already have a return value.
++                if found_return {
++                    return Err(StatementError::multiple_returns(span.to_owned()));
++                } else {
++                    // Set the function return value.
++                    return_value = result;
++                    found_return = true;
++                }
++            } else {
++                // Ignore a possible function return value.
++                ignored.push((indicator, result))
++            }
+         }
+ 
++        // Conditionally select out the ignored results in the circuit.
++        //
+         // If there are branches in the function we need to use the `ConditionalSelectGadget` to parse through and select the correct one.
+         // This can be thought of as de-multiplexing all previous wires that may have returned results into one.
+-        for (i, (indicator, result)) in results.into_iter().enumerate() {
+-            // Set the first value as the starting point
+-            if i == 0 {
+-                *return_value = result.clone();
+-            }
+-
+-            let condition = indicator.unwrap_or(Boolean::Constant(true));
+-            let selected_value = ConstrainedValue::conditionally_select(
+-                cs.ns(|| format!("select {} {}:{}", result, span.line, span.start)),
+-                &condition,
++        for (i, (indicator, result)) in ignored.into_iter().enumerate() {
++            return_value = ConstrainedValue::conditionally_select(
++                cs.ns(|| format!("select result {} {}:{}", i, span.line, span.start)),
++                &indicator,
+                 &result,
+-                return_value,
++                &return_value,
+             )
+             .map_err(|_| StatementError::select_fail(result.to_string(), return_value.to_string(), span.to_owned()))?;
+-
+-            *return_value = selected_value;
+         }
+ 
+-        Ok(())
++        Ok(return_value)
+     }
+ }
+diff --git a/compiler/src/statement/assign/array.rs b/compiler/src/statement/assign/array.rs
+index 842cdefbfe..0f56d9461b 100644
+--- a/compiler/src/statement/assign/array.rs
++++ b/compiler/src/statement/assign/array.rs
+@@ -34,14 +34,12 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         cs: &mut CS,
+         file_scope: &str,
+         function_scope: &str,
+-        indicator: Option<Boolean>,
++        indicator: &Boolean,
+         name: &str,
+         range_or_expression: RangeOrExpression,
+         mut new_value: ConstrainedValue<F, G>,
+         span: &Span,
+     ) -> Result<(), StatementError> {
+-        let condition = indicator.unwrap_or(Boolean::Constant(true));
+-
+         // Resolve index so we know if we are assigning to a single value or a range of values
+         match range_or_expression {
+             RangeOrExpression::Expression(index) => {
+@@ -54,7 +52,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+ 
+                         let selected_value = ConstrainedValue::conditionally_select(
+                             cs.ns(|| format!("select {} {}:{}", new_value, span.line, span.start)),
+-                            &condition,
++                            indicator,
+                             &new_value,
+                             &old[index],
+                         )
+@@ -90,7 +88,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+                 };
+                 let selected_array = ConstrainedValue::conditionally_select(
+                     cs.ns(|| format!("select {} {}:{}", new_array, span.line, span.start)),
+-                    &condition,
++                    indicator,
+                     &new_array,
+                     old_array,
+                 )
+diff --git a/compiler/src/statement/assign/assign.rs b/compiler/src/statement/assign/assign.rs
+index 9403854726..27c1ecd0f8 100644
+--- a/compiler/src/statement/assign/assign.rs
++++ b/compiler/src/statement/assign/assign.rs
+@@ -42,8 +42,8 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         file_scope: &str,
+         function_scope: &str,
+         declared_circuit_reference: &str,
++        indicator: &Boolean,
+         mut_self: bool,
+-        indicator: Option<Boolean>,
+         assignee: Assignee,
+         expression: Expression,
+         span: &Span,
+@@ -56,14 +56,13 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+ 
+         // Mutate the old value into the new value
+         if assignee.accesses.is_empty() {
+-            let condition = indicator.unwrap_or(Boolean::Constant(true));
+             let old_value = self.get_mutable_assignee(&variable_name, span)?;
+ 
+             new_value.resolve_type(Some(old_value.to_type(&span)?), span)?;
+ 
+             let selected_value = ConstrainedValue::conditionally_select(
+                 cs.ns(|| format!("select {} {}:{}", new_value, span.line, span.start)),
+-                &condition,
++                indicator,
+                 &new_value,
+                 old_value,
+             )
+diff --git a/compiler/src/statement/assign/circuit_variable.rs b/compiler/src/statement/assign/circuit_variable.rs
+index c5d1a0ddcc..40f6666671 100644
+--- a/compiler/src/statement/assign/circuit_variable.rs
++++ b/compiler/src/statement/assign/circuit_variable.rs
+@@ -31,14 +31,12 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+     pub fn mutate_circuit_variable<CS: ConstraintSystem<F>>(
+         &mut self,
+         cs: &mut CS,
+-        indicator: Option<Boolean>,
++        indicator: &Boolean,
+         circuit_name: &str,
+         variable_name: Identifier,
+         mut new_value: ConstrainedValue<F, G>,
+         span: &Span,
+     ) -> Result<ConstrainedValue<F, G>, StatementError> {
+-        let condition = indicator.unwrap_or(Boolean::Constant(true));
+-
+         // Get the mutable circuit by name
+         match self.get_mutable_assignee(circuit_name, span)? {
+             ConstrainedValue::CircuitExpression(_variable, members) => {
+@@ -68,7 +66,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+                             // Conditionally select the value if this branch is executed.
+                             let mut selected_value = ConstrainedValue::conditionally_select(
+                                 cs.ns(|| format!("select {} {}:{}", new_value, span.line, span.start)),
+-                                &condition,
++                                indicator,
+                                 &new_value,
+                                 &member.1,
+                             )
+diff --git a/compiler/src/statement/assign/tuple.rs b/compiler/src/statement/assign/tuple.rs
+index 5ecb0dd767..4209a1d570 100644
+--- a/compiler/src/statement/assign/tuple.rs
++++ b/compiler/src/statement/assign/tuple.rs
+@@ -31,15 +31,12 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+     pub fn assign_tuple<CS: ConstraintSystem<F>>(
+         &mut self,
+         cs: &mut CS,
+-        indicator: Option<Boolean>,
++        indicator: &Boolean,
+         name: &str,
+         index: PositiveNumber,
+         mut new_value: ConstrainedValue<F, G>,
+         span: &Span,
+     ) -> Result<(), StatementError> {
+-        // Get the indicator value.
+-        let condition = indicator.unwrap_or(Boolean::Constant(true));
+-
+         // Parse the index.
+         let index_usize = parse_index(&index, &span)?;
+ 
+@@ -50,7 +47,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+ 
+                 let selected_value = ConstrainedValue::conditionally_select(
+                     cs.ns(|| format!("select {} {}:{}", new_value, span.line, span.start)),
+-                    &condition,
++                    indicator,
+                     &new_value,
+                     &old[index_usize],
+                 )
+diff --git a/compiler/src/statement/block/block.rs b/compiler/src/statement/block/block.rs
+index 56eda13cf5..b2633a0767 100644
+--- a/compiler/src/statement/block/block.rs
++++ b/compiler/src/statement/block/block.rs
+@@ -33,7 +33,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         cs: &mut CS,
+         file_scope: &str,
+         function_scope: &str,
+-        indicator: Option<Boolean>,
++        indicator: &Boolean,
+         block: Block,
+         return_type: Option<Type>,
+         mut_self: bool,
+diff --git a/compiler/src/statement/conditional/conditional.rs b/compiler/src/statement/conditional/conditional.rs
+index 17e0a5f73e..aebed7cc14 100644
+--- a/compiler/src/statement/conditional/conditional.rs
++++ b/compiler/src/statement/conditional/conditional.rs
+@@ -49,7 +49,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         cs: &mut CS,
+         file_scope: &str,
+         function_scope: &str,
+-        indicator: Option<Boolean>,
++        indicator: &Boolean,
+         statement: ConditionalStatement,
+         return_type: Option<Type>,
+         mut_self: bool,
+@@ -57,8 +57,8 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+     ) -> StatementResult<Vec<IndicatorAndConstrainedValue<F, G>>> {
+         let statement_string = statement.to_string();
+ 
+-        // Inherit the indicator from a previous conditional statement or assume that we are the outer parent
+-        let outer_indicator = indicator.unwrap_or(Boolean::Constant(true));
++        // Inherit an indicator from a previous statement.
++        let outer_indicator = indicator;
+ 
+         // Evaluate the conditional boolean as the inner indicator
+         let inner_indicator = match self.enforce_expression(
+@@ -73,7 +73,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         };
+ 
+         // If outer_indicator && inner_indicator, then select branch 1
+-        let outer_indicator_string = indicator_to_string(&outer_indicator);
++        let outer_indicator_string = indicator_to_string(outer_indicator);
+         let inner_indicator_string = indicator_to_string(&inner_indicator);
+         let branch_1_name = format!(
+             "branch indicator 1 {} && {}",
+@@ -81,7 +81,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         );
+         let branch_1_indicator = Boolean::and(
+             &mut cs.ns(|| format!("branch 1 {} {}:{}", statement_string, span.line, span.start)),
+-            &outer_indicator,
++            outer_indicator,
+             &inner_indicator,
+         )
+         .map_err(|_| StatementError::indicator_calculation(branch_1_name, span.to_owned()))?;
+@@ -93,7 +93,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+             cs,
+             file_scope,
+             function_scope,
+-            Some(branch_1_indicator),
++            &branch_1_indicator,
+             statement.block,
+             return_type.clone(),
+             mut_self,
+@@ -122,7 +122,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+                     cs,
+                     file_scope,
+                     function_scope,
+-                    Some(branch_2_indicator),
++                    &branch_2_indicator,
+                     *nested,
+                     return_type,
+                     mut_self,
+@@ -132,7 +132,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+                     cs,
+                     file_scope,
+                     function_scope,
+-                    Some(branch_2_indicator),
++                    &branch_2_indicator,
+                     block,
+                     return_type,
+                     mut_self,
+diff --git a/compiler/src/statement/iteration/iteration.rs b/compiler/src/statement/iteration/iteration.rs
+index 88a519633a..c7084143ff 100644
+--- a/compiler/src/statement/iteration/iteration.rs
++++ b/compiler/src/statement/iteration/iteration.rs
+@@ -42,7 +42,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         cs: &mut CS,
+         file_scope: &str,
+         function_scope: &str,
+-        indicator: Option<Boolean>,
++        indicator: &Boolean,
+         index: Identifier,
+         start: Expression,
+         stop: Expression,
+diff --git a/compiler/src/statement/return_/return_.rs b/compiler/src/statement/return_/return_.rs
+index f70b69ca79..55d548dbcf 100644
+--- a/compiler/src/statement/return_/return_.rs
++++ b/compiler/src/statement/return_/return_.rs
+@@ -24,20 +24,17 @@ use snarkos_models::{
+     gadgets::r1cs::ConstraintSystem,
+ };
+ 
+-fn check_return_type(expected: Option<Type>, actual: Type, span: &Span) -> Result<(), StatementError> {
+-    match expected {
+-        Some(expected) => {
+-            if expected.ne(&actual) {
+-                if (expected.is_self() && actual.is_circuit()) || expected.eq_flat(&actual) {
+-                    return Ok(());
+-                } else {
+-                    return Err(StatementError::arguments_type(&expected, &actual, span.to_owned()));
+-                }
+-            }
++/// Returns `Ok` if the expected type == actual type, returns `Err` otherwise.
++pub fn check_return_type(expected: &Type, actual: &Type, span: &Span) -> Result<(), StatementError> {
++    if expected.ne(&actual) {
++        // If the return type is `SelfType` returning the circuit type is okay.
++        return if (expected.is_self() && actual.is_circuit()) || expected.eq_flat(&actual) {
+             Ok(())
+-        }
+-        None => Ok(()),
++        } else {
++            Err(StatementError::arguments_type(&expected, &actual, span.to_owned()))
++        };
+     }
++    Ok(())
+ }
+ 
+ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+@@ -53,7 +50,9 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         let result = self.enforce_operand(cs, file_scope, function_scope, return_type.clone(), expression, span)?;
+ 
+         // Make sure we return the correct type.
+-        check_return_type(return_type, result.to_type(&span)?, span)?;
++        if let Some(expected) = return_type {
++            check_return_type(&expected, &result.to_type(span)?, span)?;
++        }
+ 
+         Ok(result)
+     }
+diff --git a/compiler/src/statement/statement.rs b/compiler/src/statement/statement.rs
+index 7f72682ad6..9ca8a39562 100644
+--- a/compiler/src/statement/statement.rs
++++ b/compiler/src/statement/statement.rs
+@@ -25,7 +25,7 @@ use snarkos_models::{
+ };
+ 
+ pub type StatementResult<T> = Result<T, StatementError>;
+-pub type IndicatorAndConstrainedValue<T, U> = (Option<Boolean>, ConstrainedValue<T, U>);
++pub type IndicatorAndConstrainedValue<T, U> = (Boolean, ConstrainedValue<T, U>);
+ 
+ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+     ///
+@@ -41,7 +41,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         cs: &mut CS,
+         file_scope: &str,
+         function_scope: &str,
+-        indicator: Option<Boolean>,
++        indicator: &Boolean,
+         statement: Statement,
+         return_type: Option<Type>,
+         declared_circuit_reference: &str,
+@@ -52,7 +52,7 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+         match statement {
+             Statement::Return(expression, span) => {
+                 let return_value = (
+-                    indicator,
++                    indicator.to_owned(),
+                     self.enforce_return_statement(cs, file_scope, function_scope, expression, return_type, &span)?,
+                 );
+ 
+@@ -75,8 +75,8 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+                     file_scope,
+                     function_scope,
+                     declared_circuit_reference,
+-                    mut_self,
+                     indicator,
++                    mut_self,
+                     variable,
+                     expression,
+                     &span,
+@@ -120,22 +120,25 @@ impl<F: Field + PrimeField, G: GroupType<F>> ConstrainedProgram<F, G> {
+                 let expression_string = expression.to_string();
+                 let value = self.enforce_expression(cs, file_scope, function_scope, None, expression)?;
+ 
+-                // handle empty return value cases
++                // Handle empty return value cases.
+                 match &value {
+                     ConstrainedValue::Tuple(values) => {
+                         if !values.is_empty() {
+-                            return Err(StatementError::unassigned(expression_string, span));
++                            results.push((*indicator, value));
+                         }
+                     }
+                     _ => return Err(StatementError::unassigned(expression_string, span)),
+                 }
+-
+-                let result = (indicator, value);
+-
+-                results.push(result);
+             }
+         };
+ 
+         Ok(results)
+     }
+ }
++
++/// Returns the indicator boolean gadget value.
++/// We can directly compare a boolean constant to the indicator since we are not enforcing any
++/// constraints
++pub fn get_indicator_value(indicator: &Boolean) -> bool {
++    indicator.eq(&Boolean::constant(true))
++}
+diff --git a/compiler/tests/function/mod.rs b/compiler/tests/function/mod.rs
+index dc31094f76..90346098e9 100644
+--- a/compiler/tests/function/mod.rs
++++ b/compiler/tests/function/mod.rs
+@@ -64,15 +64,31 @@ fn test_newlines() {
+ 
+ #[test]
+ fn test_multiple_returns() {
+-    let bytes = include_bytes!("multiple.leo");
++    let bytes = include_bytes!("multiple_returns.leo");
+     let program = parse_program(bytes).unwrap();
+ 
+     assert_satisfied(program);
+ }
+ 
++#[test]
++fn test_multiple_returns_fail() {
++    let bytes = include_bytes!("multiple_returns_fail.leo");
++    let program = parse_program(bytes).unwrap();
++
++    expect_compiler_error(program);
++}
++
++#[test]
++fn test_multiple_returns_fail_conditional() {
++    let bytes = include_bytes!("multiple_returns_fail_conditional.leo");
++    let program = parse_program(bytes).unwrap();
++
++    expect_compiler_error(program);
++}
++
+ #[test]
+ fn test_multiple_returns_main() {
+-    let program_bytes = include_bytes!("multiple_main.leo");
++    let program_bytes = include_bytes!("multiple_returns_main.leo");
+     let input_bytes = include_bytes!("input/registers.in");
+ 
+     let program = parse_program_with_input(program_bytes, input_bytes).unwrap();
+diff --git a/compiler/tests/function/multiple.leo b/compiler/tests/function/multiple_returns.leo
+similarity index 100%
+rename from compiler/tests/function/multiple.leo
+rename to compiler/tests/function/multiple_returns.leo
+diff --git a/compiler/tests/function/multiple_returns_fail.leo b/compiler/tests/function/multiple_returns_fail.leo
+new file mode 100644
+index 0000000000..d4a8b36eac
+--- /dev/null
++++ b/compiler/tests/function/multiple_returns_fail.leo
+@@ -0,0 +1,7 @@
++function main () -> i8 {
++    if true {
++        return 1i8   //ignored
++    }
++    return 2i8       //ignored
++    return 3i8       //returns
++}
+\ No newline at end of file
+diff --git a/compiler/tests/function/multiple_returns_fail_conditional.leo b/compiler/tests/function/multiple_returns_fail_conditional.leo
+new file mode 100644
+index 0000000000..04ebb9e306
+--- /dev/null
++++ b/compiler/tests/function/multiple_returns_fail_conditional.leo
+@@ -0,0 +1,9 @@
++function main () -> u16 {
++    if false {
++        let a = 1u16;
++        let b = a + 1u16;
++        return b
++    } else if false {
++        return 0u16
++    }
++}
+\ No newline at end of file
+diff --git a/compiler/tests/function/multiple_main.leo b/compiler/tests/function/multiple_returns_main.leo
+similarity index 100%
+rename from compiler/tests/function/multiple_main.leo
+rename to compiler/tests/function/multiple_returns_main.leo
+diff --git a/symbol-table/src/types/functions/function.rs b/symbol-table/src/types/functions/function.rs
+index ffc35fde98..05fc6c43fb 100644
+--- a/symbol-table/src/types/functions/function.rs
++++ b/symbol-table/src/types/functions/function.rs
+@@ -120,16 +120,6 @@ impl FunctionType {
+         Ok(())
+     }
+ 
+-    ///
+-    /// Returns the number of input variables to the function.
+-    /// The `self` and `mut self` keywords are not counted as input variables.
+-    ///
+-    pub fn num_inputs(&self) -> usize {
+-        self.inputs
+-            .iter()
+-            .fold(0, |acc, function_input| acc + function_input.count())
+-    }
+-
+     ///
+     /// Returns `true` if the input `self` or `mut self` is present.
+     /// Returns `false` otherwise.
+@@ -139,13 +129,18 @@ impl FunctionType {
+     }
+ 
+     ///
+-    /// Returns a vector of [&FunctionInputType] removing `self` and `mut self` inputs.
++    /// Returns an iterator of [&FunctionInputType] removing `self` and `mut self` inputs.
+     ///
+-    pub fn filter_self_inputs(&self) -> Vec<&FunctionInputType> {
+-        self.inputs
+-            .iter()
+-            .filter(|input| !input.is_self())
+-            .collect::<Vec<&FunctionInputType>>()
++    pub fn filter_self_inputs(&self) -> impl Iterator<Item = &FunctionInputType> {
++        self.inputs.iter().filter(|input| !input.is_self())
++    }
++
++    ///
++    /// Returns the number of input variables to the function.
++    /// The `self` and `mut self` keywords are not counted as input variables.
++    ///
++    pub fn num_inputs(&self) -> usize {
++        self.filter_self_inputs().count()
+     }
+ }
+ 
+diff --git a/symbol-table/src/types/functions/function_input.rs b/symbol-table/src/types/functions/function_input.rs
+index 66a8180f98..cee5ed1df5 100644
+--- a/symbol-table/src/types/functions/function_input.rs
++++ b/symbol-table/src/types/functions/function_input.rs
+@@ -77,15 +77,6 @@ impl FunctionInputType {
+         }
+     }
+ 
+-    ///
+-    /// Returns `0` if the function input is a `self` or `mut self` keyword which does not have to
+-    /// provided in a call to the function.
+-    /// Returns `1` if a variable must be provided in a call to the function.
+-    ///
+-    pub fn count(&self) -> usize {
+-        if self.is_self() { 0 } else { 1 }
+-    }
+-
+     ///
+     /// Return a new `FunctionInputType` from a given `FunctionInput`.
+     ///
+diff --git a/type-inference/src/objects/frame.rs b/type-inference/src/objects/frame.rs
+index 26743abe3c..e76702dddd 100644
+--- a/type-inference/src/objects/frame.rs
++++ b/type-inference/src/objects/frame.rs
+@@ -1093,8 +1093,6 @@ impl Frame {
+             return Err(FrameError::static_call_invalid(&identifier));
+         }
+ 
+-        if is_static && function_type.contains_self() {}
+-
+         // Return the function type.
+         Ok(function_type.to_owned())
+     }
+@@ -1121,10 +1119,8 @@ impl Frame {
+         }
+ 
+         // Filter out `self` and `mut self` keywords.
+-        let expected_inputs = function_type.filter_self_inputs();
+-
+         // Assert function inputs are correct types.
+-        for (expected_input, actual_input) in expected_inputs.iter().zip(inputs) {
++        for (expected_input, actual_input) in function_type.filter_self_inputs().zip(inputs) {
+             // Parse expected input type.
+             let expected_type = expected_input.type_();
+ 

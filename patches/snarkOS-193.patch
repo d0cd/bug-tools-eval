@@ -1,0 +1,13 @@
+diff --git a/network/src/message/serialization.rs b/network/src/message/serialization.rs
+index 7ef8b5dca..fb67139f0 100644
+--- a/network/src/message/serialization.rs
++++ b/network/src/message/serialization.rs
+@@ -323,7 +323,7 @@ mod tests {
+ 
+     #[test]
+     fn serialize_deserialize_payloads_with_hashes() {
+-        let hashes = (0u8..10).map(|i| Digest::from(vec![i; 32])).collect::<Vec<_>>();
++        let hashes = (0u8..10).map(|i| Digest::from([i; 32])).collect::<Vec<_>>();
+ 
+         for payload in &[
+             Payload::GetBlocks(hashes.clone()),

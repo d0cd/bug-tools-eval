@@ -1,0 +1,205 @@
+diff --git a/compiler/compiler/src/compiler.rs b/compiler/compiler/src/compiler.rs
+index 5522d1ed42..e580270d49 100644
+--- a/compiler/compiler/src/compiler.rs
++++ b/compiler/compiler/src/compiler.rs
+@@ -169,9 +169,8 @@ impl Compiler {
+ 
+         self.do_pass::<FunctionInlining>(())?;
+ 
+-        // Flattening may produce ternary expressions not in SSA form. In addition,
+-        // inlining may create shadowed variables, so rename definitions.
+-        self.do_pass::<SsaForming>(SsaFormingInput { rename_defs: true })?;
++        // Flattening may produce ternary expressions not in SSA form.
++        self.do_pass::<SsaForming>(SsaFormingInput { rename_defs: false })?;
+ 
+         self.do_pass::<CommonSubexpressionEliminating>(())?;
+ 
+diff --git a/compiler/passes/src/function_inlining/ast.rs b/compiler/passes/src/function_inlining/ast.rs
+index eb9e013c3f..c2c87b1634 100644
+--- a/compiler/passes/src/function_inlining/ast.rs
++++ b/compiler/passes/src/function_inlining/ast.rs
+@@ -15,7 +15,7 @@
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use super::FunctionInliningVisitor;
+-use crate::Replacer;
++use crate::{Replacer, SsaFormingInput, static_single_assignment::visitor::SsaFormingVisitor};
+ 
+ use leo_ast::*;
+ 
+@@ -60,10 +60,15 @@ impl AstReconstructor for FunctionInliningVisitor<'_> {
+                     _ => expr.clone(),
+                 };
+ 
+-                let mut inlined_statements = Replacer::new(replace_path, false /* refresh IDs */, self.state)
++                // Replace path expressions with their corresponding const argument or keep them unchanged.
++                let reconstructed_block = Replacer::new(replace_path, false /* refresh IDs */, self.state)
+                     .reconstruct_block(callee.block.clone())
+-                    .0
+-                    .statements;
++                    .0;
++
++                // Run SSA formation on the inlined block and rename definitions. Renaming is necessary to avoid shadowing variables.
++                let mut inlined_statements =
++                    SsaFormingVisitor::new(self.state, SsaFormingInput { rename_defs: true }, self.program)
++                        .consume_block(reconstructed_block);
+ 
+                 // If the inlined block returns a value, then use the value in place of the call expression; otherwise, use the unit expression.
+                 let result = match inlined_statements.last() {
+diff --git a/compiler/passes/src/static_single_assignment/mod.rs b/compiler/passes/src/static_single_assignment/mod.rs
+index b62eb07b46..1b3c84d6d6 100644
+--- a/compiler/passes/src/static_single_assignment/mod.rs
++++ b/compiler/passes/src/static_single_assignment/mod.rs
+@@ -62,7 +62,7 @@ mod program;
+ 
+ mod statement;
+ 
+-mod visitor;
++pub mod visitor;
+ use visitor::*;
+ 
+ #[derive(Clone)]
+diff --git a/compiler/passes/src/static_single_assignment/visitor.rs b/compiler/passes/src/static_single_assignment/visitor.rs
+index 15b7da30ed..67fb684003 100644
+--- a/compiler/passes/src/static_single_assignment/visitor.rs
++++ b/compiler/passes/src/static_single_assignment/visitor.rs
+@@ -29,7 +29,11 @@ pub struct SsaFormingVisitor<'a> {
+     pub rename_defs: bool,
+ }
+ 
+-impl SsaFormingVisitor<'_> {
++impl<'a> SsaFormingVisitor<'a> {
++    pub fn new(state: &'a mut CompilerState, input: crate::SsaFormingInput, program: Symbol) -> Self {
++        Self { state, rename_table: RenameTable::new(None), program, rename_defs: input.rename_defs }
++    }
++
+     /// Pushes a new scope, setting the current scope as the new scope's parent.
+     pub(crate) fn push(&mut self) {
+         let parent_table = core::mem::take(&mut self.rename_table);
+diff --git a/tests/expectations/passes/function_inlining/multiple_calls.out b/tests/expectations/passes/function_inlining/multiple_calls.out
+index a4d50efd35..546fb60e03 100644
+--- a/tests/expectations/passes/function_inlining/multiple_calls.out
++++ b/tests/expectations/passes/function_inlining/multiple_calls.out
+@@ -3,8 +3,10 @@ program test.aleo {
+         return x * x;
+     }
+     transition main(a: u32, b: u32) -> u32 {
+-        let first: u32 = a * a;
+-        let second: u32 = b * b;
++        let $var$0 = a * a;
++        let first: u32 = ::$var$0;
++        let $var$1 = b * b;
++        let second: u32 = ::$var$1;
+         return first + second;
+     }
+ }
+diff --git a/tests/expectations/passes/function_inlining/nested_inline.out b/tests/expectations/passes/function_inlining/nested_inline.out
+index f73b08b90e..52b367eea4 100644
+--- a/tests/expectations/passes/function_inlining/nested_inline.out
++++ b/tests/expectations/passes/function_inlining/nested_inline.out
+@@ -1,11 +1,24 @@
+ program test.aleo {
+     inline helper(x: u32) -> u32 {
+-        return x + 1u32;
++        let var3 = 1u32;
++        let var4 = x + var3;
++        return var4;
+     }
+     inline wrapper(y: u32) -> u32 {
+-        return (y + 1u32) * 2u32;
++        let var3$#0 = 1u32;
++        let var4$#1 = y + var3$#0;
++        let var6 = var4$#1;
++        let var7 = 2u32;
++        let var8 = var6 * var7;
++        return var8;
+     }
+     transition main(input: u32) -> u32 {
+-        return (input + 1u32) * 2u32;
++        let var3$#0$#2 = 1u32;
++        let var4$#1$#3 = input + var3$#0$#2;
++        let var6$#4 = var4$#1$#3;
++        let var7$#5 = 2u32;
++        let var8$#6 = var6$#4 * var7$#5;
++        let var1 = var8$#6;
++        return var1;
+     }
+ }
+diff --git a/tests/expectations/passes/function_inlining/no_shadowing.out b/tests/expectations/passes/function_inlining/no_shadowing.out
+new file mode 100644
+index 0000000000..2861b58a2d
+--- /dev/null
++++ b/tests/expectations/passes/function_inlining/no_shadowing.out
+@@ -0,0 +1,12 @@
++program inline_no_shadowing.aleo {
++    inline square(x: u32) -> u32 {
++        return x * x;
++    }
++    transition main(a: u32, b: u32) -> u32 {
++        let $var$0 = a * a;
++        let first: u32 = ::$var$0;
++        let $var$1 = b * b;
++        let second: u32 = ::$var$1;
++        return first + second;
++    }
++}
+diff --git a/tests/expectations/passes/function_inlining/simple_inline.out b/tests/expectations/passes/function_inlining/simple_inline.out
+index b42b0d59c1..173d35a3cf 100644
+--- a/tests/expectations/passes/function_inlining/simple_inline.out
++++ b/tests/expectations/passes/function_inlining/simple_inline.out
+@@ -3,7 +3,8 @@ program test.aleo {
+         return a + b;
+     }
+     transition main(x: u32, y: u32) -> u32 {
+-        let result: u32 = x + y;
++        let $var$0 = x + y;
++        let result: u32 = ::$var$0;
+         return result;
+     }
+ }
+diff --git a/tests/tests/passes/function_inlining/nested_inline.leo b/tests/tests/passes/function_inlining/nested_inline.leo
+index 3695a67953..62407b62d6 100644
+--- a/tests/tests/passes/function_inlining/nested_inline.leo
++++ b/tests/tests/passes/function_inlining/nested_inline.leo
+@@ -1,13 +1,17 @@
+ program test.aleo {
++    transition main(input: u32) -> u32 {
++        let var1 = wrapper(input);
++        return var1;
++    }
+     inline helper(x: u32) -> u32 {
+-        return x + 1u32;
++        let var3 = 1u32;
++        let var4 = x + var3;
++        return var4;
+     }
+-
+     inline wrapper(y: u32) -> u32 {
+-        return helper(y) * 2u32;
+-    }
+-
+-    transition main(input: u32) -> u32 {
+-        return wrapper(input);
++        let var6 = helper(y);
++        let var7 = 2u32;
++        let var8 = var6 * var7;
++        return var8;
+     }
+ }
+diff --git a/tests/tests/passes/function_inlining/no_shadowing.leo b/tests/tests/passes/function_inlining/no_shadowing.leo
+new file mode 100644
+index 0000000000..03f3e062b9
+--- /dev/null
++++ b/tests/tests/passes/function_inlining/no_shadowing.leo
+@@ -0,0 +1,11 @@
++program inline_no_shadowing.aleo {
++    inline square(x: u32) -> u32 {
++        return x * x;
++    }
++
++    transition main(a: u32, b: u32) -> u32 {
++        let first: u32 = square(a);
++        let second: u32 = square(b);
++        return first + second;
++    }
++}

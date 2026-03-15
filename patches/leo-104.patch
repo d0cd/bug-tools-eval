@@ -1,0 +1,184 @@
+diff --git a/compiler/ast/src/functions/mod.rs b/compiler/ast/src/functions/mod.rs
+index 33438d856d..97a38cb06d 100644
+--- a/compiler/ast/src/functions/mod.rs
++++ b/compiler/ast/src/functions/mod.rs
+@@ -100,7 +100,7 @@ impl Function {
+         let output_type = match output.len() {
+             0 => Type::Unit,
+             1 => get_output_type(&output[0]),
+-            _ => Type::Tuple(Tuple(output.iter().map(|output| get_output_type(output)).collect())),
++            _ => Type::Tuple(Tuple(output.iter().map(get_output_type).collect())),
+         };
+ 
+         Function { annotations, variant, identifier, input, output, output_type, block, finalize, span, id }
+diff --git a/compiler/passes/src/code_generation/visit_expressions.rs b/compiler/passes/src/code_generation/visit_expressions.rs
+index c6b2125db2..db67c79fe7 100644
+--- a/compiler/passes/src/code_generation/visit_expressions.rs
++++ b/compiler/passes/src/code_generation/visit_expressions.rs
+@@ -458,7 +458,7 @@ impl<'a> CodeGenerator<'a> {
+             Expression::Identifier(identifier) => identifier.name,
+             _ => unreachable!("Parsing guarantees that a function name is always an identifier."),
+         };
+-        let return_type = &self.symbol_table.borrow().lookup_fn_symbol(function_name).unwrap().output_type;
++        let return_type = &self.symbol_table.lookup_fn_symbol(function_name).unwrap().output_type;
+         match return_type {
+             Type::Unit => {
+                 call_instruction.push(';');
+diff --git a/compiler/passes/src/flattening/flatten_expression.rs b/compiler/passes/src/flattening/flatten_expression.rs
+index 97e13627a4..c171d9dd40 100644
+--- a/compiler/passes/src/flattening/flatten_expression.rs
++++ b/compiler/passes/src/flattening/flatten_expression.rs
+@@ -130,7 +130,7 @@ impl ExpressionReconstructor for Flattener<'_> {
+                     elements: first
+                         .elements
+                         .into_iter()
+-                        .zip_eq(second.elements.into_iter())
++                        .zip_eq(second.elements)
+                         .map(|(if_true, if_false)| {
+                             // Reconstruct the true case.
+                             let (if_true, stmts) = self.reconstruct_expression(if_true);
+diff --git a/compiler/passes/src/flattening/flatten_statement.rs b/compiler/passes/src/flattening/flatten_statement.rs
+index cb856869ac..ebb14c9e80 100644
+--- a/compiler/passes/src/flattening/flatten_statement.rs
++++ b/compiler/passes/src/flattening/flatten_statement.rs
+@@ -175,7 +175,7 @@ impl StatementReconstructor for Flattener<'_> {
+                     _ => unreachable!("Parsing guarantees that `function` is an identifier."),
+                 };
+ 
+-                let function = self.symbol_table.borrow().lookup_fn_symbol(function_name).unwrap();
++                let function = self.symbol_table.lookup_fn_symbol(function_name).unwrap();
+                 match &function.output_type {
+                     // If the function returns a tuple, reconstruct the assignment and add an entry to `self.tuples`.
+                     Type::Tuple(tuple) => {
+@@ -256,7 +256,7 @@ impl StatementReconstructor for Flattener<'_> {
+                     Expression::Identifier(identifier) => {
+                         // Retrieve the entry in the symbol table for the mapping.
+                         // Note that this unwrap is safe since type checking ensures that the mapping exists.
+-                        let variable = self.symbol_table.borrow().lookup_variable(identifier.name).unwrap();
++                        let variable = self.symbol_table.lookup_variable(identifier.name).unwrap();
+                         match &variable.type_ {
+                             Type::Mapping(mapping_type) => &*mapping_type.value,
+                             _ => unreachable!("Type checking guarantee that `arguments[0]` is a mapping."),
+@@ -292,7 +292,7 @@ impl StatementReconstructor for Flattener<'_> {
+                     _ => unreachable!("Parsing guarantees that `function` is an identifier."),
+                 };
+ 
+-                let function = self.symbol_table.borrow().lookup_fn_symbol(function_name).unwrap();
++                let function = self.symbol_table.lookup_fn_symbol(function_name).unwrap();
+ 
+                 let output_type = match &function.output_type {
+                     Type::Tuple(tuple) => tuple.clone(),
+@@ -322,21 +322,19 @@ impl StatementReconstructor for Flattener<'_> {
+             }
+             // If the lhs is a tuple and the rhs is a tuple, create a new assign statement for each tuple element.
+             (Expression::Tuple(lhs_tuple), Expression::Tuple(rhs_tuple)) => {
+-                statements.extend(lhs_tuple.elements.into_iter().zip(rhs_tuple.elements.into_iter()).map(
+-                    |(lhs, rhs)| {
+-                        let identifier = match &lhs {
+-                            Expression::Identifier(identifier) => identifier,
+-                            _ => unreachable!("Type checking guarantees that `lhs` is an identifier."),
+-                        };
+-                        self.update_structs(identifier, &rhs);
+-                        Statement::Assign(Box::new(AssignStatement {
+-                            place: lhs,
+-                            value: rhs,
+-                            span: Default::default(),
+-                            id: self.node_builder.next_id(),
+-                        }))
+-                    },
+-                ));
++                statements.extend(lhs_tuple.elements.into_iter().zip(rhs_tuple.elements).map(|(lhs, rhs)| {
++                    let identifier = match &lhs {
++                        Expression::Identifier(identifier) => identifier,
++                        _ => unreachable!("Type checking guarantees that `lhs` is an identifier."),
++                    };
++                    self.update_structs(identifier, &rhs);
++                    Statement::Assign(Box::new(AssignStatement {
++                        place: lhs,
++                        value: rhs,
++                        span: Default::default(),
++                        id: self.node_builder.next_id(),
++                    }))
++                }));
+                 (Statement::dummy(Default::default(), self.node_builder.next_id()), statements)
+             }
+             // If the lhs is a tuple and the rhs is an identifier that is a tuple, create a new assign statement for each tuple element.
+@@ -347,7 +345,7 @@ impl StatementReconstructor for Flattener<'_> {
+                 // Note that the `unwrap` is safe since the match arm checks that the entry exists.
+                 let rhs_tuple = self.tuples.get(&identifier.name).unwrap().clone();
+                 // Create a new assign statement for each tuple element.
+-                for (lhs, rhs) in lhs_tuple.elements.into_iter().zip(rhs_tuple.elements.into_iter()) {
++                for (lhs, rhs) in lhs_tuple.elements.into_iter().zip(rhs_tuple.elements) {
+                     let identifier = match &lhs {
+                         Expression::Identifier(identifier) => identifier,
+                         _ => unreachable!("Type checking guarantees that `lhs` is an identifier."),
+diff --git a/compiler/passes/src/function_inlining/inline_expression.rs b/compiler/passes/src/function_inlining/inline_expression.rs
+index 6c9b89712f..8402d5354e 100644
+--- a/compiler/passes/src/function_inlining/inline_expression.rs
++++ b/compiler/passes/src/function_inlining/inline_expression.rs
+@@ -59,7 +59,7 @@ impl ExpressionReconstructor for FunctionInliner<'_> {
+                     .input
+                     .iter()
+                     .map(|input| input.identifier().name)
+-                    .zip_eq(input.arguments.into_iter())
++                    .zip_eq(input.arguments)
+                     .collect::<IndexMap<_, _>>();
+ 
+                 // Initializer `self.assignment_renamer` with the function parameters.
+diff --git a/compiler/passes/src/function_inlining/inline_statement.rs b/compiler/passes/src/function_inlining/inline_statement.rs
+index fa59281d53..ad1031da4f 100644
+--- a/compiler/passes/src/function_inlining/inline_statement.rs
++++ b/compiler/passes/src/function_inlining/inline_statement.rs
+@@ -38,7 +38,7 @@ impl StatementReconstructor for FunctionInliner<'_> {
+         match (input.place, value) {
+             // If the function call produces a tuple, we need to segment the tuple into multiple assignment statements.
+             (Expression::Tuple(left), Expression::Tuple(right)) if left.elements.len() == right.elements.len() => {
+-                statements.extend(left.elements.into_iter().zip(right.elements.into_iter()).map(|(lhs, rhs)| {
++                statements.extend(left.elements.into_iter().zip(right.elements).map(|(lhs, rhs)| {
+                     Statement::Assign(Box::new(AssignStatement {
+                         place: lhs,
+                         value: rhs,
+diff --git a/compiler/passes/src/static_single_assignment/rename_expression.rs b/compiler/passes/src/static_single_assignment/rename_expression.rs
+index 1a10e603a8..974bd9adcd 100644
+--- a/compiler/passes/src/static_single_assignment/rename_expression.rs
++++ b/compiler/passes/src/static_single_assignment/rename_expression.rs
+@@ -40,7 +40,6 @@ use leo_ast::{
+ use leo_span::{sym, Symbol};
+ 
+ use indexmap::IndexMap;
+-use std::borrow::Borrow;
+ 
+ impl ExpressionConsumer for StaticSingleAssigner<'_> {
+     type Output = (Expression, Vec<Statement>);
+@@ -212,7 +211,7 @@ impl ExpressionConsumer for StaticSingleAssigner<'_> {
+ 
+         // Lookup the struct definition.
+         // Note that type checking guarantees that the correct struct definition exists.
+-        let struct_definition: &Struct = self.symbol_table.borrow().lookup_struct(input.name.name).unwrap();
++        let struct_definition: &Struct = self.symbol_table.lookup_struct(input.name.name).unwrap();
+ 
+         // Initialize the list of reordered members.
+         let mut reordered_members = Vec::with_capacity(members.len());
+diff --git a/compiler/passes/src/type_checking/check_expressions.rs b/compiler/passes/src/type_checking/check_expressions.rs
+index 6f4c516d00..7d3ab9e075 100644
+--- a/compiler/passes/src/type_checking/check_expressions.rs
++++ b/compiler/passes/src/type_checking/check_expressions.rs
+@@ -520,16 +520,14 @@ impl<'a> ExpressionVisitor<'a> for TypeChecker<'a> {
+ 
+     fn visit_cast(&mut self, input: &'a CastExpression, expected: &Self::AdditionalInput) -> Self::Output {
+         // Check that the target type of the cast expression is a castable type.
+-        let target_type = Some(input.type_.clone());
+-        self.assert_castable_type(&target_type, input.span());
++        self.assert_castable_type(&Some(input.type_.clone()), input.span());
+ 
+         // Check that the expression type is a primitive type.
+         let expression_type = self.visit_expression(&input.expression, &None);
+         self.assert_castable_type(&expression_type, input.expression.span());
+ 
+         // Check that the expected type matches the target type.
+-        // Note that this unwrap is safe since target_type is always `Some`.
+-        Some(self.assert_and_return_type(target_type.unwrap(), expected, input.span()))
++        Some(self.assert_and_return_type(input.type_.clone(), expected, input.span()))
+     }
+ 
+     fn visit_struct_init(&mut self, input: &'a StructExpression, additional: &Self::AdditionalInput) -> Self::Output {

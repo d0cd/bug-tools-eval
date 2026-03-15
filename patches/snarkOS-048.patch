@@ -1,0 +1,60 @@
+diff --git a/node/bft/src/gateway.rs b/node/bft/src/gateway.rs
+index 0e404ff63..00cc6b96e 100644
+--- a/node/bft/src/gateway.rs
++++ b/node/bft/src/gateway.rs
+@@ -1085,6 +1085,11 @@ impl<N: Network> Disconnect for Gateway<N> {
+     async fn handle_disconnect(&self, peer_addr: SocketAddr) {
+         if let Some(peer_ip) = self.resolver.get_listener(peer_addr) {
+             self.remove_connected_peer(peer_ip);
++
++            // We don't clear this map based on time but only on peer disconnect.
++            // This is sufficient to avoid infinite growth as the committee has a fixed number
++            // of members.
++            self.cache.clear_outbound_validators_requests(peer_ip);
+         }
+     }
+ }
+diff --git a/node/bft/src/helpers/cache.rs b/node/bft/src/helpers/cache.rs
+index 7e6bafc0a..49301a01f 100644
+--- a/node/bft/src/helpers/cache.rs
++++ b/node/bft/src/helpers/cache.rs
+@@ -119,6 +119,11 @@ impl<N: Network> Cache<N> {
+     pub fn decrement_outbound_validators_requests(&self, peer_ip: SocketAddr) -> u32 {
+         Self::decrement_counter(&self.seen_outbound_validators_requests, peer_ip)
+     }
++
++    /// Clears the the IP's number of validator requests.
++    pub fn clear_outbound_validators_requests(&self, peer_ip: SocketAddr) {
++        self.seen_outbound_validators_requests.write().remove(&peer_ip);
++    }
+ }
+ 
+ impl<N: Network> Cache<N> {
+@@ -293,4 +298,27 @@ mod tests {
+        outbound_certificate,
+        outbound_transmission
+     }
++
++    #[test]
++    fn test_seen_outbound_validators_requests() {
++        let cache = Cache::<CurrentNetwork>::default();
++        let input = Input::input();
++
++        // Check the map is empty.
++        assert!(!cache.contains_outbound_validators_request(input));
++
++        // Insert some requests.
++        for _ in 0..3 {
++            cache.increment_outbound_validators_requests(input);
++            assert!(cache.contains_outbound_validators_request(input));
++        }
++
++        // Remove a request.
++        cache.decrement_outbound_validators_requests(input);
++        assert!(cache.contains_outbound_validators_request(input));
++
++        // Clear all requests.
++        cache.clear_outbound_validators_requests(input);
++        assert!(!cache.contains_outbound_validators_request(input));
++    }
+ }

@@ -1,0 +1,1716 @@
+diff --git a/asg/src/expression/circuit_access.rs b/asg/src/expression/circuit_access.rs
+index 1a80b3b9f6..4cbd5eae11 100644
+--- a/asg/src/expression/circuit_access.rs
++++ b/asg/src/expression/circuit_access.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::{
+     AsgConvertError,
+     Circuit,
+diff --git a/asg/tests/fail/address/mod.rs b/asg/tests/fail/address/mod.rs
+index 159dd9bf0d..0ee77207c6 100644
+--- a/asg/tests/fail/address/mod.rs
++++ b/asg/tests/fail/address/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/fail/array/mod.rs b/asg/tests/fail/array/mod.rs
+index 7e75a94039..1a9eaf4ae5 100644
+--- a/asg/tests/fail/array/mod.rs
++++ b/asg/tests/fail/array/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ // Expressions
+diff --git a/asg/tests/fail/boolean/mod.rs b/asg/tests/fail/boolean/mod.rs
+index 4f20d97b61..4712d5b89c 100644
+--- a/asg/tests/fail/boolean/mod.rs
++++ b/asg/tests/fail/boolean/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/fail/circuits/mod.rs b/asg/tests/fail/circuits/mod.rs
+index a1f8a10f0b..f88d9ec42d 100644
+--- a/asg/tests/fail/circuits/mod.rs
++++ b/asg/tests/fail/circuits/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ // Expressions
+diff --git a/asg/tests/fail/console/mod.rs b/asg/tests/fail/console/mod.rs
+index 04266ef925..9f967460f3 100644
+--- a/asg/tests/fail/console/mod.rs
++++ b/asg/tests/fail/console/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/fail/core/mod.rs b/asg/tests/fail/core/mod.rs
+index 323ffe37d5..00ee4ad03a 100644
+--- a/asg/tests/fail/core/mod.rs
++++ b/asg/tests/fail/core/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/fail/definition/mod.rs b/asg/tests/fail/definition/mod.rs
+index 2491ffe4b0..ff53f73aae 100644
+--- a/asg/tests/fail/definition/mod.rs
++++ b/asg/tests/fail/definition/mod.rs
+@@ -13,19 +13,3 @@
+ 
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+diff --git a/asg/tests/fail/field/mod.rs b/asg/tests/fail/field/mod.rs
+index 2491ffe4b0..ff53f73aae 100644
+--- a/asg/tests/fail/field/mod.rs
++++ b/asg/tests/fail/field/mod.rs
+@@ -13,19 +13,3 @@
+ 
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+diff --git a/asg/tests/fail/function/mod.rs b/asg/tests/fail/function/mod.rs
+index 40f0119183..07d80c4a1f 100644
+--- a/asg/tests/fail/function/mod.rs
++++ b/asg/tests/fail/function/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/fail/group/mod.rs b/asg/tests/fail/group/mod.rs
+index a7f66eb128..01a3059bde 100644
+--- a/asg/tests/fail/group/mod.rs
++++ b/asg/tests/fail/group/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/fail/import/mod.rs b/asg/tests/fail/import/mod.rs
+index 2491ffe4b0..ff53f73aae 100644
+--- a/asg/tests/fail/import/mod.rs
++++ b/asg/tests/fail/import/mod.rs
+@@ -13,19 +13,3 @@
+ 
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+diff --git a/asg/tests/fail/integers/i128/mod.rs b/asg/tests/fail/integers/i128/mod.rs
+index 33133bf33f..c6fe80d4f9 100644
+--- a/asg/tests/fail/integers/i128/mod.rs
++++ b/asg/tests/fail/integers/i128/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_int!(TestI128);
+diff --git a/asg/tests/fail/integers/i16/mod.rs b/asg/tests/fail/integers/i16/mod.rs
+index 1d5d215911..fd0d2bee1f 100644
+--- a/asg/tests/fail/integers/i16/mod.rs
++++ b/asg/tests/fail/integers/i16/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_int!(TestI16);
+diff --git a/asg/tests/fail/integers/i32/mod.rs b/asg/tests/fail/integers/i32/mod.rs
+index 64f7110c6e..37b6b714dd 100644
+--- a/asg/tests/fail/integers/i32/mod.rs
++++ b/asg/tests/fail/integers/i32/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_int!(TestI32);
+diff --git a/asg/tests/fail/integers/i64/mod.rs b/asg/tests/fail/integers/i64/mod.rs
+index 4b7678d91a..4ea12a11df 100644
+--- a/asg/tests/fail/integers/i64/mod.rs
++++ b/asg/tests/fail/integers/i64/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_int!(TestI64);
+diff --git a/asg/tests/fail/integers/i8/mod.rs b/asg/tests/fail/integers/i8/mod.rs
+index 47e03e410d..245d20a169 100644
+--- a/asg/tests/fail/integers/i8/mod.rs
++++ b/asg/tests/fail/integers/i8/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_int!(TestI8);
+diff --git a/asg/tests/fail/integers/int_macro.rs b/asg/tests/fail/integers/int_macro.rs
+index 430ed938e4..cd06cba948 100644
+--- a/asg/tests/fail/integers/int_macro.rs
++++ b/asg/tests/fail/integers/int_macro.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ macro_rules! test_int {
+     ($name: ident) => {
+         pub struct $name {}
+diff --git a/asg/tests/fail/integers/integer_tester.rs b/asg/tests/fail/integers/integer_tester.rs
+index db76fcea36..ca6ead5f72 100644
+--- a/asg/tests/fail/integers/integer_tester.rs
++++ b/asg/tests/fail/integers/integer_tester.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ pub trait IntegerTester {
+     /// Tests defining the smallest value - 1
+     fn test_min_fail();
+diff --git a/asg/tests/fail/integers/mod.rs b/asg/tests/fail/integers/mod.rs
+index 6195351f1c..0cfd4f643c 100644
+--- a/asg/tests/fail/integers/mod.rs
++++ b/asg/tests/fail/integers/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ #[macro_use]
+ pub mod int_macro;
+ 
+diff --git a/asg/tests/fail/integers/u128/mod.rs b/asg/tests/fail/integers/u128/mod.rs
+index dbd33d57fd..3fe52ea09d 100644
+--- a/asg/tests/fail/integers/u128/mod.rs
++++ b/asg/tests/fail/integers/u128/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_uint!(TestU128);
+diff --git a/asg/tests/fail/integers/u16/mod.rs b/asg/tests/fail/integers/u16/mod.rs
+index 18bd1424fd..f2def8f598 100644
+--- a/asg/tests/fail/integers/u16/mod.rs
++++ b/asg/tests/fail/integers/u16/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_uint!(TestU16);
+diff --git a/asg/tests/fail/integers/u32/mod.rs b/asg/tests/fail/integers/u32/mod.rs
+index 49cc232815..967257bd52 100644
+--- a/asg/tests/fail/integers/u32/mod.rs
++++ b/asg/tests/fail/integers/u32/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_uint!(TestU32);
+diff --git a/asg/tests/fail/integers/u64/mod.rs b/asg/tests/fail/integers/u64/mod.rs
+index 0af81e075b..6705c17392 100644
+--- a/asg/tests/fail/integers/u64/mod.rs
++++ b/asg/tests/fail/integers/u64/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_uint!(TestU64);
+diff --git a/asg/tests/fail/integers/u8/mod.rs b/asg/tests/fail/integers/u8/mod.rs
+index cd876caa89..14ea74d5f9 100644
+--- a/asg/tests/fail/integers/u8/mod.rs
++++ b/asg/tests/fail/integers/u8/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_uint!(TestU8);
+diff --git a/asg/tests/fail/integers/uint_macro.rs b/asg/tests/fail/integers/uint_macro.rs
+index 5aa251aabf..6b718dbeda 100644
+--- a/asg/tests/fail/integers/uint_macro.rs
++++ b/asg/tests/fail/integers/uint_macro.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ macro_rules! test_uint {
+     ($name: ident) => {
+         pub struct $name {}
+diff --git a/asg/tests/fail/mod.rs b/asg/tests/fail/mod.rs
+index dd8ca1943e..9807db3177 100644
+--- a/asg/tests/fail/mod.rs
++++ b/asg/tests/fail/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ pub mod address;
+ pub mod array;
+ pub mod boolean;
+diff --git a/asg/tests/fail/mutability/mod.rs b/asg/tests/fail/mutability/mod.rs
+index 14cf69ae1e..84b481b9f3 100644
+--- a/asg/tests/fail/mutability/mod.rs
++++ b/asg/tests/fail/mutability/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/fail/statements/mod.rs b/asg/tests/fail/statements/mod.rs
+index ada1007318..42ba3243ad 100644
+--- a/asg/tests/fail/statements/mod.rs
++++ b/asg/tests/fail/statements/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/fail/tuples/mod.rs b/asg/tests/fail/tuples/mod.rs
+index 2491ffe4b0..ff53f73aae 100644
+--- a/asg/tests/fail/tuples/mod.rs
++++ b/asg/tests/fail/tuples/mod.rs
+@@ -13,19 +13,3 @@
+ 
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+diff --git a/asg/tests/pass/address/mod.rs b/asg/tests/pass/address/mod.rs
+index e55ebc5d71..7cd18d57a2 100644
+--- a/asg/tests/pass/address/mod.rs
++++ b/asg/tests/pass/address/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/array/mod.rs b/asg/tests/pass/array/mod.rs
+index 04f6532d07..bca1da1a97 100644
+--- a/asg/tests/pass/array/mod.rs
++++ b/asg/tests/pass/array/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ // Registers
+diff --git a/asg/tests/pass/boolean/mod.rs b/asg/tests/pass/boolean/mod.rs
+index ef8c03dcd1..64f9172507 100644
+--- a/asg/tests/pass/boolean/mod.rs
++++ b/asg/tests/pass/boolean/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/circuits/mod.rs b/asg/tests/pass/circuits/mod.rs
+index 4b1fae898c..2f0c433e9f 100644
+--- a/asg/tests/pass/circuits/mod.rs
++++ b/asg/tests/pass/circuits/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ // Expressions
+diff --git a/asg/tests/pass/console/mod.rs b/asg/tests/pass/console/mod.rs
+index 876359c0dd..4f1a243012 100644
+--- a/asg/tests/pass/console/mod.rs
++++ b/asg/tests/pass/console/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/core/mod.rs b/asg/tests/pass/core/mod.rs
+index 05564fbe84..69d528d54c 100644
+--- a/asg/tests/pass/core/mod.rs
++++ b/asg/tests/pass/core/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/definition/mod.rs b/asg/tests/pass/definition/mod.rs
+index 7768810196..921dc3e16d 100644
+--- a/asg/tests/pass/definition/mod.rs
++++ b/asg/tests/pass/definition/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/field/mod.rs b/asg/tests/pass/field/mod.rs
+index ba3107e2e4..56074af7a3 100644
+--- a/asg/tests/pass/field/mod.rs
++++ b/asg/tests/pass/field/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/function/mod.rs b/asg/tests/pass/function/mod.rs
+index 4e1af4f151..7965c39420 100644
+--- a/asg/tests/pass/function/mod.rs
++++ b/asg/tests/pass/function/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/group/mod.rs b/asg/tests/pass/group/mod.rs
+index cbe7aef3fa..74c24f5853 100644
+--- a/asg/tests/pass/group/mod.rs
++++ b/asg/tests/pass/group/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/import/mod.rs b/asg/tests/pass/import/mod.rs
+index 1dfa59be83..c7de7adadf 100644
+--- a/asg/tests/pass/import/mod.rs
++++ b/asg/tests/pass/import/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::{load_asg, load_asg_imports, mocked_resolver};
+ 
+ #[test]
+diff --git a/asg/tests/pass/input_files/mod.rs b/asg/tests/pass/input_files/mod.rs
+index d9d41ccf12..46817206d2 100644
+--- a/asg/tests/pass/input_files/mod.rs
++++ b/asg/tests/pass/input_files/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ mod program_input;
+ mod program_input_and_program_state;
+ mod program_state;
+diff --git a/asg/tests/pass/input_files/program_input/mod.rs b/asg/tests/pass/input_files/program_input/mod.rs
+index f8e68e13af..a223bd970e 100644
+--- a/asg/tests/pass/input_files/program_input/mod.rs
++++ b/asg/tests/pass/input_files/program_input/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/input_files/program_input_and_program_state/mod.rs b/asg/tests/pass/input_files/program_input_and_program_state/mod.rs
+index 2d1af96f2b..0df6849508 100644
+--- a/asg/tests/pass/input_files/program_input_and_program_state/mod.rs
++++ b/asg/tests/pass/input_files/program_input_and_program_state/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/input_files/program_state/mod.rs b/asg/tests/pass/input_files/program_state/mod.rs
+index 004345dc26..ce09adf28d 100644
+--- a/asg/tests/pass/input_files/program_state/mod.rs
++++ b/asg/tests/pass/input_files/program_state/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/integers/i128/mod.rs b/asg/tests/pass/integers/i128/mod.rs
+index a15de363f2..410e399df2 100644
+--- a/asg/tests/pass/integers/i128/mod.rs
++++ b/asg/tests/pass/integers/i128/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_int!(TestI128);
+diff --git a/asg/tests/pass/integers/i16/mod.rs b/asg/tests/pass/integers/i16/mod.rs
+index d27140edca..7da2ab7038 100644
+--- a/asg/tests/pass/integers/i16/mod.rs
++++ b/asg/tests/pass/integers/i16/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_int!(TestI16);
+diff --git a/asg/tests/pass/integers/i32/mod.rs b/asg/tests/pass/integers/i32/mod.rs
+index fd75e17ba2..e890904bb5 100644
+--- a/asg/tests/pass/integers/i32/mod.rs
++++ b/asg/tests/pass/integers/i32/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_int!(TestI32);
+diff --git a/asg/tests/pass/integers/i64/mod.rs b/asg/tests/pass/integers/i64/mod.rs
+index 00c64123ff..1446308045 100644
+--- a/asg/tests/pass/integers/i64/mod.rs
++++ b/asg/tests/pass/integers/i64/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_int!(TestI64);
+diff --git a/asg/tests/pass/integers/i8/mod.rs b/asg/tests/pass/integers/i8/mod.rs
+index 9f39f152fe..85402e7628 100644
+--- a/asg/tests/pass/integers/i8/mod.rs
++++ b/asg/tests/pass/integers/i8/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_int!(TestI8);
+diff --git a/asg/tests/pass/integers/int_macro.rs b/asg/tests/pass/integers/int_macro.rs
+index 4afdca8ecc..b9c7e7bc28 100644
+--- a/asg/tests/pass/integers/int_macro.rs
++++ b/asg/tests/pass/integers/int_macro.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ macro_rules! test_int {
+     ($name: ident) => {
+         pub struct $name {}
+diff --git a/asg/tests/pass/integers/integer_tester.rs b/asg/tests/pass/integers/integer_tester.rs
+index 00c72b5ce4..4eb177b42b 100644
+--- a/asg/tests/pass/integers/integer_tester.rs
++++ b/asg/tests/pass/integers/integer_tester.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ pub trait IntegerTester {
+     /// Tests defining the smalled value that can be represented by the integer type
+     fn test_min();
+diff --git a/asg/tests/pass/integers/mod.rs b/asg/tests/pass/integers/mod.rs
+index 6195351f1c..0cfd4f643c 100644
+--- a/asg/tests/pass/integers/mod.rs
++++ b/asg/tests/pass/integers/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ #[macro_use]
+ pub mod int_macro;
+ 
+diff --git a/asg/tests/pass/integers/u128/mod.rs b/asg/tests/pass/integers/u128/mod.rs
+index 8a6d0bd606..7de4918199 100644
+--- a/asg/tests/pass/integers/u128/mod.rs
++++ b/asg/tests/pass/integers/u128/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_uint!(TestU128);
+diff --git a/asg/tests/pass/integers/u16/mod.rs b/asg/tests/pass/integers/u16/mod.rs
+index bc83b5fa61..1544e09e00 100644
+--- a/asg/tests/pass/integers/u16/mod.rs
++++ b/asg/tests/pass/integers/u16/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_uint!(TestU16);
+diff --git a/asg/tests/pass/integers/u32/mod.rs b/asg/tests/pass/integers/u32/mod.rs
+index 8fdac0d9e5..0fe1d534db 100644
+--- a/asg/tests/pass/integers/u32/mod.rs
++++ b/asg/tests/pass/integers/u32/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_uint!(TestU32);
+diff --git a/asg/tests/pass/integers/u64/mod.rs b/asg/tests/pass/integers/u64/mod.rs
+index e97c784cdf..146aaa5415 100644
+--- a/asg/tests/pass/integers/u64/mod.rs
++++ b/asg/tests/pass/integers/u64/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_uint!(TestU64);
+diff --git a/asg/tests/pass/integers/u8/mod.rs b/asg/tests/pass/integers/u8/mod.rs
+index c1fee383e2..27fd40ed97 100644
+--- a/asg/tests/pass/integers/u8/mod.rs
++++ b/asg/tests/pass/integers/u8/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use super::IntegerTester;
+ 
+ test_uint!(TestU8);
+diff --git a/asg/tests/pass/integers/uint_macro.rs b/asg/tests/pass/integers/uint_macro.rs
+index 93b27faaa7..7d555f10e3 100644
+--- a/asg/tests/pass/integers/uint_macro.rs
++++ b/asg/tests/pass/integers/uint_macro.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ macro_rules! test_uint {
+     ($name: ident) => {
+         pub struct $name {}
+diff --git a/asg/tests/pass/mod.rs b/asg/tests/pass/mod.rs
+index 62e9004bf4..fea1f43ae6 100644
+--- a/asg/tests/pass/mod.rs
++++ b/asg/tests/pass/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ pub mod address;
+ pub mod array;
+ pub mod boolean;
+diff --git a/asg/tests/pass/mutability/mod.rs b/asg/tests/pass/mutability/mod.rs
+index 9d757c1085..6244be256f 100644
+--- a/asg/tests/pass/mutability/mod.rs
++++ b/asg/tests/pass/mutability/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/statements/conditional/mod.rs b/asg/tests/pass/statements/conditional/mod.rs
+index 35f54f4846..73a987bb94 100644
+--- a/asg/tests/pass/statements/conditional/mod.rs
++++ b/asg/tests/pass/statements/conditional/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]
+diff --git a/asg/tests/pass/statements/mod.rs b/asg/tests/pass/statements/mod.rs
+index 2874b5aa31..f6123b86db 100644
+--- a/asg/tests/pass/statements/mod.rs
++++ b/asg/tests/pass/statements/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ pub mod conditional;
+diff --git a/asg/tests/pass/tuples/mod.rs b/asg/tests/pass/tuples/mod.rs
+index 25949c41d7..19f5dc5267 100644
+--- a/asg/tests/pass/tuples/mod.rs
++++ b/asg/tests/pass/tuples/mod.rs
+@@ -14,22 +14,6 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-// Copyright (C) 2019-2021 Aleo Systems Inc.
+-// This file is part of the Leo library.
+-
+-// The Leo library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The Leo library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+-
+ use crate::load_asg;
+ 
+ #[test]

@@ -1,0 +1,14 @@
+diff --git a/circuit/environment/src/helpers/assignment.rs b/circuit/environment/src/helpers/assignment.rs
+index cecc345d5..1e28d98f2 100644
+--- a/circuit/environment/src/helpers/assignment.rs
++++ b/circuit/environment/src/helpers/assignment.rs
+@@ -55,7 +55,8 @@ impl<F: PrimeField> From<&crate::LinearCombination<F>> for AssignmentLC<F> {
+     }
+ }
+ 
+-/// A struct for tracking the mapping of variables from the virtual machine (first) to the gadget constraint system (second).
++/// A struct that contains public variable assignments, private variable assignments,
++/// and constraint assignments.
+ #[derive(Clone)]
+ pub struct Assignment<F: PrimeField> {
+     public: IndexMap<Index, F>,

@@ -1,0 +1,81 @@
+diff --git a/.circleci/config.yml b/.circleci/config.yml
+index 9999a47f7..e3ad750ba 100644
+--- a/.circleci/config.yml
++++ b/.circleci/config.yml
+@@ -705,15 +705,15 @@ jobs:
+           workspace_member: synthesizer
+           cache_key: v1.3.0-rust-1.83.0-snarkvm-synthesizer-test-cache
+ 
+-  synthesizer-mem-heavy:
+-    docker:
+-      - image: cimg/rust:1.83.0 # Attention - Change the MSRV in Cargo.toml and rust-toolchain as well
+-    resource_class: << pipeline.parameters.twoxlarge >>
+-    steps:
+-      - run_serial:
+-          flags: -- --ignored test_deployment_synthesis_overload test_deep_nested_execution_cost
+-          workspace_member: synthesizer
+-          cache_key: v1.3.0-rust-1.83.0-snarkvm-synthesizer-mem-heavy-cache
++  # synthesizer-mem-heavy:
++  #   docker:
++  #     - image: cimg/rust:1.83.0 # Attention - Change the MSRV in Cargo.toml and rust-toolchain as well
++  #   resource_class: << pipeline.parameters.twoxlarge >>
++  #   steps:
++  #     - run_serial:
++  #         flags: -- --ignored test_deployment_synthesis_overload test_deep_nested_execution_cost
++  #         workspace_member: synthesizer
++  #         cache_key: v1.3.0-rust-1.83.0-snarkvm-synthesizer-mem-heavy-cache
+ 
+   synthesizer-integration:
+     docker:
+@@ -1038,7 +1038,7 @@ workflows:
+       - parameters-uncached
+       - synthesizer
+       - synthesizer-test
+-      - synthesizer-mem-heavy
++      # - synthesizer-mem-heavy
+       - synthesizer-integration
+       - synthesizer-process
+       - synthesizer-process-with-rocksdb
+diff --git a/console/network/src/lib.rs b/console/network/src/lib.rs
+index 3ec73344c..77bf84051 100644
+--- a/console/network/src/lib.rs
++++ b/console/network/src/lib.rs
+@@ -138,9 +138,9 @@ pub trait Network:
+     /// The cost in microcredits per constraint for the deployment transaction.
+     const SYNTHESIS_FEE_MULTIPLIER: u64 = 25; // 25 microcredits per constraint
+     /// The maximum number of variables in a deployment.
+-    const MAX_DEPLOYMENT_VARIABLES: u64 = (1 << 20) + (1 << 19); // 1,572,864 variables
++    const MAX_DEPLOYMENT_VARIABLES: u64 = 1 << 21; // 2,097,152 variables
+     /// The maximum number of constraints in a deployment.
+-    const MAX_DEPLOYMENT_CONSTRAINTS: u64 = (1 << 20) + (1 << 19); // 1,572,864 constraints
++    const MAX_DEPLOYMENT_CONSTRAINTS: u64 = 1 << 21; // 2,097,152 constraints
+     /// The maximum number of microcredits that can be spent as a fee.
+     const MAX_FEE: u64 = 1_000_000_000_000_000;
+     /// The maximum number of microcredits that can be spent on a transaction's finalize scope.
+diff --git a/synthesizer/src/vm/mod.rs b/synthesizer/src/vm/mod.rs
+index 49466dbb4..d894a4476 100644
+--- a/synthesizer/src/vm/mod.rs
++++ b/synthesizer/src/vm/mod.rs
+@@ -1438,7 +1438,8 @@ program synthesis_overload.aleo;
+ function do:
+     input r0 as [[u128; 32u32]; 2u32].private;
+     hash.sha3_256 r0 into r1 as field;
+-    output r1 as field.public;",
++    hash.sha3_256 r0 into r2 as field;
++    output r2 as field.public;",
+         )
+         .unwrap();
+ 
+@@ -1472,8 +1473,10 @@ function do:
+     cast 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 into r0 as [u32; 32u32];
+     cast r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 into r1 as [[u32; 32u32]; 32u32];
+     cast r1 r1 r1 r1 r1 into r2 as [[[u32; 32u32]; 32u32]; 5u32];
+-    hash.bhp1024 r2 into r3 as u32;
+-    output r3 as u32.private;
++    cast r1 r1 r1 r1 r1 into r3 as [[[u32; 32u32]; 32u32]; 5u32];
++    hash.bhp1024 r2 into r4 as u32;
++    hash.bhp1024 r3 into r5 as u32;
++    output r4 as u32.private;
+ function do2:
+     cast 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 0u32 into r0 as [u32; 32u32];
+     cast r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 r0 into r1 as [[u32; 32u32]; 32u32];

@@ -1,0 +1,126 @@
+diff --git a/.ci/bench_bft_sync.sh b/.ci/bench_bft_sync.sh
+index 4c94372ed..062f41a78 100755
+--- a/.ci/bench_bft_sync.sh
++++ b/.ci/bench_bft_sync.sh
+@@ -95,7 +95,11 @@ echo "ℹ️ Nodes are fully connected (took $connect_time secs). Starting block
+ # Check heights periodically with a timeout
+ SECONDS=0
+ while (( SECONDS < max_wait )); do
+-  if check_heights 1 $((num_nodes+1)) $min_height "$network_name" "$SECONDS"; then
++  # The last block cannot be fully applied to the ledger yet as there is no next block to confirm it.
++  # However, we know that the sync height of a node is always at least one more than the ledger height.
++  expected_height=$((min_height-1))
++  
++  if check_heights 1 $((num_nodes+1)) $expected_height "$network_name" "$SECONDS"; then
+     total_wait=$SECONDS
+     throughput=$(compute_throughput "$min_height" "$total_wait")
+ 
+diff --git a/.ci/bench_rest_api.sh b/.ci/bench_rest_api.sh
+index b6c90512c..97358e79d 100755
+--- a/.ci/bench_rest_api.sh
++++ b/.ci/bench_rest_api.sh
+@@ -36,7 +36,7 @@ trap child_exit_handler CHLD
+ # Define a trap handler that prints a message when an error occurs.
+ trap 'echo "⛔️ Error in $BASH_SOURCE at line $LINENO: \"$BASH_COMMAND\" failed (exit $?)"' ERR
+ 
+-# Shared flags betwen all nodes
++# Shared flags between all nodes
+ common_flags=(
+   --nodisplay --nobanner --noupdater # reduce clutter in the output
+   "--log-filter=$log_filter" # only show the logs we care about
+diff --git a/.ci/rest_api_helper.py b/.ci/rest_api_helper.py
+index d0f69d6c7..8fa9ca0ec 100755
+--- a/.ci/rest_api_helper.py
++++ b/.ci/rest_api_helper.py
+@@ -42,7 +42,7 @@ async def make_request(session, worker_id, mode):
+     """Make a single async request to the block endpoint"""
+ 
+     if mode == "get-block":
+-        block_id = random.randint(MIN_BLOCK, MAX_BLOCK+1)
++        block_id = random.randint(MIN_BLOCK, MAX_BLOCK)
+         url = f"{GET_BLOCK_BASE_URL}/{block_id}"
+     elif mode == "block-height":
+         url = BLOCK_HEIGHT_URL
+diff --git a/.ci/utils.sh b/.ci/utils.sh
+index bf9b7fc73..8f723d468 100644
+--- a/.ci/utils.sh
++++ b/.ci/utils.sh
+@@ -15,7 +15,7 @@ node_stopped=false
+ # NOTE: when you update this, update TASKSET1/2 as well.
+ CORES_PER_NODE=8
+ 
+-# Tasksets to pin processes to specfic CPUs.
++# Tasksets to pin processes to specific CPUs.
+ # This is a no-op on MacOS.
+ if [[ "$(uname)" == "Darwin" ]]; then
+   TASKSET1=""
+diff --git a/.circleci/config.yml b/.circleci/config.yml
+index d924f44de..f728ef6aa 100644
+--- a/.circleci/config.yml
++++ b/.circleci/config.yml
+@@ -34,17 +34,22 @@ commands:
+       - restore_cache:
+           key: cargo-cache-{{ arch }}-{{ checksum "Cargo.lock" }}
+       - run:
+-          name: "Install Rust and run cargo check"
++          name: "Install Rust"
++          timeout: 10m
+           command: |
+             $ProgressPreference = "SilentlyContinue"
+-            # Remove the circleci installed rustc.
+-            choco uninstall rust
++            # Remove the version of rustc that (might be) installed already..
++            # Use non-interactive mode and force uninstall to prevent the job from getting stuck.
++            choco uninstall rust -y --force
+             # Install llvm (libclang for rocksdb).
+-            choco install llvm -y 
++            choco install llvm -y
+             refreshenv
++
+             # Install rust with rustup.
+             Invoke-WebRequest -Uri "https://win.rustup.rs/" -OutFile "C:\rustup-init.exe"
+-            & C:\rustup-init.exe -y --default-toolchain "1.83.0-x86_64-pc-windows-msvc" --no-modify-path --profile minimal # Attention - Change the MSRV in Cargo.toml and rust-toolchain as well
++            & C:\rustup-init.exe -y --default-toolchain "1.88.0-x86_64-pc-windows-msvc" --no-modify-path --profile minimal # Attention - Change the MSRV in Cargo.toml and rust-toolchain as well
++
++            # Add cargo to PATH
+             $Env:Path += ";$Env:USERPROFILE\.cargo\bin"
+             # Verify the installation.
+             cargo --version --verbose
+@@ -52,6 +57,12 @@ commands:
+             if (!(Test-Path "Cargo.lock" -PathType Leaf)) {
+                 cargo generate-lockfile
+             }
++      - run:
++          name: "Run cargo check"
++          command: |
++            # Add cargo to PATH
++            $Env:Path += ";$Env:USERPROFILE\.cargo\bin"
++            # Check that the given package compiles
+             cd << parameters.workspace_member >>
+             cargo check --examples --benches --tests
+       - save_cache:
+diff --git a/.github/workflows/benchmarks.yml b/.github/workflows/benchmarks.yml
+index 3e3eebd12..5d4711879 100644
+--- a/.github/workflows/benchmarks.yml
++++ b/.github/workflows/benchmarks.yml
+@@ -51,7 +51,8 @@ jobs:
+         run: |
+           gcloud config set project protocol-development-sandbox
+           # Created with `.ci/generate_ledger.sh 40 250 1`
+-          gcloud storage cp gs://ci_testdata/sync-ledger-val40-250.zip ledger.zip
++          # NOTE: This needs to be updated when the consensus version changes.
++          gcloud storage cp gs://ci_testdata/sync-ledger-val40-250-9ec2291c57.zip ledger.zip
+           unzip ledger.zip
+  
+       - name: Install snarkOS (test_network)
+@@ -116,7 +117,9 @@ jobs:
+           fail-on-alert: false
+           github-token: ${{ secrets.GITHUB_TOKEN }}
+           # Use generic JSON format
+-          tool: 'customSmallerIsBetter'
++          # Note: there is no way to set smallerIsBetter for individual benchmarks right now,
++          # but for all, except the sync variance, bigger is indeed better.
++          tool: 'customBiggerIsBetter'
+           output-file-path: results.json
+           alert-comment-cc-users: '@kaimast'
+           # Only push the results on staging (see below)

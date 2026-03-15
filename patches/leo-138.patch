@@ -1,0 +1,106 @@
+diff --git a/asg/src/error/mod.rs b/asg/src/error/mod.rs
+index f3d9533ffa..fd045ff26d 100644
+--- a/asg/src/error/mod.rs
++++ b/asg/src/error/mod.rs
+@@ -192,6 +192,13 @@ impl AsgConvertError {
+         )
+     }
+ 
++    pub fn duplicate_variable_definition(name: &str, span: &Span) -> Self {
++        Self::new_from_span(
++            format!("a variable named \"{}\" already exists in this scope", name),
++            span,
++        )
++    }
++
+     pub fn index_into_non_tuple(name: &str, span: &Span) -> Self {
+         Self::new_from_span(format!("failed to index into non-tuple '{}'", name), span)
+     }
+diff --git a/asg/src/statement/definition.rs b/asg/src/statement/definition.rs
+index 4e2ce3cd83..f340052409 100644
+--- a/asg/src/statement/definition.rs
++++ b/asg/src/statement/definition.rs
+@@ -130,10 +130,16 @@ impl<'a> FromAst<'a, leo_ast::DefinitionStatement> for &'a Statement<'a> {
+         }
+ 
+         for variable in variables.iter() {
+-            scope
+-                .variables
+-                .borrow_mut()
+-                .insert(variable.borrow().name.name.to_string(), *variable);
++            let mut variables = scope.variables.borrow_mut();
++            let var_name = variable.borrow().name.name.to_string();
++            if variables.contains_key(&var_name) {
++                return Err(AsgConvertError::duplicate_variable_definition(
++                    &var_name,
++                    &statement.span,
++                ));
++            }
++
++            variables.insert(var_name, *variable);
+         }
+ 
+         let statement = scope
+diff --git a/grammar/FORMAT_ABNF_GRAMMAR.md b/grammar/FORMAT_ABNF_GRAMMAR.md
+index cc88f9fda1..e1283d1b8e 100644
+Binary files a/grammar/FORMAT_ABNF_GRAMMAR.md and b/grammar/FORMAT_ABNF_GRAMMAR.md differ
+diff --git a/tests/compiler/function/duplicate_definition_fail.leo b/tests/compiler/function/duplicate_definition_fail.leo
+index b3f2eb8a7b..2909fae2b1 100644
+--- a/tests/compiler/function/duplicate_definition_fail.leo
++++ b/tests/compiler/function/duplicate_definition_fail.leo
+@@ -1,11 +1,13 @@
+ /*
+ namespace: Compile
+ expectation: Fail
++input_file: input/integers.in
+ */
+ 
+ 
+-function main() {
+-    console.log("{}", 1u8);  
++function main(a: u32) -> u32 {
++    console.log("{}", 1u8);
++    return 10u32; 
+ }
+ 
+ function main() {
+diff --git a/tests/compiler/statements/duplicate_variable.leo b/tests/compiler/statements/duplicate_variable.leo
+new file mode 100644
+index 0000000000..3271a58d7a
+--- /dev/null
++++ b/tests/compiler/statements/duplicate_variable.leo
+@@ -0,0 +1,12 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file: inputs/dummy.in
++*/
++
++function main(k: bool) -> bool {
++	let x = 1u8;
++  let x = true;
++	
++	return k == true;
++}
+\ No newline at end of file
+diff --git a/tests/expectations/compiler/compiler/function/duplicate_definition_fail.leo.out b/tests/expectations/compiler/compiler/function/duplicate_definition_fail.leo.out
+index 3b1bf075b9..7b1e418ef4 100644
+--- a/tests/expectations/compiler/compiler/function/duplicate_definition_fail.leo.out
++++ b/tests/expectations/compiler/compiler/function/duplicate_definition_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "    --> compiler-test:8:1\n     |\n   8 | function main() {\n   9 | ...\n  10 | }\n     | ^\n     |\n     = a function named \"main\" already exists in this scope"
++  - "    --> compiler-test:6:12\n     |\n   6 |     return 10u32; \n     |            ^^^^^\n     |\n     = unexpected type, expected: '()', received: 'u32'"
+diff --git a/tests/expectations/compiler/compiler/statements/duplicate_variable.leo.out b/tests/expectations/compiler/compiler/statements/duplicate_variable.leo.out
+new file mode 100644
+index 0000000000..a313c9602a
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/statements/duplicate_variable.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "    --> compiler-test:5:3\n     |\n   5 |   let x = true;\n     |   ^^^^^^^^^^^^\n     |\n     = a variable named \"x\" already exists in this scope"

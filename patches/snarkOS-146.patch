@@ -1,0 +1,180 @@
+diff --git a/consensus/src/consensus.rs b/consensus/src/consensus.rs
+index 152c7b598..96dd97cf1 100644
+--- a/consensus/src/consensus.rs
++++ b/consensus/src/consensus.rs
+@@ -323,7 +323,7 @@ impl ConsensusParameters {
+                 }
+                 BlockPath::SideChain(side_chain_path) => {
+                     debug!(
+-                        "Processing a block that is on side chain - length: {}",
++                        "Processing a block that is on side chain - length {}",
+                         side_chain_path.new_block_number
+                     );
+ 
+diff --git a/network/src/context/handshakes.rs b/network/src/context/handshakes.rs
+index 63f69bc2b..212e6d402 100644
+--- a/network/src/context/handshakes.rs
++++ b/network/src/context/handshakes.rs
+@@ -62,7 +62,7 @@ impl Handshakes {
+     ///     1. Create a new handshake.
+     ///     2. Send a handshake response.
+     ///     3. If the response is sent successfully, store the handshake.
+-    ///     4. Return the handshake and your address as seen by sender.
++    ///     4. Return the handshake, your address as seen by sender, and the version message.
+     /// If the message is a Verack:
+     ///     1. Get the existing handshake.
+     ///     2. Mark the handshake as accepted.
+@@ -75,7 +75,7 @@ impl Handshakes {
+         local_address: SocketAddr,
+         peer_address: SocketAddr,
+         reader: TcpStream,
+-    ) -> Result<(Handshake, SocketAddr), HandshakeError> {
++    ) -> Result<(Handshake, SocketAddr, Option<Version>), HandshakeError> {
+         let channel = Channel::new_read_only(reader)?;
+ 
+         // Read the first message or error
+@@ -89,15 +89,22 @@ impl Handshakes {
+             // Peer address and specified port from the version message
+             let peer_address = SocketAddr::new(peer_address.ip(), peer_message.address_sender.port());
+ 
+-            let handshake =
+-                Handshake::receive_new(version, height, channel, peer_message, local_address, peer_address).await?;
++            let handshake = Handshake::receive_new(
++                version,
++                height,
++                channel,
++                peer_message.clone(),
++                local_address,
++                peer_address,
++            )
++            .await?;
+ 
+             self.addresses.insert(peer_address, handshake.clone());
+ 
+-            Ok((handshake, receiver))
++            Ok((handshake, receiver, Some(peer_message)))
+         } else if Verack::name() == name {
+             let peer_message = Verack::deserialize(bytes)?;
+-            let peer_address = SocketAddr::new(peer_address.ip(), peer_message.address_sender.port());
++            let peer_address = peer_message.address_sender;
+             let receiver = peer_message.address_receiver;
+ 
+             match self.get_mut(&peer_address) {
+@@ -109,7 +116,7 @@ impl Handshakes {
+                     // Get our new peer's peer_list
+                     handshake.channel.write(&GetPeers).await?;
+ 
+-                    Ok((handshake.clone(), receiver))
++                    Ok((handshake.clone(), receiver, None))
+                 }
+                 None => Err(HandshakeError::HandshakeMissing(peer_address)),
+             }
+@@ -232,7 +239,7 @@ mod tests {
+         // 4. Peer sends server_handshake response, peer_handshake request
+ 
+         let mut peer_handshakes = Handshakes::new();
+-        let (peer_hand, _) = peer_handshakes
++        let (peer_hand, _, _) = peer_handshakes
+             .receive_any(1u64, 0u32, peer_address, server_address, reader)
+             .await
+             .unwrap();
+diff --git a/network/src/server/message_handler.rs b/network/src/server/message_handler.rs
+index 49e103525..8d9a05812 100644
+--- a/network/src/server/message_handler.rs
++++ b/network/src/server/message_handler.rs
+@@ -33,7 +33,7 @@ use snarkos_utilities::{
+ };
+ 
+ use chrono::Utc;
+-use std::sync::Arc;
++use std::{net::SocketAddr, sync::Arc};
+ 
+ impl Server {
+     /// This method handles all messages sent from connected peers.
+@@ -370,7 +370,8 @@ impl Server {
+     /// This method may seem redundant to handshake protocol functions but a peer can send additional
+     /// Version messages if they want to update their ip address/port or want to share their chain height.
+     async fn receive_version(&mut self, message: Version, channel: Arc<Channel>) -> Result<Arc<Channel>, ServerError> {
+-        let peer_address = channel.address;
++        let peer_address = SocketAddr::new(channel.address.ip(), message.address_sender.port());
++
+         let peer_book = &mut self.context.peer_book.read().await;
+ 
+         if peer_book.connected_total() < self.context.max_peers
+diff --git a/network/src/server/server.rs b/network/src/server/server.rs
+index 7c5069d2b..d63f47079 100644
+--- a/network/src/server/server.rs
++++ b/network/src/server/server.rs
+@@ -17,6 +17,7 @@
+ use crate::{
+     context::Context,
+     message::{Channel, MessageName},
++    message_types::GetSync,
+     protocol::*,
+ };
+ use snarkos_consensus::{ConsensusParameters, MemoryPool, MerkleTreeLedger};
+@@ -245,6 +246,7 @@ impl Server {
+         let sender = self.sender.clone();
+         let storage = self.storage.clone();
+         let context = self.context.clone();
++        let sync_handler_lock = self.sync_handler_lock.clone();
+ 
+         // 2. Spawn a new thread to handle new connections.
+         task::spawn(async move {
+@@ -275,7 +277,7 @@ impl Server {
+                     let local_address = context.local_address.read().await.clone();
+ 
+                     // Follow handshake protocol and drop peer connection if unsuccessful.
+-                    if let Ok((handshake, receiver_address)) = context
++                    if let Ok((handshake, receiver_address, version_message)) = context
+                         .handshakes
+                         .write()
+                         .await
+@@ -298,6 +300,26 @@ impl Server {
+ 
+                         context.connections.write().await.store_channel(&handshake.channel);
+ 
++                        if let Some(version) = version_message {
++                            // If our peer has a longer chain, send a sync message
++                            if version.height > storage.get_latest_block_height() {
++                                // Update the sync node if the sync_handler is Idle
++                                if let Ok(mut sync_handler) = sync_handler_lock.try_lock() {
++                                    if !sync_handler.is_syncing() {
++                                        sync_handler.sync_node = handshake.channel.address;
++
++                                        if let Ok(block_locator_hashes) = storage.get_block_locator_hashes() {
++                                            handshake
++                                                .channel
++                                                .write(&GetSync::new(block_locator_hashes))
++                                                .await
++                                                .unwrap();
++                                        }
++                                    }
++                                }
++                            }
++                        }
++
+                         // Inner loop spawns one thread per connection to read messages
+                         Self::spawn_connection_thread(handshake.channel.clone(), sender.clone());
+                     }
+diff --git a/network/tests/server_listen.rs b/network/tests/server_listen.rs
+index 9f032b56c..4396cc85c 100644
+--- a/network/tests/server_listen.rs
++++ b/network/tests/server_listen.rs
+@@ -110,7 +110,6 @@ mod server_listen {
+ 
+     #[test]
+     #[serial]
+-    #[ignore] // TODO (howardwu): channel.address does not match message.address_sender.
+     fn startup_handshake_bootnode() {
+         let storage = Arc::new(FIXTURE_VK.ledger());
+         let path = storage.storage.db.path().to_owned();
+@@ -144,7 +143,7 @@ mod server_listen {
+             // 4. Send handshake response from bootnode to server
+ 
+             let mut bootnode_handshakes = Handshakes::new();
+-            let (mut bootnode_hand, _) = bootnode_handshakes
++            let (mut bootnode_hand, _, _) = bootnode_handshakes
+                 .receive_any(1u64, 1u32, bootnode_address, server_address, reader)
+                 .await
+                 .unwrap();

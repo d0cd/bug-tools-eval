@@ -1,0 +1,64 @@
+diff --git a/node/bft/src/gateway.rs b/node/bft/src/gateway.rs
+index 6f76bee6c..8e5128c28 100644
+--- a/node/bft/src/gateway.rs
++++ b/node/bft/src/gateway.rs
+@@ -1120,7 +1120,7 @@ impl<N: Network> Transport<N> for Gateway<N> {
+             Event::BlockRequest(request) => {
+                 // Insert the outbound request so we can match it to responses.
+                 self.cache.insert_outbound_block_request(peer_ip, request);
+-                // Send the event to the peer and updatet the outbound event cache, use the general rate limit.
++                // Send the event to the peer and update the outbound event cache, use the general rate limit.
+                 send!(self, insert_outbound_event, CACHE_EVENTS_INTERVAL, max_cache_events)
+             }
+             _ => {
+diff --git a/node/router/src/heartbeat.rs b/node/router/src/heartbeat.rs
+index 30f30df30..cc039be70 100644
+--- a/node/router/src/heartbeat.rs
++++ b/node/router/src/heartbeat.rs
+@@ -105,12 +105,12 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
+         }
+     }
+ 
+-    /// Returns a sorted vector of network addresess of all removable connected peers
+-    /// where the first entry has the lowest priority andthe last one the highest.
++    /// Returns a sorted vector of network addresses of all removable connected peers
++    /// where the first entry has the lowest priority and the last one the highest.
+     ///
+     /// Rules:
+     ///     - Trusted peers and bootstrap nodes are not removable.
+-    ///     - Peers that we are currently syncing with are not remeovable.
++    ///     - Peers that we are currently syncing with are not removable.
+     ///     - Validators are considered higher priority than provers or clients.
+     ///     - Connections that have not been seen in a while are considered lower priority.
+     fn get_removable_peers(&self) -> Vec<Peer<N>> {
+@@ -128,7 +128,7 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
+         let mut peers = self.router().get_connected_peers();
+         peers.sort_by_key(|peer| (peer.is_validator(), peer.last_seen()));
+ 
+-        // Deterimine which of the peers can be removed.
++        // Determine which of the peers can be removed.
+         peers
+             .into_iter()
+             .filter(|peer| {
+@@ -214,7 +214,7 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
+             let peers_to_disconnect = self
+                 .get_removable_peers()
+                 .into_iter()
+-                .filter(|peer| !peer.is_prover()) // remove provers as those are handled seperately
++                .filter(|peer| !peer.is_prover()) // remove provers as those are handled separately
+                 .map(|p| p.ip())
+                 .take(num_surplus_clients_validators);
+ 
+diff --git a/node/router/src/lib.rs b/node/router/src/lib.rs
+index a312b2f2a..f17c1149e 100644
+--- a/node/router/src/lib.rs
++++ b/node/router/src/lib.rs
+@@ -525,7 +525,7 @@ impl<N: Network> Router<N> {
+                 return;
+             }
+             None => {
+-                warn!("Couldn't promote {peer_ip} from \"connecting\" to \"connected\": Public/listen address unkown");
++                warn!("Couldn't promote {peer_ip} from \"connecting\" to \"connected\": Public/listen address unknown");
+                 return;
+             }
+         };

@@ -1,0 +1,87 @@
+diff --git a/compiler/passes/src/common/symbol_table/mod.rs b/compiler/passes/src/common/symbol_table/mod.rs
+index f54ec93cb7..bd1bcd995f 100644
+--- a/compiler/passes/src/common/symbol_table/mod.rs
++++ b/compiler/passes/src/common/symbol_table/mod.rs
+@@ -162,7 +162,7 @@ impl SymbolTable {
+         self.local = Some(new_local_table);
+     }
+ 
+-    /// Enther the parent scope of the current scope (or the global scope if there is no local parent scope).
++    /// Enter the parent scope of the current scope (or the global scope if there is no local parent scope).
+     pub fn enter_parent(&mut self) {
+         let parent: Option<NodeID> = self.local.as_ref().and_then(|table| table.inner.borrow().parent);
+         self.local = parent.map(|id| self.all_locals.get(&id).expect("Parent should exist.")).cloned();
+diff --git a/compiler/passes/src/const_propagation/expression.rs b/compiler/passes/src/const_propagation/expression.rs
+index 6c22272585..6bdf3a3dbe 100644
+--- a/compiler/passes/src/const_propagation/expression.rs
++++ b/compiler/passes/src/const_propagation/expression.rs
+@@ -139,7 +139,7 @@ impl ExpressionReconstructor for ConstPropagationVisitor<'_> {
+                 Value::I32(x) => x.try_into().unwrap_or(len),
+                 Value::I64(x) => x.try_into().unwrap_or(len),
+                 Value::I128(x) => x.try_into().unwrap_or(len),
+-                _ => panic!("Type checking guarantees this is an intger"),
++                _ => panic!("Type checking guarantees this is an integer"),
+             };
+ 
+             if index >= len {
+diff --git a/compiler/passes/src/const_propagation/visitor.rs b/compiler/passes/src/const_propagation/visitor.rs
+index 93d0630d85..f179c97aeb 100644
+--- a/compiler/passes/src/const_propagation/visitor.rs
++++ b/compiler/passes/src/const_propagation/visitor.rs
+@@ -36,7 +36,7 @@ pub struct ConstPropagationVisitor<'a> {
+     pub state: &'a mut CompilerState,
+     /// The program name.
+     pub program: Symbol,
+-    /// Have we actually modified the progam at all?
++    /// Have we actually modified the program at all?
+     pub changed: bool,
+     /// The RHS of a const declaration we were not able to evaluate.
+     pub const_not_evaluated: Option<Span>,
+diff --git a/compiler/passes/src/flattening/mod.rs b/compiler/passes/src/flattening/mod.rs
+index a112770281..da1d2e14a0 100644
+--- a/compiler/passes/src/flattening/mod.rs
++++ b/compiler/passes/src/flattening/mod.rs
+@@ -18,7 +18,7 @@
+ //! The pass flattens `ConditionalStatement`s into a sequence of `AssignStatement`s.
+ //! The pass rewrites `ReturnStatement`s into `AssignStatement`s and consolidates the returned values as a single `ReturnStatement` at the end of the function.
+ //! The pass rewrites ternary expressions over composite data types, into ternary expressions over the individual fields of the composite data type, followed by an expression constructing the composite data type.
+-//! Note that this transformation is not applied to async functioins.
++//! Note that this transformation is not applied to async functions.
+ //!
+ //! Consider the following Leo code, output by the SSA pass.
+ //! ```leo
+diff --git a/compiler/passes/src/type_checking/expression.rs b/compiler/passes/src/type_checking/expression.rs
+index 4cb8c3fb42..ae369b3e28 100644
+--- a/compiler/passes/src/type_checking/expression.rs
++++ b/compiler/passes/src/type_checking/expression.rs
+@@ -902,7 +902,7 @@ impl ExpressionVisitor for TypeCheckingVisitor<'_> {
+                 match &actual.expression {
+                     None => {
+                         // If `expression` is None, then the member uses the identifier shorthand, e.g. `Foo { a }`
+-                        // We visit it as an expression rather than just calling `visit_identifer` so it will get
++                        // We visit it as an expression rather than just calling `visit_identifier` so it will get
+                         // put into the type table.
+                         self.visit_expression(&actual.identifier.into(), &Some(type_.clone()));
+                     }
+@@ -926,7 +926,7 @@ impl ExpressionVisitor for TypeCheckingVisitor<'_> {
+             // Records where the `owner` is `self.caller` can be problematic because `self.caller` can be a program
+             // address and programs can't spend records. Emit a warning in this case.
+             //
+-            // Multiple occurences of `owner` here is an error but that should be flagged somewhere else.
++            // Multiple occurrences of `owner` here is an error but that should be flagged somewhere else.
+             input.members.iter().filter(|init| init.identifier.name == sym::owner).for_each(|init| {
+                 if let Some(Expression::MemberAccess(access)) = &init.expression {
+                     if let MemberAccess {
+diff --git a/compiler/passes/src/write_transforming/mod.rs b/compiler/passes/src/write_transforming/mod.rs
+index cf1a11c54a..b0c849352e 100644
+--- a/compiler/passes/src/write_transforming/mod.rs
++++ b/compiler/passes/src/write_transforming/mod.rs
+@@ -32,7 +32,7 @@ use visitor::*;
+ /// A pass to rewrite assignments to array accesses and struct accesses.
+ ///
+ /// This pass makes variables for members of arrays and structs that are written to,
+-/// changes assignments to those members into assignemnts to those variables, and,
++/// changes assignments to those members into assignments to those variables, and,
+ /// whenever the arrays or structs are accessed, reconstructs them from the variables.
+ /// So code like this:
+ ///

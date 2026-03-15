@@ -1,0 +1,283 @@
+diff --git a/ledger/block/src/verify.rs b/ledger/block/src/verify.rs
+index 4f7b14439..057ff2b56 100644
+--- a/ledger/block/src/verify.rs
++++ b/ledger/block/src/verify.rs
+@@ -282,9 +282,11 @@ impl<N: Network> Block<N> {
+                 }
+ 
+                 // Ensure the puzzle proof is valid.
+-                let is_valid =
+-                    current_puzzle.verify(coinbase, current_epoch_challenge, previous_block.proof_target())?;
+-                ensure!(is_valid, "Block {height} contains invalid puzzle proof");
++                if let Err(e) =
++                    current_puzzle.check_solutions(coinbase, current_epoch_challenge, previous_block.proof_target())
++                {
++                    bail!("Block {height} contains an invalid puzzle proof - {e}");
++                }
+ 
+                 // Compute the combined proof target.
+                 let combined_proof_target = coinbase.to_combined_proof_target()?;
+diff --git a/ledger/coinbase/benches/coinbase_puzzle.rs b/ledger/coinbase/benches/coinbase_puzzle.rs
+index 64ee0d45d..418466b67 100644
+--- a/ledger/coinbase/benches/coinbase_puzzle.rs
++++ b/ledger/coinbase/benches/coinbase_puzzle.rs
+@@ -21,7 +21,7 @@ use console::{
+     account::*,
+     network::{Network, Testnet3},
+ };
+-use snarkvm_ledger_coinbase::{CoinbasePuzzle, EpochChallenge, PuzzleConfig};
++use snarkvm_ledger_coinbase::{CoinbasePuzzle, CoinbaseSolution, EpochChallenge, PuzzleConfig};
+ 
+ use criterion::Criterion;
+ use rand::{self, thread_rng, CryptoRng, RngCore};
+@@ -82,35 +82,6 @@ fn coinbase_puzzle_prove(c: &mut Criterion) {
+     }
+ }
+ 
+-#[cfg(feature = "setup")]
+-fn coinbase_puzzle_accumulate(c: &mut Criterion) {
+-    let rng = &mut thread_rng();
+-
+-    let max_degree = 1 << 15;
+-    let max_config = PuzzleConfig { degree: max_degree };
+-    let universal_srs = CoinbasePuzzle::<Testnet3>::setup(max_config).unwrap();
+-
+-    for degree in [(1 << 13) - 1] {
+-        let config = PuzzleConfig { degree };
+-        let puzzle = CoinbasePuzzleInst::trim(&universal_srs, config).unwrap();
+-        let epoch_challenge = sample_epoch_challenge(degree, rng);
+-
+-        for batch_size in [10, 100, <Testnet3 as Network>::MAX_PROVER_SOLUTIONS] {
+-            let solutions = (0..batch_size)
+-                .map(|_| {
+-                    let (address, nonce) = sample_address_and_nonce(rng);
+-                    puzzle.prove(&epoch_challenge, address, nonce, None).unwrap()
+-                })
+-                .collect::<Vec<_>>();
+-
+-            c.bench_function(
+-                &format!("CoinbasePuzzle::Accumulate {batch_size} of 2^{}", ((degree + 1) as f64).log2()),
+-                |b| b.iter(|| puzzle.accumulate(solutions.clone(), &epoch_challenge, 0).unwrap()),
+-            );
+-        }
+-    }
+-}
+-
+ #[cfg(feature = "setup")]
+ fn coinbase_puzzle_verify(c: &mut Criterion) {
+     let rng = &mut thread_rng();
+@@ -131,11 +102,11 @@ fn coinbase_puzzle_verify(c: &mut Criterion) {
+                     puzzle.prove(&epoch_challenge, address, nonce, None).unwrap()
+                 })
+                 .collect::<Vec<_>>();
+-            let solutions = puzzle.accumulate(solutions, &epoch_challenge, 0).unwrap();
++            let solutions = CoinbaseSolution::new(solutions).unwrap();
+ 
+             c.bench_function(
+                 &format!("CoinbasePuzzle::Verify {batch_size} of 2^{}", ((degree + 1) as f64).log2()),
+-                |b| b.iter(|| assert!(puzzle.verify(&solutions, &epoch_challenge, 0u64).unwrap())),
++                |b| b.iter(|| puzzle.check_solutions(&solutions, &epoch_challenge, 0u64).unwrap()),
+             );
+         }
+     }
+@@ -144,7 +115,7 @@ fn coinbase_puzzle_verify(c: &mut Criterion) {
+ criterion_group! {
+     name = coinbase_puzzle;
+     config = Criterion::default().sample_size(10);
+-    targets = coinbase_puzzle_trim, coinbase_puzzle_prove, coinbase_puzzle_accumulate, coinbase_puzzle_verify,
++    targets = coinbase_puzzle_trim, coinbase_puzzle_prove, coinbase_puzzle_verify,
+ }
+ 
+ criterion_main!(coinbase_puzzle);
+diff --git a/ledger/coinbase/src/helpers/coinbase_solution/bytes.rs b/ledger/coinbase/src/helpers/coinbase_solution/bytes.rs
+index 90c26b769..66d541a3f 100644
+--- a/ledger/coinbase/src/helpers/coinbase_solution/bytes.rs
++++ b/ledger/coinbase/src/helpers/coinbase_solution/bytes.rs
+@@ -25,7 +25,7 @@ impl<N: Network> FromBytes for CoinbaseSolution<N> {
+             prover_solutions.push(ProverSolution::read_le(&mut reader)?);
+         }
+         // Return the solutions.
+-        Ok(Self::new(prover_solutions))
++        Self::new(prover_solutions).map_err(error)
+     }
+ }
+ 
+diff --git a/ledger/coinbase/src/helpers/coinbase_solution/mod.rs b/ledger/coinbase/src/helpers/coinbase_solution/mod.rs
+index d1dcad5bb..bfdacbace 100644
+--- a/ledger/coinbase/src/helpers/coinbase_solution/mod.rs
++++ b/ledger/coinbase/src/helpers/coinbase_solution/mod.rs
+@@ -29,8 +29,23 @@ pub struct CoinbaseSolution<N: Network> {
+ 
+ impl<N: Network> CoinbaseSolution<N> {
+     /// Initializes a new instance of the solutions.
+-    pub fn new(solutions: Vec<ProverSolution<N>>) -> Self {
+-        Self { solutions: solutions.into_iter().map(|solution| (solution.commitment(), solution)).collect() }
++    pub fn new(solutions: Vec<ProverSolution<N>>) -> Result<Self> {
++        // Ensure the solutions are not empty.
++        ensure!(!solutions.is_empty(), "There are no solutions to verify for the coinbase puzzle");
++        // Ensure the number of partial solutions does not exceed `MAX_PROVER_SOLUTIONS`.
++        if solutions.len() > N::MAX_PROVER_SOLUTIONS {
++            bail!(
++                "The solutions exceed the allowed number of partial solutions. ({} > {})",
++                solutions.len(),
++                N::MAX_PROVER_SOLUTIONS
++            );
++        }
++        // Ensure the puzzle commitments are unique.
++        if has_duplicates(solutions.iter().map(|s| s.commitment())) {
++            bail!("The solutions contain duplicate puzzle commitments");
++        }
++        // Return the solutions.
++        Ok(Self { solutions: solutions.into_iter().map(|solution| (solution.commitment(), solution)).collect() })
+     }
+ 
+     /// Returns the puzzle commitments.
+diff --git a/ledger/coinbase/src/helpers/coinbase_solution/serialize.rs b/ledger/coinbase/src/helpers/coinbase_solution/serialize.rs
+index d6d5ca833..ac973aee7 100644
+--- a/ledger/coinbase/src/helpers/coinbase_solution/serialize.rs
++++ b/ledger/coinbase/src/helpers/coinbase_solution/serialize.rs
+@@ -36,7 +36,7 @@ impl<'de, N: Network> Deserialize<'de> for CoinbaseSolution<N> {
+         match deserializer.is_human_readable() {
+             true => {
+                 let mut solutions = serde_json::Value::deserialize(deserializer)?;
+-                Ok(Self::new(DeserializeExt::take_from_value::<D>(&mut solutions, "solutions")?))
++                Self::new(DeserializeExt::take_from_value::<D>(&mut solutions, "solutions")?).map_err(de::Error::custom)
+             }
+             false => FromBytesDeserializer::<Self>::deserialize_with_size_encoding(deserializer, "solutions"),
+         }
+@@ -60,7 +60,7 @@ pub(super) mod tests {
+             let partial_solution = PartialSolution::new(address, u64::rand(rng), KZGCommitment(rng.gen()));
+             prover_solutions.push(ProverSolution::new(partial_solution, KZGProof { w: rng.gen(), random_v: None }));
+         }
+-        CoinbaseSolution::new(prover_solutions)
++        CoinbaseSolution::new(prover_solutions).unwrap()
+     }
+ 
+     #[test]
+diff --git a/ledger/coinbase/src/lib.rs b/ledger/coinbase/src/lib.rs
+index b691eac74..d07e0109e 100644
+--- a/ledger/coinbase/src/lib.rs
++++ b/ledger/coinbase/src/lib.rs
+@@ -158,28 +158,13 @@ impl<N: Network> CoinbasePuzzle<N> {
+         Ok(ProverSolution::new(partial_solution, proof))
+     }
+ 
+-    /// Returns the coinbase solution for the given prover solutions.
+-    pub fn accumulate(
+-        &self,
+-        prover_solutions: Vec<ProverSolution<N>>,
+-        epoch_challenge: &EpochChallenge<N>,
+-        proof_target: u64,
+-    ) -> Result<CoinbaseSolution<N>> {
+-        // Initialize the coinbase solution.
+-        let solutions = CoinbaseSolution::new(prover_solutions);
+-        // Verify the solutions.
+-        self.verify(&solutions, epoch_challenge, proof_target)?;
+-        // Return the solutions.
+-        Ok(solutions)
+-    }
+-
+     /// Returns `true` if the solutions are valid.
+-    pub fn verify(
++    pub fn check_solutions(
+         &self,
+         solutions: &CoinbaseSolution<N>,
+         epoch_challenge: &EpochChallenge<N>,
+         proof_target: u64,
+-    ) -> Result<bool> {
++    ) -> Result<()> {
+         let timer = timer!("CoinbasePuzzle::verify");
+ 
+         // Ensure the solutions are not empty.
+@@ -204,12 +189,11 @@ impl<N: Network> CoinbasePuzzle<N> {
+         if !cfg_iter!(solutions).all(|(_, solution)| {
+             solution.verify(self.coinbase_verifying_key(), epoch_challenge, proof_target).unwrap_or(false)
+         }) {
+-            return Ok(false);
++            bail!("The solutions contain an invalid prover solution");
+         }
+         finish!(timer, "Verify each solution");
+ 
+-        // Return the verification result.
+-        Ok(true)
++        Ok(())
+     }
+ 
+     /// Returns the coinbase proving key.
+diff --git a/ledger/coinbase/src/tests.rs b/ledger/coinbase/src/tests.rs
+index 2df7e508d..5c5546ce2 100644
+--- a/ledger/coinbase/src/tests.rs
++++ b/ledger/coinbase/src/tests.rs
+@@ -43,11 +43,11 @@ fn test_coinbase_puzzle() {
+                     puzzle.prove(&epoch_challenge, address, nonce, None).unwrap()
+                 })
+                 .collect::<Vec<_>>();
+-            let full_solution = puzzle.accumulate(solutions, &epoch_challenge, 0).unwrap();
+-            assert!(puzzle.verify(&full_solution, &epoch_challenge, 0u64).unwrap());
++            let full_solution = CoinbaseSolution::new(solutions).unwrap();
++            assert!(puzzle.check_solutions(&full_solution, &epoch_challenge, 0u64).is_ok());
+ 
+             let bad_epoch_challenge = EpochChallenge::new(rng.next_u32(), Default::default(), degree).unwrap();
+-            assert!(!puzzle.verify(&full_solution, &bad_epoch_challenge, 0u64).unwrap());
++            assert!(puzzle.check_solutions(&full_solution, &bad_epoch_challenge, 0u64).is_err());
+         }
+     }
+ }
+@@ -103,8 +103,8 @@ fn test_edge_case_for_degree() {
+ 
+     // Generate a prover solution.
+     let prover_solution = puzzle.prove(&epoch_challenge, address, rng.gen(), None).unwrap();
+-    let coinbase_solution = puzzle.accumulate(vec![prover_solution], &epoch_challenge, 0).unwrap();
+-    assert!(puzzle.verify(&coinbase_solution, &epoch_challenge, 0u64).unwrap());
++    let coinbase_solution = CoinbaseSolution::new(vec![prover_solution]).unwrap();
++    assert!(puzzle.check_solutions(&coinbase_solution, &epoch_challenge, 0u64).is_ok());
+ }
+ 
+ /// Use `cargo test profiler --features timer` to run this test.
+@@ -141,11 +141,10 @@ fn test_profiler() -> Result<()> {
+                 puzzle.prove(&epoch_challenge, address, nonce, None).unwrap()
+             })
+             .collect::<Vec<_>>();
+-        // Accumulate the solutions.
+-        let solution = puzzle.accumulate(solutions, &epoch_challenge, 0).unwrap();
+-
+-        // Verify the solution.
+-        puzzle.verify(&solution, &epoch_challenge, 0u64).unwrap();
++        // Construct the solutions.
++        let solutions = CoinbaseSolution::new(solutions).unwrap();
++        // Verify the solutions.
++        puzzle.check_solutions(&solutions, &epoch_challenge, 0u64).unwrap();
+     }
+ 
+     bail!("\n\nRemember to #[ignore] this test!\n\n")
+diff --git a/ledger/src/advance.rs b/ledger/src/advance.rs
+index e7ec366b4..de002dd21 100644
+--- a/ledger/src/advance.rs
++++ b/ledger/src/advance.rs
+@@ -123,12 +123,20 @@ impl<N: Network, C: ConsensusStorage<N>> Ledger<N, C> {
+         let (solutions, solutions_root, combined_proof_target) = match candidate_solutions.is_empty() {
+             true => (None, Field::<N>::zero(), 0u128),
+             false => {
+-                // Accumulate the prover solutions.
+-                let solutions = self.coinbase_puzzle.accumulate(
+-                    candidate_solutions,
+-                    &self.latest_epoch_challenge()?,
+-                    self.latest_proof_target(),
+-                )?;
++                // Retrieve the coinbase verifying key.
++                let coinbase_verifying_key = self.coinbase_puzzle.coinbase_verifying_key();
++                // Retrieve the latest epoch challenge.
++                let latest_epoch_challenge = self.latest_epoch_challenge()?;
++                // Separate the candidate solutions into valid and aborted solutions.
++                // TODO: Add `aborted_solution_ids` to the block.
++                let (valid_candidate_solutions, _aborted_candidate_solutions): (Vec<_>, Vec<_>) =
++                    cfg_into_iter!(candidate_solutions).partition(|solution| {
++                        solution
++                            .verify(coinbase_verifying_key, &latest_epoch_challenge, self.latest_proof_target())
++                            .unwrap_or(false)
++                    });
++                // Construct the solutions.
++                let solutions = CoinbaseSolution::new(valid_candidate_solutions)?;
+                 // Compute the solutions root.
+                 let solutions_root = solutions.to_accumulator_point()?;
+                 // Compute the combined proof target.

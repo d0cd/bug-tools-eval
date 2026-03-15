@@ -1,0 +1,103 @@
+diff --git a/compiler/passes/src/code_generation/expression.rs b/compiler/passes/src/code_generation/expression.rs
+index 23e10d2d59..6b76068317 100644
+--- a/compiler/passes/src/code_generation/expression.rs
++++ b/compiler/passes/src/code_generation/expression.rs
+@@ -33,6 +33,7 @@ use leo_ast::{
+     Location,
+     LocatorExpression,
+     MemberAccess,
++    Node,
+     StructExpression,
+     TernaryExpression,
+     TupleExpression,
+@@ -315,15 +316,21 @@ impl CodeGeneratingVisitor<'_> {
+ 
+     fn visit_array_access(&mut self, input: &ArrayAccess) -> (String, String) {
+         let (array_operand, _) = self.visit_expression(&input.array);
++
++        assert!(
++            matches!(self.state.type_table.get(&input.index.id()), Some(Type::Integer(_))),
++            "unexpected type for for array index. This should have been caught by the type checker."
++        );
++
+         let index_operand = match &input.index {
+-            Expression::Literal(Literal { variant: LiteralVariant::Integer(_, string), .. }) => {
+-                format!("{}u32", string)
+-            }
++            Expression::Literal(Literal {
++                variant: LiteralVariant::Integer(_, s) | LiteralVariant::Unsuffixed(s),
++                ..
++            }) => format!("{s}u32"),
+             _ => panic!("Array indices must be integer literals"),
+         };
+-        let array_access = format!("{}[{}]", array_operand, index_operand);
+ 
+-        (array_access, String::new())
++        (format!("{array_operand}[{index_operand}]"), String::new())
+     }
+ 
+     fn visit_member_access(&mut self, input: &MemberAccess) -> (String, String) {
+diff --git a/compiler/passes/src/destructuring/expression.rs b/compiler/passes/src/destructuring/expression.rs
+index b41b39b9ef..e38f81ee4e 100644
+--- a/compiler/passes/src/destructuring/expression.rs
++++ b/compiler/passes/src/destructuring/expression.rs
+@@ -50,14 +50,17 @@ impl ExpressionReconstructor for DestructuringVisitor<'_> {
+                     panic!("Type checking guarantees that all tuple accesses are declared and indices are valid.");
+                 }
+ 
+-                let expr = ArrayAccess {
+-                    array: (*identifier).into(),
+-                    index: Literal::integer(IntegerType::U32, input.index.to_string(), input.span, Default::default())
+-                        .into(),
+-                    span: input.span,
+-                    id: input.id,
+-                }
+-                .into();
++                let index = Literal::integer(
++                    IntegerType::U32,
++                    input.index.to_string(),
++                    input.span,
++                    self.state.node_builder.next_id(),
++                );
++                self.state.type_table.insert(index.id(), Type::Integer(IntegerType::U32));
++
++                let expr =
++                    ArrayAccess { array: (*identifier).into(), index: index.into(), span: input.span, id: input.id }
++                        .into();
+ 
+                 (expr, Default::default())
+             }
+diff --git a/tests/expectations/compiler/array/array_index_by_const.out b/tests/expectations/compiler/array/array_index_by_const.out
+new file mode 100644
+index 0000000000..79ed4fc0a4
+--- /dev/null
++++ b/tests/expectations/compiler/array/array_index_by_const.out
+@@ -0,0 +1,10 @@
++program test.aleo;
++
++function main:
++    cast 1u32 2u32 3u32 4u32 5u32 6u32 into r0 as [u32; 6u32];
++    add r0[0u32] r0[1u32] into r1;
++    add r1 r0[2u32] into r2;
++    add r2 r0[3u32] into r3;
++    add r3 r0[4u32] into r4;
++    add r4 r0[5u32] into r5;
++    output r5 as u32.private;
+diff --git a/tests/tests/compiler/array/array_index_by_const.leo b/tests/tests/compiler/array/array_index_by_const.leo
+new file mode 100644
+index 0000000000..6575d348bc
+--- /dev/null
++++ b/tests/tests/compiler/array/array_index_by_const.leo
+@@ -0,0 +1,12 @@
++program test.aleo {
++    const N1: u8 = 0;
++    const N2: u16 = 1;
++    const N3: u32 = 2;
++    const N4: u8 = 3u8;
++    const N5: u16 = 4u16;
++    const N6: u32 = 5u32;
++    transition main() -> u32 {
++        let arr: [u32; 6] = [1, 2, 3, 4, 5, 6];
++        return arr[N1] + arr[N2] + arr[N3] + arr[N4] + arr[N5] + arr[N6];
++    }
++}

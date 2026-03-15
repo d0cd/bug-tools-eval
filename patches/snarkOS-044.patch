@@ -1,0 +1,29 @@
+diff --git a/node/router/src/helpers/cache.rs b/node/router/src/helpers/cache.rs
+index fe03f7a0b..0a1250017 100644
+--- a/node/router/src/helpers/cache.rs
++++ b/node/router/src/helpers/cache.rs
+@@ -197,6 +197,11 @@ impl<N: Network> Cache<N> {
+     pub fn decrement_outbound_peer_requests(&self, peer_ip: SocketAddr) -> u32 {
+         Self::decrement_counter(&self.seen_outbound_peer_requests, peer_ip)
+     }
++
++    /// Removes all cache entries applicable to the given key.
++    pub fn clear_peer_entries(&self, peer_ip: SocketAddr) {
++        self.seen_outbound_block_requests.write().remove(&peer_ip);
++    }
+ }
+ 
+ impl<N: Network> Cache<N> {
+diff --git a/node/router/src/lib.rs b/node/router/src/lib.rs
+index 231675118..41750dc03 100644
+--- a/node/router/src/lib.rs
++++ b/node/router/src/lib.rs
+@@ -528,6 +528,8 @@ impl<N: Network> Router<N> {
+         self.connected_peers.write().remove(&peer_ip);
+         // Add the peer to the candidate peers.
+         self.candidate_peers.write().insert(peer_ip);
++        // Clear cached entries applicable to the peer.
++        self.cache.clear_peer_entries(peer_ip);
+         #[cfg(feature = "metrics")]
+         self.update_metrics();
+     }

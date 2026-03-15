@@ -1,0 +1,65 @@
+diff --git a/compiler/passes/src/code_generation/visit_program.rs b/compiler/passes/src/code_generation/visit_program.rs
+index 9516b3e985..25559ee26b 100644
+--- a/compiler/passes/src/code_generation/visit_program.rs
++++ b/compiler/passes/src/code_generation/visit_program.rs
+@@ -174,10 +174,13 @@ impl<'a> CodeGenerator<'a> {
+         self.current_function = Some(function);
+ 
+         // Construct the header of the function.
+-        // If a function is a program function, generate an Aleo `function`, otherwise generate an Aleo `closure`.
+-        let mut function_string = match self.is_transition_function {
+-            true => format!("function {}:\n", function.identifier),
+-            false => format!("closure {}:\n", function.identifier),
++        // If a function is a program function, generate an Aleo `function`,
++        // if it is a standard function generate an Aleo `closure`,
++        // otherwise, it is an inline function, in which case a function should not be generated.
++        let mut function_string = match function.variant {
++            Variant::Transition => format!("function {}:\n", function.identifier),
++            Variant::Standard => format!("closure {}:\n", function.identifier),
++            Variant::Inline => return String::from("\n"),
+         };
+ 
+         // Construct and append the input declarations of the function.
+diff --git a/tests/expectations/compiler/finalize/inline_in_finalize.out b/tests/expectations/compiler/finalize/inline_in_finalize.out
+index 77fc7fb976..be4eab9fbd 100644
+--- a/tests/expectations/compiler/finalize/inline_in_finalize.out
++++ b/tests/expectations/compiler/finalize/inline_in_finalize.out
+@@ -7,4 +7,4 @@ outputs:
+     ssa_ast: b86f0471ac1a09039a4ce147e87b0c41b9c3378dba0cb560b4a2fe41533781c2
+     flattened_ast: 52f744a6cf805739c77995f73c2f626ad2403301c5dc6e007b9c2092869f5224
+     inlined_ast: b7ef966c924c7fd055476fd974079af70e235aed43d8cbff30c7eadad8e342c7
+-    bytecode: 614bd1f31a52b5176e1c8a7b8a7fc17ced721ae71e50d33daa09ebc65b5fff20
++    bytecode: cc321ba26e486e2c153e774573e880a340d698f08c7d24602f883aef1c900b73
+diff --git a/tests/expectations/compiler/function/flatten_inlined_tuples_of_structs.out b/tests/expectations/compiler/function/flatten_inlined_tuples_of_structs.out
+index 5016dca16e..99aeba6450 100644
+--- a/tests/expectations/compiler/function/flatten_inlined_tuples_of_structs.out
++++ b/tests/expectations/compiler/function/flatten_inlined_tuples_of_structs.out
+@@ -7,4 +7,4 @@ outputs:
+     ssa_ast: 478e60c54d2fcb05625042228bb467278257e7392d846fd49ccd5c43fcbcbd5e
+     flattened_ast: 12157cdc9233e60a00d749cc033465d3aeafa625fb769223717e0e87c5cdf9d6
+     inlined_ast: 11c63116821757047efeec64483fbc8b22edff09ddc745d80670bf02895dd62e
+-    bytecode: d84ad59c8407d4d733886e7442e47de32cc3025f6e411d2cce0816ce30f0b488
++    bytecode: 893b143c0f573e705b3908e5d92aafd32a2b309ee02ecb0d55d3264a3b8ade2d
+diff --git a/tests/expectations/compiler/function/function_call_inline.out b/tests/expectations/compiler/function/function_call_inline.out
+index 6ba3a3fd0a..28d105450a 100644
+--- a/tests/expectations/compiler/function/function_call_inline.out
++++ b/tests/expectations/compiler/function/function_call_inline.out
+@@ -7,4 +7,4 @@ outputs:
+     ssa_ast: 4b33649beef6673aafce25c35c16c034fb41ec33fdf562751b7e51d712caf309
+     flattened_ast: e2ee2ee7c6e1c187de5977f44b0a39e11d946243990eb48df92b3a3e939b3906
+     inlined_ast: aae0684cc29719b75d1af553fae21f9cafd04d15fd211eeb4d8cebbf913bcd6c
+-    bytecode: da94a3a78e8ddb3883dafdc52da31472986f7e4a89348e03acaa1f7d1de5bb31
++    bytecode: 6c18f3614147617dbd01fb1404fc8c75c0a788872cec905ad5566a443f7f2e91
+diff --git a/tests/expectations/execution/flattened_function_and_inline_matches.out b/tests/expectations/execution/flattened_function_and_inline_matches.out
+index 078c7f904d..f16a8f98d8 100644
+--- a/tests/expectations/execution/flattened_function_and_inline_matches.out
++++ b/tests/expectations/execution/flattened_function_and_inline_matches.out
+@@ -7,7 +7,7 @@ outputs:
+     ssa_ast: 24bb584afbee563be7c24228473fd4e0d83cb76197f66b4c4a9ddb9c1c2c5c2e
+     flattened_ast: 4352bd983b2778643e78bb8efc4b2ab9a728dc52f9bff605875d82b82b72a0fb
+     inlined_ast: 87236ec1e5020ccdaec371ece97cac3d3c5873649ea7b8ac5df8390e46ff7405
+-    bytecode: 1887edbf4dd13f3913bebb36b012a4513cb26d8a8570d99bd0ac542f4bdb1c73
++    bytecode: c39d053c9935e58f261a58c4055ac3e97f99ec58472f672417d87a0a8792cad7
+     results:
+       bar:
+         - input: "[true, true, 1u8, 0u8]"

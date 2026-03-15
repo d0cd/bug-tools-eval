@@ -1,0 +1,61 @@
+diff --git a/compiler/ast/src/expressions/tuple.rs b/compiler/ast/src/expressions/tuple.rs
+index a26c822957..c05d9fcede 100644
+--- a/compiler/ast/src/expressions/tuple.rs
++++ b/compiler/ast/src/expressions/tuple.rs
+@@ -16,6 +16,8 @@
+ 
+ use super::*;
+ 
++use itertools::Itertools as _;
++
+ // TODO: Consider a restricted interface for constructing a tuple expression.
+ 
+ /// A tuple expression, e.g., `(foo, false, 42)`.
+@@ -32,7 +34,7 @@ pub struct TupleExpression {
+ 
+ impl fmt::Display for TupleExpression {
+     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+-        write!(f, "({})", self.elements.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(","))
++        write!(f, "({})", self.elements.iter().format(", "))
+     }
+ }
+ 
+diff --git a/compiler/ast/src/functions/mod.rs b/compiler/ast/src/functions/mod.rs
+index cd4f06ff54..4b4875b22b 100644
+--- a/compiler/ast/src/functions/mod.rs
++++ b/compiler/ast/src/functions/mod.rs
+@@ -139,7 +139,7 @@ impl fmt::Display for Function {
+                 }
+             }
+             _ => {
+-                write!(f, " -> {}", self.output.iter().format(", "))?;
++                write!(f, " -> ({})", self.output.iter().format(", "))?;
+             }
+         }
+ 
+diff --git a/compiler/ast/src/functions/output.rs b/compiler/ast/src/functions/output.rs
+index 3bd04f962b..6dfafb2537 100644
+--- a/compiler/ast/src/functions/output.rs
++++ b/compiler/ast/src/functions/output.rs
+@@ -45,7 +45,7 @@ impl Output {
+ 
+ impl fmt::Display for Output {
+     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+-        write!(f, "{} {}", self.mode, self.type_)
++        if self.mode == Mode::None { write!(f, "{}", self.type_) } else { write!(f, "{} {}", self.mode, self.type_) }
+     }
+ }
+ 
+diff --git a/compiler/ast/src/struct/mod.rs b/compiler/ast/src/struct/mod.rs
+index 6461e48b99..0e27829d27 100644
+--- a/compiler/ast/src/struct/mod.rs
++++ b/compiler/ast/src/struct/mod.rs
+@@ -135,7 +135,7 @@ impl fmt::Debug for Composite {
+ impl fmt::Display for Composite {
+     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+         f.write_str(if self.is_record { "record" } else { "struct" })?;
+-        writeln!(f, "{} {{", self.identifier)?;
++        writeln!(f, " {} {{", self.identifier)?;
+         for field in self.members.iter() {
+             writeln!(f, "{},", Indent(field))?;
+         }

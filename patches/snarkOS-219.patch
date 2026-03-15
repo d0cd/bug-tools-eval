@@ -1,0 +1,3440 @@
+diff --git a/.ci/devnet_ci.sh b/.ci/devnet_ci.sh
+index dbca7e927..586968900 100755
+--- a/.ci/devnet_ci.sh
++++ b/.ci/devnet_ci.sh
+@@ -14,6 +14,7 @@ total_validators=$1
+ total_clients=$2
+ network_id=$3
+ min_height=$4
++max_warnings=$5
+ 
+ # The verobsity of snarkos nodes.
+ NODE_VERBOSITY=3
+@@ -23,6 +24,7 @@ NODE_VERBOSITY=3
+ : "${total_clients:=4}" # need at least 4 clients, so each validator has at least one client connected to it.
+ : "${network_id:=0}"
+ : "${min_height:=60}" # To likely go past the 100 round garbage collection limit.
++: "${max_warnings:=10}"
+ 
+ # shellcheck source=SCRIPTDIR/utils.sh
+ . ./.ci/utils.sh
+@@ -395,7 +397,7 @@ while (( total_wait < 600 )); do  # 10 minutes max
+   if check_heights 0 $((total_validators+total_clients)) "$min_height" "$network_name" "$total_wait"; then
+     log "🎉 Test passed! All nodes reached minimum height."
+ 
+-    if check_logs "$log_dir" "$total_validators" "$total_clients"; then
++    if check_logs "$log_dir" "$total_validators" "$total_clients" "$max_warnings"; then
+       exit 0
+     else
+       exit 1
+diff --git a/.ci/utils.sh b/.ci/utils.sh
+index 1e478e805..ffd0a2738 100644
+--- a/.ci/utils.sh
++++ b/.ci/utils.sh
+@@ -116,7 +116,11 @@ function check_logs() {
+   local log_dir=$1
+   local total_validators=$2
+   local total_clients=$3
+-  
++  # The maximum number of warnings allow in each node's log file.
++  # Nodes may create some warnings at startup because they cannot connect to each other yet.
++  local max_warnings=$4
++
++ 
+   local all_reached=true
+   local highest_height=0
+ 
+@@ -132,6 +136,12 @@ function check_logs() {
+       grep "ERROR" "$log_dir/validator-${validator_index}.log"
+       return 1
+     fi
++
++    num_warnings=$(grep -c "WARN" "$log_dir/validator-${validator_index}.log")
++    if (( num_warnings > max_warnings )); then
++      echo "❌ Test failed! Validator #${validator_index} logs contain more than ${max_warnings} warnings."
++      return 1
++    fi
+   done
+ 
+   for client_index in $(seq 0 $((total_clients-1))); do
+@@ -146,7 +156,12 @@ function check_logs() {
+       grep "ERROR" "$log_dir/client-${client_index}.log"
+       return 1
+     fi
+- 
++
++    num_warnings=$(grep -c "WARN" "$log_dir/client-${client_index}.log")
++    if (( num_warnings > max_warnings )); then
++      echo "❌ Test failed! Client #${client_index} logs contain more than ${max_warnings} warnings."
++      return 1
++    fi
+   done
+ 
+   return 0
+diff --git a/.circleci/config.yml b/.circleci/config.yml
+index 57bd1b2c0..4c63b3b15 100644
+--- a/.circleci/config.yml
++++ b/.circleci/config.yml
+@@ -420,6 +420,10 @@ commands:
+       - run:
+           name: "Install snarkos"
+           no_output_timeout: 20m
++          environment:
++            CONSENSUS_VERSION_HEIGHTS: "0,100"
++            EXPECTED_MAX_CONSENSUS_VERSION: "10"
++            WAIT_BETWEEN_UPGRADES: "60"
+           command: |
+             cargo install --locked --path . --features test_network
+       - run:
+diff --git a/Cargo.lock b/Cargo.lock
+index 84e26737a..5527b653f 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -288,7 +288,7 @@ dependencies = [
+  "rustversion",
+  "serde",
+  "sync_wrapper",
+- "tower 0.5.2",
++ "tower 0.5.3",
+  "tower-layer",
+  "tower-service",
+ ]
+@@ -320,7 +320,7 @@ dependencies = [
+  "serde_urlencoded",
+  "sync_wrapper",
+  "tokio",
+- "tower 0.5.2",
++ "tower 0.5.3",
+  "tower-layer",
+  "tower-service",
+  "tracing",
+@@ -425,9 +425,9 @@ checksum = "72b3254f16251a8381aa12e40e3c4d2f0199f8c6508fbecb9d91f575e0fbb8c6"
+ 
+ [[package]]
+ name = "base64ct"
+-version = "1.8.2"
++version = "1.8.3"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "7d809780667f4410e7c41b07f52439b94d2bdf8528eeedc287fa38d3b7f95d82"
++checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
+ 
+ [[package]]
+ name = "bech32"
+@@ -518,9 +518,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "blake2s_simd"
+-version = "1.0.3"
++version = "1.0.4"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "e90f7deecfac93095eb874a40febd69427776e24e1bd7f87f33ac62d6f0174df"
++checksum = "ee29928bad1e3f94c9d1528da29e07a1d3d04817ae8332de1e8b846c8439f4b3"
+ dependencies = [
+  "arrayref",
+  "arrayvec",
+@@ -611,9 +611,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "cc"
+-version = "1.2.51"
++version = "1.2.53"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "7a0aeaff4ff1a90589618835a598e545176939b97874f7abc7851caa0618f203"
++checksum = "755d2fce177175ffca841e9a06afdb2c4ab0f593d53b4dee48147dfaade85932"
+ dependencies = [
+  "find-msvc-tools",
+  "jobserver",
+@@ -644,9 +644,9 @@ checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
+ 
+ [[package]]
+ name = "chrono"
+-version = "0.4.42"
++version = "0.4.43"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "145052bdd345b87320e369255277e3fb5152762ad123a901ef5c262dd38fe8d2"
++checksum = "fac4744fb15ae8337dc853fee7fb3f4e48c0fbaa23d0afe49c447b4fab126118"
+ dependencies = [
+  "iana-time-zone",
+  "num-traits",
+@@ -710,9 +710,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "clap_lex"
+-version = "0.7.6"
++version = "0.7.7"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a1d728cc89cf3aee9ff92b05e62b19ee65a02b5702cff7d5a377e32c6ae29d8d"
++checksum = "c3e64b0cc0439b12df2fa678eae89a1c56a529fd067a9115f7827f1fffd22b32"
+ 
+ [[package]]
+ name = "colorchoice"
+@@ -732,11 +732,11 @@ dependencies = [
+ 
+ [[package]]
+ name = "colored"
+-version = "3.0.0"
++version = "3.1.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "fde0e0ec90c9dfb3b4b1a0891a7dcd0e2bffde2f7efed5fe7c9bb00e5bfb915e"
++checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
+ dependencies = [
+- "windows-sys 0.59.0",
++ "windows-sys 0.61.2",
+ ]
+ 
+ [[package]]
+@@ -813,9 +813,9 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
+ 
+ [[package]]
+ name = "constant_time_eq"
+-version = "0.3.1"
++version = "0.4.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
++checksum = "3d52eff69cd5e647efe296129160853a42795992097e8af39800e1060caeea9b"
+ 
+ [[package]]
+ name = "convert_case"
+@@ -1005,9 +1005,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "curl-sys"
+-version = "0.4.84+curl-8.17.0"
++version = "0.4.85+curl-8.18.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "abc4294dc41b882eaff37973c2ec3ae203d0091341ee68fbadd1d06e0c18a73b"
++checksum = "c0efa6142b5ecc05f6d3eaa39e6af4888b9d3939273fb592c92b7088a8cf3fdb"
+ dependencies = [
+  "cc",
+  "libc",
+@@ -1446,9 +1446,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "euclid"
+-version = "0.22.11"
++version = "0.22.13"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ad9cdb4b747e485a12abb0e6566612956c7a1bafa3bdb8d682c5b6d403589e48"
++checksum = "df61bf483e837f88d5c2291dcf55c67be7e676b3a51acc48db3a7b163b91ed63"
+ dependencies = [
+  "num-traits",
+ ]
+@@ -1498,9 +1498,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "find-msvc-tools"
+-version = "0.1.6"
++version = "0.1.8"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "645cbb3a84e60b7531617d5ae4e57f7e27308f6445f5abf653209ea76dec8dff"
++checksum = "8591b0bcc8a98a64310a2fae1bb3e9b8564dd10e381e6e28010fde8e8e8568db"
+ 
+ [[package]]
+ name = "finl_unicode"
+@@ -1516,9 +1516,9 @@ checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
+ 
+ [[package]]
+ name = "flate2"
+-version = "1.1.5"
++version = "1.1.8"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "bfe33edd8e85a12a67454e37f8c75e730830d83e313556ab9ebf9ee7fbeb3bfb"
++checksum = "b375d6465b98090a5f25b1c7703f3859783755aa9a80433b36e0379a3ec2f369"
+ dependencies = [
+  "crc32fast",
+  "miniz_oxide",
+@@ -1715,9 +1715,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "getrandom"
+-version = "0.2.16"
++version = "0.2.17"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "335ff9f135e4384c8150d6f27c6daed433577f86b4750418338c01a1a2528592"
++checksum = "ff2abc00be7fca6ebc474524697ae276ad847ad0a6b3faa4bcb027e9a4614ad0"
+ dependencies = [
+  "cfg-if",
+  "js-sys",
+@@ -2370,15 +2370,6 @@ version = "1.70.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "a6cb138bb79a146c1bd460005623e142ef0181e3d0219cb493e02f7d08a35695"
+ 
+-[[package]]
+-name = "itertools"
+-version = "0.13.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+-dependencies = [
+- "either",
+-]
+-
+ [[package]]
+ name = "itertools"
+ version = "0.14.0"
+@@ -2406,9 +2397,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "js-sys"
+-version = "0.3.83"
++version = "0.3.85"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "464a3709c7f55f1f721e5389aa6ea4e3bc6aba669353300af094b29ffbdde1d8"
++checksum = "8c942ebf8e95485ca0d52d97da7c5a2c387d0e7f0ba4c35e93bfcaee045955b3"
+ dependencies = [
+  "once_cell",
+  "wasm-bindgen",
+@@ -2449,7 +2440,7 @@ checksum = "8fe90c1150662e858c7d5f945089b7517b0a80d8bf7ba4b1b5ffc984e7230a5b"
+ dependencies = [
+  "hashbrown 0.16.1",
+  "portable-atomic",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+ ]
+ 
+ [[package]]
+@@ -3381,7 +3372,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
+ dependencies = [
+  "anyhow",
+- "itertools 0.14.0",
++ "itertools",
+  "proc-macro2",
+  "quote 1.0.43",
+  "syn 2.0.114",
+@@ -3440,7 +3431,7 @@ dependencies = [
+  "rustc-hash 2.1.1",
+  "rustls",
+  "socket2 0.6.1",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+  "tokio",
+  "tracing",
+  "web-time",
+@@ -3461,7 +3452,7 @@ dependencies = [
+  "rustls",
+  "rustls-pki-types",
+  "slab",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+  "tinyvec",
+  "tracing",
+  "web-time",
+@@ -3520,7 +3511,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "6db2770f06117d490610c7488547d543617b21bfa07796d7a12f6f1bd53850d1"
+ dependencies = [
+  "rand_chacha 0.9.0",
+- "rand_core 0.9.3",
++ "rand_core 0.9.5",
+ ]
+ 
+ [[package]]
+@@ -3540,7 +3531,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
+ dependencies = [
+  "ppv-lite86",
+- "rand_core 0.9.3",
++ "rand_core 0.9.5",
+ ]
+ 
+ [[package]]
+@@ -3549,14 +3540,14 @@ version = "0.6.4"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
+ dependencies = [
+- "getrandom 0.2.16",
++ "getrandom 0.2.17",
+ ]
+ 
+ [[package]]
+ name = "rand_core"
+-version = "0.9.3"
++version = "0.9.5"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
++checksum = "76afc826de14238e6e8c374ddcc1fa19e374fd8dd986b0d2af0d02377261d83c"
+ dependencies = [
+  "getrandom 0.3.4",
+ ]
+@@ -3604,11 +3595,11 @@ dependencies = [
+  "compact_str",
+  "hashbrown 0.16.1",
+  "indoc",
+- "itertools 0.14.0",
++ "itertools",
+  "kasuari",
+  "lru",
+  "strum",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+  "unicode-segmentation",
+  "unicode-truncate",
+  "unicode-width",
+@@ -3656,7 +3647,7 @@ dependencies = [
+  "hashbrown 0.16.1",
+  "indoc",
+  "instability",
+- "itertools 0.14.0",
++ "itertools",
+  "line-clipping",
+  "ratatui-core",
+  "strum",
+@@ -3709,7 +3700,7 @@ version = "0.4.6"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ba009ff324d1fc1b900bd1fdb31564febe58a8ccc8a6fdbb93b543d33b13ca43"
+ dependencies = [
+- "getrandom 0.2.16",
++ "getrandom 0.2.17",
+  "libredox",
+  "thiserror 1.0.69",
+ ]
+@@ -3814,7 +3805,7 @@ dependencies = [
+  "tokio",
+  "tokio-native-tls",
+  "tokio-rustls",
+- "tower 0.5.2",
++ "tower 0.5.3",
+  "tower-http",
+  "tower-service",
+  "url",
+@@ -3842,7 +3833,7 @@ checksum = "a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7"
+ dependencies = [
+  "cc",
+  "cfg-if",
+- "getrandom 0.2.16",
++ "getrandom 0.2.17",
+  "libc",
+  "untrusted",
+  "windows-sys 0.52.0",
+@@ -3881,9 +3872,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "rustc-demangle"
+-version = "0.1.26"
++version = "0.1.27"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "56f7d92ca342cea22a06f2121d944b4fd82af56988c270852495420f961d4ace"
++checksum = "b50b8869d9fc858ce7266cce0194bd74df58b9d0e3f6df3a9fc8eb470d95c09d"
+ 
+ [[package]]
+ name = "rustc-hash"
+@@ -3949,9 +3940,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "rustls-pki-types"
+-version = "1.13.2"
++version = "1.14.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "21e6f2ab2928ca4291b86736a8bd920a277a399bba1589409d72154ff87c1282"
++checksum = "be040f8b0a225e40375822a563fa9524378b9d63112f53e19ffff34df5d33fdd"
+ dependencies = [
+  "web-time",
+  "zeroize",
+@@ -3959,9 +3950,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "rustls-webpki"
+-version = "0.103.8"
++version = "0.103.9"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2ffdfa2f5286e2247234e03f680868ac2815974dc39e00ea15adc445d0aafe52"
++checksum = "d7df23109aa6c1567d1c575b9952556388da57401e4ace1d15f79eedad0d8f53"
+ dependencies = [
+  "ring",
+  "rustls-pki-types",
+@@ -4331,7 +4322,7 @@ checksum = "297f631f50729c8c99b84667867963997ec0b50f32b2a7dbcab828ef0541e8bb"
+ dependencies = [
+  "num-bigint",
+  "num-traits",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+  "time",
+ ]
+ 
+@@ -4398,7 +4389,7 @@ dependencies = [
+  "snarkos-node-tcp",
+  "snarkvm",
+  "tikv-jemallocator",
+- "toml 0.9.10+spec-1.1.0",
++ "toml 0.9.11+spec-1.1.0",
+  "tracing",
+  "walkdir",
+ ]
+@@ -4407,7 +4398,7 @@ dependencies = [
+ name = "snarkos-account"
+ version = "4.4.0"
+ dependencies = [
+- "colored 3.0.0",
++ "colored 3.1.1",
+  "snarkvm",
+ ]
+ 
+@@ -4420,7 +4411,7 @@ dependencies = [
+  "anyhow",
+  "base64 0.22.1",
+  "clap",
+- "colored 3.0.0",
++ "colored 3.1.1",
+  "console-subscriber",
+  "crossterm",
+  "indexmap 2.13.0",
+@@ -4445,7 +4436,7 @@ dependencies = [
+  "snarkvm",
+  "sys-info",
+  "tempfile",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+  "time",
+  "tokio",
+  "tracing",
+@@ -4475,7 +4466,7 @@ dependencies = [
+  "anyhow",
+  "async-trait",
+  "bytes",
+- "colored 3.0.0",
++ "colored 3.1.1",
+  "deadline",
+  "futures-util",
+  "http 1.4.0",
+@@ -4521,11 +4512,11 @@ dependencies = [
+  "axum-extra",
+  "bytes",
+  "clap",
+- "colored 3.0.0",
++ "colored 3.1.1",
+  "deadline",
+  "futures",
+  "indexmap 2.13.0",
+- "itertools 0.14.0",
++ "itertools",
+  "locktick",
+  "lru",
+  "mockall",
+@@ -4572,6 +4563,7 @@ dependencies = [
+  "proptest",
+  "serde",
+  "snarkos-node-sync-locators",
++ "snarkos-node-tcp",
+  "snarkvm",
+  "test-strategy 0.4.3",
+  "time",
+@@ -4617,7 +4609,7 @@ version = "4.4.0"
+ dependencies = [
+  "anyhow",
+  "bincode",
+- "colored 3.0.0",
++ "colored 3.1.1",
+  "http 1.4.0",
+  "locktick",
+  "parking_lot",
+@@ -4639,9 +4631,9 @@ version = "4.4.0"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+- "colored 3.0.0",
++ "colored 3.1.1",
+  "indexmap 2.13.0",
+- "itertools 0.14.0",
++ "itertools",
+  "locktick",
+  "lru",
+  "once_cell",
+@@ -4727,7 +4719,7 @@ version = "4.4.0"
+ dependencies = [
+  "anyhow",
+  "async-trait",
+- "colored 3.0.0",
++ "colored 3.1.1",
+  "deadline",
+  "futures",
+  "futures-util",
+@@ -4754,7 +4746,6 @@ dependencies = [
+  "tokio-stream",
+  "tokio-util",
+  "tracing",
+- "tracing-subscriber",
+ ]
+ 
+ [[package]]
+@@ -4766,6 +4757,7 @@ dependencies = [
+  "snarkos-node-bft-events",
+  "snarkos-node-network",
+  "snarkos-node-sync-locators",
++ "snarkos-node-tcp",
+  "snarkvm",
+  "test-strategy 0.4.3",
+  "tokio-util",
+@@ -4779,7 +4771,7 @@ dependencies = [
+  "anyhow",
+  "futures",
+  "indexmap 2.13.0",
+- "itertools 0.14.0",
++ "itertools",
+  "locktick",
+  "parking_lot",
+  "rand 0.8.5",
+@@ -4820,6 +4812,7 @@ dependencies = [
+ name = "snarkos-node-tcp"
+ version = "4.4.0"
+ dependencies = [
++ "anyhow",
+  "async-trait",
+  "bytes",
+  "futures-util",
+@@ -4827,7 +4820,7 @@ dependencies = [
+  "once_cell",
+  "parking_lot",
+  "snarkos-node-metrics",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+  "tokio",
+  "tokio-util",
+  "tracing",
+@@ -4879,7 +4872,7 @@ dependencies = [
+  "hashbrown 0.15.5",
+  "hex",
+  "indexmap 2.13.0",
+- "itertools 0.14.0",
++ "itertools",
+  "num-traits",
+  "rand 0.8.5",
+  "rayon",
+@@ -4891,7 +4884,7 @@ dependencies = [
+  "snarkvm-fields",
+  "snarkvm-parameters",
+  "snarkvm-utilities",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+ ]
+ 
+ [[package]]
+@@ -4955,7 +4948,7 @@ version = "4.4.0"
+ source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=4e3855d69#4e3855d6935dc836ac9ca2b03c0d108ef9392f81"
+ dependencies = [
+  "indexmap 2.13.0",
+- "itertools 0.14.0",
++ "itertools",
+  "nom",
+  "num-traits",
+  "smallvec",
+@@ -5170,7 +5163,7 @@ source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=4e3855d69#4e3855d693
+ dependencies = [
+  "anyhow",
+  "bech32",
+- "itertools 0.14.0",
++ "itertools",
+  "nom",
+  "num-traits",
+  "rand 0.8.5",
+@@ -5301,7 +5294,7 @@ dependencies = [
+  "serde",
+  "snarkvm-fields",
+  "snarkvm-utilities",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+ ]
+ 
+ [[package]]
+@@ -5311,13 +5304,13 @@ source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=4e3855d69#4e3855d693
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+- "itertools 0.14.0",
++ "itertools",
+  "num-traits",
+  "rand 0.8.5",
+  "rayon",
+  "serde",
+  "snarkvm-utilities",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+  "zeroize",
+ ]
+ 
+@@ -5347,7 +5340,7 @@ dependencies = [
+  "snarkvm-ledger-test-helpers",
+  "snarkvm-synthesizer",
+  "snarkvm-utilities",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+  "time",
+  "tracing",
+ ]
+@@ -5519,7 +5512,7 @@ source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=4e3855d69#4e3855d693
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+- "colored 3.0.0",
++ "colored 3.1.1",
+  "indexmap 2.13.0",
+  "locktick",
+  "lru",
+@@ -5614,7 +5607,7 @@ dependencies = [
+  "aleo-std",
+  "anyhow",
+  "cfg-if",
+- "colored 3.0.0",
++ "colored 3.1.1",
+  "curl",
+  "hex",
+  "lazy_static",
+@@ -5626,7 +5619,7 @@ dependencies = [
+  "sha2",
+  "snarkvm-curves",
+  "snarkvm-utilities",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+ ]
+ 
+ [[package]]
+@@ -5637,7 +5630,7 @@ dependencies = [
+  "aleo-std",
+  "anyhow",
+  "indexmap 2.13.0",
+- "itertools 0.14.0",
++ "itertools",
+  "locktick",
+  "lru",
+  "parking_lot",
+@@ -5669,7 +5662,7 @@ version = "4.4.0"
+ source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=4e3855d69#4e3855d6935dc836ac9ca2b03c0d108ef9392f81"
+ dependencies = [
+  "aleo-std",
+- "colored 3.0.0",
++ "colored 3.1.1",
+  "indexmap 2.13.0",
+  "locktick",
+  "parking_lot",
+@@ -5728,7 +5721,7 @@ dependencies = [
+  "aleo-std",
+  "anyhow",
+  "bincode",
+- "colored 3.0.0",
++ "colored 3.1.1",
+  "num-bigint",
+  "num_cpus",
+  "rand 0.8.5",
+@@ -5738,7 +5731,7 @@ dependencies = [
+  "serde_json",
+  "smol_str",
+  "snarkvm-utilities-derives",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+  "tracing",
+  "zeroize",
+ ]
+@@ -6126,11 +6119,11 @@ dependencies = [
+ 
+ [[package]]
+ name = "thiserror"
+-version = "2.0.17"
++version = "2.0.18"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "f63587ca0f12b72a0600bcba1d40081f830876000bb46dd2337a3051618f4fc8"
++checksum = "4288b5bcbc7920c07a1149a35cf9590a2aa808e0bc1eafaade0b80947865fbc4"
+ dependencies = [
+- "thiserror-impl 2.0.17",
++ "thiserror-impl 2.0.18",
+ ]
+ 
+ [[package]]
+@@ -6146,9 +6139,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "thiserror-impl"
+-version = "2.0.17"
++version = "2.0.18"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "3ff15c8ecd7de3849db632e14d18d2571fa09dfc5ed93479bc4485c7a517c913"
++checksum = "ebc4ee7f67670e9b64d05fa4253e753e016c6c95ff35b89b7941d6b856dec1d5"
+ dependencies = [
+  "proc-macro2",
+  "quote 1.0.43",
+@@ -6195,9 +6188,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "time"
+-version = "0.3.44"
++version = "0.3.45"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "91e7d9e3bb61134e77bde20dd4825b97c010155709965fedf0f49bb138e52a9d"
++checksum = "f9e442fc33d7fdb45aa9bfeb312c095964abdf596f7567261062b2a7107aaabd"
+ dependencies = [
+  "deranged",
+  "itoa",
+@@ -6205,22 +6198,22 @@ dependencies = [
+  "num-conv",
+  "num_threads",
+  "powerfmt",
+- "serde",
++ "serde_core",
+  "time-core",
+  "time-macros",
+ ]
+ 
+ [[package]]
+ name = "time-core"
+-version = "0.1.6"
++version = "0.1.7"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "40868e7c1d2f0b8d73e4a8c7f0ff63af4f6d19be117e90bd73eb1d62cf831c6b"
++checksum = "8b36ee98fd31ec7426d599183e8fe26932a8dc1fb76ddb6214d05493377d34ca"
+ 
+ [[package]]
+ name = "time-macros"
+-version = "0.2.24"
++version = "0.2.25"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "30cfb0125f12d9c277f35663a0a33f8c30190f4e4574868a330595412d34ebf3"
++checksum = "71e552d1249bf61ac2a52db88179fd0673def1e1ad8243a00d9ec9ed71fee3dd"
+ dependencies = [
+  "num-conv",
+  "time-core",
+@@ -6355,9 +6348,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "toml"
+-version = "0.9.10+spec-1.1.0"
++version = "0.9.11+spec-1.1.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0825052159284a1a8b4d6c0c86cbc801f2da5afd2b225fa548c72f2e74002f48"
++checksum = "f3afc9a848309fe1aaffaed6e1546a7a14de1f935dc9d89d32afd9a44bab7c46"
+ dependencies = [
+  "indexmap 2.13.0",
+  "serde_core",
+@@ -6444,9 +6437,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "tower"
+-version = "0.5.2"
++version = "0.5.3"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d039ad9159c98b70ecfd540b2573b97f7f52c3e8d9f8ad57a24b916a536975f9"
++checksum = "ebe5ef63511595f1344e2d5cfa636d973292adc0eec1f0ad45fae9f0851ab1d4"
+ dependencies = [
+  "futures-core",
+  "futures-util",
+@@ -6480,7 +6473,7 @@ dependencies = [
+  "pin-project-lite",
+  "tokio",
+  "tokio-util",
+- "tower 0.5.2",
++ "tower 0.5.3",
+  "tower-layer",
+  "tower-service",
+  "tracing",
+@@ -6509,8 +6502,8 @@ dependencies = [
+  "governor",
+  "http 1.4.0",
+  "pin-project",
+- "thiserror 2.0.17",
+- "tower 0.5.2",
++ "thiserror 2.0.18",
++ "tower 0.5.3",
+  "tracing",
+ ]
+ 
+@@ -6651,11 +6644,11 @@ checksum = "f6ccf251212114b54433ec949fd6a7841275f9ada20dddd2f29e9ceea4501493"
+ 
+ [[package]]
+ name = "unicode-truncate"
+-version = "2.0.0"
++version = "2.0.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8fbf03860ff438702f3910ca5f28f8dac63c1c11e7efb5012b8b175493606330"
++checksum = "16b380a1238663e5f8a691f9039c73e1cdae598a30e9855f541d29b08b53e9a5"
+ dependencies = [
+- "itertools 0.13.0",
++ "itertools",
+  "unicode-segmentation",
+  "unicode-width",
+ ]
+@@ -6821,18 +6814,18 @@ checksum = "ccf3ec651a847eb01de73ccad15eb7d99f80485de043efb2f370cd654f4ea44b"
+ 
+ [[package]]
+ name = "wasip2"
+-version = "1.0.1+wasi-0.2.4"
++version = "1.0.2+wasi-0.2.9"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0562428422c63773dad2c345a1882263bbf4d65cf3f42e90921f787ef5ad58e7"
++checksum = "9517f9239f02c069db75e65f174b3da828fe5f5b945c4dd26bd25d89c03ebcf5"
+ dependencies = [
+  "wit-bindgen",
+ ]
+ 
+ [[package]]
+ name = "wasm-bindgen"
+-version = "0.2.106"
++version = "0.2.108"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0d759f433fa64a2d763d1340820e46e111a7a5ab75f993d1852d70b03dbb80fd"
++checksum = "64024a30ec1e37399cf85a7ffefebdb72205ca1c972291c51512360d90bd8566"
+ dependencies = [
+  "cfg-if",
+  "once_cell",
+@@ -6843,11 +6836,12 @@ dependencies = [
+ 
+ [[package]]
+ name = "wasm-bindgen-futures"
+-version = "0.4.56"
++version = "0.4.58"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "836d9622d604feee9e5de25ac10e3ea5f2d65b41eac0d9ce72eb5deae707ce7c"
++checksum = "70a6e77fd0ae8029c9ea0063f87c46fde723e7d887703d74ad2616d792e51e6f"
+ dependencies = [
+  "cfg-if",
++ "futures-util",
+  "js-sys",
+  "once_cell",
+  "wasm-bindgen",
+@@ -6856,9 +6850,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "wasm-bindgen-macro"
+-version = "0.2.106"
++version = "0.2.108"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "48cb0d2638f8baedbc542ed444afc0644a29166f1595371af4fecf8ce1e7eeb3"
++checksum = "008b239d9c740232e71bd39e8ef6429d27097518b6b30bdf9086833bd5b6d608"
+ dependencies = [
+  "quote 1.0.43",
+  "wasm-bindgen-macro-support",
+@@ -6866,9 +6860,9 @@ dependencies = [
+ 
+ [[package]]
+ name = "wasm-bindgen-macro-support"
+-version = "0.2.106"
++version = "0.2.108"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "cefb59d5cd5f92d9dcf80e4683949f15ca4b511f4ac0a6e14d4e1ac60c6ecd40"
++checksum = "5256bae2d58f54820e6490f9839c49780dff84c65aeab9e772f15d5f0e913a55"
+ dependencies = [
+  "bumpalo",
+  "proc-macro2",
+@@ -6879,18 +6873,18 @@ dependencies = [
+ 
+ [[package]]
+ name = "wasm-bindgen-shared"
+-version = "0.2.106"
++version = "0.2.108"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "cbc538057e648b67f72a982e708d485b2efa771e1ac05fec311f9f63e5800db4"
++checksum = "1f01b580c9ac74c8d8f0c0e4afb04eeef2acf145458e52c03845ee9cd23e3d12"
+ dependencies = [
+  "unicode-ident",
+ ]
+ 
+ [[package]]
+ name = "web-sys"
+-version = "0.3.83"
++version = "0.3.85"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "9b32828d774c412041098d182a8b38b16ea816958e07cf40eec2bc080ae137ac"
++checksum = "312e32e551d92129218ea9a2452120f4aabc03529ef03e4d0d82fb2780608598"
+ dependencies = [
+  "js-sys",
+  "wasm-bindgen",
+@@ -7290,9 +7284,9 @@ checksum = "d135d17ab770252ad95e9a872d365cf3090e3be864a34ab46f48555993efc904"
+ 
+ [[package]]
+ name = "wit-bindgen"
+-version = "0.46.0"
++version = "0.51.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
++checksum = "d7249219f66ced02969388cf2bb044a09756a083d0fab1e566056b04d9fbcaa5"
+ 
+ [[package]]
+ name = "writeable"
+@@ -7430,7 +7424,7 @@ dependencies = [
+  "flate2",
+  "indexmap 2.13.0",
+  "memchr",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+  "time",
+  "zopfli",
+ ]
+@@ -7442,14 +7436,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "dba6063ff82cdbd9a765add16d369abe81e520f836054e997c2db217ceca40c0"
+ dependencies = [
+  "ed25519-dalek",
+- "thiserror 2.0.17",
++ "thiserror 2.0.18",
+ ]
+ 
+ [[package]]
+ name = "zmij"
+-version = "1.0.12"
++version = "1.0.16"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2fc5a66a20078bf1251bde995aa2fdcc4b800c70b5d92dd2c62abc5c60f679f8"
++checksum = "dfcd145825aace48cff44a8844de64bf75feec3080e0aa5cdbde72961ae51a65"
+ 
+ [[package]]
+ name = "zopfli"
+diff --git a/node/bft/Cargo.toml b/node/bft/Cargo.toml
+index 3ae7b8d5f..bd329df62 100644
+--- a/node/bft/Cargo.toml
++++ b/node/bft/Cargo.toml
+@@ -25,6 +25,7 @@ locktick = [
+   "snarkos-node-bft-storage-service/locktick",
+   "snarkos-node-sync/locktick",
+   "snarkos-node-tcp/locktick",
++  "snarkos-node-metrics/locktick",
+   "snarkos-utilities/locktick",
+   "snarkvm/locktick"
+ ]
+diff --git a/node/bft/events/Cargo.toml b/node/bft/events/Cargo.toml
+index 6e7a0fddd..741d52e23 100644
+--- a/node/bft/events/Cargo.toml
++++ b/node/bft/events/Cargo.toml
+@@ -36,6 +36,9 @@ workspace = true
+ [dependencies.snarkos-node-sync-locators]
+ workspace = true
+ 
++[dependencies.snarkos-node-tcp]
++workspace = true
++
+ [dependencies.snarkvm]
+ workspace = true
+ features = [ "ledger", "utilities" ]
+diff --git a/node/bft/events/src/disconnect.rs b/node/bft/events/src/disconnect.rs
+index c2b674195..fd2a5940e 100644
+--- a/node/bft/events/src/disconnect.rs
++++ b/node/bft/events/src/disconnect.rs
+@@ -15,6 +15,8 @@
+ 
+ use super::*;
+ 
++use snarkos_node_tcp::ConnectError;
++
+ use tracing::warn;
+ 
+ /// The reason behind the node disconnecting from a peer.
+@@ -29,10 +31,26 @@ pub enum DisconnectReason {
+     ProtocolViolation = 2,
+     /// The peer's client is outdated, judging by its version.
+     OutdatedClientVersion = 3,
++    /// The two validators are the same node.
++    SelfConnect = 4,
++    /// No untrusted external peers are allowed.
++    NoExternalPeersAllowed = 5,
++    /// Already connecting to the same node (through another TCP channel).
++    AlreadyConnecting = 6,
++    /// Already connected to the same node (through another TCP channel).
++    AlreadyConnected = 7,
++    /// Already connected to the given Aleo address.
++    AlreadyConnectedToAleoAddress = 8,
++    /// The sent challenge request is invalid.
++    InvalidChallengeRequest = 9,
++    /// The peer is not an authorized validator.
++    UnauthorizedValidator = 10,
+     /// The disconnect reason is not known. This is used for when the peers sends a disconnect reason that is not known to us.
+     UnknownReason = u8::MAX,
+ }
+ 
++impl snarkos_node_tcp::ApplicationError for DisconnectReason {}
++
+ impl std::fmt::Display for DisconnectReason {
+     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+         match self {
+@@ -40,11 +58,29 @@ impl std::fmt::Display for DisconnectReason {
+             Self::NoReasonGiven => write!(f, "no reason given"),
+             Self::ProtocolViolation => write!(f, "protocol violation"),
+             Self::OutdatedClientVersion => write!(f, "outdated client version"),
++            Self::SelfConnect => write!(f, "self connect"),
++            Self::NoExternalPeersAllowed => write!(f, "no external peers allowed"),
++            Self::AlreadyConnecting => write!(f, "already connecting"),
++            Self::AlreadyConnected => write!(f, "already connected"),
++            Self::AlreadyConnectedToAleoAddress => write!(f, "already connected to the given Aleo address"),
++            Self::InvalidChallengeRequest => write!(f, "invalid challenge request"),
++            Self::UnauthorizedValidator => write!(f, "unauthorized validator"),
+             Self::UnknownReason => write!(f, "unknown"),
+         }
+     }
+ }
+ 
++impl DisconnectReason {
++    pub fn into_connect_error(self, address: SocketAddr) -> ConnectError {
++        match self {
++            DisconnectReason::SelfConnect => ConnectError::SelfConnect { address },
++            DisconnectReason::AlreadyConnected => ConnectError::AlreadyConnected { address },
++            DisconnectReason::AlreadyConnecting => ConnectError::AlreadyConnecting { address },
++            _ => ConnectError::application(self),
++        }
++    }
++}
++
+ #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+ pub struct Disconnect {
+     pub reason: DisconnectReason,
+@@ -86,6 +122,13 @@ impl FromBytes for Disconnect {
+             1 => DisconnectReason::NoReasonGiven,
+             2 => DisconnectReason::ProtocolViolation,
+             3 => DisconnectReason::OutdatedClientVersion,
++            4 => DisconnectReason::SelfConnect,
++            5 => DisconnectReason::NoExternalPeersAllowed,
++            6 => DisconnectReason::AlreadyConnecting,
++            7 => DisconnectReason::AlreadyConnected,
++            8 => DisconnectReason::AlreadyConnectedToAleoAddress,
++            9 => DisconnectReason::InvalidChallengeRequest,
++            10 => DisconnectReason::UnauthorizedValidator,
+             val => {
+                 warn!("received unknown disconnect reason (id={val})");
+                 DisconnectReason::UnknownReason
+@@ -106,11 +149,19 @@ mod tests {
+     #[test]
+     fn serialize_deserialize() {
+         // TODO switch to an iteration method that doesn't require manually updating this vec if enums are added
++        // Note, do not include `UnknownReason` here, as it is not a valid disconnect reason to send over the wire.
+         let all_reasons = [
+             DisconnectReason::ProtocolViolation,
+             DisconnectReason::NoReasonGiven,
+             DisconnectReason::InvalidChallengeResponse,
+             DisconnectReason::OutdatedClientVersion,
++            DisconnectReason::SelfConnect,
++            DisconnectReason::NoExternalPeersAllowed,
++            DisconnectReason::AlreadyConnecting,
++            DisconnectReason::AlreadyConnected,
++            DisconnectReason::AlreadyConnectedToAleoAddress,
++            DisconnectReason::InvalidChallengeRequest,
++            DisconnectReason::UnauthorizedValidator,
+         ];
+ 
+         for reason in all_reasons.iter() {
+diff --git a/node/bft/events/src/lib.rs b/node/bft/events/src/lib.rs
+index ae8cce678..d9b348521 100644
+--- a/node/bft/events/src/lib.rs
++++ b/node/bft/events/src/lib.rs
+@@ -324,6 +324,13 @@ pub mod prop_tests {
+                     DisconnectReason::NoReasonGiven,
+                     DisconnectReason::InvalidChallengeResponse,
+                     DisconnectReason::OutdatedClientVersion,
++                    DisconnectReason::SelfConnect,
++                    DisconnectReason::NoExternalPeersAllowed,
++                    DisconnectReason::AlreadyConnecting,
++                    DisconnectReason::AlreadyConnected,
++                    DisconnectReason::AlreadyConnectedToAleoAddress,
++                    DisconnectReason::InvalidChallengeRequest,
++                    DisconnectReason::UnauthorizedValidator,
+                 ]),
+                 any::<Selector>()
+             )
+diff --git a/node/bft/src/gateway.rs b/node/bft/src/gateway.rs
+index 333550117..57bba2656 100644
+--- a/node/bft/src/gateway.rs
++++ b/node/bft/src/gateway.rs
+@@ -20,7 +20,7 @@ use crate::{
+     MAX_BATCH_DELAY_IN_MS,
+     MEMORY_POOL_PORT,
+     Worker,
+-    events::{Disconnect as DisconnectEvent, DisconnectReason, EventCodec, PrimaryPing},
++    events::{DisconnectReason, EventCodec, PrimaryPing},
+     helpers::{Cache, PrimarySender, Storage, SyncSender, WorkerSender, assign_to_worker},
+     spawn_blocking,
+ };
+@@ -54,6 +54,7 @@ use snarkos_node_network::{
+ use snarkos_node_sync::{MAX_BLOCKS_BEHIND, communication_service::CommunicationService};
+ use snarkos_node_tcp::{
+     Config,
++    ConnectError,
+     Connection,
+     ConnectionSide,
+     P2P,
+@@ -71,7 +72,7 @@ use snarkvm::{
+ };
+ 
+ use colored::Colorize;
+-use futures::SinkExt;
++use futures::{SinkExt, future::join_all};
+ use indexmap::IndexMap;
+ #[cfg(feature = "locktick")]
+ use locktick::parking_lot::{Mutex, RwLock};
+@@ -87,7 +88,7 @@ use std::{
+     io,
+     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+     sync::Arc,
+-    time::{Duration, Instant},
++    time::Duration,
+ };
+ use tokio::{
+     net::TcpStream,
+@@ -103,16 +104,16 @@ const CACHE_EVENTS_INTERVAL: i64 = (MAX_BATCH_DELAY_IN_MS / 1000) as i64; // sec
+ const CACHE_REQUESTS_INTERVAL: i64 = (MAX_BATCH_DELAY_IN_MS / 1000) as i64; // seconds
+ 
+ /// The maximum number of connection attempts in an interval.
++#[cfg(not(test))]
+ const MAX_CONNECTION_ATTEMPTS: usize = 10;
+-/// The maximum interval to restrict a peer.
+-const RESTRICTED_INTERVAL: i64 = (MAX_CONNECTION_ATTEMPTS as u64 * MAX_BATCH_DELAY_IN_MS / 1000) as i64; // seconds
+ 
+ /// The maximum number of validators to send in a validators response event.
+ pub const MAX_VALIDATORS_TO_SEND: usize = 200;
+ 
+ /// The minimum permitted interval between connection attempts for an IP; anything shorter is considered malicious.
+-#[cfg(not(any(test)))]
++#[cfg(not(test))]
+ const CONNECTION_ATTEMPTS_SINCE_SECS: i64 = 10;
++
+ /// The amount of time an IP address is prohibited from connecting.
+ const IP_BAN_TIME_IN_SECS: u64 = 300;
+ 
+@@ -443,20 +444,12 @@ impl<N: Network> Gateway<N> {
+     }
+ 
+     /// Ensure the peer is allowed to connect.
+-    fn ensure_peer_is_allowed(&self, listener_addr: SocketAddr) -> Result<()> {
++    fn ensure_peer_is_allowed(&self, listener_addr: SocketAddr) -> Result<(), DisconnectReason> {
+         // Ensure the peer IP is not this node.
+         if self.is_local_ip(listener_addr) {
+-            bail!("{CONTEXT} Dropping connection request from '{listener_addr}' (attempted to self-connect)");
+-        }
+-        // Ensure the peer is not spamming connection attempts.
+-        if !listener_addr.ip().is_loopback() {
+-            // Add this connection attempt and retrieve the number of attempts.
+-            let num_attempts = self.cache.insert_inbound_connection(listener_addr.ip(), RESTRICTED_INTERVAL);
+-            // Ensure the connecting peer has not surpassed the connection attempt limit.
+-            if num_attempts > MAX_CONNECTION_ATTEMPTS {
+-                bail!("Dropping connection request from '{listener_addr}' (tried {num_attempts} times)");
+-            }
++            return Err(DisconnectReason::SelfConnect);
+         }
++
+         Ok(())
+     }
+ 
+@@ -502,8 +495,8 @@ impl<N: Network> Gateway<N> {
+         trace!("{CONTEXT} Sending '{name}' to '{peer_ip}'");
+         let result = self.unicast(peer_addr, event);
+         // If the event was unable to be sent, disconnect.
+-        if let Err(e) = &result {
+-            warn!("{CONTEXT} Failed to send '{name}' to '{peer_ip}': {e}");
++        if let Err(err) = &result {
++            warn!("{CONTEXT} Failed to send '{name}' to '{peer_ip}': {err:?}");
+             debug!("{CONTEXT} Disconnecting from '{peer_ip}' (unable to send)");
+             self.disconnect(peer_ip);
+         }
+@@ -818,14 +811,12 @@ impl<N: Network> Gateway<N> {
+     fn initialize_heartbeat(&self) {
+         let self_clone = self.clone();
+         self.spawn(async move {
+-            let start = Instant::now();
+             // Sleep briefly to ensure the other nodes are ready to connect.
+             tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+             info!("Starting the heartbeat of the gateway...");
+             loop {
+                 // Process a heartbeat in the gateway.
+-                let uptime = start.elapsed();
+-                self_clone.heartbeat(uptime).await;
++                self_clone.heartbeat().await;
+                 // Sleep for the heartbeat interval.
+                 tokio::time::sleep(Duration::from_secs(15)).await;
+             }
+@@ -853,13 +844,15 @@ impl<N: Network> Gateway<N> {
+ }
+ 
+ impl<N: Network> Gateway<N> {
++    /// The minimum time between connection attempts to a peer.
++    const MINIMUM_TIME_BETWEEN_CONNECTION_ATTEMPTS: Duration = Duration::from_secs(10);
+     /// The uptime after which nodes log a warning about missing validator connections.
+     const MISSING_VALIDATOR_CONNECTIONS_GRACE_PERIOD: Duration = Duration::from_secs(60);
+ 
+     /// Handles the heartbeat request.
+-    async fn heartbeat(&self, uptime: Duration) {
++    async fn heartbeat(&self) {
+         // Log the connected validators.
+-        self.log_connected_validators(uptime);
++        self.log_connected_validators();
+         // Log the validator participation scores.
+         #[cfg(feature = "telemetry")]
+         self.log_participation_scores();
+@@ -870,7 +863,7 @@ impl<N: Network> Gateway<N> {
+         // Removes any validators that not in the current committee.
+         self.handle_unauthorized_validators();
+         // If the number of connected validators is less than the minimum, send a `ValidatorsRequest`.
+-        self.handle_min_connected_validators();
++        self.handle_min_connected_validators().await;
+         // Unban any addresses whose ban time has expired.
+         self.handle_banned_ips();
+         // Update the dynamic validator whitelist.
+@@ -878,7 +871,7 @@ impl<N: Network> Gateway<N> {
+     }
+ 
+     /// Logs the connected validators.
+-    fn log_connected_validators(&self, uptime: Duration) {
++    fn log_connected_validators(&self) {
+         // Retrieve the connected validators and current committee.
+         let connected_validators = self.connected_peers();
+         let committee = match self.ledger.current_committee() {
+@@ -915,7 +908,7 @@ impl<N: Network> Gateway<N> {
+ 
+         // Log the validators that are not connected.
+         let num_not_connected = validators_total.saturating_sub(connected_validators.len());
+-        if num_not_connected > 0 {
++        if num_not_connected > 0 && self.tcp().uptime() > Self::MISSING_VALIDATOR_CONNECTIONS_GRACE_PERIOD {
+             // Cache the total stake for computing percentages.
+             let total_stake = committee.total_stake();
+             let total_stake_f64 = total_stake as f64;
+@@ -956,7 +949,7 @@ impl<N: Network> Gateway<N> {
+ 
+         if !committee.is_quorum_threshold_reached(&connected_validator_addresses) {
+             // Not being connected to a quorum of validators is begning during startup.
+-            if uptime > Self::MISSING_VALIDATOR_CONNECTIONS_GRACE_PERIOD {
++            if self.tcp().uptime() > Self::MISSING_VALIDATOR_CONNECTIONS_GRACE_PERIOD {
+                 error!("Not connected to a quorum of validators");
+             } else {
+                 debug!("Not connected to a quorum of validators");
+@@ -980,10 +973,28 @@ impl<N: Network> Gateway<N> {
+ 
+     /// This function attempts to connect to any disconnected trusted validators.
+     fn handle_trusted_validators(&self) {
+-        // Ensure that the trusted nodes are connected.
+-        for validator_ip in &self.trusted_peers() {
+-            // Attempt to connect to the trusted validator.
+-            self.connect(*validator_ip);
++        let trusted_peers = self.trusted_peers();
++
++        // Attempt to re-establish connections with any trusted peer that is not connected already.
++        let handles: Vec<JoinHandle<_>> = trusted_peers
++            .iter()
++            .filter_map(|validator_ip| {
++                // Attempt to connect to the trusted validator.
++                match self.connect(*validator_ip) {
++                    Ok(hdl) => Some(hdl),
++                    Err(ConnectError::SelfConnect { .. })
++                    | Err(ConnectError::AlreadyConnected { .. })
++                    | Err(ConnectError::AlreadyConnecting { .. }) => None,
++                    Err(err) => {
++                        warn!("Could not initiate connection to trusted validator at '{validator_ip}' - {err}");
++                        None
++                    }
++                }
++            })
++            .collect();
++
++        if !handles.is_empty() {
++            info!("Reconnnecting to {} out of {} trusted validators", handles.len(), trusted_peers.len());
+         }
+     }
+ 
+@@ -1008,13 +1019,16 @@ impl<N: Network> Gateway<N> {
+             // Attempt to connect to a bootstrap peer.
+             if let Some(peer_ip) = candidate_bootstrap.into_iter().choose(rng) {
+                 match self.connect(peer_ip) {
+-                    Some(hdl) => {
++                    Ok(hdl) => {
+                         let result = hdl.await;
+                         if let Err(err) = result {
+-                            warn!("Failed to connect to bootstrap peer at {peer_ip}: {err}");
++                            warn!("{CONTEXT} Failed to connect to bootstrap peer at '{peer_ip}' - {err}");
+                         }
+                     }
+-                    None => warn!("Could not initiate connect to bootstrap peer at {peer_ip}"),
++                    Err(ConnectError::AlreadyConnected { .. }) | Err(ConnectError::AlreadyConnecting { .. }) => {}
++                    Err(err) => {
++                        warn!("{CONTEXT} Could not initiate connection to bootstrap peer at '{peer_ip}' - {err}")
++                    }
+                 }
+             }
+         }
+@@ -1025,7 +1039,7 @@ impl<N: Network> Gateway<N> {
+             let rng = &mut OsRng;
+             // Proceed to send disconnect requests to these bootstrap peers.
+             for peer in connected_bootstrap.into_iter().choose_multiple(rng, num_surplus) {
+-                info!("Disconnecting from '{}' (exceeded maximum bootstrap)", peer.listener_addr);
++                info!("{CONTEXT} Disconnecting from '{}' (exceeded maximum bootstrap)", peer.listener_addr);
+                 <Self as Transport<N>>::send(
+                     self,
+                     peer.listener_addr,
+@@ -1067,15 +1081,44 @@ impl<N: Network> Gateway<N> {
+     /// This function sends a `ValidatorsRequest` to a random validator,
+     /// if the number of connected validators is less than the minimum.
+     /// It also attempts to connect to known unconnected validators.
+-    fn handle_min_connected_validators(&self) {
++    async fn handle_min_connected_validators(&self) {
+         // Attempt to connect to untrusted validators we're not connected to yet.
+         // The trusted ones are already handled by `handle_trusted_validators`.
+         let trusted_validators = self.trusted_peers();
+         if self.number_of_connected_peers() < N::LATEST_MAX_CERTIFICATES().unwrap() as usize {
+-            for peer in self.get_candidate_peers() {
+-                if !trusted_validators.contains(&peer.listener_addr) {
+-                    // Attempt to connect to unconnected validators.
+-                    self.connect(peer.listener_addr);
++            let (addrs, handles): (Vec<_>, Vec<_>) = self
++                .get_candidate_peers()
++                .iter()
++                .filter_map(|peer| {
++                    if trusted_validators.contains(&peer.listener_addr) {
++                        return None;
++                    }
++
++                    if let Some(previous_attempt) = peer.last_connection_attempt
++                        && previous_attempt.elapsed() < Self::MINIMUM_TIME_BETWEEN_CONNECTION_ATTEMPTS
++                    {
++                        return None;
++                    }
++
++                    match self.connect(peer.listener_addr) {
++                        Ok(hdl) => Some((peer.listener_addr, hdl)),
++                        Err(ConnectError::AlreadyConnected { .. })
++                        | Err(ConnectError::AlreadyConnecting { .. })
++                        | Err(ConnectError::SelfConnect { .. }) => None,
++                        Err(err) => {
++                            warn!(
++                                "{CONTEXT} Could not initiate connection to validator at '{}' - {err}",
++                                peer.listener_addr
++                            );
++                            None
++                        }
++                    }
++                })
++                .unzip();
++
++            for (addr, result) in addrs.into_iter().zip(join_all(handles).await) {
++                if let Err(err) = result {
++                    warn!("{CONTEXT} Failed to connect to validator at '{addr}' - {err}");
+                 }
+             }
+ 
+@@ -1121,10 +1164,10 @@ impl<N: Network> Gateway<N> {
+ 
+     // Update the dynamic validator whitelist.
+     fn update_validator_whitelist(&self) {
+-        if let Err(e) =
++        if let Err(err) =
+             self.save_best_peers(&self.node_data_dir.validator_whitelist_path(), Some(MAX_VALIDATORS_TO_SEND), false)
+         {
+-            warn!("Couldn't update the validator whitelist: {e}");
++            warn!("{CONTEXT} Could not update the validator whitelist: {err}");
+         }
+     }
+ }
+@@ -1270,8 +1313,8 @@ impl<N: Network> Disconnect for Gateway<N> {
+             if let Some(sync_sender) = self.sync_sender.get() {
+                 let tx_block_sync_remove_peer_ = sync_sender.tx_block_sync_remove_peer.clone();
+                 tokio::spawn(async move {
+-                    if let Err(e) = tx_block_sync_remove_peer_.send(peer_ip).await {
+-                        warn!("Unable to remove '{peer_ip}' from the sync module - {e}");
++                    if let Err(err) = tx_block_sync_remove_peer_.send(peer_ip).await {
++                        warn!("{CONTEXT} Unable to remove '{peer_ip}' from the sync module - {err}");
+                     }
+                 });
+             }
+@@ -1304,18 +1347,18 @@ impl<N: Network> OnConnect for Gateway<N> {
+ #[async_trait]
+ impl<N: Network> Handshake for Gateway<N> {
+     /// Performs the handshake protocol.
+-    async fn perform_handshake(&self, mut connection: Connection) -> io::Result<Connection> {
++    async fn perform_handshake(&self, mut connection: Connection) -> Result<Connection, ConnectError> {
+         // Perform the handshake.
+         let peer_addr = connection.addr();
+         let peer_side = connection.side();
+ 
+         // Check (or impose) IP-level bans.
+-        #[cfg(not(any(test)))]
++        #[cfg(not(test))]
+         if self.dev().is_none() && peer_side == ConnectionSide::Initiator {
+             // If the IP is already banned reject the connection.
+             if self.is_ip_banned(peer_addr.ip()) {
+                 trace!("{CONTEXT} Rejected a connection request from banned IP '{}'", peer_addr.ip());
+-                return Err(error(format!("'{}' is a banned IP address", peer_addr.ip())));
++                return Err(ConnectError::BannedIp { ip: peer_addr.ip() });
+             }
+ 
+             let num_attempts = self.cache.insert_inbound_connection(peer_addr.ip(), CONNECTION_ATTEMPTS_SINCE_SECS);
+@@ -1324,7 +1367,7 @@ impl<N: Network> Handshake for Gateway<N> {
+             if num_attempts > MAX_CONNECTION_ATTEMPTS {
+                 self.update_ip_ban(peer_addr.ip());
+                 trace!("{CONTEXT} Rejected a consecutive connection request from IP '{}'", peer_addr.ip());
+-                return Err(error(format!("'{}' appears to be spamming connections", peer_addr.ip())));
++                return Err(ConnectError::other(anyhow!("'{}' appears to be spamming connections", peer_addr.ip())));
+             }
+         }
+ 
+@@ -1352,12 +1395,13 @@ impl<N: Network> Handshake for Gateway<N> {
+ 
+         if let Some(addr) = listener_addr {
+             match handshake_result {
+-                Ok(Some(ref cr)) => {
++                Ok(ref cr) => {
+                     let node_type = if bootstrap_peers::<N>(self.is_dev()).contains(&addr) {
+                         NodeType::BootstrapClient
+                     } else {
+                         NodeType::Validator
+                     };
++
+                     if let Some(peer) = self.peer_pool.write().get_mut(&addr) {
+                         self.resolver.write().insert_peer(addr, peer_addr, Some(cr.address));
+                         peer.upgrade_to_connected(
+@@ -1373,9 +1417,6 @@ impl<N: Network> Handshake for Gateway<N> {
+                     self.update_metrics();
+                     info!("{CONTEXT} Connected to '{addr}'");
+                 }
+-                Ok(None) => {
+-                    return Err(error(format!("Duplicate handshake attempt with '{addr}'")));
+-                }
+                 Err(error) => {
+                     if let Some(peer) = self.peer_pool.write().get_mut(&addr) {
+                         // The peer may only be downgraded if it's a ConnectingPeer.
+@@ -1383,7 +1424,6 @@ impl<N: Network> Handshake for Gateway<N> {
+                             peer.downgrade_to_candidate(addr);
+                         }
+                     }
+-                    // This error needs to be "repackaged" in order to conform to the return type.
+                     return Err(error);
+                 }
+             }
+@@ -1403,25 +1443,20 @@ macro_rules! expect_event {
+                 data
+             }
+             // Received a disconnect event, abort.
+-            Some(Event::Disconnect(DisconnectEvent { reason })) => {
+-                return Err(error(format!("{CONTEXT} '{}' disconnected: {reason}", $peer_addr)));
++            Some(Event::Disconnect($crate::events::Disconnect { reason })) => {
++                return Err(ConnectError::other(format!("'{}' disconnected with reason \"{reason}\"", $peer_addr)));
+             }
+             // Received an unexpected event, abort.
+             Some(ty) => {
+-                return Err(error(format!(
+-                    "{CONTEXT} '{}' did not follow the handshake protocol: received {:?} instead of {}",
++                return Err(ConnectError::other(format!(
++                    "'{}' did not follow the handshake protocol: received {:?} instead of {}",
+                     $peer_addr,
+                     ty.name(),
+-                    stringify!($event_ty),
+-                )))
++                    stringify!($msg_ty),
++                )));
+             }
+             // Received nothing.
+-            None => {
+-                return Err(error(format!(
+-                    "{CONTEXT} the peer disconnected before sending {:?}, likely due to peer saturation or shutdown",
+-                    stringify!($event_ty)
+-                )))
+-            }
++            None => return Err(ConnectError::IoError(io::ErrorKind::BrokenPipe.into())),
+         }
+     };
+ }
+@@ -1443,11 +1478,9 @@ impl<N: Network> Gateway<N> {
+         peer_addr: SocketAddr,
+         restrictions_id: Field<N>,
+         stream: &'a mut TcpStream,
+-    ) -> io::Result<Option<ChallengeRequest<N>>> {
++    ) -> Result<ChallengeRequest<N>, ConnectError> {
+         // Introduce the peer into the peer pool.
+-        if !self.add_connecting_peer(peer_addr) {
+-            return Ok(None);
+-        }
++        self.add_connecting_peer(peer_addr)?;
+ 
+         // Construct the stream.
+         let mut framed = Framed::new(stream, EventCodec::<N>::handshake());
+@@ -1483,17 +1516,13 @@ impl<N: Network> Gateway<N> {
+             .await
+         {
+             send_event(&mut framed, peer_addr, reason.into()).await?;
+-            return Err(error(format!("Dropped '{peer_addr}' for reason: {reason}")));
++            return Err(ConnectError::application(reason));
+         }
++
+         // Verify the challenge request. If a disconnect reason was returned, send the disconnect message and abort.
+         if let Some(reason) = self.verify_challenge_request(peer_addr, &peer_request) {
+             send_event(&mut framed, peer_addr, reason.into()).await?;
+-            if reason == DisconnectReason::NoReasonGiven {
+-                // The Aleo address is already connected; no reason to return an error.
+-                return Ok(None);
+-            } else {
+-                return Err(error(format!("Dropped '{peer_addr}' for reason: {reason}")));
+-            }
++            return Err(reason.into_connect_error(peer_addr));
+         }
+ 
+         /* Step 3: Send the challenge response. */
+@@ -1502,14 +1531,14 @@ impl<N: Network> Gateway<N> {
+         let response_nonce: u64 = rng.r#gen();
+         let data = [peer_request.nonce.to_le_bytes(), response_nonce.to_le_bytes()].concat();
+         let Ok(our_signature) = self.account.sign_bytes(&data, rng) else {
+-            return Err(error(format!("Failed to sign the challenge request nonce from '{peer_addr}'")));
++            return Err(ConnectError::other(anyhow!("Failed to sign the challenge request nonce")));
+         };
+         // Send the challenge response.
+         let our_response =
+             ChallengeResponse { restrictions_id, signature: Data::Object(our_signature), nonce: response_nonce };
+         send_event(&mut framed, peer_addr, Event::ChallengeResponse(our_response)).await?;
+ 
+-        Ok(Some(peer_request))
++        Ok(peer_request)
+     }
+ 
+     /// The connection responder side of the handshake.
+@@ -1519,7 +1548,7 @@ impl<N: Network> Gateway<N> {
+         peer_ip: &mut Option<SocketAddr>,
+         restrictions_id: Field<N>,
+         stream: &'a mut TcpStream,
+-    ) -> io::Result<Option<ChallengeRequest<N>>> {
++    ) -> Result<ChallengeRequest<N>, ConnectError> {
+         // Construct the stream.
+         let mut framed = Framed::new(stream, EventCodec::<N>::handshake());
+ 
+@@ -1530,7 +1559,7 @@ impl<N: Network> Gateway<N> {
+ 
+         // Ensure the address is not the same as this node.
+         if self.account.address() == peer_request.address {
+-            return Err(error("Skipping request to connect to self".to_string()));
++            return Err(ConnectError::SelfConnect { address: peer_addr });
+         }
+ 
+         // Obtain the peer's listening address.
+@@ -1538,24 +1567,18 @@ impl<N: Network> Gateway<N> {
+         let peer_ip = peer_ip.unwrap();
+ 
+         // Knowing the peer's listening address, ensure it is allowed to connect.
+-        if let Err(forbidden_message) = self.ensure_peer_is_allowed(peer_ip) {
+-            return Err(error(format!("{forbidden_message}")));
++        if let Err(reason) = self.ensure_peer_is_allowed(peer_ip) {
++            send_event(&mut framed, peer_addr, reason.into()).await?;
++            return Err(reason.into_connect_error(peer_addr));
+         }
+ 
+         // Introduce the peer into the peer pool.
+-        if !self.add_connecting_peer(peer_ip) {
+-            return Ok(None);
+-        }
++        self.add_connecting_peer(peer_ip)?;
+ 
+         // Verify the challenge request. If a disconnect reason was returned, send the disconnect message and abort.
+         if let Some(reason) = self.verify_challenge_request(peer_addr, &peer_request) {
+             send_event(&mut framed, peer_addr, reason.into()).await?;
+-            if reason == DisconnectReason::NoReasonGiven {
+-                // The Aleo address is already connected; no reason to return an error.
+-                return Ok(None);
+-            } else {
+-                return Err(io_error(format!("Dropped '{peer_addr}' for reason: {reason}")));
+-            }
++            return Err(reason.into_connect_error(peer_addr));
+         }
+ 
+         /* Step 2: Send the challenge response followed by own challenge request. */
+@@ -1567,7 +1590,7 @@ impl<N: Network> Gateway<N> {
+         let response_nonce: u64 = rng.r#gen();
+         let data = [peer_request.nonce.to_le_bytes(), response_nonce.to_le_bytes()].concat();
+         let Ok(our_signature) = self.account.sign_bytes(&data, rng) else {
+-            return Err(error(format!("Failed to sign the challenge request nonce from '{peer_addr}'")));
++            return Err(ConnectError::other(anyhow!("Failed to sign the challenge request nonce")));
+         };
+         // Send the challenge response.
+         let our_response =
+@@ -1597,13 +1620,14 @@ impl<N: Network> Gateway<N> {
+             .await
+         {
+             send_event(&mut framed, peer_addr, reason.into()).await?;
+-            return Err(io_error(format!("Dropped '{peer_addr}' for reason: {reason}")));
++            Err(reason.into_connect_error(peer_addr))
++        } else {
++            Ok(peer_request)
+         }
+-
+-        Ok(Some(peer_request))
+     }
+ 
+     /// Verifies the given challenge request. Returns a disconnect reason if the request is invalid.
++    #[must_use]
+     fn verify_challenge_request(&self, peer_addr: SocketAddr, event: &ChallengeRequest<N>) -> Option<DisconnectReason> {
+         // Retrieve the components of the challenge request.
+         let &ChallengeRequest { version, listener_port, address, nonce: _, ref snarkos_sha } = event;
+@@ -1613,30 +1637,30 @@ impl<N: Network> Gateway<N> {
+ 
+         // Ensure the event protocol version is not outdated.
+         if version < Event::<N>::VERSION {
+-            warn!("{CONTEXT} Dropping '{peer_addr}' on version {version} (outdated)");
+             return Some(DisconnectReason::OutdatedClientVersion);
+         }
+         // If the node is in trusted peers only mode, ensure the peer is trusted.
+         if self.trusted_peers_only && !self.is_trusted(listener_addr) {
+             warn!("{CONTEXT} Dropping '{peer_addr}' for being an untrusted validator ({address})");
+-            return Some(DisconnectReason::ProtocolViolation);
++            return Some(DisconnectReason::NoExternalPeersAllowed);
+         }
+         if !bootstrap_peers::<N>(self.dev().is_some()).contains(&listener_addr) {
+             // Ensure the address is a current committee member.
+             if !self.is_authorized_validator_address(address) {
+-                warn!("{CONTEXT} Dropping '{peer_addr}' for being an unauthorized validator ({address})");
+-                return Some(DisconnectReason::ProtocolViolation);
++                return Some(DisconnectReason::UnauthorizedValidator);
+             }
+         }
++
+         // Ensure the address is not already connected.
+         if self.is_connected_address(address) {
+-            warn!("{CONTEXT} Dropping '{peer_addr}' for being already connected ({address})");
+-            return Some(DisconnectReason::NoReasonGiven);
++            return Some(DisconnectReason::AlreadyConnectedToAleoAddress);
+         }
++
+         None
+     }
+ 
+     /// Verifies the given challenge response. Returns a disconnect reason if the response is invalid.
++    #[must_use]
+     async fn verify_challenge_response(
+         &self,
+         peer_addr: SocketAddr,
+diff --git a/node/bft/tests/common/primary.rs b/node/bft/tests/common/primary.rs
+index 7365ced08..7258f26d2 100644
+--- a/node/bft/tests/common/primary.rs
++++ b/node/bft/tests/common/primary.rs
+@@ -258,7 +258,7 @@ impl TestNetwork {
+     pub async fn connect_validators(&self, first_id: u16, second_id: u16) {
+         let first_validator = self.validators.get(&first_id).unwrap();
+         let second_validator_ip = self.validators.get(&second_id).unwrap().primary.gateway().local_ip();
+-        first_validator.primary.gateway().connect(second_validator_ip);
++        let _ = first_validator.primary.gateway().connect(second_validator_ip);
+         // Give the connection time to be established.
+         sleep(Duration::from_millis(100)).await;
+     }
+@@ -268,7 +268,7 @@ impl TestNetwork {
+         for (validator, other_validator) in self.validators.values().tuple_combinations() {
+             // Connect to the node.
+             let ip = other_validator.primary.gateway().local_ip();
+-            validator.primary.gateway().connect(ip);
++            let _ = validator.primary.gateway().connect(ip);
+             // Give the connection time to be established.
+             tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+         }
+@@ -281,7 +281,7 @@ impl TestNetwork {
+         for validator in self.validators.values() {
+             if validator.id != id {
+                 // Connect to the node.
+-                validator.primary.gateway().connect(target_ip);
++                let _ = validator.primary.gateway().connect(target_ip);
+                 // Give the connection time to be established.
+                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+             }
+diff --git a/node/consensus/Cargo.toml b/node/consensus/Cargo.toml
+index 0ab477298..bc946d609 100644
+--- a/node/consensus/Cargo.toml
++++ b/node/consensus/Cargo.toml
+@@ -23,6 +23,7 @@ locktick = [
+   "snarkos-node-bft/locktick",
+   "snarkos-node-bft-ledger-service/locktick",
+   "snarkos-node-bft-storage-service/locktick",
++  "snarkos-node-metrics/locktick",
+   "snarkvm/locktick"
+ ]
+ metrics = [ "dep:snarkos-node-metrics" ]
+diff --git a/node/network/Cargo.toml b/node/network/Cargo.toml
+index 065208937..92e6032e4 100644
+--- a/node/network/Cargo.toml
++++ b/node/network/Cargo.toml
+@@ -42,7 +42,7 @@ workspace = true
+ 
+ [dependencies.snarkvm]
+ workspace = true
+-features = [ "console" ]
++features = [ "console", "utilities" ]
+ 
+ [dependencies.tokio]
+ workspace = true
+diff --git a/node/network/src/lib.rs b/node/network/src/lib.rs
+index 43237bb8d..d17a0931b 100644
+--- a/node/network/src/lib.rs
++++ b/node/network/src/lib.rs
+@@ -29,7 +29,7 @@ pub use resolver::*;
+ 
+ use snarkvm::prelude::Network;
+ 
+-use std::{net::SocketAddr, str::FromStr};
++use std::{env::VarError, net::SocketAddr, str::FromStr};
+ use tracing::*;
+ 
+ // Include the generated build information.
+@@ -44,7 +44,12 @@ pub fn bootstrap_peers<N: Network>(is_dev: bool) -> Vec<SocketAddr> {
+         // Development testing contains optional bootstrap peers loaded from the environment.
+         match std::env::var("TEST_BOOTSTRAP_PEERS") {
+             Ok(peers) => peers.split(',').map(|peer| SocketAddr::from_str(peer).unwrap()).collect(),
++            Err(VarError::NotPresent) => {
++                // Return an empty list if the environment variable is not present.
++                vec![]
++            }
+             Err(err) => {
++                // Log other errors, e.g., invalid encoding.
+                 warn!("Failed to load bootstrap peers from environment: {err}");
+                 vec![]
+             }
+diff --git a/node/network/src/peer.rs b/node/network/src/peer.rs
+index e5620c747..27434e6ee 100644
+--- a/node/network/src/peer.rs
++++ b/node/network/src/peer.rs
+@@ -48,6 +48,11 @@ pub struct CandidatePeer {
+     pub trusted: bool,
+     /// The latest block height known to be associated with the peer.
+     pub last_height_seen: Option<u32>,
++    /// The last time we attempted to connect to the peer.
++    /// `None` if there was no attempt to connect since the peer was last connected, or no attempt at all.
++    pub last_connection_attempt: Option<Instant>,
++    /// The total number of connection attempts, since the peer was last connected.
++    pub total_connection_attempts: u32,
+ }
+ 
+ /// A fully connected peer.
+@@ -85,7 +90,13 @@ pub enum ConnectionMode {
+ impl<N: Network> Peer<N> {
+     /// Create a candidate peer.
+     pub const fn new_candidate(listener_addr: SocketAddr, trusted: bool) -> Self {
+-        Self::Candidate(CandidatePeer { listener_addr, trusted, last_height_seen: None })
++        Self::Candidate(CandidatePeer {
++            listener_addr,
++            trusted,
++            last_height_seen: None,
++            last_connection_attempt: None,
++            total_connection_attempts: 0,
++        })
+     }
+ 
+     /// Create a connecting peer.
+@@ -132,6 +143,8 @@ impl<N: Network> Peer<N> {
+             listener_addr,
+             trusted: self.is_trusted(),
+             last_height_seen: self.last_height_seen(),
++            last_connection_attempt: None,
++            total_connection_attempts: 0,
+         });
+     }
+ 
+diff --git a/node/network/src/peering.rs b/node/network/src/peering.rs
+index de1c19d4c..1747248f7 100644
+--- a/node/network/src/peering.rs
++++ b/node/network/src/peering.rs
+@@ -13,22 +13,19 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-use crate::{CandidatePeer, ConnectedPeer, ConnectionMode, NodeType, Peer, Resolver, bootstrap_peers};
++use crate::{CandidatePeer, ConnectedPeer, ConnectionMode, NodeType, Peer, Resolver};
+ 
+-use snarkos_node_tcp::{P2P, is_bogon_ip, is_unspecified_or_broadcast_ip};
++use snarkos_node_tcp::{ConnectError, P2P, is_bogon_ip, is_unspecified_or_broadcast_ip};
+ use snarkvm::prelude::{Address, Network};
+ 
+-use anyhow::{Result, bail};
++use anyhow::Result;
+ #[cfg(feature = "locktick")]
+ use locktick::parking_lot::RwLock;
+ #[cfg(not(feature = "locktick"))]
+ use parking_lot::RwLock;
+ use std::{
+     cmp,
+-    collections::{
+-        HashSet,
+-        hash_map::{Entry, HashMap},
+-    },
++    collections::hash_map::{Entry, HashMap},
+     fs,
+     io::{self, Write},
+     net::{IpAddr, SocketAddr},
+@@ -39,6 +36,23 @@ use std::{
+ use tokio::task;
+ use tracing::*;
+ 
++/// Application-level errors generated by the peering module.
++/// This is never returned directly, but only as the payload for a `ConnectError`.
++#[derive(Debug)]
++pub enum PeeringError {
++    NoExternalPeersAllowed,
++}
++
++impl snarkos_node_tcp::ApplicationError for PeeringError {}
++
++impl std::fmt::Display for PeeringError {
++    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
++        match self {
++            Self::NoExternalPeersAllowed => write!(f, "no untrusted peers allowed"),
++        }
++    }
++}
++
+ pub trait PeerPoolHandling<N: Network>: P2P {
+     const OWNER: &str;
+ 
+@@ -83,77 +97,59 @@ pub trait PeerPoolHandling<N: Network>: P2P {
+         self.tcp().config().max_connections as usize
+     }
+ 
+-    /// Ensure we are allowed to connect to the given listener address of a peer.
+-    ///
+-    /// # Return Values
+-    /// - `Ok(true)` if already connected (or connecting) to the peer.
+-    /// - `Ok(false)` if not connected to the peer but allowed to.
+-    /// - `Err(err)` if not allowed to connect to the peer.
+-    fn check_connection_attempt(&self, listener_addr: SocketAddr) -> Result<bool> {
++    /// Ensure we can and are allowed to connect to the given listener address of a peer.
++    fn check_connection_attempt(&self, listener_addr: SocketAddr) -> Result<(), ConnectError> {
+         // Ensure the peer IP is not this node.
+         if self.is_local_ip(listener_addr) {
+-            bail!("{} Dropping connection attempt to '{listener_addr}' (attempted to self-connect)", Self::OWNER);
++            return Err(ConnectError::SelfConnect { address: listener_addr });
+         }
+         // Ensure the node does not surpass the maximum number of peer connections.
+         if self.number_of_connected_peers() >= self.max_connected_peers() {
+-            bail!("{} Dropping connection attempt to '{listener_addr}' (maximum peers reached)", Self::OWNER);
++            return Err(ConnectError::MaximumConnectionsReached { limit: self.max_connected_peers() as u16 });
+         }
+         // Ensure the node is not already connected to this peer.
+         if self.is_connected(listener_addr) {
+-            debug!("{} Dropping connection attempt to '{listener_addr}' (already connected)", Self::OWNER);
+-            return Ok(true);
++            return Err(ConnectError::AlreadyConnected { address: listener_addr });
+         }
+         // Ensure the node is not already connecting to this peer.
+         if self.is_connecting(listener_addr) {
+-            debug!("{} Dropping connection attempt to '{listener_addr}' (already connecting)", Self::OWNER);
+-            return Ok(true);
++            return Err(ConnectError::AlreadyConnecting { address: listener_addr });
+         }
+-        // If the IP is already banned, reject the attempt.
++        // Ensure the peer IP is not banned.
+         if self.is_ip_banned(listener_addr.ip()) {
+-            bail!("{} Rejected a connection attempt to a banned IP '{}'", Self::OWNER, listener_addr.ip());
++            return Err(ConnectError::BannedIp { ip: listener_addr.ip() });
+         }
+         // If the node is in trusted peers only mode, ensure the peer is trusted.
+         if self.trusted_peers_only() && !self.is_trusted(listener_addr) {
+-            bail!("{} Dropping connection attempt to '{listener_addr}' (untrusted)", Self::OWNER);
++            return Err(ConnectError::application(PeeringError::NoExternalPeersAllowed));
+         }
+-        Ok(false)
++
++        Ok(())
+     }
+ 
+     /// Attempts to connect to the given peer's listener address.
+     ///
+-    /// Returns None if we are already connected to the peer or cannot connect.
++    /// Returns an earlier error, if, for example, we are already connected to the peer.
+     /// Otherwise, it returns a handle to the tokio tasks that sets up the connection.
+-    fn connect(&self, listener_addr: SocketAddr) -> Option<task::JoinHandle<bool>> {
++    ///
++    /// # Concurrency
++    /// Only one task may call this function for a given listener address at a time.
++    fn connect(&self, listener_addr: SocketAddr) -> Result<task::JoinHandle<Result<(), ConnectError>>, ConnectError> {
+         // Return early if the attempt is against the protocol rules.
+-        match self.check_connection_attempt(listener_addr) {
+-            Ok(true) => return None,
+-            Ok(false) => {}
+-            Err(error) => {
+-                warn!("{} {error}", Self::OWNER);
+-                return None;
+-            }
+-        }
++        self.check_connection_attempt(listener_addr)?;
+ 
+-        // Determine whether the peer is trusted or a bootstrap node in order to decide
+-        // how problematic any potential connection issues are.
+-        let is_trusted_or_bootstrap =
+-            self.is_trusted(listener_addr) || bootstrap_peers::<N>(self.is_dev()).contains(&listener_addr);
++        // Update the last connection attempt time for the peer.
++        if let Some(Peer::Candidate(peer)) = self.peer_pool().write().get_mut(&listener_addr) {
++            peer.last_connection_attempt = Some(Instant::now());
++            peer.total_connection_attempts += 1;
++        } else {
++            warn!("{} No candidate peer entry exists for '{listener_addr:?}' while connecting.", Self::OWNER);
++        }
+ 
+         let tcp = self.tcp().clone();
+-        Some(tokio::spawn(async move {
++        Ok(tokio::spawn(async move {
+             debug!("{} Connecting to {listener_addr}...", Self::OWNER);
+-            // Attempt to connect to the peer.
+-            match tcp.connect(listener_addr).await {
+-                Ok(_) => true,
+-                Err(error) => {
+-                    if is_trusted_or_bootstrap {
+-                        warn!("{} Unable to connect to '{listener_addr}' - {error}", Self::OWNER);
+-                    } else {
+-                        debug!("{} Unable to connect to '{listener_addr}' - {error}", Self::OWNER);
+-                    }
+-                    false
+-                }
+-            }
++            tcp.connect(listener_addr).await
+         }))
+     }
+ 
+@@ -327,6 +323,11 @@ pub trait PeerPoolHandling<N: Network>: P2P {
+         self.resolver().read().get_peer_ip_for_address(aleo_address).is_some()
+     }
+ 
++    /// Returns `true` if the node is connected or connecting to the given peer listener address.
++    fn is_connecting_or_connected(&self, listener_addr: SocketAddr) -> bool {
++        self.peer_pool().read().get(&listener_addr).is_some_and(|peer| peer.is_connecting() || peer.is_connected())
++    }
++
+     /// Returns `true` if the given listener address is trusted.
+     fn is_trusted(&self, listener_addr: SocketAddr) -> bool {
+         self.peer_pool().read().get(&listener_addr).is_some_and(|peer| peer.is_trusted())
+@@ -448,14 +449,20 @@ pub trait PeerPoolHandling<N: Network>: P2P {
+             .collect()
+     }
+ 
+-    /// Returns the list of unconnected trusted peers.
+-    fn unconnected_trusted_peers(&self) -> HashSet<SocketAddr> {
++    /// Returns the list of trusted candidate peers.
++    fn get_trusted_candidate_peers(&self) -> Vec<CandidatePeer> {
+         self.peer_pool()
+             .read()
+-            .iter()
+-            .filter_map(
+-                |(addr, peer)| if let Peer::Candidate(peer) = peer { peer.trusted.then_some(*addr) } else { None },
+-            )
++            .values()
++            .filter_map(|peer| {
++                if let Peer::Candidate(peer) = peer
++                    && peer.trusted
++                {
++                    Some(peer.clone())
++                } else {
++                    None
++                }
++            })
+             .collect()
+     }
+ 
+@@ -531,17 +538,20 @@ pub trait PeerPoolHandling<N: Network>: P2P {
+     // a known candidate peer to a connecting one. The returned boolean indicates
+     // whether the peer has been added/promoted, or rejected due to already being
+     // shaken hands with or connected.
+-    fn add_connecting_peer(&self, listener_addr: SocketAddr) -> bool {
++    fn add_connecting_peer(&self, listener_addr: SocketAddr) -> Result<(), ConnectError> {
+         match self.peer_pool().write().entry(listener_addr) {
+             Entry::Vacant(entry) => {
+                 entry.insert(Peer::new_connecting(listener_addr, false));
+-                true
+-            }
+-            Entry::Occupied(mut entry) if matches!(entry.get(), Peer::Candidate(_)) => {
+-                entry.insert(Peer::new_connecting(listener_addr, entry.get().is_trusted()));
+-                true
++                Ok(())
+             }
+-            Entry::Occupied(_) => false,
++            Entry::Occupied(mut entry) => match entry.get() {
++                peer @ Peer::Candidate(_) => {
++                    entry.insert(Peer::new_connecting(listener_addr, peer.is_trusted()));
++                    Ok(())
++                }
++                Peer::Connecting(_) => Err(ConnectError::AlreadyConnecting { address: listener_addr }),
++                Peer::Connected(_) => Err(ConnectError::AlreadyConnected { address: listener_addr }),
++            },
+         }
+     }
+ 
+diff --git a/node/router/Cargo.toml b/node/router/Cargo.toml
+index 993d6fa2a..48a5539bf 100644
+--- a/node/router/Cargo.toml
++++ b/node/router/Cargo.toml
+@@ -144,7 +144,3 @@ features = [ "test" ]
+ [dev-dependencies.snarkvm]
+ workspace = true
+ features = [ "test-helpers" ]
+-
+-[dev-dependencies.tracing-subscriber]
+-workspace = true
+-features = [ "env-filter", "fmt" ]
+diff --git a/node/router/messages/Cargo.toml b/node/router/messages/Cargo.toml
+index 63f276d72..791c35ef6 100644
+--- a/node/router/messages/Cargo.toml
++++ b/node/router/messages/Cargo.toml
+@@ -32,6 +32,9 @@ workspace = true
+ [dependencies.snarkos-node-sync-locators]
+ workspace = true
+ 
++[dependencies.snarkos-node-tcp] 
++workspace = true
++
+ [dependencies.snarkvm]
+ workspace = true
+ 
+diff --git a/node/router/messages/src/helpers/disconnect.rs b/node/router/messages/src/helpers/disconnect.rs
+index c803b9924..d21b720f3 100644
+--- a/node/router/messages/src/helpers/disconnect.rs
++++ b/node/router/messages/src/helpers/disconnect.rs
+@@ -13,9 +13,10 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
++use snarkos_node_tcp::ConnectError;
+ use snarkvm::prelude::{FromBytes, ToBytes, io_error};
+ 
+-use std::io;
++use std::{io, net::SocketAddr};
+ 
+ /// The reason behind the node disconnecting from a peer.
+ #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+@@ -48,12 +49,22 @@ pub enum DisconnectReason {
+     TooManyPeers,
+     /// The peer is a sync node that's behind our node, and it needs to sync itself first.
+     YouNeedToSyncFirst,
+-    /// The peer's listening port is closed.
++    /// The peer's listening port is closed
+     YourPortIsClosed(u16),
++    /// The two peers are the same node.
++    SelfConnect,
++    /// No untrusted external peers are allowed.
++    NoExternalPeersAllowed,
++    /// Already connecting to the same node (through another TCP channel).
++    AlreadyConnecting,
++    /// Already connected to the same node (through another TCP channel).
++    AlreadyConnected,
+     /// The disconnect reason is not known. This is used for when the peers sends a disconnect reason that is not known to us.
+     UnknownReason,
+ }
+ 
++impl snarkos_node_tcp::ApplicationError for DisconnectReason {}
++
+ impl ToBytes for DisconnectReason {
+     fn write_le<W: io::Write>(&self, mut writer: W) -> io::Result<()> {
+         match self {
+@@ -75,6 +86,10 @@ impl ToBytes for DisconnectReason {
+                 14u8.write_le(&mut writer)?;
+                 port.write_le(writer)
+             }
++            Self::SelfConnect => 15u8.write_le(writer),
++            Self::NoExternalPeersAllowed => 16u8.write_le(writer),
++            Self::AlreadyConnecting => 17u8.write_le(writer),
++            Self::AlreadyConnected => 18u8.write_le(writer),
+             Self::UnknownReason => Err(io_error("Cannot serialize unknown disconnect reason")),
+         }
+     }
+@@ -106,6 +121,10 @@ impl FromBytes for DisconnectReason {
+                 let port = u16::read_le(reader)?;
+                 Self::YourPortIsClosed(port)
+             }
++            15 => Self::SelfConnect,
++            16 => Self::NoExternalPeersAllowed,
++            17 => Self::AlreadyConnecting,
++            18 => Self::AlreadyConnected,
+             val => {
+                 warn!("Received unknown disconnect reason (id={val})");
+                 Self::UnknownReason
+@@ -135,6 +154,21 @@ impl std::fmt::Display for DisconnectReason {
+             Self::YouNeedToSyncFirst => write!(f, "you need to sync first"),
+             Self::YourPortIsClosed(port) => write!(f, "your port is closed ({port})"),
+             Self::UnknownReason => write!(f, "unknown reason"),
++            Self::SelfConnect => write!(f, "self connect"),
++            Self::NoExternalPeersAllowed => write!(f, "no external peers allowed"),
++            Self::AlreadyConnecting => write!(f, "already connecting"),
++            Self::AlreadyConnected => write!(f, "already connected"),
++        }
++    }
++}
++
++impl DisconnectReason {
++    pub fn into_connect_error(self, address: SocketAddr) -> ConnectError {
++        match self {
++            DisconnectReason::SelfConnect => ConnectError::SelfConnect { address },
++            DisconnectReason::AlreadyConnected => ConnectError::AlreadyConnected { address },
++            DisconnectReason::AlreadyConnecting => ConnectError::AlreadyConnecting { address },
++            _ => ConnectError::application(self),
+         }
+     }
+ }
+diff --git a/node/router/src/handshake.rs b/node/router/src/handshake.rs
+index 75e0493f9..3afd72ca5 100644
+--- a/node/router/src/handshake.rs
++++ b/node/router/src/handshake.rs
+@@ -21,13 +21,13 @@ use crate::{
+     messages::{ChallengeRequest, ChallengeResponse, DisconnectReason, Message, MessageCodec, MessageTrait},
+ };
+ use snarkos_node_network::{get_repo_commit_hash, log_repo_sha_comparison};
+-use snarkos_node_tcp::{ConnectionSide, P2P, Tcp};
++use snarkos_node_tcp::{ConnectError, ConnectionSide, P2P, Tcp};
+ use snarkvm::{
+     ledger::narwhal::Data,
+-    prelude::{Address, ConsensusVersion, Field, Network, block::Header, error, io_error},
++    prelude::{Address, ConsensusVersion, Field, Network, block::Header},
+ };
+ 
+-use anyhow::{Result, bail};
++use anyhow::{Result, anyhow};
+ use futures::SinkExt;
+ use rand::{Rng, rngs::OsRng};
+ use std::{io, net::SocketAddr};
+@@ -46,8 +46,6 @@ impl<N: Network> P2P for Router<N> {
+ #[macro_export]
+ macro_rules! expect_message {
+     ($msg_ty:path, $framed:expr, $peer_addr:expr) => {{
+-        use snarkvm::utilities::io_error;
+-
+         match $framed.try_next().await? {
+             // Received the expected message, proceed.
+             Some($msg_ty(data)) => {
+@@ -56,11 +54,11 @@ macro_rules! expect_message {
+             }
+             // Received a disconnect message, abort.
+             Some(Message::Disconnect($crate::messages::Disconnect { reason })) => {
+-                return Err(io_error(format!("'{}' disconnected: {reason}", $peer_addr)));
++                return Err(ConnectError::other(format!("'{}' disconnected with reason \"{reason}\"", $peer_addr)));
+             }
+             // Received an unexpected message, abort.
+             Some(ty) => {
+-                return Err(io_error(format!(
++                return Err(ConnectError::other(format!(
+                     "'{}' did not follow the handshake protocol: received {:?} instead of {}",
+                     $peer_addr,
+                     ty.name(),
+@@ -68,12 +66,7 @@ macro_rules! expect_message {
+                 )));
+             }
+             // Received nothing.
+-            None => {
+-                return Err(io_error(format!(
+-                    "the peer disconnected before sending {:?}, likely due to peer saturation or shutdown",
+-                    stringify!($msg_ty),
+-                )));
+-            }
++            None => return Err(ConnectError::IoError(io::ErrorKind::BrokenPipe.into())),
+         }
+     }};
+ }
+@@ -97,7 +90,7 @@ impl<N: Network> Router<N> {
+         peer_side: ConnectionSide,
+         genesis_header: Header<N>,
+         restrictions_id: Field<N>,
+-    ) -> io::Result<Option<ChallengeRequest<N>>> {
++    ) -> Result<ChallengeRequest<N>, ConnectError> {
+         // If this is an inbound connection, we log it, but don't know the listening address yet.
+         // Otherwise, we can immediately register the listening address.
+         let mut listener_addr = if peer_side == ConnectionSide::Initiator {
+@@ -114,7 +107,7 @@ impl<N: Network> Router<N> {
+             // If the IP is already banned reject the connection.
+             if self.is_ip_banned(peer_addr.ip()) {
+                 trace!("Rejected a connection request from banned IP '{}'", peer_addr.ip());
+-                return Err(error(format!("'{}' is a banned IP address", peer_addr.ip())));
++                return Err(ConnectError::other(anyhow!("'{}' is a banned IP address", peer_addr.ip())));
+             }
+ 
+             let num_attempts =
+@@ -124,20 +117,24 @@ impl<N: Network> Router<N> {
+             if num_attempts > Router::<N>::MAX_CONNECTION_ATTEMPTS {
+                 self.update_ip_ban(peer_addr.ip());
+                 trace!("Rejected a consecutive connection request from IP '{}'", peer_addr.ip());
+-                return Err(error(format!("'{}' appears to be spamming connections", peer_addr.ip())));
++                return Err(ConnectError::other(anyhow!("'{}' appears to be spamming connections", peer_addr.ip())));
+             }
+         }
+ 
+         // Perform the handshake; we pass on a mutable reference to listener_addr in case the process is broken at any point in time.
+-        let handshake_result = if peer_side == ConnectionSide::Responder {
+-            self.handshake_inner_initiator(peer_addr, stream, genesis_header, restrictions_id).await
+-        } else {
+-            self.handshake_inner_responder(peer_addr, &mut listener_addr, stream, genesis_header, restrictions_id).await
++        let handshake_result = match peer_side {
++            ConnectionSide::Responder => {
++                self.handshake_inner_initiator(peer_addr, stream, genesis_header, restrictions_id).await
++            }
++            ConnectionSide::Initiator => {
++                self.handshake_inner_responder(peer_addr, &mut listener_addr, stream, genesis_header, restrictions_id)
++                    .await
++            }
+         };
+ 
+         if let Some(addr) = listener_addr {
+             match handshake_result {
+-                Ok(Some(ref cr)) => {
++                Ok(ref cr) => {
+                     if let Some(peer) = self.peer_pool.write().get_mut(&addr) {
+                         self.resolver.write().insert_peer(peer.listener_addr(), peer_addr, Some(cr.address));
+                         peer.upgrade_to_connected(
+@@ -149,12 +146,9 @@ impl<N: Network> Router<N> {
+                             ConnectionMode::Router,
+                         );
+                     }
++
+                     #[cfg(feature = "metrics")]
+                     self.update_metrics();
+-                    debug!("Completed the handshake with '{peer_addr}'");
+-                }
+-                Ok(None) => {
+-                    return Err(error(format!("Duplicate handshake attempt with '{addr}'")));
+                 }
+                 Err(_) => {
+                     if let Some(peer) = self.peer_pool.write().get_mut(&addr) {
+@@ -177,12 +171,10 @@ impl<N: Network> Router<N> {
+         stream: &'a mut TcpStream,
+         genesis_header: Header<N>,
+         restrictions_id: Field<N>,
+-    ) -> io::Result<Option<ChallengeRequest<N>>> {
++    ) -> Result<ChallengeRequest<N>, ConnectError> {
+         // Introduce the peer into the peer pool.
+-        if !self.add_connecting_peer(peer_addr) {
+-            // Return early if already being connected to.
+-            return Ok(None);
+-        }
++        // If we are connecting, the peer and listener address are identical.
++        self.add_connecting_peer(peer_addr)?;
+ 
+         // Construct the stream.
+         let mut framed = Framed::new(stream, MessageCodec::<N>::handshake());
+@@ -228,12 +220,13 @@ impl<N: Network> Router<N> {
+             .await
+         {
+             send(&mut framed, peer_addr, reason.into()).await?;
+-            return Err(io_error(format!("Dropped '{peer_addr}' for reason: {reason}")));
++            return Err(reason.into_connect_error(peer_addr));
+         }
++
+         // Verify the challenge request. If a disconnect reason was returned, send the disconnect message and abort.
+         if let Some(reason) = self.verify_challenge_request(peer_addr, &peer_request) {
+             send(&mut framed, peer_addr, reason.into()).await?;
+-            return Err(io_error(format!("Dropped '{peer_addr}' for reason: {reason}")));
++            return Err(reason.into_connect_error(peer_addr));
+         }
+ 
+         /* Step 3: Send the challenge response. */
+@@ -242,7 +235,7 @@ impl<N: Network> Router<N> {
+         let data = [peer_request.nonce.to_le_bytes(), response_nonce.to_le_bytes()].concat();
+         // Sign the counterparty nonce.
+         let Ok(our_signature) = self.account.sign_bytes(&data, rng) else {
+-            return Err(error(format!("Failed to sign the challenge request nonce from '{peer_addr}'")));
++            return Err(ConnectError::other(anyhow!("Failed to sign the challenge request nonce")));
+         };
+         // Send the challenge response.
+         let our_response = ChallengeResponse {
+@@ -253,7 +246,7 @@ impl<N: Network> Router<N> {
+         };
+         send(&mut framed, peer_addr, Message::ChallengeResponse(our_response)).await?;
+ 
+-        Ok(Some(peer_request))
++        Ok(peer_request)
+     }
+ 
+     /// The connection responder side of the handshake.
+@@ -264,13 +257,13 @@ impl<N: Network> Router<N> {
+         stream: &'a mut TcpStream,
+         genesis_header: Header<N>,
+         restrictions_id: Field<N>,
+-    ) -> io::Result<Option<ChallengeRequest<N>>> {
++    ) -> Result<ChallengeRequest<N>, ConnectError> {
+         // Construct the stream.
+         let mut framed = Framed::new(stream, MessageCodec::<N>::handshake());
+ 
+         /* Step 1: Receive the challenge request. */
+ 
+-        // Listen for the challenge request message.
++        // Wait for the challenge request message.
+         let peer_request = expect_message!(Message::ChallengeRequest, framed, peer_addr);
+ 
+         // Determine the snarkOS SHA to send to the peer.
+@@ -286,20 +279,18 @@ impl<N: Network> Router<N> {
+         let listener_addr = listener_addr.unwrap();
+ 
+         // Knowing the peer's listening address, ensure it is allowed to connect.
+-        if let Err(forbidden_message) = self.ensure_peer_is_allowed(listener_addr) {
+-            return Err(error(format!("{forbidden_message}")));
++        if let Err(reason) = self.ensure_peer_is_allowed(listener_addr) {
++            send(&mut framed, peer_addr, reason.into()).await?;
++            return Err(reason.into_connect_error(listener_addr));
+         }
+ 
+         // Introduce the peer into the peer pool.
+-        if !self.add_connecting_peer(listener_addr) {
+-            // Return early if already being connected to.
+-            return Ok(None);
+-        }
++        self.add_connecting_peer(listener_addr)?;
+ 
+         // Verify the challenge request. If a disconnect reason was returned, send the disconnect message and abort.
+         if let Some(reason) = self.verify_challenge_request(peer_addr, &peer_request) {
+             send(&mut framed, peer_addr, reason.into()).await?;
+-            return Err(io_error(format!("Dropped '{peer_addr}' for reason: {reason}")));
++            return Err(reason.into_connect_error(peer_addr));
+         }
+ 
+         /* Step 2: Send the challenge response followed by own challenge request. */
+@@ -311,7 +302,9 @@ impl<N: Network> Router<N> {
+         let response_nonce: u64 = rng.r#gen();
+         let data = [peer_request.nonce.to_le_bytes(), response_nonce.to_le_bytes()].concat();
+         let Ok(our_signature) = self.account.sign_bytes(&data, rng) else {
+-            return Err(error(format!("Failed to sign the challenge request nonce from '{peer_addr}'")));
++            return Err(ConnectError::Other(
++                anyhow!("Failed to sign the challenge request nonce from '{peer_addr}'").into(),
++            ));
+         };
+         // Send the challenge response.
+         let our_response = ChallengeResponse {
+@@ -331,8 +324,9 @@ impl<N: Network> Router<N> {
+ 
+         /* Step 3: Receive the challenge response. */
+ 
+-        // Listen for the challenge response message.
++        // Wait for the challenge response message.
+         let peer_response = expect_message!(Message::ChallengeResponse, framed, peer_addr);
++
+         // Verify the challenge response. If a disconnect reason was returned, send the disconnect message and abort.
+         if let Some(reason) = self
+             .verify_challenge_response(
+@@ -347,29 +341,30 @@ impl<N: Network> Router<N> {
+             .await
+         {
+             send(&mut framed, peer_addr, reason.into()).await?;
+-            return Err(io_error(format!("Dropped '{peer_addr}' for reason: {reason}")));
++            Err(reason.into_connect_error(peer_addr))
++        } else {
++            Ok(peer_request)
+         }
+-
+-        Ok(Some(peer_request))
+     }
+ 
+     /// Ensure the peer is allowed to connect.
+-    fn ensure_peer_is_allowed(&self, listener_addr: SocketAddr) -> Result<()> {
++    fn ensure_peer_is_allowed(&self, listener_addr: SocketAddr) -> Result<(), DisconnectReason> {
+         // Ensure that it's not a self-connect attempt.
+         if self.is_local_ip(listener_addr) {
+-            bail!("Dropping connection request from '{listener_addr}' (attempted to self-connect)");
++            return Err(DisconnectReason::SelfConnect);
+         }
+         // As a validator, only accept connections from trusted peers and bootstrap nodes.
+         if self.node_type() == NodeType::Validator
+             && !self.is_trusted(listener_addr)
+             && !crate::bootstrap_peers::<N>(self.is_dev()).contains(&listener_addr)
+         {
+-            bail!("Dropping connection request from '{listener_addr}' (untrusted)");
++            return Err(DisconnectReason::NoExternalPeersAllowed);
+         }
+         // If the node is in trusted peers only mode, ensure the peer is explicitly trusted.
+         if self.trusted_peers_only() && !self.is_trusted(listener_addr) {
+-            bail!("Dropping connection request from '{listener_addr}' (untrusted)");
++            return Err(DisconnectReason::NoExternalPeersAllowed);
+         }
++
+         Ok(())
+     }
+ 
+diff --git a/node/router/src/heartbeat.rs b/node/router/src/heartbeat.rs
+index 0f35624b3..a87aa47ab 100644
+--- a/node/router/src/heartbeat.rs
++++ b/node/router/src/heartbeat.rs
+@@ -14,6 +14,7 @@
+ // limitations under the License.
+ 
+ use crate::{
++    CandidatePeer,
+     ConnectedPeer,
+     NodeType,
+     Outbound,
+@@ -22,12 +23,16 @@ use crate::{
+     bootstrap_peers,
+     messages::{DisconnectReason, Message, PeerRequest},
+ };
+-use snarkvm::prelude::Network;
+ 
+-use snarkos_node_tcp::P2P;
++use snarkos_node_tcp::{ConnectError, P2P};
++
++use snarkvm::prelude::Network;
+ 
+ use colored::Colorize;
++use futures::future::join_all;
+ use rand::{prelude::IteratorRandom, rngs::OsRng};
++use std::time::Duration;
++use tokio::task::JoinError;
+ 
+ /// A helper function to compute the maximum of two numbers.
+ /// See Rust issue 92391: https://github.com/rust-lang/rust/issues/92391.
+@@ -41,9 +46,13 @@ pub const fn max(a: usize, b: usize) -> usize {
+ #[async_trait]
+ pub trait Heartbeat<N: Network>: Outbound<N> {
+     /// The duration in seconds to sleep in between heartbeat executions.
+-    const HEARTBEAT_IN_SECS: u64 = 25; // 25 seconds
++    const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(25);
+     /// The minimum number of peers required to maintain connections with.
+     const MINIMUM_NUMBER_OF_PEERS: usize = 3;
++    /// The minimum time between connection attempts to a peer.
++    const MINIMUM_TIME_BETWEEN_CONNECTION_ATTEMPTS: Duration = Duration::from_secs(10);
++    /// The time we consider the node to be starting up and avoid certain warnings such as "No connected peers".
++    const STARTUP_GRACE_PERIOD: Duration = Duration::from_secs(60);
+     /// The median number of peers to maintain connections with.
+     const MEDIAN_NUMBER_OF_PEERS: usize = max(Self::MAXIMUM_NUMBER_OF_PEERS / 2, Self::MINIMUM_NUMBER_OF_PEERS);
+     /// The maximum number of peers permitted to maintain connections with.
+@@ -63,7 +72,7 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
+         // Remove the oldest connected peer.
+         self.remove_oldest_connected_peer();
+         // Keep the number of connected peers within the allowed range.
+-        self.handle_connected_peers();
++        self.handle_connected_peers().await;
+         // Keep the bootstrap peers within the allowed range.
+         self.handle_bootstrap_peers().await;
+         // Keep the trusted peers connected.
+@@ -91,7 +100,12 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
+         let connected_peers = self.router().connected_peers();
+         let connected_peers_fmt = format!("{connected_peers:?}").dimmed();
+         match connected_peers.len() {
+-            0 => warn!("No connected peers"),
++            0 => {
++                // Only log a warning if the node has been running for a while.
++                if self.router().tcp().uptime() > Self::STARTUP_GRACE_PERIOD {
++                    warn!("No connected peers")
++                }
++            }
+             1 => debug!("Connected to 1 peer: {connected_peers_fmt}"),
+             num_connected => debug!("Connected to {num_connected} peers {connected_peers_fmt}"),
+         }
+@@ -104,7 +118,7 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
+             // Disconnect if the peer has not communicated back within the predefined time.
+             let elapsed = peer.last_seen.elapsed();
+             if elapsed > Router::<N>::MAX_RADIO_SILENCE {
+-                warn!("Peer {} has not communicated in {elapsed:?}", peer.listener_addr);
++                warn!("Peer '{}' has not communicated in {elapsed:?}", peer.listener_addr);
+                 // Disconnect from this peer.
+                 self.router().disconnect(peer.listener_addr);
+             }
+@@ -161,8 +175,27 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
+         }
+     }
+ 
++    /// Logs a message with the error and `context` if the connection attempt failed,
++    /// and sets the log level based on the severity of the error.
++    #[inline]
++    fn log_if_connect_error(result: Result<Result<(), ConnectError>, JoinError>, context: &str) {
++        match result {
++            // Success!
++            Ok(Ok(())) => {}
++            Ok(Err(err @ ConnectError::AlreadyConnecting { .. }))
++            | Ok(Err(err @ ConnectError::AlreadyConnected { .. })) => {
++                // Log benign errors at a lower level.
++                debug!("{context}: {err}");
++            }
++            // Print regular connection errors (such as "connection refused" as warnings)
++            Ok(Err(err)) => warn!("{context}: {err}"),
++            // Print join errors as error, as they most likely indicate a crash.
++            Err(err) => error!("{context}: {err}"),
++        }
++    }
++
+     /// This function keeps the number of connected peers within the allowed range.
+-    fn handle_connected_peers(&self) {
++    async fn handle_connected_peers(&self) {
+         // Initialize an RNG.
+         let rng = &mut OsRng;
+ 
+@@ -236,12 +269,13 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
+                 .partition(|peer| peer.last_height_seen.map(|h| h > own_height).unwrap_or(false));
+             // We may not know of half of `num_deficient` candidates; account for it using `min`.
+             let num_higher_peers = num_deficient.div_ceil(2).min(higher_peers.len());
+-            for peer in higher_peers.into_iter().choose_multiple(rng, num_higher_peers) {
+-                self.router().connect(peer.listener_addr);
+-            }
+-            for peer in other_peers.into_iter().choose_multiple(rng, num_deficient - num_higher_peers) {
+-                self.router().connect(peer.listener_addr);
+-            }
++
++            let higher_peers = higher_peers.into_iter().choose_multiple(rng, num_higher_peers);
++            let other_peers =
++                other_peers.into_iter().choose_multiple(rng, num_deficient.saturating_sub(num_higher_peers));
++
++            // Initiate connection attempts and wait for them to complete.
++            self.try_connect_to_peers(higher_peers.into_iter().chain(other_peers)).await;
+ 
+             if !self.router().trusted_peers_only() {
+                 // Request more peers from the connected peers.
+@@ -271,16 +305,17 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
+         if connected_bootstrap.is_empty() {
+             // Initialize an RNG.
+             let rng = &mut OsRng;
+-            // Attempt to connect to a bootstrap peer.
++            // Attempt to connect to a random bootstrap peer.
+             if let Some(peer_ip) = candidate_bootstrap.into_iter().choose(rng) {
+                 match self.router().connect(peer_ip) {
+-                    Some(hdl) => {
+-                        let result = hdl.await;
+-                        if let Err(err) = result {
+-                            warn!("Failed to connect to bootstrap peer at {peer_ip}: {err}");
+-                        }
++                    Ok(hdl) => {
++                        Self::log_if_connect_error(
++                            hdl.await,
++                            &format!("Could not connect to bootstrap peer at '{peer_ip:?}'"),
++                        );
+                     }
+-                    None => warn!("Could not initiate connect to bootstrap peer at {peer_ip}"),
++                    Err(ConnectError::AlreadyConnected { .. }) | Err(ConnectError::AlreadyConnecting { .. }) => {}
++                    Err(err) => warn!("Could not initiate connection to bootstrap peer at '{peer_ip:?}' - {err}"),
+                 }
+             }
+         }
+@@ -299,30 +334,53 @@ pub trait Heartbeat<N: Network>: Outbound<N> {
+         }
+     }
+ 
+-    /// This function attempts to connect to any disconnected trusted peers.
+-    async fn handle_trusted_peers(&self) {
+-        // Ensure that the trusted nodes are connected.
+-        let handles: Vec<_> = self
+-            .router()
+-            .unconnected_trusted_peers()
+-            .iter()
+-            .filter_map(|listener_addr| {
+-                debug!("Attempting to (re-)connect to trusted peer `{listener_addr}`");
+-                let hdl = self.router().connect(*listener_addr);
+-                if hdl.is_none() {
+-                    warn!("Could not initiate connection to trusted peer at `{listener_addr}`");
++    /// Helper function that attempts to connect the given peers.
++    ///
++    /// Used by [`Self::handle_trusted_peers`] and [`Self::handle_connected_peers`].
++    async fn try_connect_to_peers(&self, peers: impl Iterator<Item = CandidatePeer> + Send + 'static) {
++        let (peer_info, hdls): (Vec<_>, Vec<_>) = peers
++            .filter_map(|peer| {
++                let peer_type = if peer.trusted { "trusted peer" } else { "peer" };
++
++                // Do not attempt to reconnect too frequently.
++                // TODO (kaimast): Consider increasing the minimum time based on the number of failed attempts.
++                if let Some(last_connection_attempt) = peer.last_connection_attempt
++                    && last_connection_attempt.elapsed() < Self::MINIMUM_TIME_BETWEEN_CONNECTION_ATTEMPTS
++                {
++                    return None;
++                }
++
++                // Get the peers address.
++                let addr = peer.listener_addr;
++                let attempt_no = peer.total_connection_attempts + 1;
++
++                // Start connection attempt.
++                debug!("(Re-)connecting to {peer_type} '{addr}' (attempt #{attempt_no})");
++                match self.router().connect(addr) {
++                    Ok(hdl) => Some(((addr, attempt_no, peer_type), hdl)),
++                    Err(ConnectError::AlreadyConnected { .. }) | Err(ConnectError::AlreadyConnecting { .. }) => None,
++                    Err(err) => {
++                        warn!("Could not initiate connection to {peer_type} at '{addr}' - {err}");
++                        None
++                    }
+                 }
+-                hdl
+             })
+-            .collect();
++            .unzip();
+ 
+-        for result in futures::future::join_all(handles).await {
+-            if let Err(err) = result {
+-                warn!("Could not connect to trusted peer: {err}");
+-            }
++        // Wait for all the connection attempts to complete.
++        for ((peer_addr, attempt_no, peer_type), result) in peer_info.into_iter().zip(join_all(hdls).await) {
++            Self::log_if_connect_error(
++                result,
++                &format!("Could not connect to {peer_type} at '{peer_addr}' (attempt #{attempt_no})"),
++            );
+         }
+     }
+ 
++    /// This function attempts to connect to any disconnected trusted peers.
++    async fn handle_trusted_peers(&self) {
++        self.try_connect_to_peers(self.router().get_trusted_candidate_peers().into_iter()).await;
++    }
++
+     /// This function updates the puzzle if network has updated.
+     fn handle_puzzle_request(&self) {
+         // No-op
+diff --git a/node/router/src/lib.rs b/node/router/src/lib.rs
+index ce53e65bb..2715fcfe2 100644
+--- a/node/router/src/lib.rs
++++ b/node/router/src/lib.rs
+@@ -50,6 +50,7 @@ use crate::messages::{BlockRequest, Message, MessageCodec};
+ use snarkos_account::Account;
+ use snarkos_node_bft_ledger_service::LedgerService;
+ use snarkos_node_network::{
++    CandidatePeer,
+     ConnectedPeer,
+     ConnectionMode,
+     NodeType,
+diff --git a/node/router/src/routing.rs b/node/router/src/routing.rs
+index e458a682b..9d4d68a98 100644
+--- a/node/router/src/routing.rs
++++ b/node/router/src/routing.rs
+@@ -20,7 +20,7 @@ use snarkos_node_tcp::{
+ };
+ use snarkvm::prelude::Network;
+ 
+-use std::time::{Duration, Instant};
++use std::time::Instant;
+ 
+ #[async_trait]
+ pub trait Routing<N: Network>:
+@@ -50,24 +50,21 @@ pub trait Routing<N: Network>:
+     fn initialize_heartbeat(&self) {
+         let self_clone = self.clone();
+         self.router().spawn(async move {
+-            // Sleep for `HEARTBEAT_IN_SECS` seconds.
+-            let min_heartbeat_interval = Duration::from_secs(Self::HEARTBEAT_IN_SECS);
+             let mut last_update = Instant::now();
+ 
+             loop {
+                 // Process a heartbeat in the router.
+                 self_clone.heartbeat().await;
+ 
+-                // Figure out how long the heartbeat took
++                // The heartbeat itself may take a while (as it is waiting for connection attempts to complete).
++                // Take this time into account when rate-limiting the heartbeat.
+                 let now = Instant::now();
+                 let elapsed = now.saturating_duration_since(last_update);
+-                last_update = now;
+ 
+-                // (Potentially) sleep to avoid invoking heartbeat too frequently.
+-                let sleep_time = min_heartbeat_interval.saturating_sub(elapsed);
+-                if !sleep_time.is_zero() {
+-                    tokio::time::sleep(sleep_time).await;
+-                }
++                // Sleep for the remaining time.
++                tokio::time::sleep(Self::HEARTBEAT_INTERVAL.saturating_sub(elapsed)).await;
++                // Update the last update time.
++                last_update = now;
+             }
+         });
+     }
+diff --git a/node/router/tests/cleanups.rs b/node/router/tests/cleanups.rs
+index f9250bc4e..579b41517 100644
+--- a/node/router/tests/cleanups.rs
++++ b/node/router/tests/cleanups.rs
+@@ -68,7 +68,7 @@ async fn test_connection_cleanups() {
+     // Connect and disconnect in a loop.
+     for i in 0..NUM_CONNECTIONS {
+         // Connect one of the nodes to the other one.
+-        nodes[1].connect(nodes[0].local_ip());
++        let _ = nodes[1].connect(nodes[0].local_ip());
+ 
+         // Wait until the connection is complete.
+         let node0 = nodes[0].clone();
+diff --git a/node/router/tests/common/router.rs b/node/router/tests/common/router.rs
+index 649f7aeb9..0b88d0154 100644
+--- a/node/router/tests/common/router.rs
++++ b/node/router/tests/common/router.rs
+@@ -33,18 +33,20 @@ use snarkos_node_router::{
+     },
+ };
+ use snarkos_node_tcp::{
++    ConnectError,
+     Connection,
+     ConnectionSide,
+     P2P,
+     Tcp,
+     protocols::{Disconnect, Handshake, OnConnect, Reading, Writing},
+ };
+-use snarkvm::prelude::{
+-    ConsensusVersion,
+-    Field,
+-    Network,
+-    block::{Block, Header, Transaction},
+-    puzzle::Solution,
++use snarkvm::{
++    console::network::{ConsensusVersion, Network},
++    ledger::{
++        block::{Block, Header, Transaction},
++        puzzle::Solution,
++    },
++    prelude::Field,
+ };
+ 
+ use async_trait::async_trait;
+@@ -108,7 +110,7 @@ impl<N: Network> PeerPoolHandling<N> for TestRouter<N> {
+ #[async_trait]
+ impl<N: Network> Handshake for TestRouter<N> {
+     /// Performs the handshake protocol.
+-    async fn perform_handshake(&self, mut connection: Connection) -> io::Result<Connection> {
++    async fn perform_handshake(&self, mut connection: Connection) -> Result<Connection, ConnectError> {
+         // Perform the handshake.
+         let peer_addr = connection.addr();
+         let conn_side = connection.side();
+diff --git a/node/router/tests/connect.rs b/node/router/tests/connect.rs
+index 6b2e75e3a..93d7ac81b 100644
+--- a/node/router/tests/connect.rs
++++ b/node/router/tests/connect.rs
+@@ -18,6 +18,7 @@ use common::*;
+ 
+ use snarkos_node_network::PeerPoolHandling;
+ use snarkos_node_tcp::{
++    ConnectError,
+     P2P,
+     protocols::{Disconnect, Handshake, OnConnect},
+ };
+@@ -42,7 +43,7 @@ async fn test_connect_without_handshake() {
+ 
+     {
+         // Connect node0 to node1.
+-        node0.connect(node1.local_ip());
++        let _ = node0.connect(node1.local_ip());
+         // Sleep briefly.
+         tokio::time::sleep(Duration::from_millis(100)).await;
+ 
+@@ -56,7 +57,7 @@ async fn test_connect_without_handshake() {
+     }
+     {
+         // Connect node0 from node1 again.
+-        node0.connect(node1.local_ip());
++        let _ = node0.connect(node1.local_ip());
+         // Sleep briefly.
+         tokio::time::sleep(Duration::from_millis(100)).await;
+ 
+@@ -70,7 +71,7 @@ async fn test_connect_without_handshake() {
+     }
+     {
+         // Connect node1 from node0.
+-        node1.connect(node0.local_ip());
++        let _ = node1.connect(node0.local_ip());
+         // Sleep briefly.
+         tokio::time::sleep(Duration::from_millis(100)).await;
+ 
+@@ -108,7 +109,7 @@ async fn test_connect_with_handshake() {
+ 
+     {
+         // Connect node0 to node1.
+-        node0.connect(node1.local_ip());
++        let _ = node0.connect(node1.local_ip());
+         // Await for node1 to be connected.
+         let node0_ip = node0.local_ip();
+         let node1_ = node1.clone();
+@@ -129,7 +130,7 @@ async fn test_connect_with_handshake() {
+     }
+     {
+         // Connect node0 to node1 again.
+-        node0.connect(node1.local_ip());
++        let _ = node0.connect(node1.local_ip());
+         // Await for node1 to be connected.
+         let node0_ip = node0.local_ip();
+         let node1_ = node1.clone();
+@@ -150,7 +151,7 @@ async fn test_connect_with_handshake() {
+     }
+     {
+         // Connect node1 to node0.
+-        node1.connect(node0.local_ip());
++        let _ = node1.connect(node0.local_ip());
+         // Await for node0 to be connected.
+         let node1_ip = node1.local_ip();
+         let node0_ = node0.clone();
+@@ -196,7 +197,7 @@ async fn test_validator_connection() {
+ 
+     {
+         // Connect node0 to node1.
+-        node0.connect(node1.local_ip());
++        let _ = node0.connect(node1.local_ip());
+         // Await for node1 to be connected.
+         let node0_ip = node0.local_ip();
+         let node1_ = node1.clone();
+@@ -225,10 +226,14 @@ async fn test_validator_connection() {
+         });
+ 
+         // Connect node1 to node0.
+-        let Ok(res) = node1.connect(node0.local_ip()).unwrap().await else {
+-            panic!("Connection failed for the wrong reasons.");
+-        };
+-        assert!(!res, "Connection was accepted when it should not have been.");
++        let res = node1.connect(node0.local_ip()).unwrap().await.unwrap();
++
++        assert!(
++            matches!(res, Err(ConnectError::Other { .. })),
++            "Connection was accepted or incorrect error was returned"
++        );
++
++        assert!(res.unwrap_err().to_string().contains("no external peers allowed"));
+ 
+         // Check the TCP level - connection was not accepted.
+         assert_eq!(node0.tcp().num_connected(), 0);
+@@ -257,9 +262,9 @@ async fn test_connect_simultaneously_with_handshake() {
+ 
+     {
+         // Connect node0 to node1.
+-        node0.connect(node1.local_ip());
++        let _ = node0.connect(node1.local_ip());
+         // Connect node1 to node0.
+-        node1.connect(node0.local_ip());
++        let _ = node1.connect(node0.local_ip());
+         // Sleep briefly.
+         tokio::time::sleep(Duration::from_millis(100)).await;
+ 
+diff --git a/node/router/tests/disconnect.rs b/node/router/tests/disconnect.rs
+index 6a1ac2225..b341b0306 100644
+--- a/node/router/tests/disconnect.rs
++++ b/node/router/tests/disconnect.rs
+@@ -41,7 +41,7 @@ async fn test_disconnect_without_handshake() {
+     node1.tcp().enable_listener().await.unwrap();
+ 
+     // Connect node0 to node1.
+-    node0.connect(node1.local_ip());
++    let _ = node0.connect(node1.local_ip());
+     // Await both nodes being connected.
+     let node0_ = node0.clone();
+     let node1_ = node1.clone();
+@@ -98,7 +98,7 @@ async fn test_disconnect_with_handshake() {
+     node1.tcp().enable_listener().await.unwrap();
+ 
+     // Connect node0 to node1.
+-    node0.connect(node1.local_ip());
++    node0.connect(node1.local_ip()).unwrap();
+     // Await for the nodes to be connected.
+     let node0_ = node0.clone();
+     let node1_ = node1.clone();
+diff --git a/node/router/tests/heartbeat.rs b/node/router/tests/heartbeat.rs
+index 01dc9f1db..3cecc987b 100644
+--- a/node/router/tests/heartbeat.rs
++++ b/node/router/tests/heartbeat.rs
+@@ -82,7 +82,7 @@ impl Heartbeat<Network> for HeartbeatTest {
+ 
+ /// Initiate connection to peer and wait until it is fully established
+ async fn connect_to(router: &TestRouter<Network>, other: &TestRouter<Network>) {
+-    let success = router.connect(other.local_ip()).unwrap().await.unwrap();
++    let success = router.connect(other.local_ip()).unwrap().await.unwrap().is_ok();
+     assert!(success, "Connection failed");
+ 
+     while !router.is_connected(other.local_ip()) {
+diff --git a/node/src/bootstrap_client/handshake.rs b/node/src/bootstrap_client/handshake.rs
+index beffef36d..26c1571b8 100644
+--- a/node/src/bootstrap_client/handshake.rs
++++ b/node/src/bootstrap_client/handshake.rs
+@@ -15,15 +15,15 @@
+ 
+ use crate::{
+     BootstrapClient,
+-    bft::events::{self, Event},
++    bft::events::{self, DisconnectReason, Event},
+     bootstrap_client::{codec::BootstrapClientCodec, network::MessageOrEvent},
+     network::{ConnectionMode, NodeType, PeerPoolHandling, log_repo_sha_comparison},
+     router::messages::{self, Message},
+-    tcp::{Connection, ConnectionSide, protocols::*},
++    tcp::{ConnectError, Connection, ConnectionSide, protocols::*},
+ };
+ use snarkvm::{
+     ledger::narwhal::Data,
+-    prelude::{Address, Network, error},
++    prelude::{Address, Network, io_error},
+ };
+ 
+ use futures_util::sink::SinkExt;
+@@ -51,7 +51,7 @@ macro_rules! expect_handshake_msg {
+     ($msg_ty:expr, $framed:expr, $peer_addr:expr) => {{
+         // Read the message as bytes.
+         let Some(message) = $framed.try_next().await? else {
+-            return Err(error(format!(
++            return Err(ConnectError::other(format!(
+                 "the peer disconnected before sending {:?}, likely due to peer saturation or shutdown",
+                 stringify!($msg_ty),
+             )));
+@@ -84,7 +84,7 @@ macro_rules! expect_handshake_msg {
+                     MessageOrEvent::Message(message) => message.name(),
+                     MessageOrEvent::Event(event) => event.name(),
+                 };
+-                return Err(error(format!(
++                return Err(ConnectError::other(format!(
+                     "'{}' did not follow the handshake protocol: expected {}, got {msg_name}",
+                     $peer_addr,
+                     stringify!($msg_ty),
+@@ -96,7 +96,7 @@ macro_rules! expect_handshake_msg {
+ 
+ #[async_trait]
+ impl<N: Network> Handshake for BootstrapClient<N> {
+-    async fn perform_handshake(&self, mut connection: Connection) -> io::Result<Connection> {
++    async fn perform_handshake(&self, mut connection: Connection) -> Result<Connection, ConnectError> {
+         let peer_addr = connection.addr();
+         let peer_side = connection.side();
+         let stream = self.borrow_stream(&mut connection);
+@@ -118,7 +118,7 @@ impl<N: Network> Handshake for BootstrapClient<N> {
+ 
+         if let Some(addr) = listener_addr {
+             match handshake_result {
+-                Ok(Some((peer_port, peer_aleo_addr, peer_node_type, peer_version, connection_mode))) => {
++                Ok((peer_port, peer_aleo_addr, peer_node_type, peer_version, connection_mode)) => {
+                     if let Some(peer) = self.peer_pool.write().get_mut(&addr) {
+                         // Due to only having a single Resolver, the BootstrapClient only adds an Aleo
+                         // address mapping for Gateway-mode connections, as it is only used there, and
+@@ -138,23 +138,18 @@ impl<N: Network> Handshake for BootstrapClient<N> {
+                     }
+                     debug!("Completed the handshake with '{peer_addr}'");
+                 }
+-                Ok(None) => {
+-                    return Err(error(format!("Duplicate handshake attempt with '{addr}'")));
+-                }
+-                Err(error) => {
+-                    debug!("Handshake with '{peer_addr}' failed: {error}");
++                Err(_) => {
+                     if let Some(peer) = self.peer_pool.write().get_mut(&addr) {
+                         // The peer may only be downgraded if it's a ConnectingPeer.
+                         if peer.is_connecting() {
+                             peer.downgrade_to_candidate(addr);
+                         }
+                     }
+-                    return Err(error);
+                 }
+             }
+         }
+ 
+-        Ok(connection)
++        handshake_result.map(|_| connection)
+     }
+ }
+ 
+@@ -165,7 +160,7 @@ impl<N: Network> BootstrapClient<N> {
+         peer_addr: SocketAddr,
+         listener_addr: &mut Option<SocketAddr>,
+         stream: &'a mut TcpStream,
+-    ) -> io::Result<Option<(u16, Address<N>, NodeType, u32, ConnectionMode)>> {
++    ) -> Result<(u16, Address<N>, NodeType, u32, ConnectionMode), ConnectError> {
+         // Construct the stream.
+         let mut framed = Framed::new(stream, BootstrapClientCodec::<N>::handshake());
+ 
+@@ -187,17 +182,13 @@ impl<N: Network> BootstrapClient<N> {
+ 
+         // Obtain the peer's listening address.
+         *listener_addr = Some(SocketAddr::new(peer_addr.ip(), peer_port));
+-        let listener_addr = listener_addr.unwrap();
+ 
+         // Introduce the peer into the peer pool.
+-        if !self.add_connecting_peer(listener_addr) {
+-            // Return early if already being connected to.
+-            return Ok(None);
+-        }
++        self.add_connecting_peer(peer_addr)?;
+ 
+         // Verify the challenge request.
+         if !self.verify_challenge_request(peer_addr, &mut framed, &peer_request).await? {
+-            return Err(error(format!("Handshake with '{peer_addr}' failed: invalid challenge request")));
++            return Err(ConnectError::application(DisconnectReason::InvalidChallengeRequest));
+         };
+ 
+         /* Step 2: Send the challenge response followed by own challenge request. */
+@@ -209,7 +200,7 @@ impl<N: Network> BootstrapClient<N> {
+         let response_nonce: u64 = rng.r#gen();
+         let data = [peer_nonce.to_le_bytes(), response_nonce.to_le_bytes()].concat();
+         let Ok(our_signature) = self.account.sign_bytes(&data, rng) else {
+-            return Err(error(format!("Failed to sign the challenge request nonce from '{peer_addr}'")));
++            return Err(ConnectError::other(format!("Failed to sign the challenge request nonce from '{peer_addr}'")));
+         };
+ 
+         // Send the challenge response.
+@@ -267,10 +258,10 @@ impl<N: Network> BootstrapClient<N> {
+                 let msg = Event::Disconnect::<N>(events::DisconnectReason::InvalidChallengeResponse.into());
+                 send_msg!(msg, framed, peer_addr)?;
+             }
+-            return Err(error(format!("Handshake with '{peer_addr}' failed: invalid challenge response")));
++            return Err(ConnectError::application(DisconnectReason::InvalidChallengeResponse));
+         }
+ 
+-        Ok(Some((peer_port, peer_aleo_addr, peer_node_type, peer_version, connection_mode)))
++        Ok((peer_port, peer_aleo_addr, peer_node_type, peer_version, connection_mode))
+     }
+ 
+     async fn verify_challenge_request(
+@@ -292,7 +283,7 @@ impl<N: Network> BootstrapClient<N> {
+                 // Reject validators that aren't members of the committee.
+                 if msg.node_type == NodeType::Validator {
+                     if let Some(current_committee) =
+-                        self.get_or_update_committee().await.map_err(|_| error("Couldn't load the committee"))?
++                        self.get_or_update_committee().await.map_err(|_| io_error("Couldn't load the committee"))?
+                     {
+                         if !current_committee.contains(&msg.address) {
+                             let msg = Message::Disconnect::<N>(messages::DisconnectReason::ProtocolViolation.into());
+@@ -313,7 +304,7 @@ impl<N: Network> BootstrapClient<N> {
+ 
+                 // Reject validators that aren't members of the committee.
+                 if let Some(current_committee) =
+-                    self.get_or_update_committee().await.map_err(|_| error("Couldn't load the committee"))?
++                    self.get_or_update_committee().await.map_err(|_| io_error("Couldn't load the committee"))?
+                 {
+                     if !current_committee.contains(&msg.address) {
+                         let msg = Event::Disconnect::<N>(events::DisconnectReason::ProtocolViolation.into());
+diff --git a/node/src/client/router.rs b/node/src/client/router.rs
+index 7b75129ef..aae69822e 100644
+--- a/node/src/client/router.rs
++++ b/node/src/client/router.rs
+@@ -30,7 +30,7 @@ use snarkos_node_router::{
+         UnconfirmedTransaction,
+     },
+ };
+-use snarkos_node_tcp::{Connection, ConnectionSide, Tcp};
++use snarkos_node_tcp::{ConnectError, Connection, ConnectionSide, Tcp};
+ use snarkvm::{
+     console::network::{ConsensusVersion, Network},
+     ledger::{block::Transaction, narwhal::Data},
+@@ -49,13 +49,14 @@ impl<N: Network, C: ConsensusStorage<N>> P2P for Client<N, C> {
+ #[async_trait]
+ impl<N: Network, C: ConsensusStorage<N>> Handshake for Client<N, C> {
+     /// Performs the handshake protocol.
+-    async fn perform_handshake(&self, mut connection: Connection) -> io::Result<Connection> {
++    async fn perform_handshake(&self, mut connection: Connection) -> Result<Connection, ConnectError> {
+         // Perform the handshake.
+         let peer_addr = connection.addr();
+         let conn_side = connection.side();
+         let stream = self.borrow_stream(&mut connection);
+         let genesis_header = *self.genesis.header();
+         let restrictions_id = self.ledger.vm().restrictions().restrictions_id();
++
+         self.router.handshake(peer_addr, stream, conn_side, genesis_header, restrictions_id).await?;
+ 
+         Ok(connection)
+diff --git a/node/src/prover/router.rs b/node/src/prover/router.rs
+index f2b1553b9..db6e2c4d1 100644
+--- a/node/src/prover/router.rs
++++ b/node/src/prover/router.rs
+@@ -25,8 +25,13 @@ use snarkos_node_router::messages::{
+     PuzzleRequest,
+     UnconfirmedTransaction,
+ };
+-use snarkos_node_tcp::{Connection, ConnectionSide, Tcp};
+-use snarkvm::prelude::{ConsensusVersion, Field, Network, Zero, block::Transaction};
++use snarkos_node_tcp::{ConnectError, Connection, ConnectionSide, Tcp};
++use snarkvm::{
++    console::network::{ConsensusVersion, Network},
++    ledger::block::Transaction,
++    prelude::{Field, Zero},
++    utilities::into_io_error,
++};
+ 
+ use std::{io, net::SocketAddr};
+ 
+@@ -40,14 +45,18 @@ impl<N: Network, C: ConsensusStorage<N>> P2P for Prover<N, C> {
+ #[async_trait]
+ impl<N: Network, C: ConsensusStorage<N>> Handshake for Prover<N, C> {
+     /// Performs the handshake protocol.
+-    async fn perform_handshake(&self, mut connection: Connection) -> io::Result<Connection> {
++    async fn perform_handshake(&self, mut connection: Connection) -> Result<Connection, ConnectError> {
+         // Perform the handshake.
+         let peer_addr = connection.addr();
+         let conn_side = connection.side();
+         let stream = self.borrow_stream(&mut connection);
+         let genesis_header = *self.genesis.header();
+         let restrictions_id = Field::zero(); // Provers may bypass restrictions, since they do not validate transactions.
+-        self.router.handshake(peer_addr, stream, conn_side, genesis_header, restrictions_id).await?;
++
++        self.router
++            .handshake(peer_addr, stream, conn_side, genesis_header, restrictions_id)
++            .await
++            .map_err(into_io_error)?;
+ 
+         Ok(connection)
+     }
+diff --git a/node/src/validator/router.rs b/node/src/validator/router.rs
+index 3770a88e6..2960df43d 100644
+--- a/node/src/validator/router.rs
++++ b/node/src/validator/router.rs
+@@ -26,11 +26,11 @@ use snarkos_node_router::messages::{
+     Pong,
+     UnconfirmedTransaction,
+ };
+-use snarkos_node_tcp::{Connection, ConnectionSide, Tcp};
++use snarkos_node_tcp::{ConnectError, Connection, ConnectionSide, Tcp};
+ use snarkvm::{
+     console::network::{ConsensusVersion, Network},
+     ledger::{block::Transaction, narwhal::Data},
+-    utilities::{flatten_error, io_error},
++    utilities::flatten_error,
+ };
+ 
+ use std::{io, net::SocketAddr};
+@@ -45,12 +45,13 @@ impl<N: Network, C: ConsensusStorage<N>> P2P for Validator<N, C> {
+ #[async_trait]
+ impl<N: Network, C: ConsensusStorage<N>> Handshake for Validator<N, C> {
+     /// Performs the handshake protocol.
+-    async fn perform_handshake(&self, mut connection: Connection) -> io::Result<Connection> {
++    async fn perform_handshake(&self, mut connection: Connection) -> Result<Connection, ConnectError> {
+         // Perform the handshake.
+         let peer_addr = connection.addr();
+         let conn_side = connection.side();
+         let stream = self.borrow_stream(&mut connection);
+-        let genesis_header = self.ledger.get_header(0).map_err(io_error)?;
++        //TODO(kaimast): if this fails, the validator must be corrupted. Handle this with higher severity.
++        let genesis_header = self.ledger.get_header(0).map_err(ConnectError::other)?;
+         let restrictions_id = self.ledger.vm().restrictions().restrictions_id();
+         self.router.handshake(peer_addr, stream, conn_side, genesis_header, restrictions_id).await?;
+ 
+diff --git a/node/tcp/Cargo.toml b/node/tcp/Cargo.toml
+index ef237c30b..595613e0a 100644
+--- a/node/tcp/Cargo.toml
++++ b/node/tcp/Cargo.toml
+@@ -18,7 +18,7 @@ edition = "2024"
+ 
+ [features]
+ default = [ ]
+-locktick = [ "dep:locktick" ]
++locktick = [ "dep:locktick", "snarkos-node-metrics/locktick" ]
+ metrics = [ "dep:snarkos-node-metrics" ]
+ 
+ [dependencies.async-trait]
+@@ -61,6 +61,9 @@ workspace = true
+ [dependencies.thiserror]
+ workspace = true
+ 
++[dependencies.anyhow]
++workspace = true
++
+ [dev-dependencies.tokio]
+ workspace = true
+ features = [ "macros" ]
+diff --git a/node/tcp/src/lib.rs b/node/tcp/src/lib.rs
+index aa90b289d..de333ee41 100644
+--- a/node/tcp/src/lib.rs
++++ b/node/tcp/src/lib.rs
+@@ -27,7 +27,7 @@ pub use helpers::*;
+ pub mod protocols;
+ 
+ mod tcp;
+-pub use tcp::{ConnectError, Tcp};
++pub use tcp::{ApplicationError, ConnectError, Tcp};
+ 
+ use std::net::IpAddr;
+ 
+diff --git a/node/tcp/src/protocols/handshake.rs b/node/tcp/src/protocols/handshake.rs
+index d27318b59..32dd9cef8 100644
+--- a/node/tcp/src/protocols/handshake.rs
++++ b/node/tcp/src/protocols/handshake.rs
+@@ -24,6 +24,7 @@ use tokio::{
+ use tracing::*;
+ 
+ use crate::{
++    ConnectError,
+     Connection,
+     P2P,
+     protocols::{ProtocolHandler, ReturnableConnection},
+@@ -63,17 +64,17 @@ where
+                     debug!(parent: node.tcp().span(), "shaking hands with {} as the {:?}", addr, !conn.side());
+                     let result = timeout(Duration::from_millis(Self::TIMEOUT_MS), node.perform_handshake(conn)).await;
+ 
+-                    let ret = match result {
++                    let ret: io::Result<_> = match result {
+                         Ok(Ok(conn)) => {
+-                            debug!(parent: node.tcp().span(), "successfully handshaken with {}", addr);
++                            debug!(parent: node.tcp().span(), "successfully handshaken with {addr}");
+                             Ok(conn)
+                         }
+-                        Ok(Err(e)) => {
+-                            debug!(parent: node.tcp().span(), "handshake with {addr} failed: {e}");
+-                            Err(e)
++                        Ok(Err(err)) => {
++                            debug!(parent: node.tcp().span(), "handshake with {addr} failed: {err}");
++                            Err(err.into())
+                         }
+                         Err(_) => {
+-                            debug!(parent: node.tcp().span(), "handshake with {} timed out", addr);
++                            debug!(parent: node.tcp().span(), "handshake with {addr} timed out");
+                             Err(io::ErrorKind::TimedOut.into())
+                         }
+                     };
+@@ -95,7 +96,7 @@ where
+ 
+     /// Performs the handshake; temporarily assumes control of the [`Connection`] and returns it if the handshake is
+     /// successful.
+-    async fn perform_handshake(&self, conn: Connection) -> io::Result<Connection>;
++    async fn perform_handshake(&self, conn: Connection) -> Result<Connection, ConnectError>;
+ 
+     /// Borrows the full connection stream to be used in the implementation of [`Handshake::perform_handshake`].
+     fn borrow_stream<'a>(&self, conn: &'a mut Connection) -> &'a mut TcpStream {
+diff --git a/node/tcp/src/tcp.rs b/node/tcp/src/tcp.rs
+index e61c98546..cc0713800 100644
+--- a/node/tcp/src/tcp.rs
++++ b/node/tcp/src/tcp.rs
+@@ -26,6 +26,7 @@ use std::{
+     time::{Duration, Instant},
+ };
+ 
++use anyhow::anyhow;
+ #[cfg(feature = "locktick")]
+ use locktick::parking_lot::Mutex;
+ use once_cell::sync::OnceCell;
+@@ -64,6 +65,9 @@ impl Deref for Tcp {
+     }
+ }
+ 
++/// A custom application error that can be returned by the `Tcp` stack.
++pub trait ApplicationError: Send + Sync + std::fmt::Debug + std::fmt::Display + 'static {}
++
+ /// Error types for the `Tcp::connect` function.
+ #[allow(missing_docs)]
+ #[derive(thiserror::Error, Debug)]
+@@ -76,13 +80,54 @@ pub enum ConnectError {
+     AlreadyConnected { address: SocketAddr },
+     #[error("attempt to self-connect (at address {address:?}")]
+     SelfConnect { address: SocketAddr },
+-    #[error("I/O error: {0}")]
++    #[error("rejected a connection attempt from a banned IP '{ip}'")]
++    BannedIp { ip: IpAddr },
++    // Socket errors, such as "connection refused".
++    #[error(transparent)]
+     IoError(std::io::Error),
++    // An application-specific reason to reject the connection or abort the handshake.
++    // For snarkOS, this is either a `DisconnectReason` or a `PeeringError`, which do not fully implement `std::error::Error`.
++    #[error("{0}")]
++    ApplicationError(Box<dyn ApplicationError>),
++    /// An unexpected error at the application layer and certain deserialization errors.
++    /// TODO(kaimast): (some of) these should be treated with higher severity, as they indicate a bug or corrupted state,
++    ///                and deserialization errors should not be included in this "other" category.
++    #[error(transparent)]
++    Other(#[from] Box<dyn std::error::Error + Send + Sync>),
++}
++
++impl ConnectError {
++    /// Pass an application-level error to the `Tcp` stack.
++    pub fn application<E: ApplicationError>(err: E) -> Self {
++        Self::ApplicationError(Box::new(err))
++    }
++
++    /// A generic error that can be returned by the `Tcp` stack.
++    pub fn other<E: Into<Box<dyn std::error::Error + Send + Sync>>>(err: E) -> Self {
++        Self::Other(err.into())
++    }
++}
++
++impl From<ConnectError> for std::io::Error {
++    fn from(err: ConnectError) -> Self {
++        match err {
++            ConnectError::IoError(err) => err,
++            ConnectError::Other(err) => std::io::Error::other(err),
++            err => std::io::Error::other(err.to_string()),
++        }
++    }
+ }
+ 
+ impl From<std::io::Error> for ConnectError {
+-    fn from(inner: std::io::Error) -> Self {
+-        Self::IoError(inner)
++    fn from(err: std::io::Error) -> Self {
++        // Other error are usually checks that fail when snarkVM deserializes a message.
++        if err.kind() == std::io::ErrorKind::Other {
++            // This unwrap should always succeed.
++            let inner = err.into_inner().unwrap_or_else(|| anyhow!("Unknown error").into());
++            ConnectError::other(inner)
++        } else {
++            ConnectError::IoError(err)
++        }
+     }
+ }
+ 
+@@ -140,6 +185,11 @@ impl Tcp {
+         tcp
+     }
+ 
++    /// How long has this node accepting connections?
++    pub fn uptime(&self) -> Duration {
++        self.stats.timestamp().elapsed()
++    }
++
+     /// Returns the name assigned.
+     #[inline]
+     pub fn name(&self) -> &str {
+@@ -252,12 +302,12 @@ impl Tcp {
+         }
+ 
+         if self.is_connected(addr) {
+-            warn!(parent: self.span(), "Already connected to {addr}");
++            trace!(parent: self.span(), "Already connected to {addr}");
+             return Err(ConnectError::AlreadyConnected { address: addr });
+         }
+ 
+         if !self.connecting.lock().insert(addr) {
+-            warn!(parent: self.span(), "Already connecting to {addr}");
++            debug!(parent: self.span(), "Already connecting to {addr}");
+             return Err(ConnectError::AlreadyConnecting { address: addr });
+         }
+ 
+diff --git a/node/tests/common/test_peer.rs b/node/tests/common/test_peer.rs
+index c7cb7757b..61bc20d43 100644
+--- a/node/tests/common/test_peer.rs
++++ b/node/tests/common/test_peer.rs
+@@ -19,9 +19,12 @@ use snarkos_node_router::{
+     expect_message,
+     messages::{ChallengeRequest, ChallengeResponse, Message, MessageCodec, MessageTrait},
+ };
++use snarkos_node_tcp::ConnectError;
+ use snarkvm::{
+-    ledger::narwhal::Data,
+-    prelude::{Address, Field, FromBytes, MainnetV0 as CurrentNetwork, Network, TestRng, block::Block},
++    console::network::{MainnetV0 as CurrentNetwork, Network},
++    ledger::{block::Block, narwhal::Data},
++    prelude::{Address, Field, FromBytes, TestRng},
++    utilities::into_io_error,
+ };
+ 
+ use std::{
+@@ -116,7 +119,13 @@ impl TestPeer {
+ }
+ 
+ impl Handshake for TestPeer {
+-    async fn perform_handshake(&self, mut conn: Connection) -> io::Result<Connection> {
++    async fn perform_handshake(&self, conn: Connection) -> io::Result<Connection> {
++        self.perform_handshake_inner(conn).await.map_err(into_io_error)
++    }
++}
++
++impl TestPeer {
++    async fn perform_handshake_inner(&self, mut conn: Connection) -> Result<Connection, ConnectError> {
+         let rng = &mut TestRng::default();
+ 
+         let local_ip = self.node().listening_addr().expect("listening address should be present");
+diff --git a/node/tests/disconnect.rs b/node/tests/disconnect.rs
+index ae0d8aa6a..15515a2a8 100644
+--- a/node/tests/disconnect.rs
++++ b/node/tests/disconnect.rs
+@@ -52,7 +52,7 @@ macro_rules! test_disconnect {
+             let peer_addr = peer.node().listening_addr().unwrap();
+ 
+             // Connect the node to the test peer.
+-            node.router().connect(peer_addr).unwrap().await.unwrap();
++            node.router().connect(peer_addr).unwrap().await.unwrap().unwrap();
+ 
+             // Check the peer counts.
+             let node_clone = node.clone();
+@@ -155,7 +155,7 @@ async fn duplicate_disconnect_attempts() {
+     let addr2 = node2.tcp().listening_addr().unwrap();
+ 
+     // Connect node1 to node2.
+-    assert!(node1.router().connect(addr2).unwrap().await.unwrap());
++    assert!(node1.router().connect(addr2).unwrap().await.unwrap().is_ok());
+ 
+     // Prepare disconnect attempts.
+     let node1_clone = node1.clone();
+diff --git a/node/tests/handshake.rs b/node/tests/handshake.rs
+index c0231f28a..ca001bc0f 100644
+--- a/node/tests/handshake.rs
++++ b/node/tests/handshake.rs
+@@ -197,11 +197,11 @@ async fn simultaneous_connection_attempt() {
+     // Prepare connection attempts.
+     let node1_clone = node1.clone();
+     let conn1 = tokio::spawn(async move {
+-        if let Some(conn_task) = node1_clone.router().connect(addr2) { conn_task.await.unwrap() } else { false }
++        if let Ok(conn_task) = node1_clone.router().connect(addr2) { conn_task.await.unwrap().is_ok() } else { false }
+     });
+     let node2_clone = node2.clone();
+     let conn2 = tokio::spawn(async move {
+-        if let Some(conn_task) = node2_clone.router().connect(addr1) { conn_task.await.unwrap() } else { false }
++        if let Ok(conn_task) = node2_clone.router().connect(addr1) { conn_task.await.unwrap().is_ok() } else { false }
+     });
+ 
+     // Attempt to connect both nodes to one another at the same time.
+@@ -255,15 +255,15 @@ async fn duplicate_connection_attempts() {
+     // Prepare connection attempts.
+     let node1_clone = node1.clone();
+     let conn1 = tokio::spawn(async move {
+-        if let Some(conn_task) = node1_clone.router().connect(addr2) { conn_task.await.unwrap() } else { false }
++        if let Ok(conn_task) = node1_clone.router().connect(addr2) { conn_task.await.unwrap().is_ok() } else { false }
+     });
+     let node1_clone = node1.clone();
+     let conn2 = tokio::spawn(async move {
+-        if let Some(conn_task) = node1_clone.router().connect(addr2) { conn_task.await.unwrap() } else { false }
++        if let Ok(conn_task) = node1_clone.router().connect(addr2) { conn_task.await.unwrap().is_ok() } else { false }
+     });
+     let node1_clone = node1.clone();
+     let conn3 = tokio::spawn(async move {
+-        if let Some(conn_task) = node1_clone.router().connect(addr2) { conn_task.await.unwrap() } else { false }
++        if let Ok(conn_task) = node1_clone.router().connect(addr2) { conn_task.await.unwrap().is_ok() } else { false }
+     });
+ 
+     // Attempt to connect the 1st node to the other one several times at once.
+diff --git a/node/tests/peering.rs b/node/tests/peering.rs
+index cf263f298..d0498d81e 100644
+--- a/node/tests/peering.rs
++++ b/node/tests/peering.rs
+@@ -40,7 +40,7 @@ macro_rules! test_reject_unsolicited_peer_response {
+                     let peer_addr = peer.node().listening_addr().unwrap();
+ 
+                     // Connect the node to the test peer.
+-                    node.router().connect(peer_addr).unwrap().await.unwrap();
++                    node.router().connect(peer_addr).unwrap().await.unwrap().unwrap();
+ 
+                     // Check the peer counts.
+                     let node_clone = node.clone();

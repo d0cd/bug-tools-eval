@@ -12,6 +12,30 @@ from typing import Any
 from bugeval.agent_models import AgentResult
 
 
+def _parse_cli_token_count(output: str) -> int:
+    """Best-effort extraction of token count from CLI stdout/stderr.
+
+    Recognises common patterns:
+    - "Total tokens: N" / "Tokens: N"
+    - "Input tokens: X" + "Output tokens: Y" (summed)
+    Returns 0 when no match is found.
+    """
+    # "total tokens: N"
+    m = re.search(r"total[_ ]tokens?[:\s]+(\d+)", output, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+    # "input tokens: X" + "output tokens: Y"
+    input_m = re.search(r"input[_ ]tokens?[:\s]+(\d+)", output, re.IGNORECASE)
+    output_m = re.search(r"output[_ ]tokens?[:\s]+(\d+)", output, re.IGNORECASE)
+    if input_m and output_m:
+        return int(input_m.group(1)) + int(output_m.group(1))
+    # "tokens: N"
+    m = re.search(r"\btokens?[:\s]+(\d+)", output, re.IGNORECASE)
+    if m:
+        return int(m.group(1))
+    return 0
+
+
 def _parse_cli_findings(stdout: str) -> list[dict[str, Any]]:
     """Extract JSON findings array from CLI stdout output."""
     # Try to find a JSON array (findings) in the output
@@ -87,10 +111,122 @@ def run_claude_cli(
         )
 
     findings = _parse_cli_findings(stdout)
+    token_count = _parse_cli_token_count(stdout + "\n" + stderr)
     return AgentResult(
         findings=findings,
         stdout=stdout,
         stderr=stderr,
+        token_count=token_count,
+        wall_time_seconds=wall_time,
+        model=model,
+    )
+
+
+def run_gemini_cli(
+    repo_dir: Path,
+    prompt: str,
+    timeout_seconds: int = 300,
+    model: str = "gemini-2.5-flash",
+) -> AgentResult:
+    """Run gemini -p <prompt> -m <model> in repo_dir.
+
+    Returns AgentResult with stdout, findings, wall_time.
+    On timeout: returns AgentResult with error='timeout'.
+    """
+    cmd = ["gemini", "-p", prompt, "-m", model]
+    start = time.monotonic()
+
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=repo_dir,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired:
+        wall_time = time.monotonic() - start
+        return AgentResult(
+            wall_time_seconds=wall_time,
+            model=model,
+            error="timeout",
+        )
+
+    wall_time = time.monotonic() - start
+    stdout = result.stdout or ""
+    stderr = result.stderr or ""
+
+    if result.returncode != 0:
+        return AgentResult(
+            stdout=stdout,
+            stderr=stderr,
+            wall_time_seconds=wall_time,
+            model=model,
+            error=f"gemini exited with code {result.returncode}: {stderr[:500]}",
+        )
+
+    findings = _parse_cli_findings(stdout)
+    token_count = _parse_cli_token_count(stdout + "\n" + stderr)
+    return AgentResult(
+        findings=findings,
+        stdout=stdout,
+        stderr=stderr,
+        token_count=token_count,
+        wall_time_seconds=wall_time,
+        model=model,
+    )
+
+
+def run_codex_cli(
+    repo_dir: Path,
+    prompt: str,
+    timeout_seconds: int = 300,
+    model: str = "o4-mini",
+) -> AgentResult:
+    """Run codex -q <prompt> --model <model> in repo_dir.
+
+    Returns AgentResult with stdout, findings, wall_time.
+    On timeout: returns AgentResult with error='timeout'.
+    """
+    cmd = ["codex", "-q", prompt, "--model", model]
+    start = time.monotonic()
+
+    try:
+        result = subprocess.run(
+            cmd,
+            cwd=repo_dir,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired:
+        wall_time = time.monotonic() - start
+        return AgentResult(
+            wall_time_seconds=wall_time,
+            model=model,
+            error="timeout",
+        )
+
+    wall_time = time.monotonic() - start
+    stdout = result.stdout or ""
+    stderr = result.stderr or ""
+
+    if result.returncode != 0:
+        return AgentResult(
+            stdout=stdout,
+            stderr=stderr,
+            wall_time_seconds=wall_time,
+            model=model,
+            error=f"codex exited with code {result.returncode}: {stderr[:500]}",
+        )
+
+    findings = _parse_cli_findings(stdout)
+    token_count = _parse_cli_token_count(stdout + "\n" + stderr)
+    return AgentResult(
+        findings=findings,
+        stdout=stdout,
+        stderr=stderr,
+        token_count=token_count,
         wall_time_seconds=wall_time,
         model=model,
     )
@@ -161,10 +297,12 @@ def run_claude_cli_docker(
         )
 
     findings = _parse_cli_findings(stdout)
+    token_count = _parse_cli_token_count(stdout + "\n" + stderr)
     return AgentResult(
         findings=findings,
         stdout=stdout,
         stderr=stderr,
+        token_count=token_count,
         wall_time_seconds=wall_time,
         model=model,
     )

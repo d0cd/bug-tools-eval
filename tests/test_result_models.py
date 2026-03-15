@@ -84,3 +84,44 @@ class TestDxAssessment:
     def test_normalized_result_dx_none_default(self) -> None:
         r = NormalizedResult(test_case_id="x", tool="y")
         assert r.dx is None
+
+
+def test_comment_enriched_fields_defaults() -> None:
+    c = Comment(body="test")
+    assert c.confidence is None
+    assert c.severity is None
+    assert c.category is None
+    assert c.suggested_fix is None
+    assert c.reasoning is None
+
+
+def test_comment_enriched_fields_round_trip(tmp_path: Path) -> None:
+    import yaml
+
+    c = Comment(
+        body="bug found",
+        file="src/lib.rs",
+        line=10,
+        confidence=0.9,
+        severity="high",
+        category="memory-safety",
+        suggested_fix="Change X to Y",
+        reasoning="Because Z",
+    )
+    data = c.model_dump(mode="json")
+    path = tmp_path / "comment.yaml"
+    path.write_text(yaml.safe_dump(data))
+    loaded = Comment(**yaml.safe_load(path.read_text()))
+    assert loaded.confidence == 0.9
+    assert loaded.severity == "high"
+    assert loaded.category == "memory-safety"
+    assert loaded.suggested_fix == "Change X to Y"
+    assert loaded.reasoning == "Because Z"
+
+
+def test_comment_backward_compat_no_enriched_fields() -> None:
+    """Old YAMLs without enriched fields should load fine."""
+    data = {"body": "legacy comment", "file": "a.rs", "line": 5}
+    c = Comment(**data)
+    assert c.confidence is None
+    assert c.suggested_fix is None

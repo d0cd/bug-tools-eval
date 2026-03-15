@@ -1,0 +1,129 @@
+diff --git a/node/bft/src/gateway.rs b/node/bft/src/gateway.rs
+index ba69cf548..a2f495450 100644
+--- a/node/bft/src/gateway.rs
++++ b/node/bft/src/gateway.rs
+@@ -43,6 +43,8 @@ use snarkos_node_bft_events::{
+ use snarkos_node_bft_ledger_service::LedgerService;
+ use snarkos_node_sync::communication_service::CommunicationService;
+ use snarkos_node_tcp::{
++    is_bogon_ip,
++    is_unspecified_ip,
+     protocols::{Disconnect, Handshake, OnConnect, Reading, Writing},
+     Config,
+     Connection,
+@@ -262,6 +264,11 @@ impl<N: Network> Gateway<N> {
+             || (ip.ip().is_unspecified() || ip.ip().is_loopback()) && ip.port() == self.local_ip().port()
+     }
+ 
++    /// Returns `true` if the given IP is not this node, is not a bogon address, and is not unspecified.
++    pub fn is_valid_peer_ip(&self, ip: SocketAddr) -> bool {
++        !self.is_local_ip(ip) && !is_bogon_ip(ip.ip()) && !is_unspecified_ip(ip.ip())
++    }
++
+     /// Returns the resolver.
+     pub fn resolver(&self) -> &Resolver<N> {
+         &self.resolver
+@@ -666,7 +673,8 @@ impl<N: Network> Gateway<N> {
+             }
+             Event::ValidatorsRequest(_) => {
+                 // Retrieve the connected peers.
+-                let mut connected_peers: Vec<_> = self.connected_peers.read().iter().cloned().collect();
++                let mut connected_peers: Vec<_> =
++                    self.connected_peers.read().iter().copied().filter(|ip| self.is_valid_peer_ip(*ip)).collect();
+                 // Shuffle the connected peers.
+                 connected_peers.shuffle(&mut rand::thread_rng());
+ 
+@@ -705,8 +713,8 @@ impl<N: Network> Gateway<N> {
+                     let self_ = self.clone();
+                     tokio::spawn(async move {
+                         for (validator_ip, validator_address) in validators {
+-                            // Ensure the validator IP is not this node.
+-                            if self_.is_local_ip(validator_ip) {
++                            // Ensure the validator IP is not this node and is well-formed.
++                            if !self_.is_valid_peer_ip(validator_ip) {
+                                 continue;
+                             }
+                             // Ensure the validator address is not this node.
+diff --git a/node/router/src/inbound.rs b/node/router/src/inbound.rs
+index b14472d4e..ac1790f21 100644
+--- a/node/router/src/inbound.rs
++++ b/node/router/src/inbound.rs
+@@ -27,7 +27,7 @@ use crate::{
+     Outbound,
+     Peer,
+ };
+-use snarkos_node_tcp::{is_bogon_address, protocols::Reading};
++use snarkos_node_tcp::protocols::Reading;
+ use snarkvm::prelude::{
+     block::{Block, Header, Transaction},
+     coinbase::{EpochChallenge, ProverSolution},
+@@ -255,8 +255,8 @@ pub trait Inbound<N: Network>: Reading + Outbound<N> {
+     fn peer_request(&self, peer_ip: SocketAddr) -> bool {
+         // Retrieve the connected peers.
+         let peers = self.router().connected_peers();
+-        // Filter out bogon addresses.
+-        let peers = peers.into_iter().filter(|addr| !is_bogon_address(addr.ip())).collect();
++        // Filter out invalid addresses.
++        let peers = peers.into_iter().filter(|ip| self.router().is_valid_peer_ip(ip)).collect();
+         // Send a `PeerResponse` message to the peer.
+         self.send(peer_ip, Message::PeerResponse(PeerResponse { peers }));
+         true
+@@ -264,8 +264,8 @@ pub trait Inbound<N: Network>: Reading + Outbound<N> {
+ 
+     /// Handles a `PeerResponse` message.
+     fn peer_response(&self, _peer_ip: SocketAddr, peers: &[SocketAddr]) -> bool {
+-        // Filter out bogon addresses.
+-        let peers = peers.iter().copied().filter(|addr| !is_bogon_address(addr.ip())).collect::<Vec<_>>();
++        // Filter out invalid addresses.
++        let peers = peers.iter().copied().filter(|ip| self.router().is_valid_peer_ip(ip)).collect::<Vec<_>>();
+         // Adds the given peer IPs to the list of candidate peers.
+         self.router().insert_candidate_peers(&peers);
+         true
+diff --git a/node/router/src/lib.rs b/node/router/src/lib.rs
+index 013e33d3d..b51284190 100644
+--- a/node/router/src/lib.rs
++++ b/node/router/src/lib.rs
+@@ -41,7 +41,7 @@ pub use routing::*;
+ 
+ use crate::messages::NodeType;
+ use snarkos_account::Account;
+-use snarkos_node_tcp::{Config, Tcp};
++use snarkos_node_tcp::{is_bogon_ip, is_unspecified_ip, Config, Tcp};
+ use snarkvm::prelude::{Address, Network, PrivateKey, ViewKey};
+ 
+ use anyhow::{bail, Result};
+@@ -215,6 +215,11 @@ impl<N: Network> Router<N> {
+             || (ip.ip().is_unspecified() || ip.ip().is_loopback()) && ip.port() == self.local_ip().port()
+     }
+ 
++    /// Returns `true` if the given IP is not this node, is not a bogon address, and is not unspecified.
++    pub fn is_valid_peer_ip(&self, ip: &SocketAddr) -> bool {
++        !self.is_local_ip(ip) && !is_bogon_ip(ip.ip()) && !is_unspecified_ip(ip.ip())
++    }
++
+     /// Returns the node type.
+     pub fn node_type(&self) -> NodeType {
+         self.node_type
+diff --git a/node/tcp/src/lib.rs b/node/tcp/src/lib.rs
+index 2f8521c80..c9694466e 100644
+--- a/node/tcp/src/lib.rs
++++ b/node/tcp/src/lib.rs
+@@ -37,9 +37,17 @@ pub trait P2P {
+ ///
+ /// A bogon address is an IP address that should not appear on the public Internet.
+ /// This includes private addresses, loopback addresses, and link-local addresses.
+-pub fn is_bogon_address(ip: IpAddr) -> bool {
++pub fn is_bogon_ip(ip: IpAddr) -> bool {
+     match ip {
+         IpAddr::V4(ipv4) => ipv4.is_loopback() || ipv4.is_private() || ipv4.is_link_local(),
+         IpAddr::V6(ipv6) => ipv6.is_loopback(),
+     }
+ }
++
++/// Checks if the given IP address is unspecified or broadcast.
++pub fn is_unspecified_ip(ip: IpAddr) -> bool {
++    match ip {
++        IpAddr::V4(ipv4) => ipv4.is_unspecified() || ipv4.is_broadcast(),
++        ipv6 => ipv6.is_unspecified(),
++    }
++}

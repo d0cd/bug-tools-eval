@@ -1,0 +1,55 @@
+diff --git a/node/bft/events/src/helpers/codec.rs b/node/bft/events/src/helpers/codec.rs
+index e2b575def..453476318 100644
+--- a/node/bft/events/src/helpers/codec.rs
++++ b/node/bft/events/src/helpers/codec.rs
+@@ -108,6 +108,21 @@ pub enum EventOrBytes<N: Network> {
+     Event(Event<N>),
+ }
+ 
++impl<N: Network> ToBytes for EventOrBytes<N> {
++    fn write_le<W: io::Write>(&self, mut writer: W) -> io::Result<()> {
++        match self {
++            Self::Bytes(bytes) => {
++                0u8.write_le(&mut writer)?;
++                writer.write_all(bytes)
++            }
++            Self::Event(event) => {
++                1u8.write_le(&mut writer)?;
++                event.write_le(writer)
++            }
++        }
++    }
++}
++
+ #[derive(Clone)]
+ pub struct PostHandshakeState {
+     state: Arc<StatelessTransportState>,
+@@ -346,7 +361,8 @@ mod tests {
+         let mut ciphertext = BytesMut::new();
+ 
+         assert!(initiator_codec.encode(msg.clone(), &mut ciphertext).is_ok());
+-        assert_eq!(responder_codec.decode(&mut ciphertext).unwrap().unwrap(), msg);
++        let decoded = responder_codec.decode(&mut ciphertext).unwrap().unwrap();
++        assert_eq!(decoded.to_bytes_le().unwrap(), msg.to_bytes_le().unwrap());
+     }
+ 
+     #[proptest]
+diff --git a/node/bft/events/src/primary_ping.rs b/node/bft/events/src/primary_ping.rs
+index 4f6bd2fbf..0aa23760c 100644
+--- a/node/bft/events/src/primary_ping.rs
++++ b/node/bft/events/src/primary_ping.rs
+@@ -124,6 +124,13 @@ pub mod prop_tests {
+             primary_ping.primary_certificate.deserialize_blocking().unwrap(),
+             decoded.primary_certificate.deserialize_blocking().unwrap(),
+         );
+-        assert_eq!(primary_ping.batch_certificates, decoded.batch_certificates);
++        assert!(
++            primary_ping
++                .batch_certificates
++                .into_iter()
++                .map(|bc| bc.deserialize_blocking().unwrap())
++                .zip(decoded.batch_certificates.into_iter().map(|bc| bc.deserialize_blocking().unwrap()))
++                .all(|(a, b)| a == b)
++        )
+     }
+ }

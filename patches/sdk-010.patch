@@ -1,0 +1,13 @@
+diff --git a/website/src/tabs/develop/Split.js b/website/src/tabs/develop/Split.js
+index a6286058..8303bdc3 100644
+--- a/website/src/tabs/develop/Split.js
++++ b/website/src/tabs/develop/Split.js
+@@ -65,7 +65,7 @@ export const Split = () => {
+ 
+         await postMessagePromise(worker, {
+             type: 'ALEO_SPLIT',
+-            splitAmount: amountNumber(),
++            splitAmount: amount,
+             record: amountRecordString(),
+             privateKey: privateKeyString(),
+             url: peerUrl(),

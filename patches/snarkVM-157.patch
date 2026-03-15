@@ -1,0 +1,511 @@
+diff --git a/synthesizer/process/src/stack/call/mod.rs b/synthesizer/process/src/stack/call/mod.rs
+index 93c03c6a3..d3515e604 100644
+--- a/synthesizer/process/src/stack/call/mod.rs
++++ b/synthesizer/process/src/stack/call/mod.rs
+@@ -230,7 +230,7 @@ impl<N: Network> CallTrait<N> for Call<N> {
+                         // Return the request and response.
+                         (request, response)
+                     }
+-                    CallStack::CheckDeployment(_, private_key, ..) => {
++                    CallStack::CheckDeployment(_, private_key, ..) | CallStack::PackageRun(_, private_key, ..) => {
+                         // Compute the request.
+                         let request = Request::sign(
+                             &private_key,
+diff --git a/synthesizer/process/src/stack/execute.rs b/synthesizer/process/src/stack/execute.rs
+index 8df3a147b..45284c133 100644
+--- a/synthesizer/process/src/stack/execute.rs
++++ b/synthesizer/process/src/stack/execute.rs
+@@ -380,8 +380,8 @@ impl<N: Network> StackExecute<N> for Stack<N> {
+             self.matches_value_type(output, output_type)
+         })?;
+ 
+-        // If the circuit is in `Execute` mode, then ensure the circuit is satisfied.
+-        if let CallStack::Execute(..) = registers.call_stack() {
++        // If the circuit is in `Execute` or `PackageRun` mode, then ensure the circuit is satisfied.
++        if matches!(registers.call_stack(), CallStack::Execute(..) | CallStack::PackageRun(..)) {
+             // If the circuit is empty or not satisfied, then throw an error.
+             ensure!(
+                 A::num_constraints() > 0 && A::is_satisfied(),
+@@ -456,6 +456,21 @@ impl<N: Network> StackExecute<N> for Stack<N> {
+                 metrics,
+             )?;
+         }
++        // If the circuit is in `PackageRun` mode, then save the assignment.
++        else if let CallStack::PackageRun(_, _, ref assignments) = registers.call_stack() {
++            // Construct the call metrics.
++            let metrics = CallMetrics {
++                program_id: *self.program_id(),
++                function_name: *function.name(),
++                num_instructions: function.instructions().len(),
++                num_request_constraints,
++                num_function_constraints,
++                num_response_constraints,
++            };
++            // Add the assignment to the assignments.
++            assignments.write().push((assignment, metrics));
++            lap!(timer, "Save the circuit assignment");
++        }
+ 
+         finish!(timer);
+ 
+diff --git a/synthesizer/process/src/stack/mod.rs b/synthesizer/process/src/stack/mod.rs
+index 305813857..4fe6d1853 100644
+--- a/synthesizer/process/src/stack/mod.rs
++++ b/synthesizer/process/src/stack/mod.rs
+@@ -82,6 +82,7 @@ pub enum CallStack<N: Network> {
+     CheckDeployment(Vec<Request<N>>, PrivateKey<N>, Assignments<N>),
+     Evaluate(Authorization<N>),
+     Execute(Authorization<N>, Arc<RwLock<Trace<N>>>),
++    PackageRun(Vec<Request<N>>, PrivateKey<N>, Assignments<N>),
+ }
+ 
+ impl<N: Network> CallStack<N> {
+@@ -115,15 +116,19 @@ impl<N: Network> CallStack<N> {
+             CallStack::Execute(authorization, trace) => {
+                 CallStack::Execute(authorization.replicate(), Arc::new(RwLock::new(trace.read().clone())))
+             }
++            CallStack::PackageRun(requests, private_key, assignments) => {
++                CallStack::PackageRun(requests.clone(), *private_key, Arc::new(RwLock::new(assignments.read().clone())))
++            }
+         }
+     }
+ 
+     /// Pushes the request to the stack.
+     pub fn push(&mut self, request: Request<N>) -> Result<()> {
+         match self {
+-            CallStack::Authorize(requests, ..) => requests.push(request),
+-            CallStack::Synthesize(requests, ..) => requests.push(request),
+-            CallStack::CheckDeployment(requests, ..) => requests.push(request),
++            CallStack::Authorize(requests, ..)
++            | CallStack::Synthesize(requests, ..)
++            | CallStack::CheckDeployment(requests, ..)
++            | CallStack::PackageRun(requests, ..) => requests.push(request),
+             CallStack::Evaluate(authorization) => authorization.push(request),
+             CallStack::Execute(authorization, ..) => authorization.push(request),
+         }
+@@ -135,7 +140,8 @@ impl<N: Network> CallStack<N> {
+         match self {
+             CallStack::Authorize(requests, ..)
+             | CallStack::Synthesize(requests, ..)
+-            | CallStack::CheckDeployment(requests, ..) => {
++            | CallStack::CheckDeployment(requests, ..)
++            | CallStack::PackageRun(requests, ..) => {
+                 requests.pop().ok_or_else(|| anyhow!("No more requests on the stack"))
+             }
+             CallStack::Evaluate(authorization) => authorization.next(),
+@@ -148,7 +154,8 @@ impl<N: Network> CallStack<N> {
+         match self {
+             CallStack::Authorize(requests, ..)
+             | CallStack::Synthesize(requests, ..)
+-            | CallStack::CheckDeployment(requests, ..) => {
++            | CallStack::CheckDeployment(requests, ..)
++            | CallStack::PackageRun(requests, ..) => {
+                 requests.last().cloned().ok_or_else(|| anyhow!("No more requests on the stack"))
+             }
+             CallStack::Evaluate(authorization) => authorization.peek_next(),
+diff --git a/vm/package/build.rs b/vm/package/build.rs
+index f46a0a7de..46e92460d 100644
+--- a/vm/package/build.rs
++++ b/vm/package/build.rs
+@@ -290,7 +290,7 @@ mod tests {
+     #[test]
+     fn test_build() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package();
++        let (directory, package) = crate::package::test_helpers::sample_token_package();
+ 
+         // Ensure the build directory does *not* exist.
+         assert!(!package.build_directory().exists());
+@@ -306,7 +306,7 @@ mod tests {
+     #[test]
+     fn test_build_with_import() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package_with_import();
++        let (directory, package) = crate::package::test_helpers::sample_wallet_package();
+ 
+         // Ensure the build directory does *not* exist.
+         assert!(!package.build_directory().exists());
+diff --git a/vm/package/clean.rs b/vm/package/clean.rs
+index 524def2b6..561041c6d 100644
+--- a/vm/package/clean.rs
++++ b/vm/package/clean.rs
+@@ -55,7 +55,7 @@ mod tests {
+     #[test]
+     fn test_clean() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package();
++        let (directory, package) = crate::package::test_helpers::sample_token_package();
+ 
+         // Ensure the build directory does *not* exist.
+         assert!(!package.build_directory().exists());
+@@ -81,7 +81,7 @@ mod tests {
+     #[test]
+     fn test_clean_with_import() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package_with_import();
++        let (directory, package) = crate::package::test_helpers::sample_wallet_package();
+ 
+         // Ensure the build directory does *not* exist.
+         assert!(!package.build_directory().exists());
+diff --git a/vm/package/deploy.rs b/vm/package/deploy.rs
+index 1c60360fa..cc3ec4564 100644
+--- a/vm/package/deploy.rs
++++ b/vm/package/deploy.rs
+@@ -174,7 +174,7 @@ mod tests {
+     #[test]
+     fn test_deploy() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package();
++        let (directory, package) = crate::package::test_helpers::sample_token_package();
+ 
+         // Deploy the package.
+         let deployment = package.deploy::<CurrentAleo>(None).unwrap();
+@@ -193,7 +193,7 @@ mod tests {
+     #[test]
+     fn test_deploy_with_import() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package_with_import();
++        let (directory, package) = crate::package::test_helpers::sample_wallet_package();
+ 
+         // Deploy the package.
+         let deployment = package.deploy::<CurrentAleo>(None).unwrap();
+diff --git a/vm/package/execute.rs b/vm/package/execute.rs
+index 229e7dd71..c24c75809 100644
+--- a/vm/package/execute.rs
++++ b/vm/package/execute.rs
+@@ -120,7 +120,7 @@ mod tests {
+     #[test]
+     fn test_execute() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package();
++        let (directory, package) = crate::package::test_helpers::sample_token_package();
+ 
+         // Ensure the build directory does *not* exist.
+         assert!(!package.build_directory().exists());
+@@ -149,7 +149,7 @@ mod tests {
+     #[ignore]
+     fn test_execute_with_import() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package_with_import();
++        let (directory, package) = crate::package::test_helpers::sample_wallet_package();
+ 
+         // Ensure the build directory does *not* exist.
+         assert!(!package.build_directory().exists());
+@@ -178,7 +178,7 @@ mod tests {
+     #[test]
+     fn test_profiler() -> Result<()> {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package();
++        let (directory, package) = crate::package::test_helpers::sample_token_package();
+ 
+         // Ensure the build directory does *not* exist.
+         assert!(!package.build_directory().exists());
+diff --git a/vm/package/mod.rs b/vm/package/mod.rs
+index b085aeb2b..25c8357df 100644
+--- a/vm/package/mod.rs
++++ b/vm/package/mod.rs
+@@ -184,18 +184,12 @@ pub(crate) mod test_helpers {
+         tempfile::tempdir().expect("Failed to open temporary directory").into_path()
+     }
+ 
+-    /// Samples a (temporary) package containing a main program.
+-    pub(crate) fn sample_package() -> (PathBuf, Package<CurrentNetwork>) {
+-        // Initialize a temporary directory.
+-        let directory = temp_dir();
+-
+-        // Initialize the program ID.
+-        let program_id = ProgramID::<CurrentNetwork>::from_str("token.aleo").unwrap();
+-
++    /// Samples a (temporary) package containing a `token.aleo` program.
++    pub(crate) fn sample_token_package() -> (PathBuf, Package<CurrentNetwork>) {
+         // Initialize the program.
+-        let program_string = format!(
++        let program = Program::<CurrentNetwork>::from_str(
+             "
+-program {program_id};
++program token.aleo;
+ 
+ record token:
+     owner as address.private;
+@@ -215,36 +209,20 @@ function transfer:
+     cast r1 r2 into r4 as token.record;
+     cast r0.owner r3 into r5 as token.record;
+     output r4 as token.record;
+-    output r5 as token.record;"
+-        );
+-
+-        // Write the program string to a file in the temporary directory.
+-        let main_filepath = directory.join("main.aleo");
+-        let mut file = File::create(main_filepath).unwrap();
+-        file.write_all(program_string.as_bytes()).unwrap();
+-
+-        // Create the manifest file.
+-        let _manifest_file = Manifest::create(&directory, &program_id).unwrap();
+-
+-        // Open the package at the temporary directory.
+-        let package = Package::<Testnet3>::open(&directory).unwrap();
+-        assert_eq!(package.program_id(), &program_id);
++    output r5 as token.record;",
++        )
++        .unwrap();
+ 
+-        // Return the temporary directory and the package.
+-        (directory, package)
++        // Sample the package using the program.
++        sample_package_with_program_and_imports(&program, &[])
+     }
+ 
+-    /// Samples a (temporary) package containing a main program and an imported program.
+-    pub(crate) fn sample_package_with_import() -> (PathBuf, Package<CurrentNetwork>) {
+-        // Initialize a temporary directory.
+-        let directory = temp_dir();
+-
+-        // Initialize the imported program ID.
+-        let imported_program_id = ProgramID::<CurrentNetwork>::from_str("token.aleo").unwrap();
++    /// Samples a (temporary) package containing a `wallet.aleo` program which imports `token.aleo`.
++    pub(crate) fn sample_wallet_package() -> (PathBuf, Package<CurrentNetwork>) {
+         // Initialize the imported program.
+-        let imported_program = Program::<CurrentNetwork>::from_str(&format!(
++        let imported_program = Program::<CurrentNetwork>::from_str(
+             "
+-program {imported_program_id};
++program token.aleo;
+ 
+ record token:
+     owner as address.private;
+@@ -264,27 +242,16 @@ function transfer:
+     cast r1 r2 into r4 as token.record;
+     cast r0.owner r3 into r5 as token.record;
+     output r4 as token.record;
+-    output r5 as token.record;"
+-        ))
++    output r5 as token.record;",
++        )
+         .unwrap();
+ 
+-        // Create the imports directory.
+-        let imports_directory = directory.join("imports");
+-        std::fs::create_dir_all(&imports_directory).unwrap();
+-
+-        // Write the imported program string to an imports file in the temporary directory.
+-        let import_filepath = imports_directory.join(imported_program_id.to_string());
+-        let mut file = File::create(import_filepath).unwrap();
+-        file.write_all(imported_program.to_string().as_bytes()).unwrap();
+-
+-        // Initialize the main program ID.
+-        let main_program_id = ProgramID::<CurrentNetwork>::from_str("wallet.aleo").unwrap();
+         // Initialize the main program.
+-        let main_program = Program::<CurrentNetwork>::from_str(&format!(
++        let main_program = Program::<CurrentNetwork>::from_str(
+             "
+ import token.aleo;
+ 
+-program {main_program_id};
++program wallet.aleo;
+ 
+ function transfer:
+     input r0 as token.aleo/token.record;
+@@ -292,21 +259,52 @@ function transfer:
+     input r2 as u64.private;
+     call token.aleo/transfer r0 r1 r2 into r3 r4;
+     output r3 as token.aleo/token.record;
+-    output r4 as token.aleo/token.record;"
+-        ))
++    output r4 as token.aleo/token.record;",
++        )
+         .unwrap();
+ 
+-        // Write the main program string to a file in the temporary directory.
++        // Sample the package using the main program and imported program.
++        sample_package_with_program_and_imports(&main_program, &[imported_program])
++    }
++
++    /// Samples a (temporary) package using a main program and imported programs.
++    pub(crate) fn sample_package_with_program_and_imports(
++        main_program: &Program<CurrentNetwork>,
++        imported_programs: &[Program<CurrentNetwork>],
++    ) -> (PathBuf, Package<CurrentNetwork>) {
++        // Initialize a temporary directory.
++        let directory = temp_dir();
++
++        // If there are imports, create the imports directory.
++        if !imported_programs.is_empty() {
++            let imports_directory = directory.join("imports");
++            std::fs::create_dir_all(&imports_directory).unwrap();
++
++            // Add the imported programs.
++            for imported_program in imported_programs {
++                let imported_program_id = imported_program.id();
++
++                // Write the imported program string to an imports file in the temporary directory.
++                let import_filepath = imports_directory.join(imported_program_id.to_string());
++                let mut file = File::create(import_filepath).unwrap();
++                file.write_all(imported_program.to_string().as_bytes()).unwrap();
++            }
++        }
++
++        // Initialize the main program ID.
++        let main_program_id = main_program.id();
++
++        // Write the program string to a file in the temporary directory.
+         let main_filepath = directory.join("main.aleo");
+         let mut file = File::create(main_filepath).unwrap();
+         file.write_all(main_program.to_string().as_bytes()).unwrap();
+ 
+         // Create the manifest file.
+-        let _manifest_file = Manifest::create(&directory, &main_program_id).unwrap();
++        let _manifest_file = Manifest::create(&directory, main_program_id).unwrap();
+ 
+         // Open the package at the temporary directory.
+         let package = Package::<Testnet3>::open(&directory).unwrap();
+-        assert_eq!(package.program_id(), &main_program_id);
++        assert_eq!(package.program_id(), main_program_id);
+ 
+         // Return the temporary directory and the package.
+         (directory, package)
+@@ -363,10 +361,17 @@ function transfer:
+ 
+ #[cfg(test)]
+ mod tests {
++    use super::*;
++    use crate::prelude::Testnet3;
++    use snarkvm_utilities::TestRng;
++
++    type CurrentAleo = snarkvm_circuit::network::AleoV0;
++    type CurrentNetwork = Testnet3;
++
+     #[test]
+     fn test_imports_directory() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package();
++        let (directory, package) = crate::package::test_helpers::sample_token_package();
+ 
+         // Ensure the imports directory is correct.
+         assert_eq!(package.imports_directory(), directory.join("imports"));
+@@ -380,7 +385,7 @@ mod tests {
+     #[test]
+     fn test_imports_directory_with_an_import() {
+         // Samples a new package with an import at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package_with_import();
++        let (directory, package) = crate::package::test_helpers::sample_wallet_package();
+ 
+         // Ensure the imports directory is correct.
+         assert_eq!(package.imports_directory(), directory.join("imports"));
+@@ -394,7 +399,7 @@ mod tests {
+     #[test]
+     fn test_build_directory() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package();
++        let (directory, package) = crate::package::test_helpers::sample_token_package();
+ 
+         // Ensure the build directory is correct.
+         assert_eq!(package.build_directory(), directory.join("build"));
+@@ -408,7 +413,7 @@ mod tests {
+     #[test]
+     fn test_get_process() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package();
++        let (directory, package) = crate::package::test_helpers::sample_token_package();
+ 
+         // Get the program process and check all instructions.
+         assert!(package.get_process().is_ok());
+@@ -416,4 +421,59 @@ mod tests {
+         // Proactively remove the temporary directory (to conserve space).
+         std::fs::remove_dir_all(directory).unwrap();
+     }
++
++    #[test]
++    fn test_package_run_and_execute_match() {
++        // Initialize the program.
++        let program = Program::<CurrentNetwork>::from_str(
++            "
++program foo.aleo;
++
++function bar:
++    input r0 as boolean.private;
++    assert.eq r0 false;",
++        )
++        .unwrap();
++
++        // Samples a new package at a temporary directory.
++        let (directory, package) = crate::package::test_helpers::sample_package_with_program_and_imports(&program, &[]);
++
++        // Ensure the build directory does *not* exist.
++        assert!(!package.build_directory().exists());
++        // Build the package.
++        package.build::<CurrentAleo>(None).unwrap();
++        // Ensure the build directory exists.
++        assert!(package.build_directory().exists());
++
++        // Initialize an RNG.
++        let rng = &mut TestRng::default();
++        // Sample the function inputs.
++        let private_key = PrivateKey::new(rng).unwrap();
++        let function_name = Identifier::from_str("bar").unwrap();
++        let inputs = vec![Value::from_str("true").unwrap()];
++
++        // Construct the endpoint.
++        let endpoint = "https://api.explorer.aleo.org/v1".to_string();
++
++        // Run the program function.
++        let run_result = package.run::<CurrentAleo, _>(&private_key, function_name, &inputs, rng).ok();
++
++        // Execute the program function.
++        let execute_result =
++            package.execute::<CurrentAleo, _>(endpoint, &private_key, function_name, &inputs, rng).ok();
++
++        match (run_result, execute_result) {
++            // If both results are `None`, then they both failed.
++            (None, None) => {}
++            // If both results are `Some`, then check that the responses match.
++            (Some((run_response, _)), Some((execute_response, _, _))) => {
++                assert_eq!(run_response, execute_response);
++            }
++            // Otherwise, the results do not match.
++            _ => panic!("Run and execute results do not match"),
++        }
++
++        // Proactively remove the temporary directory (to conserve space).
++        std::fs::remove_dir_all(directory).unwrap();
++    }
+ }
+diff --git a/vm/package/run.rs b/vm/package/run.rs
+index c74616e9a..e3c5d8e69 100644
+--- a/vm/package/run.rs
++++ b/vm/package/run.rs
+@@ -51,7 +51,7 @@ impl<N: Network> Package<N> {
+         // Initialize the assignments.
+         let assignments = Assignments::<N>::default();
+         // Initialize the call stack.
+-        let call_stack = CallStack::CheckDeployment(vec![request], *private_key, assignments.clone());
++        let call_stack = CallStack::PackageRun(vec![request], *private_key, assignments.clone());
+         // Synthesize the circuit.
+         let response = stack.execute_function::<A>(call_stack, None)?;
+         // Retrieve the call metrics.
+@@ -71,7 +71,7 @@ mod tests {
+     #[test]
+     fn test_run() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package();
++        let (directory, package) = crate::package::test_helpers::sample_token_package();
+ 
+         // Ensure the build directory does *not* exist.
+         assert!(!package.build_directory().exists());
+@@ -95,7 +95,7 @@ mod tests {
+     #[test]
+     fn test_run_with_import() {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package_with_import();
++        let (directory, package) = crate::package::test_helpers::sample_wallet_package();
+ 
+         // Ensure the build directory does *not* exist.
+         assert!(!package.build_directory().exists());
+@@ -121,7 +121,7 @@ mod tests {
+     #[test]
+     fn test_profiler() -> Result<()> {
+         // Samples a new package at a temporary directory.
+-        let (directory, package) = crate::package::test_helpers::sample_package();
++        let (directory, package) = crate::package::test_helpers::sample_token_package();
+ 
+         // Ensure the build directory does *not* exist.
+         assert!(!package.build_directory().exists());

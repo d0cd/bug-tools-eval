@@ -1,0 +1,52 @@
+diff --git a/console/program/src/request/bytes.rs b/console/program/src/request/bytes.rs
+index 6c800c989..2cc6f0615 100644
+--- a/console/program/src/request/bytes.rs
++++ b/console/program/src/request/bytes.rs
+@@ -23,7 +23,7 @@ impl<N: Network> FromBytes for Request<N> {
+         let version = u8::read_le(&mut reader)?;
+         // Ensure the version is valid.
+         if version != 0 {
+-            return Err(error("Invalid verifying key version"));
++            return Err(error("Invalid request version"));
+         }
+ 
+         // Read the caller.
+diff --git a/console/program/src/state_path/bytes.rs b/console/program/src/state_path/bytes.rs
+index 8934832dc..14356595f 100644
+--- a/console/program/src/state_path/bytes.rs
++++ b/console/program/src/state_path/bytes.rs
+@@ -23,7 +23,7 @@ impl<N: Network> FromBytes for StatePath<N> {
+         let version = u8::read_le(&mut reader)?;
+         // Ensure the version is valid.
+         if version != 0 {
+-            return Err(error("Invalid block version"));
++            return Err(error("Invalid state path version"));
+         }
+ 
+         // Read the state path.
+diff --git a/synthesizer/src/block/transactions/bytes.rs b/synthesizer/src/block/transactions/bytes.rs
+index 29034f4fc..5cba2d7c2 100644
+--- a/synthesizer/src/block/transactions/bytes.rs
++++ b/synthesizer/src/block/transactions/bytes.rs
+@@ -24,7 +24,7 @@ impl<N: Network> FromBytes for Transactions<N> {
+         let version = u8::read_le(&mut reader)?;
+         // Ensure the version is valid.
+         if version != 0 {
+-            return Err(error("Invalid header version"));
++            return Err(error("Invalid transactions version"));
+         }
+         // Read the number of transactions.
+         let num_txs: u32 = FromBytes::read_le(&mut reader)?;
+diff --git a/synthesizer/src/snark/proving_key/bytes.rs b/synthesizer/src/snark/proving_key/bytes.rs
+index c2b22733c..bd0d6dfd7 100644
+--- a/synthesizer/src/snark/proving_key/bytes.rs
++++ b/synthesizer/src/snark/proving_key/bytes.rs
+@@ -23,7 +23,7 @@ impl<N: Network> FromBytes for ProvingKey<N> {
+         let version = u8::read_le(&mut reader)?;
+         // Ensure the version is valid.
+         if version != 0 {
+-            return Err(error("Invalid verifying key version"));
++            return Err(error("Invalid proving key version"));
+         }
+         // Read the proving key.
+         let proving_key = Arc::new(FromBytes::read_le(&mut reader)?);

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}bugeval — Dashboard{% endblock %}
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="stat-grid">
+  <div class="stat-card">
+    <div class="stat-num">{{ total }}</div>
+    <div class="stat-label">Total Cases</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ needs_review }}</div>
+    <div class="stat-label">Needs Manual Review</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ reviewed }}</div>
+    <div class="stat-label">Reviewed</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-num">{{ total - reviewed }}</div>
+    <div class="stat-label">Unreviewed</div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+  <!-- By repo -->
+  <div class="card">
+    <h2>By Repo</h2>
+    <table>
+      <thead><tr><th>Repo</th><th>Cases</th><th>Reviewed</th><th>%</th></tr></thead>
+      <tbody>
+        {% for repo, stats in by_repo.items() %}
+        <tr>
+          <td><a href="/cases?repo={{ repo }}">{{ repo }}</a></td>
+          <td>{{ stats.count }}</td>
+          <td>{{ stats.reviewed }}</td>
+          <td>{{ "%.0f"|format(stats.reviewed / stats.count * 100 if stats.count else 0) }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- By category -->
+  <div class="card">
+    <h2>By Category</h2>
+    <table>
+      <thead><tr><th>Category</th><th>Count</th></tr></thead>
+      <tbody>
+        {% for cat, n in cat_dist.items() %}
+        <tr><td>{{ cat }}</td><td>{{ n }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- By difficulty/severity -->
+  <div class="card">
+    <h2>By Difficulty</h2>
+    <table>
+      <thead><tr><th>Difficulty</th><th>Count</th></tr></thead>
+      <tbody>
+        {% for d, n in diff_dist.items() %}
+        <tr><td>{{ d }}</td><td>{{ n }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <h2 style="margin-top:14px;">By Severity</h2>
+    <table>
+      <thead><tr><th>Severity</th><th>Count</th></tr></thead>
+      <tbody>
+        {% for s, n in sev_dist.items() %}
+        <tr><td>{{ s }}</td><td>{{ n }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pipeline progress -->
+{% if pipeline_statuses %}
+<h2>Pipeline Progress</h2>
+{% for ps in pipeline_statuses %}
+<div class="card">
+  <h3>{{ ps.name }}</h3>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+    <span class="pipeline-stage stage-done">cases</span>
+    <span>→</span>
+    {% set norm_pct = (ps.normalized / ps.expected * 100) if ps.expected > 0 else 0 %}
+    <span class="pipeline-stage {% if norm_pct >= 100 %}stage-done{% elif norm_pct > 0 %}stage-partial{% else %}stage-missing{% endif %}">
+      normalize {{ ps.normalized }}/{{ ps.expected }}
+    </span>
+    <span>→</span>
+    {% set judge_pct = (ps.judged / ps.expected * 100) if ps.expected > 0 else 0 %}
+    <span class="pipeline-stage {% if judge_pct >= 100 %}stage-done{% elif judge_pct > 0 %}stage-partial{% else %}stage-missing{% endif %}">
+      judge {{ ps.judged }}/{{ ps.expected }}
+    </span>
+    <span>→</span>
+    <span class="pipeline-stage {% if ps.has_analysis %}stage-done{% else %}stage-missing{% endif %}">
+      analyze {% if ps.has_analysis %}✓{% else %}–{% endif %}
+    </span>
+  </div>
+  {% if ps.tools_run %}
+  <div class="text-muted">Tools: {{ ps.tools_run | join(", ") }}</div>
+  {% endif %}
+</div>
+{% endfor %}
+{% else %}
+<div class="card text-muted">No runs found in results directory.</div>
+{% endif %}
+{% endblock %}

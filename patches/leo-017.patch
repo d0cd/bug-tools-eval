@@ -1,0 +1,26 @@
+diff --git a/leo/cli/commands/mod.rs b/leo/cli/commands/mod.rs
+index 7db1efe3ae..d22cd8683c 100644
+--- a/leo/cli/commands/mod.rs
++++ b/leo/cli/commands/mod.rs
+@@ -287,7 +287,7 @@ fn handle_broadcast<N: Network>(endpoint: &String, transaction: Transaction<N>,
+         .redirects(0)
+         .build()
+         .post(endpoint)
+-        .set(&format!("X-Aleo-Leo-{}", env!("CARGO_PKG_VERSION")), "true")
++        .set("X-Leo-Version", env!("CARGO_PKG_VERSION"))
+         .send_json(&transaction)
+         .map_err(|err| CliError::broadcast_error(err.to_string()))?;
+     match response.status() {
+diff --git a/utils/retriever/src/retriever/mod.rs b/utils/retriever/src/retriever/mod.rs
+index be3f5059aa..fdd29a1436 100644
+--- a/utils/retriever/src/retriever/mod.rs
++++ b/utils/retriever/src/retriever/mod.rs
+@@ -523,7 +523,7 @@ pub fn fetch_from_network(url: &str) -> Result<String, UtilError> {
+         .redirects(0)
+         .build()
+         .get(url)
+-        .set(&format!("X-Aleo-Leo-{}", env!("CARGO_PKG_VERSION")), "true")
++        .set("X-Leo-Version", env!("CARGO_PKG_VERSION"))
+         .call()
+         .map_err(|err| UtilError::failed_to_retrieve_from_endpoint(err, Default::default()))?;
+     match response.status() {

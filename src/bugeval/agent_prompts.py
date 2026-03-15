@@ -7,42 +7,71 @@ from pathlib import Path
 from bugeval.models import TestCase
 
 _DEFAULT_SYSTEM_PROMPT = """\
-You are an expert code reviewer specializing in finding bugs in Rust and systems programming code.
+You are an expert code reviewer specializing in finding bugs in systems programming code.
 
 You will be given a code patch (diff) to review. Your task is to identify bugs introduced in the
 patch or pre-existing bugs that the patch reveals.
 
-For each bug found, record:
-- The file where the bug exists
-- The approximate line number in the patched file
-- A concise summary of what the bug is
+Analysis process:
+1. Understand what the patch does.
+2. For each changed function, identify potential issues.
+3. Compile only genuine bugs with clear impact.
 
 Return your findings as a JSON array:
 ```json
 [
-  {"file": "path/to/file.rs", "line": 42, "summary": "Brief description of the bug"},
-  ...
+  {
+    "file": "path/to/file.rs",
+    "line": 42,
+    "summary": "Brief description of the bug",
+    "confidence": 0.9,
+    "severity": "high",
+    "category": "logic",
+    "suggested_fix": "Change X to Y",
+    "reasoning": "Why this is a bug and what impact it has."
+  }
 ]
 ```
 
-If no bugs are found, return an empty array: `[]`
+Severity values: "critical" | "high" | "medium" | "low"
+Category values: "logic" | "memory" | "concurrency" | "api-misuse" | "type"
+  | "cryptographic" | "constraint"
+Confidence: 0.0-1.0; omit findings below 0.5.
 
-Focus on:
-- Logic errors (off-by-one, wrong conditions, incorrect arithmetic)
-- Memory safety issues (use-after-free, buffer overflows in unsafe blocks)
-- Concurrency bugs (data races, deadlocks, incorrect synchronization)
-- API misuse (incorrect parameter order, wrong return value handling)
-- Type errors (integer overflow, incorrect casting)
+If no bugs are found, return: []
 
 Return ONLY the JSON array of findings, no other text.\
 """
 
 
-def load_agent_prompt(path: Path | None = None) -> str:
-    """Load system prompt from config/agent_prompt.md. Falls back to default."""
-    resolved = path or Path("config") / "agent_prompt.md"
-    if resolved.exists():
-        return resolved.read_text()
+def load_agent_prompt(
+    path: Path | None = None,
+    language: str | None = None,
+    config_dir: Path | None = None,
+) -> str:
+    """Load system prompt, with optional language-specific override.
+
+    Resolution order:
+    1. Explicit path= (if provided and exists)
+    2. config_dir/agent_prompt_{language}.md (if language provided and file exists)
+    3. config_dir/agent_prompt.md
+    4. Built-in _DEFAULT_SYSTEM_PROMPT
+    """
+    if path is not None:
+        if path.exists():
+            return path.read_text()
+        return _DEFAULT_SYSTEM_PROMPT
+
+    base = config_dir if config_dir is not None else Path("config")
+    if language:
+        lang_file = base / f"agent_prompt_{language}.md"
+        if lang_file.exists():
+            return lang_file.read_text()
+
+    generic = base / "agent_prompt.md"
+    if generic.exists():
+        return generic.read_text()
+
     return _DEFAULT_SYSTEM_PROMPT
 
 

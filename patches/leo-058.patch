@@ -1,0 +1,27 @@
+diff --git a/compiler/tests/array/spread.leo b/compiler/tests/array/spread.leo
+index 5370960c2d..962e92c923 100644
+--- a/compiler/tests/array/spread.leo
++++ b/compiler/tests/array/spread.leo
+@@ -1,6 +1,7 @@
+ // A spread operator `...` copies the elements of one array into another
+ function main(a: [u8; 3]) {
+     let b = [1u8, 1u8];
++    let c = [1u8, ...b];
+ 
+-    console.assert(a == [1u8, ...b]);
++    console.assert(a == c);
+ }
+\ No newline at end of file
+diff --git a/type-inference/src/objects/frame.rs b/type-inference/src/objects/frame.rs
+index e76702dddd..ca53c536b9 100644
+--- a/type-inference/src/objects/frame.rs
++++ b/type-inference/src/objects/frame.rs
+@@ -837,7 +837,7 @@ impl Frame {
+ 
+                 // Check that the type is an array.
+                 match array_type {
+-                    Type::Array(element_type) => Ok(Type::Array(element_type)),
++                    Type::Array(element_type) => Ok(*element_type),
+                     type_ => Err(FrameError::invalid_spread(type_, span)),
+                 }
+             }

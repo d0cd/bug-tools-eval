@@ -1,0 +1,209 @@
+diff --git a/compiler/src/errors/output_bytes.rs b/compiler/src/errors/output_bytes.rs
+index d07af02bfa..ee1366944e 100644
+--- a/compiler/src/errors/output_bytes.rs
++++ b/compiler/src/errors/output_bytes.rs
+@@ -14,7 +14,8 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use leo_ast::{Error as FormattedError, Span};
++use crate::errors::ValueError;
++use leo_ast::{Error as FormattedError, Span, Type};
+ 
+ use std::path::Path;
+ 
+@@ -22,12 +23,16 @@ use std::path::Path;
+ pub enum OutputBytesError {
+     #[error("{}", _0)]
+     Error(#[from] FormattedError),
++
++    #[error("{}", _0)]
++    ValueError(#[from] ValueError),
+ }
+ 
+ impl OutputBytesError {
+     pub fn set_path(&mut self, path: &Path) {
+         match self {
+             OutputBytesError::Error(error) => error.set_path(path),
++            OutputBytesError::ValueError(error) => error.set_path(path),
+         }
+     }
+ 
+@@ -40,4 +45,13 @@ impl OutputBytesError {
+ 
+         Self::new_from_span(message, span)
+     }
++
++    pub fn mismatched_output_types(left: Type, right: Type, span: Span) -> Self {
++        let message = format!(
++            "Mismatched types. Expected register output type `{}`, found type `{}`.",
++            left, right
++        );
++
++        Self::new_from_span(message, span)
++    }
+ }
+diff --git a/compiler/src/output/output_bytes.rs b/compiler/src/output/output_bytes.rs
+index db41582b22..c8b5578a61 100644
+--- a/compiler/src/output/output_bytes.rs
++++ b/compiler/src/output/output_bytes.rs
+@@ -63,10 +63,22 @@ impl OutputBytes {
+         // format: "token_id: u64 = 1u64;"
+         for (parameter, value) in register_values.into_iter().zip(return_values.into_iter()) {
+             let name = parameter.variable.name;
+-            let type_ = parameter.type_;
++
++            // Check register type == return value type.
++            let register_type = parameter.type_;
++            let return_value_type = value.to_type(&span)?;
++
++            if !register_type.eq_flat(&return_value_type) {
++                return Err(OutputBytesError::mismatched_output_types(
++                    register_type,
++                    return_value_type,
++                    span,
++                ));
++            }
++
+             let value = value.to_string();
+ 
+-            let format = format!("{}: {} = {};\n", name, type_, value,);
++            let format = format!("{}: {} = {};\n", name, register_type, value,);
+ 
+             string.push_str(&format);
+         }
+diff --git a/compiler/tests/input_files/mod.rs b/compiler/tests/input_files/mod.rs
+index ddfd9aa108..49eba0b9bc 100644
+--- a/compiler/tests/input_files/mod.rs
++++ b/compiler/tests/input_files/mod.rs
+@@ -16,4 +16,5 @@
+ 
+ mod program_input;
+ mod program_input_and_program_state;
++mod program_registers;
+ mod program_state;
+diff --git a/compiler/tests/input_files/program_registers/input/array.in b/compiler/tests/input_files/program_registers/input/array.in
+new file mode 100644
+index 0000000000..a952dda5a6
+--- /dev/null
++++ b/compiler/tests/input_files/program_registers/input/array.in
+@@ -0,0 +1,2 @@
++[registers]
++r2: [[u8; 4]; 2] = [[0u64, 0u64, 0u64, 0u64], [0u64, 0u64, 0u64, 0u64]];
+\ No newline at end of file
+diff --git a/compiler/tests/input_files/program_registers/input/main.in b/compiler/tests/input_files/program_registers/input/main.in
+new file mode 100644
+index 0000000000..1bff5e584f
+--- /dev/null
++++ b/compiler/tests/input_files/program_registers/input/main.in
+@@ -0,0 +1,4 @@
++[main]
++
++[registers]
++r: u8 = 0u8;
+\ No newline at end of file
+diff --git a/compiler/tests/input_files/program_registers/mod.rs b/compiler/tests/input_files/program_registers/mod.rs
+new file mode 100644
+index 0000000000..894f24b810
+--- /dev/null
++++ b/compiler/tests/input_files/program_registers/mod.rs
+@@ -0,0 +1,53 @@
++// Copyright (C) 2019-2020 Aleo Systems Inc.
++// This file is part of the Leo library.
++
++// The Leo library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The Leo library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
++
++use crate::{expect_compiler_error, get_output, parse_program_with_input};
++
++#[test]
++fn test_registers_pass() {
++    let program_string = include_str!("registers_pass.leo");
++    let input_string = include_str!("input/main.in");
++    let expected = include_bytes!("output/registers_pass.out");
++
++    let program = parse_program_with_input(program_string, input_string).unwrap();
++
++    let actual = get_output(program);
++
++    assert!(expected.eq(actual.bytes().as_slice()));
++}
++
++#[test]
++fn test_registers_fail() {
++    let program_string = include_str!("registers_fail.leo");
++    let input_string = include_str!("input/main.in");
++
++    let program = parse_program_with_input(program_string, input_string).unwrap();
++
++    expect_compiler_error(program);
++}
++
++#[test]
++fn test_registers_array() {
++    let program_string = include_str!("registers_array.leo");
++    let input_string = include_str!("input/array.in");
++    let expected = include_bytes!("output/registers_array.out");
++
++    let program = parse_program_with_input(program_string, input_string).unwrap();
++
++    let actual = get_output(program);
++
++    assert!(expected.eq(actual.bytes().as_slice()));
++}
+diff --git a/compiler/tests/input_files/program_registers/output/registers_array.out b/compiler/tests/input_files/program_registers/output/registers_array.out
+new file mode 100644
+index 0000000000..20294ac107
+--- /dev/null
++++ b/compiler/tests/input_files/program_registers/output/registers_array.out
+@@ -0,0 +1,2 @@
++[registers]
++r2: [[u8; 4]; 2] = [[1, 2, 3, 4], [5, 6, 7, 8]];
+diff --git a/compiler/tests/input_files/program_registers/output/registers_pass.out b/compiler/tests/input_files/program_registers/output/registers_pass.out
+new file mode 100644
+index 0000000000..e26ba9195e
+--- /dev/null
++++ b/compiler/tests/input_files/program_registers/output/registers_pass.out
+@@ -0,0 +1,2 @@
++[registers]
++r: u8 = 1;
+diff --git a/compiler/tests/input_files/program_registers/registers_array.leo b/compiler/tests/input_files/program_registers/registers_array.leo
+new file mode 100644
+index 0000000000..708fa0ea61
+--- /dev/null
++++ b/compiler/tests/input_files/program_registers/registers_array.leo
+@@ -0,0 +1,3 @@
++function main () -> [[u8; 4]; 2] {
++    return [[1u8, 2u8, 3u8, 4u8], [5u8, 6u8, 7u8, 8u8]]
++}
+\ No newline at end of file
+diff --git a/compiler/tests/input_files/program_registers/registers_fail.leo b/compiler/tests/input_files/program_registers/registers_fail.leo
+new file mode 100644
+index 0000000000..221958dbd9
+--- /dev/null
++++ b/compiler/tests/input_files/program_registers/registers_fail.leo
+@@ -0,0 +1,3 @@
++function main() -> bool {
++    return false
++}
+\ No newline at end of file
+diff --git a/compiler/tests/input_files/program_registers/registers_pass.leo b/compiler/tests/input_files/program_registers/registers_pass.leo
+new file mode 100644
+index 0000000000..ce0dbcb130
+--- /dev/null
++++ b/compiler/tests/input_files/program_registers/registers_pass.leo
+@@ -0,0 +1,3 @@
++function main() -> u8 {
++    return 1u8
++}
+\ No newline at end of file

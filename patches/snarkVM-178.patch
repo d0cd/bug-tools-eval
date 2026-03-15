@@ -1,0 +1,15 @@
+diff --git a/curves/src/templates/short_weierstrass_jacobian/affine.rs b/curves/src/templates/short_weierstrass_jacobian/affine.rs
+index 52355459c..9eeb6b28a 100644
+--- a/curves/src/templates/short_weierstrass_jacobian/affine.rs
++++ b/curves/src/templates/short_weierstrass_jacobian/affine.rs
+@@ -95,7 +95,9 @@ impl<P: Parameters> AffineCurve for Affine<P> {
+     /// Initializes a new affine group element from the given coordinates.
+     fn from_coordinates(coordinates: Self::Coordinates) -> Self {
+         let (x, y, infinity) = coordinates;
+-        Self { x, y, infinity }
++        let point = Self { x, y, infinity };
++        assert!(point.is_on_curve());
++        point
+     }
+ 
+     #[inline]

@@ -1,0 +1,13 @@
+diff --git a/leo/span/src/span.rs b/leo/span/src/span.rs
+index 7ad057be8e..50f2d32080 100644
+--- a/leo/span/src/span.rs
++++ b/leo/span/src/span.rs
+@@ -37,7 +37,7 @@ pub struct Span {
+     /// The path to the Leo file containing the error.
+     pub path: Arc<String>,
+     #[serde(with = "crate::tendril_json")]
+-    /// The content of the file between the above boundaries.
++    /// The content of the line(s) that the span is found on.
+     pub content: StrTendril,
+ }
+ 

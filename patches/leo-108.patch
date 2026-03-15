@@ -1,0 +1,80 @@
+diff --git a/compiler/passes/src/type_checking/checker.rs b/compiler/passes/src/type_checking/checker.rs
+index 91f7896557..39b8c00a67 100644
+--- a/compiler/passes/src/type_checking/checker.rs
++++ b/compiler/passes/src/type_checking/checker.rs
+@@ -321,12 +321,11 @@ impl<'a> TypeChecker<'a> {
+ 
+     /// Returns the `struct` type and emits an error if the `expected` type does not match.
+     pub(crate) fn check_expected_struct(&mut self, struct_: Identifier, expected: &Option<Type>, span: Span) -> Type {
+-        if let Some(Type::Identifier(expected)) = expected {
+-            if !struct_.matches(expected) {
+-                self.emit_err(TypeCheckerError::type_should_be(struct_.name, expected.name, span));
++        if let Some(expected) = expected {
++            if !Type::Identifier(struct_).eq_flat(expected) {
++                self.emit_err(TypeCheckerError::type_should_be(struct_.name, expected, span));
+             }
+         }
+-
+         Type::Identifier(struct_)
+     }
+ 
+diff --git a/tests/expectations/compiler/finalize/increment_decrement_in_inline.out b/tests/expectations/compiler/finalize/increment_decrement_in_inline.out
+deleted file mode 100644
+index 4314c79e14..0000000000
+--- a/tests/expectations/compiler/finalize/increment_decrement_in_inline.out
++++ /dev/null
+@@ -1,5 +0,0 @@
+----
+-namespace: Compile
+-expectation: Fail
+-outputs:
+-  - "Error [ETYC0372035]: `increment` or `decrement` statements must be inside a finalize block.\n    --> compiler-test:8:9\n     |\n   8 |         increment(values, 0u8, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `increment` or `decrement` statements must be inside a finalize block.\n    --> compiler-test:9:9\n     |\n   9 |         increment(account, self.caller, 1u64);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `increment` or `decrement` statements must be inside a finalize block.\n    --> compiler-test:13:9\n     |\n  13 |         decrement(values, 0u8, 1u8);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372035]: `increment` or `decrement` statements must be inside a finalize block.\n    --> compiler-test:14:9\n     |\n  14 |         decrement(account, self.caller, 1u64);\n     |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nError [ETYC0372044]: Function must contain a `finalize` statement on all execution paths.\n    --> compiler-test:12:5\n     |\n  12 |     inline bar() {\n  13 |         decrement(values, 0u8, 1u8);\n  14 |         decrement(account, self.caller, 1u64);\n  15 |     }\n     |     ^\nError [ETYC0372031]: Only transition functions can have a `finalize` block.\n    --> compiler-test:17:5\n     |\n  17 |     finalize finalize_no_params() {\n  18 |         foo();\n  19 |         bar();\n  20 |     }\n     |     ^\n     |\n     = Remove the `finalize` block or use the keyword `transition` instead of `function`.\nError [ETYC0372045]: `finalize` name `bar` does not match function name `finalize_no_params`\n    --> compiler-test:17:5\n     |\n  17 |     finalize finalize_no_params() {\n  18 |         foo();\n  19 |         bar();\n  20 |     }\n     |     ^\nError [ETYC0372066]: Cyclic dependency between functions: `bar` --> `bar`\n"
+diff --git a/tests/expectations/compiler/records/return_record_instead_of_unit_fail.out b/tests/expectations/compiler/records/return_record_instead_of_unit_fail.out
+new file mode 100644
+index 0000000000..fe213d4d10
+--- /dev/null
++++ b/tests/expectations/compiler/records/return_record_instead_of_unit_fail.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [ETYC0372003]: Expected type `()` but type `test_credits` was found\n    --> compiler-test:11:16\n     |\n  11 |         return test_credits {\n     |                ^^^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/tuple/function_return_zero_fail.out b/tests/expectations/compiler/tuple/function_return_zero_fail.out
+deleted file mode 100644
+index 03ecce8660..0000000000
+--- a/tests/expectations/compiler/tuple/function_return_zero_fail.out
++++ /dev/null
+@@ -1,5 +0,0 @@
+----
+-namespace: Compile
+-expectation: Fail
+-outputs:
+-  - "Failed to parse string. Parsing Error: VerboseError { errors: [(\"closure main:\\n    input r0 as boolean;\\n    input r1 as boolean;\\n\", Nom(Tag)), (\"\\n\\n\\nclosure main:\\n    input r0 as boolean;\\n    input r1 as boolean;\\n\", Nom(Alt)), (\"\\n\\n\\nclosure main:\\n    input r0 as boolean;\\n    input r1 as boolean;\\n\", Nom(Many1))] }"
+diff --git a/tests/tests/compiler/records/return_record_instead_of_unit_fail.leo b/tests/tests/compiler/records/return_record_instead_of_unit_fail.leo
+new file mode 100644
+index 0000000000..4eb46ba89c
+--- /dev/null
++++ b/tests/tests/compiler/records/return_record_instead_of_unit_fail.leo
+@@ -0,0 +1,20 @@
++/*
++namespace: Compile
++expectation: Fail
++*/
++
++program test.aleo {
++    record test_credits {
++        owner: address,
++        gates: u64,
++        amount: u64
++    }
++
++    transition mint_credits(to: address, amount: u64) {
++        return test_credits {
++            owner: self.caller,
++            gates: 0u64,
++            amount
++        };
++    }
++}
+\ No newline at end of file

@@ -1,0 +1,129 @@
+diff --git a/compiler/ast/src/value/mod.rs b/compiler/ast/src/value/mod.rs
+index 860005d230..dfbfb4d0ab 100644
+--- a/compiler/ast/src/value/mod.rs
++++ b/compiler/ast/src/value/mod.rs
+@@ -20,6 +20,7 @@ use leo_errors::{type_name, FlattenError, LeoError, Result};
+ use leo_span::{Span, Symbol};
+ 
+ use indexmap::IndexMap;
++use std::num::ParseIntError;
+ use std::{
+     fmt::Display,
+     ops::{BitAnd, BitOr, BitXor, Not},
+@@ -864,12 +865,12 @@ impl From<&Value> for Type {
+     }
+ }
+ 
+-// TODO: Consider making this `Option<Value>` instead of `Value`.
+-impl From<&Literal> for Value {
++impl TryFrom<&Literal> for Value {
++    type Error = ParseIntError;
++
+     /// Converts a literal to a value.
+-    /// This should only be invoked on literals that are known to be valid.
+-    fn from(literal: &Literal) -> Self {
+-        match literal {
++    fn try_from(literal: &Literal) -> Result<Self, Self::Error> {
++        Ok(match literal {
+             Literal::Address(string, span) => Self::Address(string.clone(), *span),
+             Literal::Boolean(bool, span) => Self::Boolean(*bool, *span),
+             Literal::Field(string, span) => Self::Field(string.clone(), *span),
+@@ -877,18 +878,18 @@ impl From<&Literal> for Value {
+             Literal::Scalar(string, span) => Self::Scalar(string.clone(), *span),
+             Literal::String(string, span) => Self::String(string.clone(), *span),
+             Literal::Integer(integer_type, string, span) => match integer_type {
+-                IntegerType::U8 => Self::U8(string.parse().unwrap(), *span),
+-                IntegerType::U16 => Self::U16(string.parse().unwrap(), *span),
+-                IntegerType::U32 => Self::U32(string.parse().unwrap(), *span),
+-                IntegerType::U64 => Self::U64(string.parse().unwrap(), *span),
+-                IntegerType::U128 => Self::U128(string.parse().unwrap(), *span),
+-                IntegerType::I8 => Self::I8(string.parse().unwrap(), *span),
+-                IntegerType::I16 => Self::I16(string.parse().unwrap(), *span),
+-                IntegerType::I32 => Self::I32(string.parse().unwrap(), *span),
+-                IntegerType::I64 => Self::I64(string.parse().unwrap(), *span),
+-                IntegerType::I128 => Self::I128(string.parse().unwrap(), *span),
++                IntegerType::U8 => Self::U8(string.parse()?, *span),
++                IntegerType::U16 => Self::U16(string.parse()?, *span),
++                IntegerType::U32 => Self::U32(string.parse()?, *span),
++                IntegerType::U64 => Self::U64(string.parse()?, *span),
++                IntegerType::U128 => Self::U128(string.parse()?, *span),
++                IntegerType::I8 => Self::I8(string.parse()?, *span),
++                IntegerType::I16 => Self::I16(string.parse()?, *span),
++                IntegerType::I32 => Self::I32(string.parse()?, *span),
++                IntegerType::I64 => Self::I64(string.parse()?, *span),
++                IntegerType::I128 => Self::I128(string.parse()?, *span),
+             },
+-        }
++        })
+     }
+ }
+ 
+diff --git a/compiler/passes/src/type_checking/check_statements.rs b/compiler/passes/src/type_checking/check_statements.rs
+index 135d45b9d5..cbd499cba1 100644
+--- a/compiler/passes/src/type_checking/check_statements.rs
++++ b/compiler/passes/src/type_checking/check_statements.rs
+@@ -322,11 +322,15 @@ impl<'a> StatementVisitor<'a> for TypeChecker<'a> {
+         // Exit the scope.
+         self.exit_scope(scope_index);
+ 
++        // Check that the literal is valid.
+         self.visit_expression(&input.start, iter_type);
+ 
+-        // If `input.start` is a literal, instantiate it as a value.
++        // If `input.start` is a valid literal, instantiate it as a value.
+         if let Expression::Literal(literal) = &input.start {
+-            input.start_value.replace(Some(Value::from(literal)));
++            // Note that this check is needed because the pass attempts to make progress, even though the literal may be invalid.
++            if let Ok(value) = Value::try_from(literal) {
++                input.start_value.replace(Some(value));
++            }
+         } else {
+             self.emit_err(TypeCheckerError::loop_bound_must_be_a_literal(input.start.span()));
+         }
+@@ -335,7 +339,10 @@ impl<'a> StatementVisitor<'a> for TypeChecker<'a> {
+ 
+         // If `input.stop` is a literal, instantiate it as a value.
+         if let Expression::Literal(literal) = &input.stop {
+-            input.stop_value.replace(Some(Value::from(literal)));
++            // Note that this check is needed because the pass attempts to make progress, even though the literal may be invalid.
++            if let Ok(value) = Value::try_from(literal) {
++                input.stop_value.replace(Some(value));
++            }
+         } else {
+             self.emit_err(TypeCheckerError::loop_bound_must_be_a_literal(input.stop.span()));
+         }
+diff --git a/tests/expectations/compiler/statements/iteration_bound_too_large_fail.out b/tests/expectations/compiler/statements/iteration_bound_too_large_fail.out
+new file mode 100644
+index 0000000000..966a8f720d
+--- /dev/null
++++ b/tests/expectations/compiler/statements/iteration_bound_too_large_fail.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [ETYC0372008]: The value 1000000000000000000000000000000000000000000000000000000000000000000000000000000000000 is not a valid `u64`\n    --> compiler-test:7:28\n     |\n   7 |         for i:u64 in 0u64..1000000000000000000000000000000000000000000000000000000000000000000000000000000000000u64 {\n     |                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
+diff --git a/tests/tests/compiler/statements/iteration_bound_too_large_fail.leo b/tests/tests/compiler/statements/iteration_bound_too_large_fail.leo
+new file mode 100644
+index 0000000000..2f1a65cdb7
+--- /dev/null
++++ b/tests/tests/compiler/statements/iteration_bound_too_large_fail.leo
+@@ -0,0 +1,17 @@
++/*
++namespace: Compile
++expectation: Fail
++*/
++
++program test.aleo {
++    function calculate_interest(principal: u64, rate: u64, periods: u64) -> u64 {
++        let amount: u64 = principal;
++
++        for i:u64 in 0u64..1000000000000000000000000000000000000000000000000000000000000000000000000000000000000u64 {
++            if i < periods {
++                amount += (amount * rate) / 10000u64;
++            }
++        }
++        return amount;
++    }
++}
+\ No newline at end of file

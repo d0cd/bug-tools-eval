@@ -1,0 +1,1210 @@
+diff --git a/docs/api_reference/sdk-src_program-manager.md b/docs/api_reference/sdk-src_program-manager.md
+index 2c53af2a..68e08a89 100644
+--- a/docs/api_reference/sdk-src_program-manager.md
++++ b/docs/api_reference/sdk-src_program-manager.md
+@@ -157,7 +157,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for deployments
+ const program = "program hello_hello.aleo;\n\nfunction hello:\n    input r0 as u32.public;\n    input r1 as u32.private;\n    add r0 r1 into r2;\n    output r2 as u32.private;\n";
+@@ -205,7 +205,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider.
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for deployments
+ const program = "program hello_hello.aleo;\n\nfunction hello:\n    input r0 as u32.public;\n    input r1 as u32.private;\n    add r0 r1 into r2;\n    output r2 as u32.private;\n";
+@@ -246,7 +246,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider.
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -293,7 +293,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider.
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a ProgramManager with the key and record providers.
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -331,7 +331,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider.
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a ProgramManager with the key and record providers.
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -369,7 +369,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider.
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a ProgramManager with the key and record providers.
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -411,7 +411,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider.
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a ProgramManager with the key and record providers.
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -453,7 +453,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider using official Aleo record, key, and network providers
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -546,7 +546,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -586,7 +586,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -647,7 +647,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -687,7 +687,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -727,7 +727,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -772,7 +772,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -809,7 +809,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -852,7 +852,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -892,7 +892,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -936,7 +936,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -975,7 +975,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management.
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to unbond credits.
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -1019,7 +1019,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -1057,7 +1057,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to claim unbonded credits.
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -1098,7 +1098,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -1144,7 +1144,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -1192,7 +1192,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -1425,7 +1425,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for deployments
+ const program = "program hello_hello.aleo;\n\nfunction hello:\n    input r0 as u32.public;\n    input r1 as u32.private;\n    add r0 r1 into r2;\n    output r2 as u32.private;\n";
+@@ -1473,7 +1473,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider.
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for deployments
+ const program = "program hello_hello.aleo;\n\nfunction hello:\n    input r0 as u32.public;\n    input r1 as u32.private;\n    add r0 r1 into r2;\n    output r2 as u32.private;\n";
+@@ -1514,7 +1514,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider.
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1561,7 +1561,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider.
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a ProgramManager with the key and record providers.
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1599,7 +1599,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider.
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a ProgramManager with the key and record providers.
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1637,7 +1637,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider.
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a ProgramManager with the key and record providers.
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1679,7 +1679,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider.
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a ProgramManager with the key and record providers.
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1721,7 +1721,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider using official Aleo record, key, and network providers
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1814,7 +1814,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1854,7 +1854,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1915,7 +1915,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1955,7 +1955,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1995,7 +1995,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -2040,7 +2040,7 @@ import { AleoKeyProvider, ProgramManager, NetworkRecordProvider } from "@provabl
+ // Create a new NetworkClient, KeyProvider, and RecordProvider
+ const keyProvider = new AleoKeyProvider();
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -2077,7 +2077,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2120,7 +2120,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2160,7 +2160,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2204,7 +2204,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2243,7 +2243,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management.
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to unbond credits.
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2287,7 +2287,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2325,7 +2325,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to claim unbonded credits.
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2366,7 +2366,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2412,7 +2412,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2460,7 +2460,7 @@ import { AleoKeyProvider, ProgramManager } from "@provablehq/sdk/mainnet.js";
+ 
+ // Create a keyProvider to handle key management
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Create a new ProgramManager with the key that will be used to bond credits
+ const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+diff --git a/docs/examples/01_transfer_public.md b/docs/examples/01_transfer_public.md
+index c74df0c4..f9515dc9 100644
+--- a/docs/examples/01_transfer_public.md
++++ b/docs/examples/01_transfer_public.md
+@@ -10,7 +10,7 @@ const account = new Account();
+ // Create a new NetworkClient, KeyProvider, and RecordProvider using official Aleo record, key, and network providers
+ const networkClient = new AleoNetworkClient("https://api.explorer.provable.com/v1");
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+ 
+ // Create program manager using the KeyProvider and NetworkProvider.
+diff --git a/docs/examples/02_transfer_private.md b/docs/examples/02_transfer_private.md
+index 4020fc13..72e2c4ee 100644
+--- a/docs/examples/02_transfer_private.md
++++ b/docs/examples/02_transfer_private.md
+@@ -10,7 +10,7 @@ const account = new Account();
+ // Create a new NetworkClient, KeyProvider, and RecordProvider using official Aleo record, key, and network providers
+ const networkClient = new AleoNetworkClient("https://api.explorer.provable.com/v1");
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);;
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+ 
+ // Create program manager using the KeyProvider and NetworkProvider.
+diff --git a/docs/examples/03_deploy_program.md b/docs/examples/03_deploy_program.md
+index cba44d20..3a0d2491 100644
+--- a/docs/examples/03_deploy_program.md
++++ b/docs/examples/03_deploy_program.md
+@@ -10,7 +10,7 @@ const account = new Account();
+ // Create a new NetworkClient, KeyProvider, and RecordProvider using official Aleo record, key, and network providers
+ const networkClient = new AleoNetworkClient("https://api.explorer.provable.com/v1");
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+ 
+ // Create program manager using the KeyProvider and NetworkProvider.
+diff --git a/docs/examples/04_execute_program.md b/docs/examples/04_execute_program.md
+index d4193976..ab1fd537 100644
+--- a/docs/examples/04_execute_program.md
++++ b/docs/examples/04_execute_program.md
+@@ -11,7 +11,7 @@ const account = new Account();
+ // Create a new NetworkClient, KeyProvider, and RecordProvider using official Aleo record, key, and network providers
+ const networkClient = new AleoNetworkClient("https://api.explorer.provable.com/v1");
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+ 
+ // Create program manager using the KeyProvider and NetworkProvider.
+diff --git a/docs/guide/06_executing_programs.md b/docs/guide/06_executing_programs.md
+index 649e0182..122b2d52 100644
+--- a/docs/guide/06_executing_programs.md
++++ b/docs/guide/06_executing_programs.md
+@@ -115,7 +115,7 @@ const networkClient = new AleoNetworkClient("https://api.explorer.provable.com/v
+ 
+ // Create a key provider that will be used to find public proving & verifying keys for Aleo programs.
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // Initialize a program manager to talk to the Aleo network with the configured key and record providers.
+ const programManager = new ProgramManager(networkClient, keyProvider);
+@@ -177,7 +177,7 @@ import { AleoKeyProvider, VerifyingKey, ProvingKey } from '@provablehq/sdk/mainn
+ const keyProvider = new AleoKeyProvider();
+ // This flag enables the cache for the key provider. If the cache is enabled, the key provider will store the keys in 
+ // memory after being fetched for the first time.
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ 
+ // The key provider allows specification of HTTP uris where proving keys and verifying keys can be found and a cache 
+ // key for storing them.
+@@ -243,7 +243,7 @@ import keys = getBindingIdentifiers.keys;
+ /// Initialize the key provider and network client.
+ const networkClient = new AleoNetworkClient("https://api.explorer.provable.com/v1");
+ const keyProvider = new AleoKeyProvider();
+-keys.useCache = true;
++keys.useCache(true);
+ 
+ /// Define the program.
+ const program = "program helloworld.aleo;\n\nfunction hello:\n    input r0 as u32.public;\n    input r1 as u32.private;\n    add r0 r1 into r2;\n    output r2 as u32.private;\n";
+diff --git a/docs/guide/10_finding_records.md b/docs/guide/10_finding_records.md
+index 3f541cde..8ddbd000 100644
+--- a/docs/guide/10_finding_records.md
++++ b/docs/guide/10_finding_records.md
+@@ -121,7 +121,7 @@ import { AleoNetworkClient, AleoKeyProvider, NetworkRecordProvider, ProgramManag
+ // Create a new NetworkClient, KeyProvider, and RecordProvider using official Aleo record, key, and network providers
+ const networkClient = new AleoNetworkClient("https://api.explorer.provable.com/v1");
+ const keyProvider = new AleoKeyProvider();
+-keyProvider.useCache = true;
++keyProvider.useCache(true);
+ const recordProvider = new NetworkRecordProvider(account, networkClient);
+ 
+ // Initialize a program manager with the key provider to automatically fetch keys for executions
+diff --git a/sdk/src/program-manager.ts b/sdk/src/program-manager.ts
+index 8e731faf..87471d68 100644
+--- a/sdk/src/program-manager.ts
++++ b/sdk/src/program-manager.ts
+@@ -279,7 +279,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a program manager with the key provider to automatically fetch keys for deployments
+      * const program = "program hello_hello.aleo;\n\nfunction hello:\n    input r0 as u32.public;\n    input r1 as u32.private;\n    add r0 r1 into r2;\n    output r2 as u32.private;\n";
+@@ -422,7 +422,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider.
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a program manager with the key provider to automatically fetch keys for deployments
+      * const program = "program hello_hello.aleo;\n\nfunction hello:\n    input r0 as u32.public;\n    input r1 as u32.private;\n    add r0 r1 into r2;\n    output r2 as u32.private;\n";
+@@ -490,7 +490,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider.
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a program manager with the key provider to automatically fetch keys for executions
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -664,7 +664,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider.
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a ProgramManager with the key and record providers.
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -769,7 +769,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider.
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a ProgramManager with the key and record providers.
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -874,7 +874,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider.
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a ProgramManager with the key and record providers.
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1013,7 +1013,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider.
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a ProgramManager with the key and record providers.
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1080,7 +1080,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider using official Aleo record, key, and network providers
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a program manager with the key provider to automatically fetch keys for executions
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1233,7 +1233,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a program manager with the key provider to automatically fetch keys for executions
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1361,7 +1361,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a program manager with the key provider to automatically fetch keys for executions
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1501,7 +1501,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a program manager with the key provider to automatically fetch keys for executions
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1629,7 +1629,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a program manager with the key provider to automatically fetch keys for executions
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1680,7 +1680,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a program manager with the key provider to automatically fetch keys for executions
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1736,7 +1736,7 @@ class ProgramManager {
+      * // Create a new NetworkClient, KeyProvider, and RecordProvider
+      * const keyProvider = new AleoKeyProvider();
+      * const recordProvider = new NetworkRecordProvider(account, networkClient);
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Initialize a program manager with the key provider to automatically fetch keys for executions
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, recordProvider);
+@@ -1808,7 +1808,7 @@ class ProgramManager {
+      *
+      * // Create a keyProvider to handle key management
+      * const keyProvider = new AleoKeyProvider();
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Create a new ProgramManager with the key that will be used to bond credits
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -1881,7 +1881,7 @@ class ProgramManager {
+      *
+      * // Create a keyProvider to handle key management
+      * const keyProvider = new AleoKeyProvider();
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Create a new ProgramManager with the key that will be used to bond credits
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -1944,7 +1944,7 @@ class ProgramManager {
+      *
+      * // Create a keyProvider to handle key management
+      * const keyProvider = new AleoKeyProvider();
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Create a new ProgramManager with the key that will be used to bond credits
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2022,7 +2022,7 @@ class ProgramManager {
+      *
+      * // Create a keyProvider to handle key management
+      * const keyProvider = new AleoKeyProvider();
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Create a new ProgramManager with the key that will be used to bond credits
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2086,7 +2086,7 @@ class ProgramManager {
+      *
+      * // Create a keyProvider to handle key management.
+      * const keyProvider = new AleoKeyProvider();
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Create a new ProgramManager with the key that will be used to unbond credits.
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2155,7 +2155,7 @@ class ProgramManager {
+      *
+      * // Create a keyProvider to handle key management
+      * const keyProvider = new AleoKeyProvider();
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Create a new ProgramManager with the key that will be used to bond credits
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2214,7 +2214,7 @@ class ProgramManager {
+      *
+      * // Create a keyProvider to handle key management
+      * const keyProvider = new AleoKeyProvider();
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Create a new ProgramManager with the key that will be used to claim unbonded credits.
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2278,7 +2278,7 @@ class ProgramManager {
+      *
+      * // Create a keyProvider to handle key management
+      * const keyProvider = new AleoKeyProvider();
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Create a new ProgramManager with the key that will be used to bond credits
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2343,7 +2343,7 @@ class ProgramManager {
+      *
+      * // Create a keyProvider to handle key management
+      * const keyProvider = new AleoKeyProvider();
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Create a new ProgramManager with the key that will be used to bond credits
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+@@ -2412,7 +2412,7 @@ class ProgramManager {
+      *
+      * // Create a keyProvider to handle key management
+      * const keyProvider = new AleoKeyProvider();
+-     * keyProvider.useCache = true;
++     * keyProvider.useCache(true);
+      *
+      * // Create a new ProgramManager with the key that will be used to bond credits
+      * const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider, undefined);
+diff --git a/sdk/tests/data/account-data.ts b/sdk/tests/data/account-data.ts
+index ab760ae9..4b39cce3 100644
+--- a/sdk/tests/data/account-data.ts
++++ b/sdk/tests/data/account-data.ts
+@@ -28,9 +28,13 @@ const foreignViewKeyString = "AViewKey1ghtvuJQQzQ31xSiVh6X1PK8biEVhQBygRGV4KdYmq
+ const helloProgramId = 'hellothere.aleo';
+ const helloProgramMainFunction = 'hello';
+ const helloProgram = 'program ' + helloProgramId + ';\n\nfunction ' + helloProgramMainFunction + ':\n    input r0 as u32.public;\n    input r1 as u32.private;\n    add r0 r1 into r2;\n    output r2 as u32.private;\n';
+-const recordStatePath = "path1qxuhaurx4jsylq34z6vwnufa8m2s3sgpz8w2cp6myj5hps48pd3sp59sqgqqqqqqqzqslytl8jkafzlmzy294psjce649x64scwxdq2kys70y7kh5fxqwgzc6f9lg9ax0mr52p6d42c2lax9m4e6fnxdpde3722sjrlv77ssn7lh9yvtdfwxhpkzhrfscnxw7h36t9j767w34u8rxmdw0y5vyurdtakhtj7tu69nx6yzdv3p0ssr0ursrzgfkqftwjxg6qpj5pg96rkt4vsduph46p9e7nzkmfcn6g2vlc2sz80wr8ct37zdvqmhg4jjpdzfh607804rqksqd40zvn6shrauxv775zgcpd6ecl6gee9kjqfs5hevpjpzkv94md4arwgynpy6wr4k3txhap0n93y3fl3edwgul0gyn268hrlylqmyqvv8rse40tytnk9atrjx9mlnhp6mrqhd45u99s8gsjw899kz6yhktejwj6snlp7r38kwdmlxczr7m0sn46tmjjndqzn7zmw23jd0x2vwf4x3z7dt642zwweq597dlzaxqx2qg6e89jgmq8fq9pwpy6uqt6prke4v66u39aqz7qewnh2a8er0y78m2dyayr8sdsjpdcdvc78f95wdvapn8072h2jqtj6zvkc52tavlkqfmvfxvpq87h39ajdx4c0sfckm05aqg9mfdykse2cf0vsr0regrp9m9dundvgyat0rcg3fsex6c0335hs7tafxjgkw7k9mxm7arus94ytv4g5x7y0d0pjs2gzexf9lxt2mwegumamgvfplafglgkm46h5j26cvcacfqmj39p7x28pfdma2dp0jyet5nz4pr9j0yf6f6l72kzexsd7kp82s6z6rnk6l2yg7xpeyc3dy907wefjn5w35prnacapd4acn20qeldgwwmuev0d8t6tz02x2kv8qg9sxhakx6fmw5rd35fda735pchuct5gcg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyd7cpzdqmmk8kqx9mamt3823llmpxe7ucl5xrh99eey6uttcvcq8jq456p3k5rd8qjdz5kdd0ps8egwka9h6aj3gtg3pzp8xv56tlsq88fastmq94wcfwr90jzg07xyyvade4x90g9zvhyrxhm93vkkagpcqsqqqqqqqqqqz4rs96qtywgyfgwa3uugkzhamnpcdp35u0usvts0n6r9upzg62qxdvc5crng8rccmx8g5mrggcsljgn0mm50uff23ltnvydjfxv9fq8c3nfvfpd5e9zfzseckwstayj9808fxvacfe5wnjfync9gxl3xsrqy63cndhvvngjkg2n5klutrqs04thqmrvt6jmdy49ujdseu4ejwqvqgqqqqqqqqqqrjf3j0jre2q0dfv994v6k9e3apt4nxz5cke8a03y7cvqvk4ay7slq7jqun026crdwt8z20greysgvn3ylv6yj3g9qv3hclavf8gk6sqss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqg7rszp4encvm274xvqyvz3nrceue6lghh5z23yunq6ulqeqghhcgqqqqqqqqqqqqq0rnqyt54zawe3s0z04lj64qv2sctu9xdqm9sgevv2xzajdfpaszss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqgqgqqp6n2y4sgn45qchvjz0y9vt02yqzzhutntc5udmvmfjdvjvnnulqlnzx34dqfdxukrz5td8ewq5tm4dkylpa5syj6c3x7zem2l4dagg9qmhsh27kayvt7vmaht8qpxf0g89p4lh707gzf789gtdkxg8e5qpqyqqqqqqqqqqqwrrsyh67ntxpeax5m7m39lh6783j5m3g8uugflxc7gs39jnety9kje9ndg9yua6vgnysjnnfx4ug38pam80cped3p5al3uehdfsgjruyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyqypq8eq9ac7z7vuxhqwqd35zwln8ql73uwzw8wutp8343gh2n7arc5spz3duaf";
+-const statePathRecord = "{ owner: aleo1n43sa2tl5zu28nma3uklpq77gg67rsvg6m460gkzref4ps9wlvgqdvlemw.private, microcredits: 1000000u64.private, _nonce: 5254014383534489106096858537900997326995709579576253332703268634863784343217group.public }";
+-const stateRoot = "sr1h9l0qe4v5p8cydgknr5lz0f765yvzqg3mjkqwkey49cv9fctvvqqmrrj3m";
+-const statePathRecordOwnerPrivateKey = "APrivateKey1zkpAZAjaJJvPS7EJ7zvk5fb3QcZDCDxMSHSN5ap7ep4FAD7";
++const recordStatePathv0 = "path1qxuhaurx4jsylq34z6vwnufa8m2s3sgpz8w2cp6myj5hps48pd3sp59sqgqqqqqqqzqslytl8jkafzlmzy294psjce649x64scwxdq2kys70y7kh5fxqwgzc6f9lg9ax0mr52p6d42c2lax9m4e6fnxdpde3722sjrlv77ssn7lh9yvtdfwxhpkzhrfscnxw7h36t9j767w34u8rxmdw0y5vyurdtakhtj7tu69nx6yzdv3p0ssr0ursrzgfkqftwjxg6qpj5pg96rkt4vsduph46p9e7nzkmfcn6g2vlc2sz80wr8ct37zdvqmhg4jjpdzfh607804rqksqd40zvn6shrauxv775zgcpd6ecl6gee9kjqfs5hevpjpzkv94md4arwgynpy6wr4k3txhap0n93y3fl3edwgul0gyn268hrlylqmyqvv8rse40tytnk9atrjx9mlnhp6mrqhd45u99s8gsjw899kz6yhktejwj6snlp7r38kwdmlxczr7m0sn46tmjjndqzn7zmw23jd0x2vwf4x3z7dt642zwweq597dlzaxqx2qg6e89jgmq8fq9pwpy6uqt6prke4v66u39aqz7qewnh2a8er0y78m2dyayr8sdsjpdcdvc78f95wdvapn8072h2jqtj6zvkc52tavlkqfmvfxvpq87h39ajdx4c0sfckm05aqg9mfdykse2cf0vsr0regrp9m9dundvgyat0rcg3fsex6c0335hs7tafxjgkw7k9mxm7arus94ytv4g5x7y0d0pjs2gzexf9lxt2mwegumamgvfplafglgkm46h5j26cvcacfqmj39p7x28pfdma2dp0jyet5nz4pr9j0yf6f6l72kzexsd7kp82s6z6rnk6l2yg7xpeyc3dy907wefjn5w35prnacapd4acn20qeldgwwmuev0d8t6tz02x2kv8qg9sxhakx6fmw5rd35fda735pchuct5gcg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyd7cpzdqmmk8kqx9mamt3823llmpxe7ucl5xrh99eey6uttcvcq8jq456p3k5rd8qjdz5kdd0ps8egwka9h6aj3gtg3pzp8xv56tlsq88fastmq94wcfwr90jzg07xyyvade4x90g9zvhyrxhm93vkkagpcqsqqqqqqqqqqz4rs96qtywgyfgwa3uugkzhamnpcdp35u0usvts0n6r9upzg62qxdvc5crng8rccmx8g5mrggcsljgn0mm50uff23ltnvydjfxv9fq8c3nfvfpd5e9zfzseckwstayj9808fxvacfe5wnjfync9gxl3xsrqy63cndhvvngjkg2n5klutrqs04thqmrvt6jmdy49ujdseu4ejwqvqgqqqqqqqqqqrjf3j0jre2q0dfv994v6k9e3apt4nxz5cke8a03y7cvqvk4ay7slq7jqun026crdwt8z20greysgvn3ylv6yj3g9qv3hclavf8gk6sqss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqg7rszp4encvm274xvqyvz3nrceue6lghh5z23yunq6ulqeqghhcgqqqqqqqqqqqqq0rnqyt54zawe3s0z04lj64qv2sctu9xdqm9sgevv2xzajdfpaszss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqgqgqqp6n2y4sgn45qchvjz0y9vt02yqzzhutntc5udmvmfjdvjvnnulqlnzx34dqfdxukrz5td8ewq5tm4dkylpa5syj6c3x7zem2l4dagg9qmhsh27kayvt7vmaht8qpxf0g89p4lh707gzf789gtdkxg8e5qpqyqqqqqqqqqqqwrrsyh67ntxpeax5m7m39lh6783j5m3g8uugflxc7gs39jnety9kje9ndg9yua6vgnysjnnfx4ug38pam80cped3p5al3uehdfsgjruyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyqypq8eq9ac7z7vuxhqwqd35zwln8ql73uwzw8wutp8343gh2n7arc5spz3duaf";
++const statePathRecordv0 = "{ owner: aleo1n43sa2tl5zu28nma3uklpq77gg67rsvg6m460gkzref4ps9wlvgqdvlemw.private, microcredits: 1000000u64.private, _nonce: 5254014383534489106096858537900997326995709579576253332703268634863784343217group.public }";
++const stateRootv0 = "sr1h9l0qe4v5p8cydgknr5lz0f765yvzqg3mjkqwkey49cv9fctvvqqmrrj3m";
++const recordStatePathv1 = "path1qy9gd9an697vtuj0k2rcgne8xv34hculrjz3hll8xz3vsa5hpmhqsrdtn5qqqqqqqzgqmjkc8zzaa7lhmpr9zqzmgparvp7kshm9csxud4a5mcgmtq2p9rmt6jydgt3g7fy7mudea65e6ynzhlsssuemzjnet9a3cryw56cj432zvgr26vhmhhcfrt86r8rdxcjjzp6f598yll562mjt46wtdyycxpv0cx29umt8ysjy7xl3ccvyyyw9w6ajva0w87fqc6vc386zgplmulsc64thu77y9tnn8y78dm5tv7rx5cqsfct6hync5dvhu3paqs55ty4c37268zrpravns4cpf8j5ek8d3d449hllz8ujq3lvdzxshkulv0vfdenjglmx0shw262ul00jwucf4tdgr0l48vx9sjx3kxsjae69r8qvkjmpr8rk7zl9ul3e9nw348wp79dh2a0q880qtjxeac9c5674sqkc3kwf0q8vkd5twqnxkf7y5pd6rr694q7lhrxevu3dxyx2ggwtdfj24f83m3k6ux67v9wyf7v3wm0zve8uwynav2rw7j83qzsy9004gf5ffmx8zpz6rnwm6hd2wqvhejmf85reqc6saledhszpy3rqfyj5k0p7rwhv4wrs5v0mk8jj3fz22gmrev38uk7kt45uaxsxng7wrtdr7c0667uxmzepmxxcw4mwfdvnem4j4ufhkskdgju9qc95lx37n86c4wpjd0y3fmne2qfkszfejxandv3cz8n0kk6sc3vtwq0d0pjs2gzexf9lxt2mwegumamgvfplafglgkm46h5j26cvcacfqepyu479s0vadm5aulzh7hlg0av9ck3837tjep4grr6a5248ckcstunvecs0en96wkn0a5wqak40qd8jqt233hqejnv60vnx5kak5lcrdf9qdg8v42dnheckldhzk2ndrze709ftsd9pgqxxvpjprasx5uzlny5yssqluzmwp3s8e0ac20gjpr2mes5gr300e74yv5keacu9kq98j7aw6pmzg3tgcaa2mxt5rk2uest57r5dhkv3pvadksalpd65p8n5epq4j7dhef4hq9e7y870nzdnlg9vplfkwmgqt780z6rvr4vq8sjfrw6rxkgmgtr8a3gvwc2lse9p7nn0cxnntj7fffufud0k02cgf3gs30qehrwhxfm9xcglsfwr0s74a8sepy4d8ctpgq95vlafmc9lvsaw0kcyua8ujfnqlff48nn0lu25e42pgxzf5jqdx8vswhqczyvyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksy6wz6qstma8g2en5e20t5s7ndaq0mvncwc4hr7kdd7arslflccvr7q9gf9d3547swa5v3l4g09fwn9r53ehn5nefu3mmvuehtjfphgq6lz4sfsfd9tt956qwdj6yxl8fhe4fdm0s3lvg7rhlu0m60fqytqgqsqqqqqqqqqqx56rca5t44ff2p29y4zfa5d827l0lvecru4avuq78p7kuwzjqwp09sd6lwcwj46q5c3xqsxvg3wnd4dunxxgrz9pyef354fyjlcprq6e55eljj8euaqkvy5veynh9vyr9gjdkcg8ssnq9hxw939ex7hgg0q8463npwfy47l8srwvr9ugcewfz00q6jhkyu62fxx74z3umtsp4quqqqqqqqqqqqqzzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqfpq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qs8333ca20qq98tku6jh9jhcler3wpt42w6favjhsu0hpaxsl4v3qqqqqqqqqqqqqz0lhuapcg0g22xgqn3ngd6u7carphq8hrftgxfewwcd7ke4xevq8pq4n6js4r56pexg3w667ruzkkejgla4gxfg5e3sph7z0gty2ksyss2eafg236dqunyghdd0p7pttvey0765ry52vccqmlp859j9tgzgg9v7559gaxswfjytkkhslq44kvj8ld2pj29xvvqdlsn6zez45pyyzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qsqsqqxmat4z3xtcds83tukufpk27w2fjvq7yk5mg2mruvdckqpuedpjquck8eqcclherqslh6vmue482z208r9nqkw4cg6tvqutp2snp78q4z69jcdrh6htvxqukzwa0na6ulch7c6wy6z2rt4hl5e3e92anzgwqvqqqqqqqqqqpej2y05yej8wv7jtwztrknw7mt30y68ufcl7ld6778c09093qrcpryuh3k2ed9un0a5ct2dnzmkx20x7fa8vf9lv72l2s9knp0a58ux89g9htx5z3s5wqnt4cr590el4l9k866s4ur6gys6mp3sky349cp5yzk022z5wng8yez9mttc0s26mxfrlk4qe9znxxqxlcfapv326qjzpt849p28f5rjv3za44u8c9ddny3lm2svj3fnrqr0uy7skg4dqgqgrqd3n4xly7gdpzlvegkvtdn5d8llxp8ltgpknatmea8zx0kh82ycqy64xqcm";
++const recordCommitmentv1 = "989999648478433123532784640366486241902260408903239982853319188519809923683field";
++const statePathRecordv1 = "{ owner: aleo12a4wll9ax6w5355jph0dr5wt2vla5sss2t4cnch0tc3vzh643v8qcfvc7a.private, microcredits: 1000000u64.private, _nonce: 3634848344765318974603121890869676775499130077229666060613233255327643175219group.public, _version: 1u8.public }";
++const stateRootv1 = "sr1p2rf0v730nzlynajs7zy7fenydd788cus5dllees5ty8d9cwacyqc3nu92";
++const statePathv0RecordOwnerPrivateKey = "APrivateKey1zkpAZAjaJJvPS7EJ7zvk5fb3QcZDCDxMSHSN5ap7ep4FAD7";
+ 
+-export { addressString, beaconAddressString, beaconPrivateKeyString, beaconViewKeyString, foreignCiphertextString, foreignViewKeyString, fundedAddressString, fundedPrivateKeyString, helloProgram, helloProgramId, helloProgramMainFunction, message, recordCiphertextString, recordPlaintextString, privateKeyString, seed, viewKeyString, recordStatePath, statePathRecord, stateRoot, statePathRecordOwnerPrivateKey };
+\ No newline at end of file
++export { addressString, beaconAddressString, beaconPrivateKeyString, beaconViewKeyString, foreignCiphertextString, foreignViewKeyString, fundedAddressString, fundedPrivateKeyString, helloProgram, helloProgramId, helloProgramMainFunction, message, recordCiphertextString, recordPlaintextString, privateKeyString, seed, viewKeyString, recordStatePathv0, statePathRecordv0, stateRootv0, recordCommitmentv1, recordStatePathv1, statePathRecordv1, stateRootv1, statePathv0RecordOwnerPrivateKey };
+\ No newline at end of file
+diff --git a/sdk/tests/program-manager.test.ts b/sdk/tests/program-manager.test.ts
+index 277ea632..f01e606b 100644
+--- a/sdk/tests/program-manager.test.ts
++++ b/sdk/tests/program-manager.test.ts
+@@ -1,6 +1,8 @@
+ import {
+     Account,
++    AleoKeyProvider,
+     Authorization,
++    CREDITS_PROGRAM_KEYS,
+     ExecutionResponse,
+     ImportedPrograms,
+     ImportedVerifyingKeys,
+@@ -18,10 +20,11 @@ import {
+ import {
+     beaconAddressString,
+     helloProgram,
+-    recordStatePath,
+-    statePathRecord,
+-    statePathRecordOwnerPrivateKey,
+-    stateRoot
++    recordStatePathv0,
++    statePathRecordv0,
++    statePathRecordv1,
++    statePathv0RecordOwnerPrivateKey,
++    stateRootv0,
+ } from "./data/account-data.js";
+ import { IMPORT_1, IMPORT_2, MINT_VERIFYING_KEY, PROGRAM, SPEND_VERIFYING_KEY, SPIN_VERIFYING_KEY } from "./data/program.js";
+ import { expect } from "chai";
+@@ -33,9 +36,11 @@ import {
+ } from "./data/proving.js";
+ import * as process from "node:process";
+ 
+-describe('Program Manager', () => {
+-    const programManager = new ProgramManager("https://api.explorer.provable.com/v1");
+-    programManager.setAccount(new Account({privateKey: statePathRecordOwnerPrivateKey}));
++describe('Program Manager', async () => {
++    const keyProvider = new AleoKeyProvider();
++    keyProvider.useCache(true);
++    const programManager = new ProgramManager("https://api.explorer.provable.com/v1", keyProvider);
++    programManager.setAccount(new Account({privateKey: statePathv0RecordOwnerPrivateKey}));
+     const network = programManager.networkClient.network;
+ 
+     describe('Instantiate with AleoNetworkClientOptions', () => {
+@@ -97,21 +102,66 @@ describe('Program Manager', () => {
+ 
+     describe('Offline query', () => {
+         it.skip('The offline query should work as expected', async () => {
+-            const offlineQuery = new OfflineQuery(1, stateRoot);
+-            const record_plaintext = RecordPlaintext.fromString(statePathRecord);
++            const offlineQuery = new OfflineQuery(1, stateRootv0);
++            const record_plaintext = RecordPlaintext.fromString(statePathRecordv0);
+             const pk = PrivateKey.from_string("APrivateKey1zkpAZAjaJJvPS7EJ7zvk5fb3QcZDCDxMSHSN5ap7ep4FAD7");
+             const vk = ViewKey.from_private_key(pk);
+             const record_vk = record_plaintext.recordViewKey(vk);
+             const commitment = record_plaintext.commitment("credits.aleo", "credits", record_vk.toString()).toString();
+-            offlineQuery.addStatePath(commitment, recordStatePath);
++            offlineQuery.addStatePath(commitment, recordStatePathv0);
+             const credits = <string>await programManager.networkClient.getProgram("credits.aleo");
+ 
+-            const execution_result = <ExecutionResponse>await programManager.run(credits, "transfer_private", [statePathRecord, beaconAddressString, "5u64"], true, undefined, undefined, undefined, undefined, undefined, offlineQuery);
++            const execution_result = <ExecutionResponse>await programManager.run(credits, "transfer_private", [statePathRecordv0, beaconAddressString, "5u64"], true, undefined, undefined, undefined, undefined, undefined, offlineQuery);
+             const verified = programManager.verifyExecution(execution_result, 9_000_000);
+             expect(verified).equal(true);
+         });
+     });
+ 
++    describe('ProgramManager Executions', () => {
++        it.skip('Should create a split transaction without fees', async function () {
++            this.retries(3);
++
++            if (network === "testnet") {
++                const keyPair = await programManager.keyProvider.splitKeys();
++                programManager.keyProvider.cacheKeys("credits.aleo/split", keyPair);
++                const pk = PrivateKey.from_string(<string>process.env["PUZZLE_PK"]);
++
++                const tx = <Transaction>await programManager.buildExecutionTransaction({
++                    programName: "credits.aleo",
++                    functionName: "split",
++                    priorityFee: 0.0,
++                    privateFee: false,
++                    inputs: [statePathRecordv1, "10u64"],
++                    keySearchParams: { "cacheKey": CREDITS_PROGRAM_KEYS.split.locator },
++                    privateKey: pk
++                });
++
++                expect(tx.feeAmount()).equal(BigInt(0));
++            }
++        });
++
++        it('Should create a split ProvingRequest without fees', async function () {
++            this.retries(3);
++
++            if (network === "testnet") {
++                const pk = PrivateKey.from_string(<string>process.env["PUZZLE_PK"]);
++
++                const request = <ProvingRequest>await programManager.provingRequest({
++                    programName: "credits.aleo",
++                    functionName: "split",
++                    baseFee: 0.0,
++                    priorityFee: 0.0,
++                    privateFee: false,
++                    inputs: [statePathRecordv1, "10u64"],
++                    broadcast: false,
++                    privateKey: pk
++                });
++
++                expect(request.feeAuthorization()).equal(undefined);
++            }
++        });
++    });
++
+     describe('Proving Requests and Authorizations', () => {
+         it('Should build correct authorizations from Proving Request', async () => {
+             // Build a proving request for the "spin" function of "puzzle_spinner_v002.aleo".
+diff --git a/wasm/src/programs/manager/deploy.rs b/wasm/src/programs/manager/deploy.rs
+index a675b6b9..06c1d9f2 100644
+--- a/wasm/src/programs/manager/deploy.rs
++++ b/wasm/src/programs/manager/deploy.rs
+@@ -108,7 +108,7 @@ impl ProgramManager {
+ 
+         log("Ensuring the fee is sufficient to pay for the deployment");
+         let (minimum_deployment_cost, (_, _, _, _)) =
+-            deployment_cost::<CurrentNetwork>(&process, &deployment).map_err(|err| err.to_string())?;
++            deployment_cost::<CurrentNetwork>(process, &deployment).map_err(|err| err.to_string())?;
+ 
+         // Check to see if the fee record has enough microcredits to pay for the deployment.
+         let priority_fee_microcredits = (priority_fee_credits * 1_000_000.0) as u64;
+@@ -171,7 +171,7 @@ impl ProgramManager {
+ 
+         log("Estimate the deployment fee");
+         let (minimum_deployment_cost, (_, _, _, _)) =
+-            deployment_cost::<CurrentNetwork>(&process, &deployment).map_err(|err| err.to_string())?;
++            deployment_cost::<CurrentNetwork>(process, &deployment).map_err(|err| err.to_string())?;
+ 
+         Ok(minimum_deployment_cost)
+     }
+diff --git a/wasm/src/programs/manager/execute.rs b/wasm/src/programs/manager/execute.rs
+index 78d6744d..fd4ac43b 100644
+--- a/wasm/src/programs/manager/execute.rs
++++ b/wasm/src/programs/manager/execute.rs
+@@ -174,17 +174,17 @@ impl ProgramManager {
+         offline_query: Option<OfflineQuery>,
+         edition: Option<u16>,
+     ) -> Result<Transaction, String> {
+-        log(&format!("Executing function: {function} on-chain"));
+         let mut process_native = ProcessNative::load_web().map_err(|err| err.to_string())?;
+         let process = &mut process_native;
+         let node_url = url.as_deref().unwrap_or(DEFAULT_URL);
+ 
+         log("Check program imports are valid and add them to the process");
+         let program_native = ProgramNative::from_str(program).map_err(|e| e.to_string())?;
++        let program_id = program_native.id().to_string();
+         ProgramManager::resolve_imports(process, &program_native, imports)?;
+         let rng = &mut StdRng::from_entropy();
+ 
+-        log("Executing program");
++        log(&format!("Executing function: {program_id}/{function} on-chain"));
+         let edition = edition.unwrap_or(1);
+         let (_, mut trace) = execute_program!(
+             process,
+@@ -207,34 +207,45 @@ impl ProgramManager {
+         }
+ 
+         log("Proving execution");
+-        let program = ProgramNative::from_str(program).map_err(|err| err.to_string())?;
+-        let locator = program.id().to_string().add("/").add(function);
++        let locator = program_native.id().to_string().add("/").add(function);
+         let execution = trace
+             .prove_execution::<CurrentAleo, _>(&locator, VarunaVersion::V2, &mut StdRng::from_entropy())
+             .map_err(|e| e.to_string())?;
+-        let execution_id = execution.to_execution_id().map_err(|e| e.to_string())?;
+-
+-        log("Calculating the minimum execution fee");
+-        let minimum_execution_cost = calculate_minimum_fee!(offline_query, node_url, process, &execution);
+ 
+-        // Check to see if the fee record has enough microcredits to pay for the deployment.
+-        let priority_fee_microcredits = (priority_fee_credits * 1_000_000.0) as u64;
+-        Self::validate_fee_record(&fee_record, minimum_execution_cost, priority_fee_microcredits)?;
+-
+-        log("Executing fee");
+-        let fee = execute_fee!(
+-            process,
+-            private_key,
+-            fee_record,
+-            priority_fee_microcredits,
+-            node_url,
+-            fee_proving_key,
+-            fee_verifying_key,
+-            execution_id,
+-            rng,
+-            offline_query,
+-            minimum_execution_cost
+-        );
++        // If the function is anything other than credits.aleo/split or credits.aleo/upgrade, execute a fee.
++        let fee = match (program_id.as_str(), function) {
++            ("credits.aleo", "split")
++            | ("credits.aleo", "upgrade")
++            | ("credits.aleo", "fee_private")
++            | ("credits.aleo", "fee_public") => None,
++            _ => {
++                log("Calculating the minimum execution fee");
++                let minimum_execution_cost = calculate_minimum_fee!(offline_query, node_url, process, &execution);
++
++                // Check to see if the fee record has enough microcredits to pay for the deployment.
++                let priority_fee_microcredits = (priority_fee_credits * 1_000_000.0) as u64;
++                Self::validate_fee_record(&fee_record, minimum_execution_cost, priority_fee_microcredits)?;
++
++                // Calculate the execution id.
++                let execution_id = execution.to_execution_id().map_err(|e| e.to_string())?;
++
++                log("Executing fee");
++                let fee = execute_fee!(
++                    process,
++                    private_key,
++                    fee_record,
++                    priority_fee_microcredits,
++                    node_url,
++                    fee_proving_key,
++                    fee_verifying_key,
++                    execution_id,
++                    rng,
++                    offline_query,
++                    minimum_execution_cost
++                );
++                Some(fee)
++            }
++        };
+ 
+         // Verify the execution
+         process
+@@ -242,7 +253,7 @@ impl ProgramManager {
+             .map_err(|err| err.to_string())?;
+ 
+         log("Creating execution transaction");
+-        let transaction = TransactionNative::from_execution(execution, Some(fee)).map_err(|err| err.to_string())?;
++        let transaction = TransactionNative::from_execution(execution, fee).map_err(|err| err.to_string())?;
+         Ok(Transaction::from(transaction))
+     }
+ 
+diff --git a/wasm/src/programs/manager/proving_request.rs b/wasm/src/programs/manager/proving_request.rs
+index adbab457..4e6ec9f3 100644
+--- a/wasm/src/programs/manager/proving_request.rs
++++ b/wasm/src/programs/manager/proving_request.rs
+@@ -84,7 +84,10 @@ impl ProgramManager {
+         // Authorize the fee.
+         let execution_id = authorization.to_execution_id().map_err(|e| e.to_string())?;
+         let fee_authorization = if program_native.id().to_string().as_str() == "credits.aleo"
+-            && (function_name == "split" || function_name == "fee_public" || function_name == "fee_private")
++            && (function_name == "split"
++                || function_name == "upgrade"
++                || function_name == "fee_public"
++                || function_name == "fee_private")
+         {
+             None
+         } else {
+diff --git a/wasm/src/programs/request.rs b/wasm/src/programs/request.rs
+index b130aa41..b3b27d66 100644
+--- a/wasm/src/programs/request.rs
++++ b/wasm/src/programs/request.rs
+@@ -154,6 +154,7 @@ impl ExecutionRequest {
+     /// @param {string[]} input_types The input types of the function.
+     /// @param {Field | undefined} root_tvk The tvk of the function at the top of the call graph. This is undefined if this request is built for the top-level call or if there is only one function in the call graph.
+     /// @param {boolean} is_root Flag to indicate if this is the top level function in the call graph.
++    #[allow(clippy::too_many_arguments)]
+     pub fn sign(
+         private_key: PrivateKey,
+         program_id: String,
+diff --git a/wasm/src/types/integer.rs b/wasm/src/types/integer.rs
+index aedd0e2e..56ffb73b 100644
+--- a/wasm/src/types/integer.rs
++++ b/wasm/src/types/integer.rs
+@@ -46,19 +46,19 @@ macro_rules! impl_integer {
+ 
+         #[wasm_bindgen]
+         impl $name {
+-            /// Creates from string.
++            /// Construct an integer from a string representation.
+             #[wasm_bindgen(js_name = "fromString")]
+             pub fn from_string(s: &str) -> Result<$name, String> {
+                 Ok(Self(<$native>::from_str(s).map_err(|e| e.to_string())?))
+             }
+ 
+-            /// To string.
++            /// Get the string representation of the integer.
+             #[wasm_bindgen(js_name = "toString")]
+             pub fn to_string(&self) -> String {
+                 self.0.to_string()
+             }
+ 
+-            /// From bytes (LE).
++            /// Get the byte array representation of the integer.
+             #[wasm_bindgen(js_name = "fromBytesLe")]
+             pub fn from_bytes_le(bytes: &Uint8Array) -> Result<$name, String> {
+                 let bytes = bytes.to_vec();
+@@ -66,14 +66,14 @@ macro_rules! impl_integer {
+                 Ok(Self(val))
+             }
+ 
+-            /// To bytes (LE).
++            /// Construct an integer from a byte array representation.
+             #[wasm_bindgen(js_name = "toBytesLe")]
+             pub fn to_bytes_le(&self) -> Result<Uint8Array, String> {
+                 let bytes = self.0.to_bytes_le().map_err(|e| e.to_string())?;
+                 Ok(Uint8Array::from(bytes.as_slice()))
+             }
+ 
+-            /// From bits.
++            /// Construct an integer from a boolean array representation.
+             #[wasm_bindgen(js_name = "fromBitsLe")]
+             pub fn from_bits_le(bits: &Array) -> Result<$name, String> {
+                 let bit_vec = from_js_typed_array!(bits, as_bool, "boolean")?;
+@@ -81,7 +81,7 @@ macro_rules! impl_integer {
+                 Ok(Self(val))
+             }
+ 
+-            /// To bits.
++            /// Get the boolean array representation of the integer.
+             #[wasm_bindgen(js_name = "toBitsLe")]
+             pub fn to_bits_le(&self) -> Array {
+                 to_bits_array_le!(self)
+@@ -99,19 +99,19 @@ macro_rules! impl_integer {
+                 Self(self.0.abs_wrapped())
+             }
+ 
+-            /// Wrapped addition.
++            /// Wrapped addition with another integer.
+             #[wasm_bindgen(js_name = "addWrapped")]
+             pub fn add_wrapped(&self, other: &$name) -> $name {
+                 Self(self.0.add_wrapped(&other.0))
+             }
+ 
+-            /// Wrapped subtraction.
++            /// Wrapped subtraction with another integer.
+             #[wasm_bindgen(js_name = "subWrapped")]
+             pub fn sub_wrapped(&self, other: &$name) -> $name {
+                 Self(self.0.sub_wrapped(&other.0))
+             }
+ 
+-            /// Wrapped multiplication.
++            /// Wrapped multiplication with another integer.
+             #[wasm_bindgen(js_name = "mulWrapped")]
+             pub fn mul_wrapped(&self, other: &$name) -> $name {
+                 Self(self.0.mul_wrapped(&other.0))
+@@ -123,67 +123,67 @@ macro_rules! impl_integer {
+                 Self(self.0.div_wrapped(&other.0))
+             }
+ 
+-            /// Power to a u8 exponent.
++            /// Exponentiate the integer with a u8 exponent.
+             #[wasm_bindgen(js_name = "powU8")]
+             pub fn pow_u8(&self, exponent: &U8) -> $name {
+                 Self(self.0.pow(&exponent.0))
+             }
+ 
+-            /// Power to a u16 exponent.
++            /// Exponentiate the integer with a u16 exponent.
+             #[wasm_bindgen(js_name = "powU16")]
+             pub fn pow_u16(&self, exponent: &U16) -> $name {
+                 Self(self.0.pow(&exponent.0))
+             }
+ 
+-            /// Power to a u32 exponent.
++            /// Exponentiate the integer with a u32 exponent.
+             #[wasm_bindgen(js_name = "powU32")]
+             pub fn pow_u32(&self, exponent: &U32) -> $name {
+                 Self(self.0.pow(&exponent.0))
+             }
+ 
+-            /// Negates the integer (e.g., 5 → -5).
++            /// Negate the integer (e.g., 5 → -5).
+             #[wasm_bindgen(js_name = "neg")]
+             pub fn neg(&self) -> $name {
+                 Self(-self.0)
+             }
+ 
+-            /// Checks equality with another integer.
++            /// Check equality with another integer.
+             #[wasm_bindgen(js_name = "equals")]
+             pub fn equals(&self, other: &$name) -> bool {
+                 self.0 == other.0
+             }
+ 
+-            /// Remainder.
++            /// Get the remainder from integer division.
+             #[wasm_bindgen(js_name = "rem")]
+             pub fn rem(&self, other: &$name) -> $name {
+                 Self(self.0.rem(&other.0))
+             }
+ 
+-            /// Wrapped remainder.
++            /// Get the remainder from an integer division which wraps if there's an overflow.
+             #[wasm_bindgen(js_name = "remWrapped")]
+             pub fn rem_wrapped(&self, other: &$name) -> $name {
+                 Self(self.0.rem_wrapped(&other.0))
+             }
+ 
+-            /// Convert to Scalar.
++            /// Convert the integer to a Scalar value.
+             #[wasm_bindgen(js_name = "toScalar")]
+             pub fn to_scalar(&self) -> crate::Scalar {
+                 self.0.to_scalar().into()
+             }
+ 
+-            /// Convert to plaintext.
++            /// Convert the integer to the Plaintext type. This must be done before hashing an integer to ensure it matches hashes with a leo/aleo program.
+             #[wasm_bindgen(js_name = "toPlaintext")]
+             pub fn to_plaintext(&self) -> Plaintext {
+                 Plaintext::from(PlaintextNative::Literal(LiteralNative::$name(self.0), std::sync::OnceLock::new()))
+             }
+ 
+-            /// Convert from Field.
++            /// Attempt to construct the integer from a field element.
+             #[wasm_bindgen(js_name = "fromField")]
+             pub fn from_field(field: &crate::Field) -> Result<$name, String> {
+                 <$native>::from_field(&FieldNative::from(field)).map(Self).map_err(|e| e.to_string())
+             }
+ 
+-            /// Convert from Fields.
++            /// Atttempt to construct the integer from a list of field elements.
+             #[wasm_bindgen(js_name = "fromFields")]
+             pub fn from_fields(fields: js_sys::Array) -> Result<$name, String> {
+                 // Collect JsValue → Field
+@@ -200,7 +200,8 @@ macro_rules! impl_integer {
+                 <$native>::from_fields(&rust_fields).map(Self).map_err(|e| e.to_string())
+             }
+ 
+-            /// Clone.
++            /// Clone the integer in wasm memory.
++            #[allow(clippy::should_implement_trait)]
+             pub fn clone(&self) -> $name {
+                 $name(self.0)
+             }

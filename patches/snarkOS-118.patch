@@ -1,0 +1,136 @@
+diff --git a/ledger/src/state/ledger.rs b/ledger/src/state/ledger.rs
+index aad2aceae..b67f99d97 100644
+--- a/ledger/src/state/ledger.rs
++++ b/ledger/src/state/ledger.rs
+@@ -47,6 +47,9 @@ pub const MAXIMUM_QUADRATIC_BLOCK_LOCATORS: u32 = 64;
+ /// The total maximum number of block locators.
+ pub const MAXIMUM_BLOCK_LOCATORS: u32 = MAXIMUM_LINEAR_BLOCK_LOCATORS.saturating_add(MAXIMUM_QUADRATIC_BLOCK_LOCATORS);
+ 
++/// TODO (howardwu): Reconcile this with the equivalent in `Environment`.
++const MAXIMUM_FORK_DEPTH: u32 = 8192;
++
+ ///
+ /// A helper struct containing transaction metadata.
+ ///
+@@ -472,12 +475,14 @@ impl<N: Network> LedgerState<N> {
+ 
+         // Initialize list of block locator hashes.
+         let mut block_locator_hashes = Vec::with_capacity(num_block_hashes as usize);
++        let mut accumulator = 1;
+         // Add the block locator hashes.
+         while block_locator_height > 0 && block_locator_hashes.len() < num_block_hashes as usize {
+             block_locator_hashes.push((block_locator_height, (self.get_block_hash(block_locator_height)?, None)));
+ 
+             // Decrement the block locator height by a power of two.
+-            block_locator_height /= 2;
++            block_locator_height = block_locator_height.saturating_sub(accumulator);
++            accumulator *= 2;
+         }
+ 
+         // Initialize the list of block locators.
+@@ -545,10 +550,10 @@ impl<N: Network> LedgerState<N> {
+                 .skip(num_linear_block_headers + 1)
+                 .take(num_quadratic_block_headers - 1)
+             {
+-                // Check that the block heights decrement by a power of two.
+-                if previous_block_height != u32::MAX && previous_block_height / 2 != *block_height {
+-                    return Ok(false);
+-                }
++                // // Check that the block heights decrement by a power of two.
++                // if previous_block_height != u32::MAX && previous_block_height / 2 != *block_height {
++                //     return Ok(false);
++                // }
+ 
+                 // Check that there is no block header.
+                 if block_header.is_some() {
+@@ -737,7 +742,7 @@ impl<N: Network> LedgerState<N> {
+         let number_of_blocks = latest_block_height.saturating_sub(block_height);
+ 
+         // Ensure the reverted block height is within a permitted range and well-formed.
+-        if block_height >= latest_block_height || number_of_blocks > N::ALEO_MAXIMUM_FORK_DEPTH || self.get_block(block_height).is_err() {
++        if block_height >= latest_block_height || number_of_blocks > MAXIMUM_FORK_DEPTH || self.get_block(block_height).is_err() {
+             return Err(anyhow!("Attempted to return to block height {}, which is invalid", block_height));
+         }
+ 
+diff --git a/src/environment/mod.rs b/src/environment/mod.rs
+index 3affd8604..a7c4f9e85 100644
+--- a/src/environment/mod.rs
++++ b/src/environment/mod.rs
+@@ -81,6 +81,8 @@ pub trait Environment: 'static + Clone + Debug + Default + Send + Sync {
+     const MAXIMUM_MESSAGE_SIZE: usize = 128 * 1024 * 1024; // 128 MiB
+     /// The maximum number of blocks that may be fetched in one request.
+     const MAXIMUM_BLOCK_REQUEST: u32 = 50;
++    /// The maximum number of blocks that a fork can be.
++    const MAXIMUM_FORK_DEPTH: u32 = 8192;
+     /// The maximum number of failures tolerated before disconnecting from a peer.
+     const MAXIMUM_NUMBER_OF_FAILURES: usize = 2400;
+ }
+diff --git a/src/network/ledger.rs b/src/network/ledger.rs
+index 12caac498..0fcbbfd6b 100644
+--- a/src/network/ledger.rs
++++ b/src/network/ledger.rs
+@@ -464,7 +464,7 @@ impl<N: Network, E: Environment> Ledger<N, E> {
+                 true
+             }
+             Err(error) => {
+-                error!("Failed to revert the ledger to block {}: {}", block_height, error);
++                warn!("{}", error);
+ 
+                 // Set the terminator bit to `true` to ensure the miner resets state.
+                 self.terminator.store(true, Ordering::SeqCst);
+@@ -587,12 +587,12 @@ impl<N: Network, E: Environment> Ledger<N, E> {
+     ///     Case 2(b) - `is_fork` is `Some(false)`:
+     ///         - Request blocks from your latest state
+     ///     Case 2(c) - `is_fork` is `Some(true)`:
+-    ///             Case 2(c)(a) - Common ancestor is within `ALEO_MAXIMUM_FORK_DEPTH`:
++    ///             Case 2(c)(a) - Common ancestor is within `MAXIMUM_FORK_DEPTH`:
+     ///                  - Revert to common ancestor, and send block requests to sync.
+-    ///             Case 2(c)(b) - Common ancestor is NOT within `ALEO_MAXIMUM_FORK_DEPTH`:
+-    ///                  Case 2(c)(b)(a) - You can calculate that you are outside of the `ALEO_MAXIMUM_FORK_DEPTH`:
++    ///             Case 2(c)(b) - Common ancestor is NOT within `MAXIMUM_FORK_DEPTH`:
++    ///                  Case 2(c)(b)(a) - You can calculate that you are outside of the `MAXIMUM_FORK_DEPTH`:
+     ///                      - Disconnect from peer.
+-    ///                  Case 2(c)(b)(b) - You don't know if you are within the `ALEO_MAXIMUM_FORK_DEPTH`:
++    ///                  Case 2(c)(b)(b) - You don't know if you are within the `MAXIMUM_FORK_DEPTH`:
+     ///                      - Revert to most common ancestor and send block requests to sync.
+     ///
+     async fn update_block_requests(&mut self, peers_router: &PeersRouter<N, E>) {
+@@ -701,7 +701,7 @@ impl<N: Network, E: Environment> Ledger<N, E> {
+                 else {
+                     // Case 2(c)(a) - If the common ancestor is within the fork range of this ledger,
+                     // proceed to switch to the fork.
+-                    if latest_block_height.saturating_sub(maximum_common_ancestor) <= N::ALEO_MAXIMUM_FORK_DEPTH
++                    if latest_block_height.saturating_sub(maximum_common_ancestor) <= E::MAXIMUM_FORK_DEPTH
+                     {
+                         info!("Found a longer chain from {} starting at block {}", peer_ip, maximum_common_ancestor);
+                         // If the latest block is the same as the maximum common ancestor, do not revert.
+@@ -710,7 +710,7 @@ impl<N: Network, E: Environment> Ledger<N, E> {
+                         }
+                         (maximum_common_ancestor, true)
+                     }
+-                    // Case 2(c)(b) - If the common ancestor is NOT within `ALEO_MAXIMUM_FORK_DEPTH`.
++                    // Case 2(c)(b) - If the common ancestor is NOT within `MAXIMUM_FORK_DEPTH`.
+                     else
+                     {
+                         // Ensure that the first deviating locator exists.
+@@ -719,9 +719,9 @@ impl<N: Network, E: Environment> Ledger<N, E> {
+                             None => return,
+                         };
+ 
+-                        // Case 2(c)(b)(a) - Check if the real common ancestor is NOT within `ALEO_MAXIMUM_FORK_DEPTH`.
++                        // Case 2(c)(b)(a) - Check if the real common ancestor is NOT within `MAXIMUM_FORK_DEPTH`.
+                         // If this peer is outside of the fork range of this ledger, proceed to disconnect from the peer.
+-                        if latest_block_height.saturating_sub(*first_deviating_locator) >= N::ALEO_MAXIMUM_FORK_DEPTH {
++                        if latest_block_height.saturating_sub(*first_deviating_locator) >= E::MAXIMUM_FORK_DEPTH {
+                             debug!("Peer {} is outside of the fork range of this ledger, disconnecting", peer_ip);
+                             // Send a `Disconnect` message to the peer.
+                             let request = PeersRequest::MessageSend(peer_ip, Message::Disconnect);
+@@ -730,7 +730,7 @@ impl<N: Network, E: Environment> Ledger<N, E> {
+                             }
+                             return;
+                         }
+-                        // Case 2(c)(b)(b) - You don't know if your real common ancestor is within `ALEO_MAXIMUM_FORK_DEPTH`.
++                        // Case 2(c)(b)(b) - You don't know if your real common ancestor is within `MAXIMUM_FORK_DEPTH`.
+                         // Revert to the common ancestor anyways.
+                         else {
+                             info!("Found a potentially longer chain from {} starting at block {}", peer_ip, maximum_common_ancestor);

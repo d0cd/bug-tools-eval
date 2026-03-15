@@ -1,0 +1,60 @@
+diff --git a/compiler/passes/src/type_checking/visitor.rs b/compiler/passes/src/type_checking/visitor.rs
+index a428158b3c..9a545a8085 100644
+--- a/compiler/passes/src/type_checking/visitor.rs
++++ b/compiler/passes/src/type_checking/visitor.rs
+@@ -792,6 +792,10 @@ impl TypeCheckingVisitor<'_> {
+             CoreFunction::ChaChaRandU64 => Type::Integer(IntegerType::U64),
+             CoreFunction::ChaChaRandU128 => Type::Integer(IntegerType::U128),
+             CoreFunction::SignatureVerify => {
++                // Check that the third argument is not a mapping nor a tuple. We have to do this
++                // before the other checks below to appease the borrow checker
++                assert_not_mapping_tuple_unit(&arguments[2].0, arguments[2].1);
++
+                 // Check that the first argument is a signature.
+                 self.assert_type(&arguments[0].0, &Type::Signature, arguments[0].1);
+                 // Check that the second argument is an address.
+diff --git a/tests/expectations/compiler/bugs/b28611.out b/tests/expectations/compiler/bugs/b28611.out
+new file mode 100644
+index 0000000000..875968bf48
+--- /dev/null
++++ b/tests/expectations/compiler/bugs/b28611.out
+@@ -0,0 +1,23 @@
++DCE_ENABLED:
++Error [ETYC0372117]: Expected anything but a mapping, tuple, or unit but type `(u32, u32)` was found.
++    --> compiler-test:7:47
++     |
++   7 |         let b: bool = sig.verify(self.caller, t);
++     |                                               ^
++Error [ETYC0372117]: Expected anything but a mapping, tuple, or unit but type `(u8 => u8)` was found.
++    --> compiler-test:8:47
++     |
++   8 |         let c: bool = sig.verify(self.caller, m);
++     |                                               ^
++
++DCE_DISABLED:
++Error [ETYC0372117]: Expected anything but a mapping, tuple, or unit but type `(u32, u32)` was found.
++    --> compiler-test:7:47
++     |
++   7 |         let b: bool = sig.verify(self.caller, t);
++     |                                               ^
++Error [ETYC0372117]: Expected anything but a mapping, tuple, or unit but type `(u8 => u8)` was found.
++    --> compiler-test:8:47
++     |
++   8 |         let c: bool = sig.verify(self.caller, m);
++     |                                               ^
+diff --git a/tests/tests/compiler/bugs/b28611.leo b/tests/tests/compiler/bugs/b28611.leo
+new file mode 100644
+index 0000000000..e8ab2f6c17
+--- /dev/null
++++ b/tests/tests/compiler/bugs/b28611.leo
+@@ -0,0 +1,10 @@
++program test.aleo {
++    mapping m: u8 => u8;
++
++    transition foo(sig: signature, x: u32, y: u32) {
++        // ensure that the caller provided the correct signature
++        let t: (u32, u32) = (x, y);
++        let b: bool = sig.verify(self.caller, t);
++        let c: bool = sig.verify(self.caller, m);
++    }
++}

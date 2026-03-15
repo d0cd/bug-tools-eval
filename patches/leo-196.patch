@@ -1,0 +1,706 @@
+diff --git a/build.rs b/build.rs
+index 158a926939..ae4bee7f1c 100644
+--- a/build.rs
++++ b/build.rs
+@@ -106,7 +106,7 @@ fn generate_cli_tests() {
+     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
+     let tests_dir = manifest_dir.join("tests/tests/cli");
+ 
+-    let mut out = String::new();
++    let mut out = String::from("use serial_test::serial;\n");
+ 
+     for entry in fs::read_dir(&tests_dir).unwrap() {
+         let entry = entry.unwrap();
+@@ -122,6 +122,7 @@ fn generate_cli_tests() {
+         out.push_str(&format!(
+             r#"
+ #[test]
++#[serial]
+ fn {fn_name}() {{
+     crate::run_single_cli_test(
+         std::path::Path::new(r"{path}")
+diff --git a/leo/cli/commands/build.rs b/leo/cli/commands/build.rs
+index b8fa7ba3a3..8912136348 100644
+--- a/leo/cli/commands/build.rs
++++ b/leo/cli/commands/build.rs
+@@ -263,6 +263,9 @@ fn compile_leo_source_directory(
+     stubs: IndexMap<Symbol, Stub>,
+     network: NetworkName,
+ ) -> Result<Compiled> {
++    // Print a newline for better formatting.
++    println!();
++    tracing::info!("🔨 Compiling '{program_name}.leo'");
+     // Create a new instance of the Leo compiler.
+     let mut compiler = Compiler::new(
+         Some(program_name.to_string()),
+diff --git a/leo/cli/commands/common/interactive.rs b/leo/cli/commands/common/interactive.rs
+index 578730d27c..bb5e292c55 100644
+--- a/leo/cli/commands/common/interactive.rs
++++ b/leo/cli/commands/common/interactive.rs
+@@ -35,6 +35,28 @@ pub fn confirm(prompt: &str, skip_confirmation: bool) -> Result<bool> {
+     result
+ }
+ 
++/// Logs a warning and asks the user to confirm an action, with an optional `--yes` override.
++/// Unlike `confirm`, this function always logs the warning message regardless of `skip_confirmation`.
++pub fn warn_and_confirm(warning: &str, skip_confirmation: bool) -> Result<bool> {
++    // Always log the warning so users are informed of issues even in non-interactive mode.
++    tracing::warn!("{warning}");
++
++    if skip_confirmation {
++        return Ok(true);
++    }
++
++    let result = Confirm::with_theme(&ColorfulTheme::default())
++        .with_prompt("Do you want to continue?")
++        .default(false)
++        .interact()
++        .map_err(|e| CliError::custom(format!("Failed to prompt user: {e}")).into());
++
++    // Print a newline for better formatting.
++    println!();
++
++    result
++}
++
+ /// Asks the user to confirm a fee.
+ pub fn confirm_fee<N: Network>(
+     fee: &snarkvm::prelude::Fee<N>,
+diff --git a/leo/cli/commands/devnode/advance.rs b/leo/cli/commands/devnode/advance.rs
+index d8e00840f9..c48afafac6 100644
+--- a/leo/cli/commands/devnode/advance.rs
++++ b/leo/cli/commands/devnode/advance.rs
+@@ -19,6 +19,7 @@ use serde_json::json;
+ 
+ // Advance the Devnode ledger by a specified number of blocks.
+ #[derive(Parser, Debug)]
++#[group(id = "advance_args")]
+ pub struct Advance {
+     #[clap(help = "The number of blocks to advance the ledger by", default_value = "1")]
+     pub num_blocks: u32,
+diff --git a/leo/cli/commands/devnode/start.rs b/leo/cli/commands/devnode/start.rs
+index 30c623ab2b..1a5d59b06e 100644
+--- a/leo/cli/commands/devnode/start.rs
++++ b/leo/cli/commands/devnode/start.rs
+@@ -28,6 +28,7 @@ use crate::cli::commands::devnode::rest::Rest;
+ 
+ // Command for starting the Devnode server.
+ #[derive(Parser, Debug)]
++#[group(id = "start_args")]
+ pub struct Start {
+     /// Verbosity level for logging (0-2).
+     #[clap(short = 'v', long, help = "devnode verbosity (0-2)", default_value = "2")]
+@@ -113,8 +114,8 @@ Please either:
+     if !command.manual_block_creation {
+         println!("Advancing the Devnode to the latest consensus version");
+         let last_height = TEST_CONSENSUS_VERSION_HEIGHTS.last().unwrap().1;
+-        // Call the REST API to advance the ledger by one block.
+-        let client = reqwest::blocking::Client::new();
++        // Call the REST API to advance the ledger.
++        let client = reqwest::Client::new();
+ 
+         let payload = json!({
+             "num_blocks": last_height,
+@@ -124,7 +125,8 @@ Please either:
+             .post(format!("http://{}/testnet/block/create", command.socket_addr))
+             .header("Content-Type", "application/json")
+             .json(&payload)
+-            .send();
++            .send()
++            .await;
+     }
+     // Prevent main from exiting.
+     std::future::pending::<()>().await;
+diff --git a/leo/cli/commands/upgrade.rs b/leo/cli/commands/upgrade.rs
+index c5405c2904..522b01c5e4 100644
+--- a/leo/cli/commands/upgrade.rs
++++ b/leo/cli/commands/upgrade.rs
+@@ -61,7 +61,7 @@ pub struct LeoUpgrade {
+     pub(crate) env_override: EnvOptions,
+     #[clap(flatten)]
+     pub(crate) extra: ExtraOptions,
+-    #[clap(long, help = "Skips the upgrade of any program that contains one of the given substrings.")]
++    #[clap(long, help = "Skips the upgrade of any program that contains one of the given substrings.", value_delimiter = ',', num_args = 1..)]
+     pub(crate) skip: Vec<String>,
+     #[clap(flatten)]
+     pub(crate) build_options: BuildOptions,
+@@ -260,34 +260,35 @@ fn handle_upgrade<N: Network, A: Aleo<Network = N>>(
+     let vm = VM::from(ConsensusStore::<N, ConsensusMemory<N>>::open(StorageMode::Production)?)?;
+ 
+     // Load all the programs from the network into the VM.
+-    let programs_and_editions = program_ids
+-        .iter()
+-        .map(|id| {
+-            // Load the program from the network.
+-            let program = leo_package::Program::fetch(
+-                Symbol::intern(&id.name().to_string()),
+-                None,
+-                context.home()?,
+-                network,
+-                &endpoint,
+-                true,
+-            )?;
+-            let ProgramData::Bytecode(bytecode) = program.data else {
+-                panic!("Expected bytecode when fetching a remote program");
+-            };
+-            // Parse the program bytecode.
+-            let bytecode = Program::<N>::from_str(&bytecode)
+-                .map_err(|e| CliError::custom(format!("Failed to parse program: {e}")))?;
+-            // Return the bytecode and edition.
+-            // Program::fetch should always set the edition after a successful fetch.
+-            let edition = program.edition.expect("Edition should be set after successful fetch");
+-            Ok((bytecode, edition))
+-        })
+-        .collect::<Result<Vec<_>>>()?;
+-
++    let mut programs_and_editions = Vec::with_capacity(program_ids.len());
++    for id in &program_ids {
++        // Load the program from the network.
++        let Ok(program) = leo_package::Program::fetch(
++            Symbol::intern(&id.name().to_string()),
++            None,
++            context.home()?,
++            network,
++            &endpoint,
++            true,
++        ) else {
++            warn_and_confirm(&format!("Failed to fetch program {id} from the network."), command.extra.yes)?;
++            continue;
++        };
++
++        let ProgramData::Bytecode(bytecode) = program.data else {
++            panic!("Expected bytecode when fetching a remote program");
++        };
++        // Parse the program bytecode.
++        let bytecode =
++            Program::<N>::from_str(&bytecode).map_err(|e| CliError::custom(format!("Failed to parse program: {e}")))?;
++        // Append the bytecode and edition.
++        // Program::fetch should always set the edition after a successful fetch.
++        let edition = program.edition.expect("Edition should be set after successful fetch");
++        programs_and_editions.push((bytecode, edition));
++    }
+     // Check for programs that violate edition/constructor requirements.
+     check_edition_constructor_requirements(&programs_and_editions, consensus_version, "upgrade")?;
+-
++    // Add the programs to the VM.
+     vm.process().write().add_programs_with_editions(&programs_and_editions)?;
+ 
+     // Print the programs and their editions in the VM.
+@@ -414,7 +415,9 @@ fn handle_upgrade<N: Network, A: Aleo<Network = N>>(
+             }
+         }
+         // Add the program to the VM.
+-        vm.process().write().add_program(&program)?;
++        if let Err(e) = vm.process().write().add_program(&program) {
++            warn_and_confirm(&format!("Failed to add program {id} to the VM. Error: {e}"), command.extra.yes)?;
++        }
+     }
+ 
+     // If the `print` option is set, print the deployment transaction to the console.
+diff --git a/leo/tests/integration.rs b/leo/tests/integration.rs
+index 1ceb80ffc0..7f3ac515d4 100644
+--- a/leo/tests/integration.rs
++++ b/leo/tests/integration.rs
+@@ -41,6 +41,11 @@ struct Test {
+     mismatch_directory: PathBuf,
+ }
+ 
++/// Finds an available TCP port by binding to port 0.
++fn find_free_port() -> u16 {
++    std::net::TcpListener::bind("127.0.0.1:0").expect("Failed to bind to port 0").local_addr().unwrap().port()
++}
++
+ /// Runs a single CLI integration test in isolation.
+ ///
+ /// Sets up a temporary test environment, executes the test COMMANDS,
+@@ -64,10 +69,11 @@ fn run_single_cli_test(test_directory: &Path) {
+ 
+     let rewrite_expectations = !std::env::var("REWRITE_EXPECTATIONS").unwrap_or_default().trim().is_empty();
+ 
+-    let mut devnode_process = run_leo_devnode().expect("devnode");
+-    wait_for_devnode();
++    let port = find_free_port();
++    let mut devnode_process = run_leo_devnode(port).expect("devnode");
++    wait_for_devnode(port);
+ 
+-    let test_result = run_test(&test, rewrite_expectations);
++    let test_result = run_test(&test, rewrite_expectations, port);
+ 
+     #[cfg(unix)]
+     unsafe {
+@@ -87,13 +93,13 @@ fn run_single_cli_test(test_directory: &Path) {
+ /// Polls the devnode HTTP endpoint until it becomes reachable, then waits
+ /// for the network to reach the required consensus height. This ensures
+ /// CLI tests start only after the devnode is fully initialized.
+-fn wait_for_devnode() {
+-    let height_url = "http://localhost:3030/testnet/block/height/latest";
++fn wait_for_devnode(port: u16) {
++    let height_url = format!("http://127.0.0.1:{port}/testnet/block/height/latest");
+     let start = std::time::Instant::now();
+     let timeout = std::time::Duration::from_secs(300);
+ 
+     loop {
+-        match leo_package::fetch_from_network_plain(height_url) {
++        match leo_package::fetch_from_network_plain(&height_url) {
+             Ok(_) => break,
+             Err(_) if start.elapsed() < timeout => {
+                 std::thread::sleep(std::time::Duration::from_secs(1));
+@@ -103,7 +109,7 @@ fn wait_for_devnode() {
+     }
+ 
+     loop {
+-        let height = current_height().expect("this should work now that the devnode is ready.");
++        let height = current_height(port).expect("this should work now that the devnode is ready.");
+         if snarkvm::prelude::TestnetV0::CONSENSUS_VERSION(height as u32).unwrap() == ConsensusVersion::latest() {
+             break;
+         }
+@@ -129,7 +135,7 @@ impl Drop for CwdRaii {
+     }
+ }
+ 
+-fn run_test(test: &Test, force_rewrite: bool) -> Option<String> {
++fn run_test(test: &Test, force_rewrite: bool, port: u16) -> Option<String> {
+     let test_context_directory = tempfile::TempDir::new().expect("Failed to create temporary directory.");
+ 
+     copy_recursively(&test.test_directory, test_context_directory.path()).expect("Failed to copy test directory.");
+@@ -140,7 +146,11 @@ fn run_test(test: &Test, force_rewrite: bool) -> Option<String> {
+ 
+     let commands_path = test_context_directory.path().join("COMMANDS");
+ 
+-    let output = Command::new(&commands_path).arg(BINARY_PATH).output().expect("Failed to execute COMMANDS");
++    let output = Command::new(&commands_path)
++        .arg(BINARY_PATH)
++        .env("LEO_DEVNODE_PORT", port.to_string())
++        .output()
++        .expect("Failed to execute COMMANDS");
+ 
+     let stdout_path = test_context_directory.path().join("STDOUT");
+     let stdout_utf8 = std::str::from_utf8(&output.stdout).expect("stdout should be utf8");
+@@ -150,6 +160,10 @@ fn run_test(test: &Test, force_rewrite: bool) -> Option<String> {
+     fs::write(&stderr_path, filter_stderr(stderr_utf8).as_bytes()).expect("Failed to write STDERR");
+ 
+     if force_rewrite {
++        // Remove stale expectation directory so files deleted between runs don't linger.
++        if test.expectation_directory.exists() {
++            fs::remove_dir_all(&test.expectation_directory).expect("Failed to remove old expectation directory.");
++        }
+         copy_recursively(test_context_directory.path(), &test.expectation_directory)
+             .expect("Failed to copy directory.");
+         None
+@@ -201,6 +215,8 @@ fn filter_stdout(data: &str) -> String {
+         (Regex::new(r"\x1b\[[0-9;]*m").unwrap(), ""),
+         // `leo fmt --check` outputs absolute paths in diff headers which include temp directories.
+         (Regex::new(r"Diff in .*?([^/]+\.leo)").unwrap(), "Diff in SOURCE_DIRECTORY/$1"),
++        // Normalize dynamic devnode ports back to 3030 for stable expectations.
++        (Regex::new(r"http://localhost:\d+").unwrap(), "http://localhost:3030"),
+     ];
+ 
+     let mut cow = Cow::Borrowed(data);
+@@ -218,12 +234,18 @@ fn filter_stderr(data: &str) -> String {
+     use regex::Regex;
+     use std::borrow::Cow;
+ 
+-    // Match `-->` followed by any path, capture only the filename with line/col
+-    let path_regex = Regex::new(r"-->\s+.*?/([^/]+\.leo:\d+:\d+)").unwrap();
++    let regexes = [
++        // Match `-->` followed by any path, capture only the filename with line/col
++        (Regex::new(r"-->\s+.*?/([^/]+\.leo:\d+:\d+)").unwrap(), "--> SOURCE_DIRECTORY/$1"),
++        // Normalize dynamic devnode ports back to 3030 for stable expectations.
++        (Regex::new(r"http://localhost:\d+").unwrap(), "http://localhost:3030"),
++    ];
+ 
+     let mut cow = Cow::Borrowed(data);
+-    if let Cow::Owned(s) = path_regex.replace_all(&cow, "--> SOURCE_DIRECTORY/$1") {
+-        cow = Cow::Owned(s);
++    for (regex, replacement) in regexes {
++        if let Cow::Owned(s) = regex.replace_all(&cow, replacement) {
++            cow = Cow::Owned(s);
++        }
+     }
+ 
+     cow.into_owned()
+@@ -243,6 +265,8 @@ fn filter_json_file(data: &str) -> String {
+         (Regex::new(r#""circuit_id":\s*"[a-fA-F0-9]+""#).unwrap(), r#""circuit_id": "XXXXXX""#),
+         (Regex::new(r#""prover_size":\s*[0-9]+"#).unwrap(), r#""prover_size": 0"#),
+         (Regex::new(r#""verifier_size":\s*[0-9]+"#).unwrap(), r#""verifier_size": 0"#),
++        // Normalize dynamic devnode ports back to 3030 for stable expectations.
++        (Regex::new(r"http://localhost:\d+").unwrap(), "http://localhost:3030"),
+     ];
+ 
+     let mut cow = Cow::Borrowed(data);
+@@ -349,13 +373,15 @@ fn collect_files(base: &Path) -> io::Result<HashSet<PathBuf>> {
+ 
+ /// Starts a Leo devnode for integration testing purposes.
+ ///
+-/// This function launches a local devnode using the Leo CLI.
+-fn run_leo_devnode() -> io::Result<Child> {
++/// This function launches a local devnode using the Leo CLI on the given port.
++fn run_leo_devnode(port: u16) -> io::Result<Child> {
+     let mut leo_devnode_cmd = Command::new(BINARY_PATH);
+ 
+     leo_devnode_cmd
+         .arg("devnode")
+         .arg("start")
++        .arg("--socket-addr")
++        .arg(format!("127.0.0.1:{port}"))
+         .arg("--private-key")
+         .arg("APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH")
+         .stdout(Stdio::null())
+@@ -373,8 +399,8 @@ fn run_leo_devnode() -> io::Result<Child> {
+     leo_devnode_cmd.spawn()
+ }
+ 
+-fn current_height() -> Result<usize, anyhow::Error> {
+-    let height_url = "http://localhost:3030/testnet/block/height/latest".to_string();
++fn current_height(port: u16) -> Result<usize, anyhow::Error> {
++    let height_url = format!("http://127.0.0.1:{port}/testnet/block/height/latest");
+     let height_str = leo_package::fetch_from_network_plain(&height_url)?;
+     height_str.parse().map_err(|e| anyhow!("error parsing height: {e}"))
+ }
+diff --git a/tests/expectations/cli/broadcast_error/COMMANDS b/tests/expectations/cli/broadcast_error/COMMANDS
+index 11d225cb85..73d2683fe2 100755
+--- a/tests/expectations/cli/broadcast_error/COMMANDS
++++ b/tests/expectations/cli/broadcast_error/COMMANDS
+@@ -6,7 +6,7 @@
+ 
+ LEO_BIN=${1}
+ PRIVATE_KEY="APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH"
+-COMMON_OPTS="--disable-update-check --broadcast --network testnet --endpoint http://localhost:3030 --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
++COMMON_OPTS="--disable-update-check --broadcast --network testnet --endpoint http://localhost:${LEO_DEVNODE_PORT:-3030} --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
+ 
+ # First deploy should succeed
+ $LEO_BIN deploy -y $COMMON_OPTS
+diff --git a/tests/expectations/cli/broadcast_error/STDOUT b/tests/expectations/cli/broadcast_error/STDOUT
+index a1d707c676..d36ac2eeb3 100644
+--- a/tests/expectations/cli/broadcast_error/STDOUT
++++ b/tests/expectations/cli/broadcast_error/STDOUT
+@@ -1,3 +1,5 @@
++
++       Leo 🔨 Compiling 'broadcast_error.leo'
+        Leo     2 statements before dead code elimination.
+        Leo     2 statements after dead code elimination.
+        Leo     The program checksum is: '[65u8, 89u8, 187u8, 94u8, 189u8, 162u8, 9u8, 5u8, 82u8, 113u8, 145u8, 228u8, 159u8, 225u8, 53u8, 52u8, 194u8, 213u8, 69u8, 110u8, 78u8, 244u8, 159u8, 99u8, 80u8, 151u8, 122u8, 38u8, 220u8, 73u8, 200u8, 114u8]'.
+@@ -69,6 +71,8 @@ Once it is deployed, it CANNOT be changed.
+ Explored XXXXXX blocks.
+ Transaction accepted.
+ ✅ Deployment confirmed!
++
++       Leo 🔨 Compiling 'broadcast_error.leo'
+        Leo     2 statements before dead code elimination.
+        Leo     2 statements after dead code elimination.
+        Leo     The program checksum is: '[65u8, 89u8, 187u8, 94u8, 189u8, 162u8, 9u8, 5u8, 82u8, 113u8, 145u8, 228u8, 159u8, 225u8, 53u8, 52u8, 194u8, 213u8, 69u8, 110u8, 78u8, 244u8, 159u8, 99u8, 80u8, 151u8, 122u8, 38u8, 220u8, 73u8, 200u8, 114u8]'.
+diff --git a/tests/expectations/cli/local_aleo_dependency/STDOUT b/tests/expectations/cli/local_aleo_dependency/STDOUT
+index dbc6aa3785..f97313772d 100644
+--- a/tests/expectations/cli/local_aleo_dependency/STDOUT
++++ b/tests/expectations/cli/local_aleo_dependency/STDOUT
+@@ -1,5 +1,7 @@
+ ⚠️ No network specified, defaulting to 'testnet'.
+ ⚠️ No endpoint specified, defaulting to 'https://api.explorer.provable.com/v1'.
++
++       Leo 🔨 Compiling 'complex.leo'
+        Leo     2 statements before dead code elimination.
+        Leo     2 statements after dead code elimination.
+        Leo     The program checksum is: '[100u8, 207u8, 87u8, 107u8, 187u8, 153u8, 95u8, 22u8, 31u8, 75u8, 125u8, 95u8, 119u8, 144u8, 156u8, 19u8, 111u8, 156u8, 213u8, 202u8, 101u8, 112u8, 208u8, 87u8, 81u8, 218u8, 221u8, 118u8, 35u8, 125u8, 183u8, 157u8]'.
+diff --git a/tests/expectations/cli/multiple_leo_deps/STDOUT b/tests/expectations/cli/multiple_leo_deps/STDOUT
+index dd9ffc207b..1747dc4cb0 100644
+--- a/tests/expectations/cli/multiple_leo_deps/STDOUT
++++ b/tests/expectations/cli/multiple_leo_deps/STDOUT
+@@ -1,5 +1,7 @@
+ ⚠️ No network specified, defaulting to 'testnet'.
+ ⚠️ No endpoint specified, defaulting to 'https://api.explorer.provable.com/v1'.
++
++       Leo 🔨 Compiling 'parent.leo'
+        Leo     9 statements before dead code elimination.
+        Leo     9 statements after dead code elimination.
+        Leo     The program checksum is: '[215u8, 203u8, 66u8, 86u8, 222u8, 65u8, 57u8, 252u8, 117u8, 231u8, 155u8, 25u8, 45u8, 60u8, 202u8, 131u8, 149u8, 90u8, 30u8, 208u8, 156u8, 22u8, 227u8, 204u8, 30u8, 127u8, 166u8, 190u8, 70u8, 12u8, 210u8, 133u8]'.
+diff --git a/tests/expectations/cli/network_dependency/COMMANDS b/tests/expectations/cli/network_dependency/COMMANDS
+index dfbae900d3..6858831ff8 100755
+--- a/tests/expectations/cli/network_dependency/COMMANDS
++++ b/tests/expectations/cli/network_dependency/COMMANDS
+@@ -2,7 +2,7 @@
+ 
+ LEO_BIN=${1}
+ PRIVATE_KEY="APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH"
+-COMMON_OPTS="-y --disable-update-check --broadcast --network testnet --endpoint http://localhost:3030 --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
++COMMON_OPTS="-y --disable-update-check --broadcast --network testnet --endpoint http://localhost:${LEO_DEVNODE_PORT:-3030} --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
+ 
+ cd test_program1 || exit 1
+ echo "DEPLOYMENT 1"
+diff --git a/tests/expectations/cli/network_dependency/STDOUT b/tests/expectations/cli/network_dependency/STDOUT
+index 5068397070..b3c70518bb 100644
+--- a/tests/expectations/cli/network_dependency/STDOUT
++++ b/tests/expectations/cli/network_dependency/STDOUT
+@@ -1,4 +1,6 @@
+ DEPLOYMENT 1
++
++       Leo 🔨 Compiling 'test_program1.leo'
+        Leo     1 statements before dead code elimination.
+        Leo     1 statements after dead code elimination.
+        Leo     The program checksum is: '[192u8, 225u8, 38u8, 151u8, 139u8, 155u8, 148u8, 209u8, 105u8, 110u8, 246u8, 83u8, 90u8, 243u8, 78u8, 35u8, 155u8, 186u8, 242u8, 17u8, 196u8, 169u8, 179u8, 144u8, 71u8, 227u8, 34u8, 207u8, 121u8, 158u8, 34u8, 25u8]'.
+@@ -71,6 +73,8 @@ Explored XXXXXX blocks.
+ Transaction accepted.
+ ✅ Deployment confirmed!
+ DEPLOYMENT 2
++
++       Leo 🔨 Compiling 'test_program2.leo'
+        Leo     3 statements before dead code elimination.
+        Leo     3 statements after dead code elimination.
+        Leo     The program checksum is: '[206u8, 255u8, 111u8, 48u8, 59u8, 85u8, 122u8, 166u8, 182u8, 205u8, 10u8, 141u8, 58u8, 23u8, 70u8, 232u8, 105u8, 221u8, 83u8, 216u8, 186u8, 14u8, 207u8, 24u8, 13u8, 221u8, 236u8, 0u8, 143u8, 199u8, 151u8, 2u8]'.
+@@ -147,6 +151,8 @@ Explored XXXXXX blocks.
+ Transaction accepted.
+ ✅ Deployment confirmed!
+ EXECUTION
++
++       Leo 🔨 Compiling 'test_program2.leo'
+        Leo     3 statements before dead code elimination.
+        Leo     3 statements after dead code elimination.
+        Leo     The program checksum is: '[206u8, 255u8, 111u8, 48u8, 59u8, 85u8, 122u8, 166u8, 182u8, 205u8, 10u8, 141u8, 58u8, 23u8, 70u8, 232u8, 105u8, 221u8, 83u8, 216u8, 186u8, 14u8, 207u8, 24u8, 13u8, 221u8, 236u8, 0u8, 143u8, 199u8, 151u8, 2u8]'.
+diff --git a/tests/expectations/cli/program_name_mismatch/STDOUT b/tests/expectations/cli/program_name_mismatch/STDOUT
+index 84f934ab1c..ea0216e3e5 100644
+--- a/tests/expectations/cli/program_name_mismatch/STDOUT
++++ b/tests/expectations/cli/program_name_mismatch/STDOUT
+@@ -1,2 +1,4 @@
+ ⚠️ No network specified, defaulting to 'testnet'.
+ ⚠️ No endpoint specified, defaulting to 'https://api.explorer.provable.com/v1'.
++
++       Leo 🔨 Compiling 'foo.leo'
+diff --git a/tests/expectations/cli/test_abi_comprehensive/STDOUT b/tests/expectations/cli/test_abi_comprehensive/STDOUT
+index 89beee587a..55ffec32b2 100644
+--- a/tests/expectations/cli/test_abi_comprehensive/STDOUT
++++ b/tests/expectations/cli/test_abi_comprehensive/STDOUT
+@@ -1,5 +1,7 @@
+ ⚠️ No network specified, defaulting to 'testnet'.
+ ⚠️ No endpoint specified, defaulting to 'https://api.explorer.provable.com/v1'.
++
++       Leo 🔨 Compiling 'abi_test.leo'
+        Leo     35 statements before dead code elimination.
+        Leo     35 statements after dead code elimination.
+        Leo     The program checksum is: '[196u8, 172u8, 159u8, 168u8, 104u8, 254u8, 246u8, 176u8, 180u8, 143u8, 224u8, 75u8, 243u8, 122u8, 139u8, 98u8, 135u8, 5u8, 245u8, 102u8, 238u8, 231u8, 49u8, 59u8, 200u8, 176u8, 230u8, 159u8, 224u8, 79u8, 185u8, 61u8]'.
+diff --git a/tests/expectations/cli/test_add/COMMANDS b/tests/expectations/cli/test_add/COMMANDS
+index d00941beb7..93b5889b09 100755
+--- a/tests/expectations/cli/test_add/COMMANDS
++++ b/tests/expectations/cli/test_add/COMMANDS
+@@ -6,4 +6,4 @@ ${LEO_BIN} --disable-update-check add --network credits.aleo
+ 
+ ${LEO_BIN} --disable-update-check build
+ 
+-${LEO_BIN} --disable-update-check execute main 1u32 2u32 --network testnet --endpoint http://localhost:3030 --private-key APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH --yes --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12
++${LEO_BIN} --disable-update-check execute main 1u32 2u32 --network testnet --endpoint http://localhost:${LEO_DEVNODE_PORT:-3030} --private-key APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH --yes --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12
+diff --git a/tests/expectations/cli/test_add/STDOUT b/tests/expectations/cli/test_add/STDOUT
+index 9208762e21..75b9f36816 100644
+--- a/tests/expectations/cli/test_add/STDOUT
++++ b/tests/expectations/cli/test_add/STDOUT
+@@ -1,12 +1,16 @@
+        Leo ✅ Added network dependency `credits.aleo` from network `true`.
+ ⚠️ No network specified, defaulting to 'testnet'.
+ ⚠️ No endpoint specified, defaulting to 'https://api.explorer.provable.com/v1'.
++
++       Leo 🔨 Compiling 'some_sample_leo_program.leo'
+        Leo     2 statements before dead code elimination.
+        Leo     2 statements after dead code elimination.
+        Leo     The program checksum is: '[208u8, 46u8, 107u8, 120u8, 67u8, 35u8, 254u8, 232u8, 167u8, 173u8, 0u8, 130u8, 249u8, 123u8, 65u8, 159u8, 169u8, 93u8, 168u8, 232u8, 33u8, 125u8, 49u8, 130u8, 118u8, 142u8, 183u8, 31u8, 60u8, 106u8, 136u8, 65u8]'.
+        Leo     Program size: 0.18 KB / 97.66 KB
+        Leo ✅ Compiled 'some_sample_leo_program.aleo' into Aleo instructions.
+        Leo ✅ Generated ABI at 'build/abi.json'.
++
++       Leo 🔨 Compiling 'some_sample_leo_program.leo'
+        Leo     2 statements before dead code elimination.
+        Leo     2 statements after dead code elimination.
+        Leo     The program checksum is: '[208u8, 46u8, 107u8, 120u8, 67u8, 35u8, 254u8, 232u8, 167u8, 173u8, 0u8, 130u8, 249u8, 123u8, 65u8, 159u8, 169u8, 93u8, 168u8, 232u8, 33u8, 125u8, 49u8, 130u8, 118u8, 142u8, 183u8, 31u8, 60u8, 106u8, 136u8, 65u8]'.
+diff --git a/tests/expectations/cli/test_command_shortcuts/STDOUT b/tests/expectations/cli/test_command_shortcuts/STDOUT
+index 256c5c8785..9bb6e247d0 100644
+--- a/tests/expectations/cli/test_command_shortcuts/STDOUT
++++ b/tests/expectations/cli/test_command_shortcuts/STDOUT
+@@ -1,5 +1,7 @@
+ ⚠️ No network specified, defaulting to 'testnet'.
+ ⚠️ No endpoint specified, defaulting to 'https://api.explorer.provable.com/v1'.
++
++       Leo 🔨 Compiling 'test_shortcuts.leo'
+        Leo     2 statements before dead code elimination.
+        Leo     2 statements after dead code elimination.
+        Leo     The program checksum is: '[243u8, 135u8, 116u8, 66u8, 246u8, 27u8, 131u8, 192u8, 145u8, 195u8, 150u8, 1u8, 217u8, 146u8, 63u8, 42u8, 159u8, 224u8, 25u8, 105u8, 240u8, 197u8, 236u8, 236u8, 115u8, 219u8, 254u8, 62u8, 5u8, 44u8, 74u8, 93u8]'.
+@@ -8,6 +10,8 @@
+        Leo ✅ Generated ABI at 'build/abi.json'.
+ ⚠️ No network specified, defaulting to 'testnet'.
+ ⚠️ No endpoint specified, defaulting to 'https://api.explorer.provable.com/v1'.
++
++       Leo 🔨 Compiling 'test_shortcuts.leo'
+        Leo     2 statements before dead code elimination.
+        Leo     2 statements after dead code elimination.
+        Leo     The program checksum is: '[243u8, 135u8, 116u8, 66u8, 246u8, 27u8, 131u8, 192u8, 145u8, 195u8, 150u8, 1u8, 217u8, 146u8, 63u8, 42u8, 159u8, 224u8, 25u8, 105u8, 240u8, 197u8, 236u8, 236u8, 115u8, 219u8, 254u8, 62u8, 5u8, 44u8, 74u8, 93u8]'.
+diff --git a/tests/expectations/cli/test_deploy/COMMANDS b/tests/expectations/cli/test_deploy/COMMANDS
+index 6237ac0e80..85293c59d5 100755
+--- a/tests/expectations/cli/test_deploy/COMMANDS
++++ b/tests/expectations/cli/test_deploy/COMMANDS
+@@ -2,6 +2,6 @@
+ 
+ LEO_BIN=${1}
+ PRIVATE_KEY="APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH"
+-COMMON_OPTS="--disable-update-check --broadcast --network testnet --endpoint http://localhost:3030 --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
++COMMON_OPTS="--disable-update-check --broadcast --network testnet --endpoint http://localhost:${LEO_DEVNODE_PORT:-3030} --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
+ 
+ $LEO_BIN deploy -y $COMMON_OPTS
+diff --git a/tests/expectations/cli/test_deploy/STDOUT b/tests/expectations/cli/test_deploy/STDOUT
+index 6c06ef2bae..5efdf13e42 100644
+--- a/tests/expectations/cli/test_deploy/STDOUT
++++ b/tests/expectations/cli/test_deploy/STDOUT
+@@ -1,3 +1,5 @@
++
++       Leo 🔨 Compiling 'some_sample_leo_program.leo'
+        Leo     2 statements before dead code elimination.
+        Leo     2 statements after dead code elimination.
+        Leo     The program checksum is: '[95u8, 99u8, 136u8, 243u8, 82u8, 169u8, 200u8, 72u8, 133u8, 227u8, 122u8, 161u8, 195u8, 178u8, 69u8, 37u8, 167u8, 114u8, 104u8, 192u8, 161u8, 175u8, 195u8, 180u8, 120u8, 4u8, 192u8, 16u8, 86u8, 199u8, 76u8, 235u8]'.
+diff --git a/tests/expectations/cli/test_json/COMMANDS b/tests/expectations/cli/test_json/COMMANDS
+index a68e862094..da7b00d131 100755
+--- a/tests/expectations/cli/test_json/COMMANDS
++++ b/tests/expectations/cli/test_json/COMMANDS
+@@ -2,7 +2,7 @@
+ 
+ LEO_BIN=${1}
+ PRIVATE_KEY="APrivateKey1zkp2RWGDcde3efb89rjhME1VYA8QMxcxep5DShNBR6n8Yjh"
+-COMMON_OPTS="--disable-update-check --network testnet --endpoint http://localhost:3030 --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
++COMMON_OPTS="--disable-update-check --network testnet --endpoint http://localhost:${LEO_DEVNODE_PORT:-3030} --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
+ 
+ $LEO_BIN run --json-output main 1u32 2u32
+ 
+diff --git a/tests/expectations/cli/test_json/STDOUT b/tests/expectations/cli/test_json/STDOUT
+index 31fa55bf57..6a486130d4 100644
+--- a/tests/expectations/cli/test_json/STDOUT
++++ b/tests/expectations/cli/test_json/STDOUT
+@@ -1,5 +1,6 @@
+ ⚠️ No network specified, defaulting to 'testnet'.
+ ⚠️ No endpoint specified, defaulting to 'https://api.explorer.provable.com/v1'.
++
+ ⚠️ No network specified, defaulting to 'testnet'.
+ ⚠️ No valid private key specified, defaulting to 'APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH'.
+ 
+@@ -11,9 +12,12 @@
+  • 3u32
+ ⚠️ No network specified, defaulting to 'testnet'.
+ ⚠️ No endpoint specified, defaulting to 'https://api.explorer.provable.com/v1'.
++
++
+ 1 / 1 tests passed.
+ PASSED: test_main.aleo/test_addition
+ 
++
+ ➕ Adding programs to the VM in the following order:
+   - test_json_program.aleo (local)
+ 
+@@ -30,6 +34,7 @@ PASSED: test_main.aleo/test_addition
+     - Non-Zero Entries in C: 16949
+     - Circuit ID: XXXXXX
+ 
++
+ 📢 Using the following consensus heights: 0,1,2,3,4,5,6,7,8,9,10,11,12
+   To override, pass in `--consensus-heights` or override the environment variable `CONSENSUS_VERSION_HEIGHTS`.
+ 
+@@ -98,6 +103,7 @@ Explored XXXXXX blocks.
+ Transaction accepted.
+ ✅ Deployment confirmed!
+ 
++
+ 📢 Using the following consensus heights: 0,1,2,3,4,5,6,7,8,9,10,11,12
+   To override, pass in `--consensus-heights` or override the environment variable `CONSENSUS_VERSION_HEIGHTS`.
+ 
+@@ -179,6 +185,7 @@ constructor:
+ 
+ 
+ 
++
+ 📢 Using the following consensus heights: 0,1,2,3,4,5,6,7,8,9,10,11,12
+   To override, pass in `--consensus-heights` or override the environment variable `CONSENSUS_VERSION_HEIGHTS`.
+ 
+diff --git a/tests/expectations/cli/test_simple_build/STDOUT b/tests/expectations/cli/test_simple_build/STDOUT
+index c85cce3a6f..ce1fc8428f 100644
+--- a/tests/expectations/cli/test_simple_build/STDOUT
++++ b/tests/expectations/cli/test_simple_build/STDOUT
+@@ -1,5 +1,7 @@
+ ⚠️ No network specified, defaulting to 'testnet'.
+ ⚠️ No endpoint specified, defaulting to 'https://api.explorer.provable.com/v1'.
++
++       Leo 🔨 Compiling 'some_sample_leo_program.leo'
+        Leo     2 statements before dead code elimination.
+        Leo     2 statements after dead code elimination.
+        Leo     The program checksum is: '[95u8, 99u8, 136u8, 243u8, 82u8, 169u8, 200u8, 72u8, 133u8, 227u8, 122u8, 161u8, 195u8, 178u8, 69u8, 37u8, 167u8, 114u8, 104u8, 192u8, 161u8, 175u8, 195u8, 180u8, 120u8, 4u8, 192u8, 16u8, 86u8, 199u8, 76u8, 235u8]'.
+diff --git a/tests/expectations/cli/test_simple_test/STDOUT b/tests/expectations/cli/test_simple_test/STDOUT
+index 083e74bb33..13b67d1765 100644
+--- a/tests/expectations/cli/test_simple_test/STDOUT
++++ b/tests/expectations/cli/test_simple_test/STDOUT
+@@ -1,11 +1,15 @@
+ ⚠️ No network specified, defaulting to 'testnet'.
+ ⚠️ No endpoint specified, defaulting to 'https://api.explorer.provable.com/v1'.
++
++       Leo 🔨 Compiling 'some_sample_leo_program.leo'
+        Leo     2 statements before dead code elimination.
+        Leo     2 statements after dead code elimination.
+        Leo     The program checksum is: '[95u8, 99u8, 136u8, 243u8, 82u8, 169u8, 200u8, 72u8, 133u8, 227u8, 122u8, 161u8, 195u8, 178u8, 69u8, 37u8, 167u8, 114u8, 104u8, 192u8, 161u8, 175u8, 195u8, 180u8, 120u8, 4u8, 192u8, 16u8, 86u8, 199u8, 76u8, 235u8]'.
+        Leo     Program size: 0.20 KB / 97.66 KB
+        Leo ✅ Compiled 'some_sample_leo_program.aleo' into Aleo instructions.
+        Leo ✅ Generated ABI at 'build/abi.json'.
++
++       Leo 🔨 Compiling 'test_some_sample_leo_program.leo'
+        Leo     6 statements before dead code elimination.
+        Leo     6 statements after dead code elimination.
+        Leo     The program checksum is: '[74u8, 114u8, 9u8, 196u8, 119u8, 213u8, 43u8, 122u8, 92u8, 155u8, 60u8, 120u8, 169u8, 0u8, 41u8, 92u8, 14u8, 87u8, 204u8, 10u8, 34u8, 79u8, 168u8, 242u8, 102u8, 138u8, 132u8, 112u8, 157u8, 113u8, 231u8, 17u8]'.
+diff --git a/tests/tests/cli/broadcast_error/COMMANDS b/tests/tests/cli/broadcast_error/COMMANDS
+index 11d225cb85..73d2683fe2 100755
+--- a/tests/tests/cli/broadcast_error/COMMANDS
++++ b/tests/tests/cli/broadcast_error/COMMANDS
+@@ -6,7 +6,7 @@
+ 
+ LEO_BIN=${1}
+ PRIVATE_KEY="APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH"
+-COMMON_OPTS="--disable-update-check --broadcast --network testnet --endpoint http://localhost:3030 --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
++COMMON_OPTS="--disable-update-check --broadcast --network testnet --endpoint http://localhost:${LEO_DEVNODE_PORT:-3030} --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
+ 
+ # First deploy should succeed
+ $LEO_BIN deploy -y $COMMON_OPTS
+diff --git a/tests/tests/cli/network_dependency/COMMANDS b/tests/tests/cli/network_dependency/COMMANDS
+index dfbae900d3..6858831ff8 100755
+--- a/tests/tests/cli/network_dependency/COMMANDS
++++ b/tests/tests/cli/network_dependency/COMMANDS
+@@ -2,7 +2,7 @@
+ 
+ LEO_BIN=${1}
+ PRIVATE_KEY="APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH"
+-COMMON_OPTS="-y --disable-update-check --broadcast --network testnet --endpoint http://localhost:3030 --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
++COMMON_OPTS="-y --disable-update-check --broadcast --network testnet --endpoint http://localhost:${LEO_DEVNODE_PORT:-3030} --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
+ 
+ cd test_program1 || exit 1
+ echo "DEPLOYMENT 1"
+diff --git a/tests/tests/cli/test_add/COMMANDS b/tests/tests/cli/test_add/COMMANDS
+index d00941beb7..93b5889b09 100755
+--- a/tests/tests/cli/test_add/COMMANDS
++++ b/tests/tests/cli/test_add/COMMANDS
+@@ -6,4 +6,4 @@ ${LEO_BIN} --disable-update-check add --network credits.aleo
+ 
+ ${LEO_BIN} --disable-update-check build
+ 
+-${LEO_BIN} --disable-update-check execute main 1u32 2u32 --network testnet --endpoint http://localhost:3030 --private-key APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH --yes --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12
++${LEO_BIN} --disable-update-check execute main 1u32 2u32 --network testnet --endpoint http://localhost:${LEO_DEVNODE_PORT:-3030} --private-key APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH --yes --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12
+diff --git a/tests/tests/cli/test_deploy/COMMANDS b/tests/tests/cli/test_deploy/COMMANDS
+index 6237ac0e80..85293c59d5 100755
+--- a/tests/tests/cli/test_deploy/COMMANDS
++++ b/tests/tests/cli/test_deploy/COMMANDS
+@@ -2,6 +2,6 @@
+ 
+ LEO_BIN=${1}
+ PRIVATE_KEY="APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH"
+-COMMON_OPTS="--disable-update-check --broadcast --network testnet --endpoint http://localhost:3030 --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
++COMMON_OPTS="--disable-update-check --broadcast --network testnet --endpoint http://localhost:${LEO_DEVNODE_PORT:-3030} --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
+ 
+ $LEO_BIN deploy -y $COMMON_OPTS
+diff --git a/tests/tests/cli/test_json/COMMANDS b/tests/tests/cli/test_json/COMMANDS
+index a68e862094..da7b00d131 100755
+--- a/tests/tests/cli/test_json/COMMANDS
++++ b/tests/tests/cli/test_json/COMMANDS
+@@ -2,7 +2,7 @@
+ 
+ LEO_BIN=${1}
+ PRIVATE_KEY="APrivateKey1zkp2RWGDcde3efb89rjhME1VYA8QMxcxep5DShNBR6n8Yjh"
+-COMMON_OPTS="--disable-update-check --network testnet --endpoint http://localhost:3030 --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
++COMMON_OPTS="--disable-update-check --network testnet --endpoint http://localhost:${LEO_DEVNODE_PORT:-3030} --private-key $PRIVATE_KEY --consensus-heights 0,1,2,3,4,5,6,7,8,9,10,11,12"
+ 
+ $LEO_BIN run --json-output main 1u32 2u32
+ 

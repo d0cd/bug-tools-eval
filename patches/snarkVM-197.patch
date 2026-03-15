@@ -1,0 +1,1611 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 5d6b52e96..c70efe4e7 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -3445,7 +3445,6 @@ dependencies = [
+  "colored",
+  "criterion",
+  "indexmap 2.2.6",
+- "lru",
+  "once_cell",
+  "parking_lot",
+  "rand",
+@@ -3463,7 +3462,6 @@ dependencies = [
+  "snarkvm-synthesizer-snark",
+  "snarkvm-utilities",
+  "tempfile",
+- "tracing",
+ ]
+ 
+ [[package]]
+diff --git a/console/network/src/lib.rs b/console/network/src/lib.rs
+index df3fb6162..8a627bafe 100644
+--- a/console/network/src/lib.rs
++++ b/console/network/src/lib.rs
+@@ -194,19 +194,6 @@ pub trait Network:
+ 
+     /// The maximum number of certificates in a batch.
+     const MAX_CERTIFICATES: u16;
+-    /// The maximum number of transmissions per batch.
+-    /// Note: This limit is set to 50 as part of safety measures to prevent DoS attacks.
+-    /// This limit can be increased in the future as performance improves. Alternatively,
+-    /// the rate of block production can be sped up to compensate for the limit set here.
+-    const MAX_TRANSMISSIONS_PER_BATCH: u16 = 50;
+-
+-    /// The maximum number of stacks in the process
+-    /// Allows for fast processing for blocks made from 4 maximally full rounds.
+-    #[cfg(not(feature = "test"))]
+-    const MAX_STACKS: usize = Self::MAX_TRANSMISSIONS_PER_BATCH as usize * Self::MAX_CERTIFICATES as usize * 4;
+-    /// The maximum number of stacks in the process.
+-    #[cfg(feature = "test")]
+-    const MAX_STACKS: usize = 64;
+ 
+     /// The maximum number of bytes in a transaction.
+     // Note: This value must **not** be decreased as it would invalidate existing transactions.
+diff --git a/ledger/block/src/lib.rs b/ledger/block/src/lib.rs
+index bdb507d46..2a62ab4d5 100644
+--- a/ledger/block/src/lib.rs
++++ b/ledger/block/src/lib.rs
+@@ -656,7 +656,7 @@ pub mod test_helpers {
+         let inputs = [address.to_string(), format!("{amount}_u64")];
+ 
+         // Initialize the process.
+-        let process = Process::load_testing_only().unwrap();
++        let process = Process::load().unwrap();
+         // Authorize the function.
+         let authorization =
+             process.authorize::<CurrentAleo, _>(&private_key, locator.0, locator.1, inputs.iter(), rng).unwrap();
+diff --git a/ledger/block/src/transaction/deployment/mod.rs b/ledger/block/src/transaction/deployment/mod.rs
+index a71807a8e..42c6182f6 100644
+--- a/ledger/block/src/transaction/deployment/mod.rs
++++ b/ledger/block/src/transaction/deployment/mod.rs
+@@ -198,7 +198,7 @@ function compute:
+                 assert!(string.is_empty(), "Parser did not consume all of the string: '{string}'");
+ 
+                 // Construct the process.
+-                let process = Process::load_testing_only().unwrap();
++                let process = Process::load().unwrap();
+                 // Compute the deployment.
+                 let deployment = process.deploy::<CurrentAleo, _>(&program, rng).unwrap();
+                 // Return the deployment.
+diff --git a/ledger/block/src/transaction/fee/mod.rs b/ledger/block/src/transaction/fee/mod.rs
+index 470a5a367..eaa2a07f8 100644
+--- a/ledger/block/src/transaction/fee/mod.rs
++++ b/ledger/block/src/transaction/fee/mod.rs
+@@ -241,7 +241,7 @@ pub mod test_helpers {
+         let priority_fee_in_microcredits = 1_000;
+ 
+         // Initialize the process.
+-        let process = Process::load_testing_only().unwrap();
++        let process = Process::load().unwrap();
+         // Authorize the fee.
+         let authorization = process
+             .authorize_fee_private::<CurrentAleo, _>(
+@@ -298,7 +298,7 @@ pub mod test_helpers {
+         let priority_fee = 1_000;
+ 
+         // Initialize the process.
+-        let process = Process::load_testing_only().unwrap();
++        let process = Process::load().unwrap();
+         // Authorize the fee.
+         let authorization = process
+             .authorize_fee_public::<CurrentAleo, _>(
+diff --git a/ledger/narwhal/batch-header/src/lib.rs b/ledger/narwhal/batch-header/src/lib.rs
+index 74b6fa08a..2fa80edf6 100644
+--- a/ledger/narwhal/batch-header/src/lib.rs
++++ b/ledger/narwhal/batch-header/src/lib.rs
+@@ -66,7 +66,10 @@ impl<N: Network> BatchHeader<N> {
+     /// The maximum number of rounds to store before garbage collecting.
+     pub const MAX_GC_ROUNDS: usize = 100;
+     /// The maximum number of transmissions in a batch.
+-    pub const MAX_TRANSMISSIONS_PER_BATCH: usize = N::MAX_TRANSMISSIONS_PER_BATCH as usize;
++    /// Note: This limit is set to 50 as part of safety measures to prevent DoS attacks.
++    /// This limit can be increased in the future as performance improves. Alternatively,
++    /// the rate of block production can be sped up to compensate for the limit set here.
++    pub const MAX_TRANSMISSIONS_PER_BATCH: usize = 50;
+ }
+ 
+ impl<N: Network> BatchHeader<N> {
+diff --git a/ledger/puzzle/epoch/src/synthesis/program/mod.rs b/ledger/puzzle/epoch/src/synthesis/program/mod.rs
+index 4a19055c0..d1a1ac229 100644
+--- a/ledger/puzzle/epoch/src/synthesis/program/mod.rs
++++ b/ledger/puzzle/epoch/src/synthesis/program/mod.rs
+@@ -104,7 +104,7 @@ function synthesize:
+         let program = Program::from_str(&program_string)?;
+ 
+         // Initialize a new process.
+-        let process = Process::<N>::load_no_storage()?;
++        let process = Process::<N>::load()?;
+         // Initialize the stack with the synthesis challenge program.
+         let stack = Stack::new(&process, &program)?;
+ 
+diff --git a/ledger/test-helpers/src/lib.rs b/ledger/test-helpers/src/lib.rs
+index 95f1d04b0..7d789c6fd 100644
+--- a/ledger/test-helpers/src/lib.rs
++++ b/ledger/test-helpers/src/lib.rs
+@@ -150,7 +150,7 @@ function compute:
+             assert!(string.is_empty(), "Parser did not consume all of the string: '{string}'");
+ 
+             // Construct the process.
+-            let process = Process::load_testing_only().unwrap();
++            let process = Process::load().unwrap();
+             // Compute the deployment.
+             let deployment = process.deploy::<CurrentAleo, _>(&program, rng).unwrap();
+             // Return the deployment.
+@@ -230,7 +230,7 @@ pub fn sample_fee_private(deployment_or_execution_id: Field<CurrentNetwork>, rng
+     let priority_fee_in_microcredits = 1_000;
+ 
+     // Initialize the process.
+-    let process = Process::load_testing_only().unwrap();
++    let process = Process::load().unwrap();
+     // Authorize the fee.
+     let authorization = process
+         .authorize_fee_private::<CurrentAleo, _>(
+@@ -284,7 +284,7 @@ pub fn sample_fee_public(deployment_or_execution_id: Field<CurrentNetwork>, rng:
+     let priority_fee_in_microcredits = 1_000;
+ 
+     // Initialize the process.
+-    let process = Process::load_testing_only().unwrap();
++    let process = Process::load().unwrap();
+     // Authorize the fee.
+     let authorization = process
+         .authorize_fee_public::<CurrentAleo, _>(
+@@ -399,7 +399,7 @@ pub fn sample_large_execution_transaction(rng: &mut TestRng) -> Transaction<Curr
+             let program = large_transaction_program();
+ 
+             // Construct the process.
+-            let mut process = synthesizer_process::Process::load_testing_only().unwrap();
++            let mut process = synthesizer_process::Process::load().unwrap();
+             // Add the program.
+             process.add_program(&program).unwrap();
+ 
+@@ -510,7 +510,7 @@ fn sample_genesis_block_and_components_raw(
+     let inputs = [address.to_string(), format!("{amount}_u64")];
+ 
+     // Initialize the process.
+-    let process = Process::load_testing_only().unwrap();
++    let process = Process::load().unwrap();
+     // Authorize the function.
+     let authorization =
+         process.authorize::<CurrentAleo, _>(&private_key, locator.0, locator.1, inputs.iter(), rng).unwrap();
+diff --git a/synthesizer/Cargo.toml b/synthesizer/Cargo.toml
+index a2f221836..b50725658 100644
+--- a/synthesizer/Cargo.toml
++++ b/synthesizer/Cargo.toml
+@@ -32,7 +32,7 @@ aleo-cli = [ ]
+ async = [ "ledger-query/async", "synthesizer-process/async" ]
+ cuda = [ "algorithms/cuda" ]
+ history = [ "serde" ]
+-rocks = ["ledger-store/rocks", "synthesizer-process/rocks"]
++rocks = [ "ledger-store/rocks" ]
+ serial = [
+   "console/serial",
+   "ledger-block/serial",
+diff --git a/synthesizer/process/Cargo.toml b/synthesizer/process/Cargo.toml
+index 150f88d14..bc73c68f5 100644
+--- a/synthesizer/process/Cargo.toml
++++ b/synthesizer/process/Cargo.toml
+@@ -95,7 +95,7 @@ version = "=1.0.0"
+ 
+ [dependencies.aleo-std]
+ version = "0.1.24"
+-features = ["storage"]
++default-features = false
+ 
+ [dependencies.colored]
+ version = "2"
+@@ -104,9 +104,6 @@ version = "2"
+ version = "2.0"
+ features = [ "serde" ]
+ 
+-[dependencies.lru]
+-version = "0.12"
+-
+ [dependencies.once_cell]
+ version = "1.18"
+ 
+@@ -127,9 +124,6 @@ optional = true
+ version = "1.0"
+ features = [ "preserve_order" ]
+ 
+-[dependencies.tracing]
+-version = "0.1"
+-
+ [dev-dependencies.bincode]
+ version = "1.3"
+ 
+diff --git a/synthesizer/process/benches/stack_operations.rs b/synthesizer/process/benches/stack_operations.rs
+index 544f5c623..353eb569e 100644
+--- a/synthesizer/process/benches/stack_operations.rs
++++ b/synthesizer/process/benches/stack_operations.rs
+@@ -41,7 +41,7 @@ fn bench_stack_new(c: &mut Criterion) {
+     let mut rng = TestRng::default();
+ 
+     // Initialize a process.
+-    let mut process = Process::load_testing_only().unwrap();
++    let mut process = Process::load().unwrap();
+ 
+     // Benchmark the base case.
+     c.bench_function("Depth 0 | Stack::new", |b| {
+@@ -98,7 +98,7 @@ fn bench_stack_get_number_of_calls(c: &mut Criterion) {
+     const DEPTHS: [usize; 6] = [1, 2, 4, 8, 16, 30];
+ 
+     // Initialize a process.
+-    let mut process = Process::load_testing_only().unwrap();
++    let mut process = Process::load().unwrap();
+ 
+     // Add the 0th program to the process.
+     add_program_at_depth(&mut process, 0);
+diff --git a/synthesizer/process/src/cost.rs b/synthesizer/process/src/cost.rs
+index 532637255..4f75e9d2c 100644
+--- a/synthesizer/process/src/cost.rs
++++ b/synthesizer/process/src/cost.rs
+@@ -87,7 +87,7 @@ pub fn execution_cost_v1<N: Network>(process: &Process<N>, execution: &Execution
+ 
+     // Get the finalize cost for the root transition.
+     let stack = process.get_stack(transition.program_id())?;
+-    let finalize_cost = cost_in_microcredits_v1(&stack, transition.function_name())?;
++    let finalize_cost = cost_in_microcredits_v1(stack, transition.function_name())?;
+ 
+     // Compute the total cost in microcredits.
+     let total_cost = storage_cost
+@@ -522,7 +522,7 @@ function over_five_thousand:
+         let threshold = MainnetV0::EXECUTION_STORAGE_PENALTY_THRESHOLD;
+ 
+         // Test the cost of an execution.
+-        let mut process = Process::load_testing_only().unwrap();
++        let mut process = Process::load().unwrap();
+ 
+         // Get the program.
+         let program = Program::from_str(SIZE_BOUNDARY_PROGRAM).unwrap();
+diff --git a/synthesizer/process/src/deploy.rs b/synthesizer/process/src/deploy.rs
+index d5046eba9..88ddb829f 100644
+--- a/synthesizer/process/src/deploy.rs
++++ b/synthesizer/process/src/deploy.rs
+@@ -41,8 +41,8 @@ impl<N: Network> Process<N> {
+     /// Adds the newly-deployed program.
+     /// This method assumes the given deployment **is valid**.
+     #[inline]
+-    pub fn load_deployment(&self, deployment: &Deployment<N>) -> Result<()> {
+-        let timer = timer!("Process::load_testing_only_deployment");
++    pub fn load_deployment(&mut self, deployment: &Deployment<N>) -> Result<()> {
++        let timer = timer!("Process::load_deployment");
+ 
+         // Compute the program stack.
+         let stack = Stack::new(self, deployment.program())?;
+diff --git a/synthesizer/process/src/execute.rs b/synthesizer/process/src/execute.rs
+index 426adaf81..ebc4cd769 100644
+--- a/synthesizer/process/src/execute.rs
++++ b/synthesizer/process/src/execute.rs
+@@ -72,7 +72,7 @@ mod tests {
+         let rng = &mut TestRng::default();
+ 
+         // Initialize the process.
+-        let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++        let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+         // Sample a private key.
+         let private_key = PrivateKey::<CurrentNetwork>::new(rng).unwrap();
+@@ -124,7 +124,7 @@ mod tests {
+         let rng = &mut TestRng::default();
+ 
+         // Initialize the process.
+-        let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++        let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+         // Sample a private key.
+         let private_key = PrivateKey::new(rng).unwrap();
+diff --git a/synthesizer/process/src/finalize.rs b/synthesizer/process/src/finalize.rs
+index ffafe15f9..6606d2d15 100644
+--- a/synthesizer/process/src/finalize.rs
++++ b/synthesizer/process/src/finalize.rs
+@@ -54,7 +54,7 @@ impl<N: Network> Process<N> {
+             // Retrieve the fee stack.
+             let fee_stack = self.get_stack(fee.program_id())?;
+             // Finalize the fee transition.
+-            finalize_operations.extend(finalize_fee_transition(state, store, &fee_stack, fee)?);
++            finalize_operations.extend(finalize_fee_transition(state, store, fee_stack, fee)?);
+             lap!(timer, "Finalize transition for '{}/{}'", fee.program_id(), fee.function_name());
+ 
+             /* Finalize the deployment. */
+@@ -110,7 +110,7 @@ impl<N: Network> Process<N> {
+             // Finalize the root transition.
+             // Note that this will result in all the remaining transitions being finalized, since the number
+             // of calls matches the number of transitions.
+-            let mut finalize_operations = finalize_transition(state, store, &stack, transition, call_graph)?;
++            let mut finalize_operations = finalize_transition(state, store, stack, transition, call_graph)?;
+ 
+             /* Finalize the fee. */
+ 
+@@ -118,7 +118,7 @@ impl<N: Network> Process<N> {
+                 // Retrieve the fee stack.
+                 let fee_stack = self.get_stack(fee.program_id())?;
+                 // Finalize the fee transition.
+-                finalize_operations.extend(finalize_fee_transition(state, store, &fee_stack, fee)?);
++                finalize_operations.extend(finalize_fee_transition(state, store, fee_stack, fee)?);
+                 lap!(timer, "Finalize transition for '{}/{}'", fee.program_id(), fee.function_name());
+             }
+ 
+@@ -144,7 +144,7 @@ impl<N: Network> Process<N> {
+             // Retrieve the stack.
+             let stack = self.get_stack(fee.program_id())?;
+             // Finalize the fee transition.
+-            let result = finalize_fee_transition(state, store, &stack, fee);
++            let result = finalize_fee_transition(state, store, stack, fee);
+             finish!(timer, "Finalize transition for '{}/{}'", fee.program_id(), fee.function_name());
+             // Return the result.
+             result
+@@ -496,7 +496,7 @@ function compute:
+         .unwrap();
+ 
+         // Initialize a new process.
+-        let process = Process::load_testing_only().unwrap();
++        let mut process = Process::load().unwrap();
+         // Deploy the program.
+         let deployment = process.deploy::<CurrentAleo, _>(&program, rng).unwrap();
+ 
+diff --git a/synthesizer/process/src/lib.rs b/synthesizer/process/src/lib.rs
+index 82e91ab40..65bfede98 100644
+--- a/synthesizer/process/src/lib.rs
++++ b/synthesizer/process/src/lib.rs
+@@ -65,49 +65,21 @@ use synthesizer_program::{
+     StackProgram,
+ };
+ use synthesizer_snark::{ProvingKey, UniversalSRS, VerifyingKey};
+-use tracing::debug;
+ 
+-use aleo_std::{
+-    StorageMode,
+-    prelude::{finish, lap, timer},
+-};
+-use ledger_store::{ConsensusStore, TransactionStorage, TransactionStore};
+-use lru::LruCache;
+-use parking_lot::{Mutex, RwLock};
+-use std::{collections::HashMap, num::NonZeroUsize, sync::Arc};
++use aleo_std::prelude::{finish, lap, timer};
++use indexmap::IndexMap;
++use parking_lot::RwLock;
++use std::{collections::HashMap, sync::Arc};
+ 
+ #[cfg(feature = "aleo-cli")]
+ use colored::Colorize;
+ 
+-#[cfg(not(feature = "rocks"))]
+-use ledger_store::helpers::memory::ConsensusMemory;
+-#[cfg(feature = "rocks")]
+-use ledger_store::helpers::rocksdb::ConsensusDB;
+-
+-#[cfg(feature = "rocks")]
+-#[derive(Clone)]
+-pub struct Process<N: Network> {
+-    /// The universal SRS.
+-    universal_srs: Arc<UniversalSRS<N>>,
+-    /// The Stack for credits.aleo
+-    credits: Option<Arc<Stack<N>>>,
+-    /// The mapping of program IDs to stacks.
+-    stacks: Arc<Mutex<LruCache<ProgramID<N>, Arc<Stack<N>>>>>,
+-    /// The storage.
+-    store: Option<ConsensusStore<N, ConsensusDB<N>>>,
+-}
+-
+-#[cfg(not(feature = "rocks"))]
+ #[derive(Clone)]
+ pub struct Process<N: Network> {
+     /// The universal SRS.
+     universal_srs: Arc<UniversalSRS<N>>,
+-    /// The Stack for credits.aleo
+-    credits: Option<Arc<Stack<N>>>,
+     /// The mapping of program IDs to stacks.
+-    stacks: Arc<Mutex<LruCache<ProgramID<N>, Arc<Stack<N>>>>>,
+-    /// The storage.
+-    store: Option<ConsensusStore<N, ConsensusMemory<N>>>,
++    stacks: IndexMap<ProgramID<N>, Arc<Stack<N>>>,
+ }
+ 
+ impl<N: Network> Process<N> {
+@@ -115,13 +87,9 @@ impl<N: Network> Process<N> {
+     #[inline]
+     pub fn setup<A: circuit::Aleo<Network = N>, R: Rng + CryptoRng>(rng: &mut R) -> Result<Self> {
+         let timer = timer!("Process:setup");
++
+         // Initialize the process.
+-        let mut process = Self {
+-            universal_srs: Arc::new(UniversalSRS::load()?),
+-            credits: None,
+-            stacks: Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(N::MAX_STACKS).unwrap()))),
+-            store: None,
+-        };
++        let mut process = Self { universal_srs: Arc::new(UniversalSRS::load()?), stacks: IndexMap::new() };
+         lap!(timer, "Initialize process");
+ 
+         // Initialize the 'credits.aleo' program.
+@@ -140,7 +108,7 @@ impl<N: Network> Process<N> {
+         lap!(timer, "Synthesize credits program keys");
+ 
+         // Add the 'credits.aleo' stack to the process.
+-        process.credits = Some(Arc::new(stack));
++        process.add_stack(stack);
+ 
+         finish!(timer);
+         // Return the process.
+@@ -163,46 +131,20 @@ impl<N: Network> Process<N> {
+     /// Adds a new stack to the process.
+     /// If you intend to `execute` the program, use `deploy` and `finalize_deployment` instead.
+     #[inline]
+-    pub fn add_stack(&self, stack: Stack<N>) {
++    pub fn add_stack(&mut self, stack: Stack<N>) {
+         // Add the stack to the process.
+-        self.stacks.lock().put(*stack.program_id(), Arc::new(stack));
++        self.stacks.insert(*stack.program_id(), Arc::new(stack));
+     }
+ }
+ 
+ impl<N: Network> Process<N> {
+     /// Initializes a new process.
+-    /// Assumption: this is only called in test code.
+     #[inline]
+-    pub fn load_testing_only() -> Result<Self> {
+-        Process::load_from_storage(Some(aleo_std::StorageMode::Development(0)))
+-    }
+-
+-    /// Initializes a new process.
+-    #[inline]
+-    pub fn load_from_storage(storage_mode: Option<StorageMode>) -> Result<Self> {
+-        let timer = timer!("Process::load_from_storage");
+-
+-        debug!("Opening storage");
+-        let storage_mode = storage_mode.clone().ok_or_else(|| anyhow!("Failed to get storage mode"))?;
+-        // try to lazy load the stack
+-        #[cfg(feature = "rocks")]
+-        let store = ConsensusStore::<N, ConsensusDB<N>>::open(storage_mode);
+-        #[cfg(not(feature = "rocks"))]
+-        let store = ConsensusStore::<N, ConsensusMemory<N>>::open(storage_mode);
+-
+-        let store = match store {
+-            Ok(store) => store,
+-            Err(e) => bail!("Failed to load ledger (run 'snarkos clean' and try again)\n\n{e}\n"),
+-        };
+-        debug!("Opened storage");
++    pub fn load() -> Result<Self> {
++        let timer = timer!("Process::load");
+ 
+         // Initialize the process.
+-        let mut process = Self {
+-            universal_srs: Arc::new(UniversalSRS::load()?),
+-            credits: None,
+-            stacks: Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(N::MAX_STACKS).unwrap()))),
+-            store: Some(store),
+-        };
++        let mut process = Self { universal_srs: Arc::new(UniversalSRS::load()?), stacks: IndexMap::new() };
+         lap!(timer, "Initialize process");
+ 
+         // Initialize the 'credits.aleo' program.
+@@ -228,24 +170,9 @@ impl<N: Network> Process<N> {
+         lap!(timer, "Load circuit keys");
+ 
+         // Add the stack to the process.
+-        process.credits = Some(Arc::new(stack));
+-
+-        finish!(timer, "Process::load_from_storage");
+-        // Return the process.
+-        Ok(process)
+-    }
+-
+-    /// Initializes a new process without creating the 'credits.aleo' program.
+-    #[inline]
+-    pub fn load_no_storage() -> Result<Self> {
+-        // Initialize the process.
+-        let process = Self {
+-            universal_srs: Arc::new(UniversalSRS::load()?),
+-            credits: None,
+-            stacks: Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(N::MAX_STACKS).unwrap()))),
+-            store: None,
+-        };
++        process.add_stack(stack);
+ 
++        finish!(timer, "Process::load");
+         // Return the process.
+         Ok(process)
+     }
+@@ -255,12 +182,7 @@ impl<N: Network> Process<N> {
+     #[cfg(feature = "wasm")]
+     pub fn load_web() -> Result<Self> {
+         // Initialize the process.
+-        let mut process = Self {
+-            universal_srs: Arc::new(UniversalSRS::load()?),
+-            credits: None,
+-            stacks: Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(N::MAX_STACKS).unwrap()))),
+-            store: None,
+-        };
++        let mut process = Self { universal_srs: Arc::new(UniversalSRS::load()?), stacks: IndexMap::new() };
+ 
+         // Initialize the 'credits.aleo' program.
+         let program = Program::credits()?;
+@@ -269,7 +191,7 @@ impl<N: Network> Process<N> {
+         let stack = Stack::new(&process, &program)?;
+ 
+         // Add the stack to the process.
+-        process.credits = Some(Arc::new(stack));
++        process.add_stack(stack);
+ 
+         // Return the process.
+         Ok(process)
+@@ -284,63 +206,26 @@ impl<N: Network> Process<N> {
+     /// Returns `true` if the process contains the program with the given ID.
+     #[inline]
+     pub fn contains_program(&self, program_id: &ProgramID<N>) -> bool {
+-        if self.credits.as_ref().map_or(false, |stack| stack.program_id() == program_id) {
+-            return true;
+-        }
+-        self.stacks.lock().contains(program_id)
+-    }
+-
+-    /// Loads the Stack and imported Stacks for the given program ID into memory.
+-    #[inline]
+-    fn load_stack(&self, program_id: impl TryInto<ProgramID<N>>) -> Result<()> {
+-        let program_id = program_id.try_into().map_err(|_| anyhow!("Invalid program ID"))?;
+-        debug!("Lazy loading stack for {program_id}");
+-        // Retrieve the stores.
+-        let store = self.store.as_ref().ok_or_else(|| anyhow!("Failed to get store"))?;
+-        let transaction_store = store.transaction_store();
+-        let deployment_store = transaction_store.deployment_store();
+-        // Retrieve the transaction ID.
+-        let transaction_id = deployment_store
+-            .find_transaction_id_from_program_id(&program_id)
+-            .map_err(|e| anyhow!("Program ID not found in storage: {e}"))?
+-            .ok_or_else(|| anyhow!("Program ID not found in storage"))?;
+-        // Collect the deployment and imports.
+-        let deployments = load_deployment_and_imports(self, transaction_store, transaction_id)?;
+-        // Load the deployment into memory.
+-        for deployment in deployments {
+-            self.load_deployment(&deployment.1)?;
+-        }
+-        debug!("Loaded stack for {program_id}");
+-        Ok(())
++        self.stacks.contains_key(program_id)
+     }
+ 
+     /// Returns the stack for the given program ID.
+     #[inline]
+-    pub fn get_stack(&self, program_id: impl TryInto<ProgramID<N>>) -> Result<Arc<Stack<N>>> {
++    pub fn get_stack(&self, program_id: impl TryInto<ProgramID<N>>) -> Result<&Arc<Stack<N>>> {
+         // Prepare the program ID.
+         let program_id = program_id.try_into().map_err(|_| anyhow!("Invalid program ID"))?;
+-        // Check if the program is 'credits.aleo'.
+-        if program_id == ProgramID::<N>::from_str("credits.aleo")? {
+-            return self.credits.clone().ok_or_else(|| anyhow!("Failed to get stack for 'credits.aleo'"));
+-        }
+-        // Maybe lazy load the stack
+-        if !self.contains_program(&program_id) {
+-            self.load_stack(program_id)?;
+-        }
+         // Retrieve the stack.
+-        let mut lru_cache = self.stacks.lock();
+-        let stack = lru_cache.get(&program_id).ok_or_else(|| anyhow!("Failed to load stack"))?;
++        let stack = self.stacks.get(&program_id).ok_or_else(|| anyhow!("Program '{program_id}' does not exist"))?;
+         // Ensure the program ID matches.
+         ensure!(stack.program_id() == &program_id, "Expected program '{}', found '{program_id}'", stack.program_id());
+         // Return the stack.
+-        Ok(stack.clone())
++        Ok(stack)
+     }
+ 
+     /// Returns the program for the given program ID.
+     #[inline]
+-    pub fn get_program(&self, program_id: impl TryInto<ProgramID<N>>) -> Result<Program<N>> {
+-        let stack = self.get_stack(program_id)?;
+-        Ok(stack.program().clone())
++    pub fn get_program(&self, program_id: impl TryInto<ProgramID<N>>) -> Result<&Program<N>> {
++        Ok(self.get_stack(program_id)?.program())
+     }
+ 
+     /// Returns the proving key for the given program ID and function name.
+@@ -404,52 +289,6 @@ impl<N: Network> Process<N> {
+     }
+ }
+ 
+-// A helper function to retrieve all the deployments.
+-fn load_deployment_and_imports<N: Network, T: TransactionStorage<N>>(
+-    process: &Process<N>,
+-    transaction_store: &TransactionStore<N, T>,
+-    transaction_id: N::TransactionID,
+-) -> Result<Vec<(ProgramID<N>, Deployment<N>)>> {
+-    // Retrieve the deployment from the transaction ID.
+-    let deployment = match transaction_store.get_deployment(&transaction_id)? {
+-        Some(deployment) => deployment,
+-        None => bail!("Deployment transaction '{transaction_id}' is not found in storage."),
+-    };
+-
+-    // Fetch the program from the deployment.
+-    let program = deployment.program();
+-    let program_id = program.id();
+-
+-    // Return early if the program is already loaded.
+-    if process.contains_program(program_id) {
+-        return Ok(vec![]);
+-    }
+-
+-    // Prepare a vector for the deployments.
+-    let mut deployments = vec![];
+-
+-    // Iterate through the program imports.
+-    for import_program_id in program.imports().keys() {
+-        // Add the imports to the process if does not exist yet.
+-        if !process.contains_program(import_program_id) {
+-            // Fetch the deployment transaction ID.
+-            let Some(transaction_id) =
+-                transaction_store.deployment_store().find_transaction_id_from_program_id(import_program_id)?
+-            else {
+-                bail!("Transaction ID for '{program_id}' is not found in storage.");
+-            };
+-
+-            // Add the deployment and its imports found recursively.
+-            deployments.extend_from_slice(&load_deployment_and_imports(process, transaction_store, transaction_id)?);
+-        }
+-    }
+-
+-    // Once all the imports have been included, add the parent deployment.
+-    deployments.push((*program_id, deployment));
+-
+-    Ok(deployments)
+-}
+-
+ #[cfg(test)]
+ pub mod test_helpers {
+     use super::*;
+@@ -611,7 +450,7 @@ function compute:
+     /// Initializes a new process with the given program.
+     pub(crate) fn sample_process(program: &Program<CurrentNetwork>) -> Process<CurrentNetwork> {
+         // Construct a new process.
+-        let mut process = Process::load_testing_only().unwrap();
++        let mut process = Process::load().unwrap();
+         // Add the program to the process.
+         process.add_program(program).unwrap();
+         // Return the process.
+diff --git a/synthesizer/process/src/stack/authorization/mod.rs b/synthesizer/process/src/stack/authorization/mod.rs
+index 93c8638a3..b7aa4b966 100644
+--- a/synthesizer/process/src/stack/authorization/mod.rs
++++ b/synthesizer/process/src/stack/authorization/mod.rs
+@@ -261,7 +261,7 @@ pub(crate) mod test_helpers {
+     /// Returns a sample authorization.
+     pub fn sample_authorization(rng: &mut TestRng) -> Authorization<CurrentNetwork> {
+         // Initialize the process.
+-        let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++        let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+         // Sample a private key.
+         let private_key = PrivateKey::new(rng).unwrap();
+diff --git a/synthesizer/process/src/tests/mod.rs b/synthesizer/process/src/tests/mod.rs
+index f965b5ec1..342a746f9 100644
+--- a/synthesizer/process/src/tests/mod.rs
++++ b/synthesizer/process/src/tests/mod.rs
+@@ -15,4 +15,3 @@
+ 
+ pub mod test_credits;
+ pub mod test_execute;
+-pub mod test_process;
+diff --git a/synthesizer/process/src/tests/test_credits.rs b/synthesizer/process/src/tests/test_credits.rs
+index 2683e5104..9de634854 100644
+--- a/synthesizer/process/src/tests/test_credits.rs
++++ b/synthesizer/process/src/tests/test_credits.rs
+@@ -462,7 +462,7 @@ fn test_bond_validator_simple() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -517,7 +517,7 @@ fn test_bond_public_with_minimum_bond() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -611,7 +611,7 @@ fn test_bond_validator_below_min_stake_fails() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -647,7 +647,7 @@ fn test_bond_validator_same_withdrawal_address_fails() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -683,7 +683,7 @@ fn test_bond_validator_with_insufficient_funds_fails() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -720,7 +720,7 @@ fn test_bond_validator_different_commission_fails() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -788,7 +788,7 @@ fn test_bond_validator_multiple_bonds() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -848,7 +848,7 @@ fn test_bond_validator_to_other_validator_fails() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -934,7 +934,7 @@ fn test_bond_delegator_simple() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -996,7 +996,7 @@ fn test_bond_delegator_below_min_stake_fails() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -1063,7 +1063,7 @@ fn test_bond_delegator_with_insufficient_funds_fails() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -1130,7 +1130,7 @@ fn test_bond_delegator_multiple_bonds() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -1225,7 +1225,7 @@ fn test_bond_validator_and_delegator_multiple_times() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Initialize a new finalize store.
+     let finalize_store = FinalizeStore::<CurrentNetwork, FinalizeMemory<_>>::open(None).unwrap();
+@@ -1357,7 +1357,7 @@ fn test_bond_delegator_to_multiple_validators_fails() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -1500,7 +1500,7 @@ fn test_unbond_validator() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -1644,7 +1644,7 @@ fn test_bond_validator_fails_if_unbonding_state() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -1731,7 +1731,7 @@ fn test_unbond_validator_fails_if_unbonding_beyond_their_stake() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -1829,7 +1829,7 @@ fn test_unbond_validator_continues_if_there_is_a_delegator() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -1910,7 +1910,7 @@ fn test_unbond_delegator() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -2068,7 +2068,7 @@ fn test_unbond_delegator_without_validator() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -2112,7 +2112,7 @@ fn test_unbond_delegator_removes_validator_with_insufficient_stake() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+ 
+@@ -2186,7 +2186,7 @@ fn test_unbond_delegator_as_validator() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Initialize a new finalize store.
+     let finalize_store = FinalizeStore::<CurrentNetwork, FinalizeMemory<_>>::open(None).unwrap();
+@@ -2271,7 +2271,7 @@ fn test_claim_unbond() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Initialize a new finalize store.
+     let finalize_store = FinalizeStore::<CurrentNetwork, FinalizeMemory<_>>::open(None).unwrap();
+@@ -2328,7 +2328,7 @@ fn test_set_validator_state() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Initialize a new finalize store.
+     let finalize_store = FinalizeStore::<CurrentNetwork, FinalizeMemory<_>>::open(None).unwrap();
+@@ -2365,7 +2365,7 @@ fn test_set_validator_state_for_non_validator_fails() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Initialize a new finalize store.
+     let finalize_store = FinalizeStore::<CurrentNetwork, FinalizeMemory<_>>::open(None).unwrap();
+@@ -2384,7 +2384,7 @@ fn test_bonding_existing_stakers_to_closed_validator() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Initialize a new finalize store.
+     let finalize_store = FinalizeStore::<CurrentNetwork, FinalizeMemory<_>>::open(None).unwrap();
+@@ -2521,7 +2521,7 @@ fn test_bonding_new_staker_to_closed_validator_fails() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Initialize a new finalize store.
+     let finalize_store = FinalizeStore::<CurrentNetwork, FinalizeMemory<_>>::open(None).unwrap();
+@@ -2565,7 +2565,7 @@ fn test_claim_unbond_public_to_withdrawal_address() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+@@ -2652,7 +2652,7 @@ fn test_bonding_multiple_stakers_to_same_withdrawal_address() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+@@ -2683,7 +2683,7 @@ fn test_claim_unbond_public_removes_withdraw_mapping() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+@@ -2741,7 +2741,7 @@ fn test_bond_validator_to_different_withdraw_address_fails() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+@@ -2779,7 +2779,7 @@ fn test_bond_validator_with_different_commission_fails() {
+     let rng = &mut TestRng::default();
+ 
+     // Construct the process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Initialize a new finalize store.
+     let (store, _temp_dir) = sample_finalize_store!();
+@@ -2873,7 +2873,7 @@ mod sanity_checks {
+         let caller = Address::try_from(&private_key).unwrap();
+ 
+         // Construct a new process.
+-        let process = Process::load_testing_only().unwrap();
++        let process = Process::load().unwrap();
+         // Retrieve the stack.
+         let stack = process.get_stack(ProgramID::from_str("credits.aleo").unwrap()).unwrap();
+ 
+@@ -2890,7 +2890,7 @@ mod sanity_checks {
+         let r2 = Value::<CurrentNetwork>::from_str("1_500_000_000_000_000_u64").unwrap();
+ 
+         // Compute the assignment.
+-        let assignment = get_assignment::<_, CurrentAleo>(&stack, &private_key, function_name, &[r0, r1, r2], rng);
++        let assignment = get_assignment::<_, CurrentAleo>(stack, &private_key, function_name, &[r0, r1, r2], rng);
+         assert_eq!(16, assignment.num_public());
+         assert_eq!(50956, assignment.num_private());
+         assert_eq!(51002, assignment.num_constraints());
+@@ -2906,7 +2906,7 @@ mod sanity_checks {
+         let caller = Address::try_from(&private_key).unwrap();
+ 
+         // Construct a new process.
+-        let process = Process::load_testing_only().unwrap();
++        let process = Process::load().unwrap();
+         // Retrieve the stack.
+         let stack = process.get_stack(ProgramID::from_str("credits.aleo").unwrap()).unwrap();
+ 
+@@ -2918,7 +2918,7 @@ mod sanity_checks {
+         let r1 = Value::<CurrentNetwork>::from_str("1_500_000_000_000_000_u64").unwrap();
+ 
+         // Compute the assignment.
+-        let assignment = get_assignment::<_, CurrentAleo>(&stack, &private_key, function_name, &[r0, r1], rng);
++        let assignment = get_assignment::<_, CurrentAleo>(stack, &private_key, function_name, &[r0, r1], rng);
+         assert_eq!(11, assignment.num_public());
+         assert_eq!(12318, assignment.num_private());
+         assert_eq!(12325, assignment.num_constraints());
+@@ -2934,7 +2934,7 @@ mod sanity_checks {
+         let signer = Address::try_from(&private_key).unwrap();
+ 
+         // Construct a new process.
+-        let process = Process::load_testing_only().unwrap();
++        let process = Process::load().unwrap();
+         // Retrieve the stack.
+         let stack = process.get_stack(ProgramID::from_str("credits.aleo").unwrap()).unwrap();
+ 
+@@ -2946,7 +2946,7 @@ mod sanity_checks {
+         let r1 = Value::<CurrentNetwork>::from_str("1_500_000_000_000_000_u64").unwrap();
+ 
+         // Compute the assignment.
+-        let assignment = get_assignment::<_, CurrentAleo>(&stack, &private_key, function_name, &[r0, r1], rng);
++        let assignment = get_assignment::<_, CurrentAleo>(stack, &private_key, function_name, &[r0, r1], rng);
+         assert_eq!(11, assignment.num_public());
+         assert_eq!(12323, assignment.num_private());
+         assert_eq!(12330, assignment.num_constraints());
+@@ -2962,7 +2962,7 @@ mod sanity_checks {
+         let caller = Address::try_from(&private_key).unwrap();
+ 
+         // Construct a new process.
+-        let process = Process::load_testing_only().unwrap();
++        let process = Process::load().unwrap();
+         // Retrieve the stack.
+         let stack = process.get_stack(ProgramID::from_str("credits.aleo").unwrap()).unwrap();
+ 
+@@ -2980,7 +2980,7 @@ mod sanity_checks {
+         let r3 = Value::<CurrentNetwork>::from_str(&Field::<CurrentNetwork>::rand(rng).to_string()).unwrap();
+ 
+         // Compute the assignment.
+-        let assignment = get_assignment::<_, CurrentAleo>(&stack, &private_key, function_name, &[r0, r1, r2, r3], rng);
++        let assignment = get_assignment::<_, CurrentAleo>(stack, &private_key, function_name, &[r0, r1, r2, r3], rng);
+         assert_eq!(15, assignment.num_public());
+         assert_eq!(38115, assignment.num_private());
+         assert_eq!(38151, assignment.num_constraints());
+@@ -2995,7 +2995,7 @@ mod sanity_checks {
+         let private_key = PrivateKey::<CurrentNetwork>::new(rng).unwrap();
+ 
+         // Construct a new process.
+-        let process = Process::load_testing_only().unwrap();
++        let process = Process::load().unwrap();
+         // Retrieve the stack.
+         let stack = process.get_stack(ProgramID::from_str("credits.aleo").unwrap()).unwrap();
+ 
+@@ -3008,7 +3008,7 @@ mod sanity_checks {
+         let r2 = Value::<CurrentNetwork>::from_str(&Field::<CurrentNetwork>::rand(rng).to_string()).unwrap();
+ 
+         // Compute the assignment.
+-        let assignment = get_assignment::<_, CurrentAleo>(&stack, &private_key, function_name, &[r0, r1, r2], rng);
++        let assignment = get_assignment::<_, CurrentAleo>(stack, &private_key, function_name, &[r0, r1, r2], rng);
+         assert_eq!(12, assignment.num_public());
+         assert_eq!(12920, assignment.num_private());
+         assert_eq!(12930, assignment.num_constraints());
+diff --git a/synthesizer/process/src/tests/test_execute.rs b/synthesizer/process/src/tests/test_execute.rs
+index 4439fd7cb..3af705572 100644
+--- a/synthesizer/process/src/tests/test_execute.rs
++++ b/synthesizer/process/src/tests/test_execute.rs
+@@ -36,12 +36,12 @@ use ledger_store::{
+     FinalizeStore,
+     helpers::memory::{BlockMemory, FinalizeMemory},
+ };
+-use lru::LruCache;
+ use synthesizer_program::{FinalizeGlobalState, FinalizeStoreTrait, Program, StackProgram};
+ use synthesizer_snark::UniversalSRS;
+ 
+-use parking_lot::{Mutex, RwLock};
+-use std::{num::NonZeroUsize, sync::Arc};
++use indexmap::IndexMap;
++use parking_lot::RwLock;
++use std::sync::Arc;
+ 
+ type CurrentNetwork = MainnetV0;
+ type CurrentAleo = AleoV0;
+@@ -494,7 +494,7 @@ fn test_process_execute_transfer_public_to_private() {
+     let r1 = Value::<CurrentNetwork>::from_str("99_000_000_000_000_u64").unwrap();
+ 
+     // Construct the process.
+-    let process = Process::load_testing_only().unwrap();
++    let process = Process::load().unwrap();
+ 
+     // Authorize the function call.
+     let authorization = process
+@@ -1239,7 +1239,7 @@ finalize compute:
+     process.synthesize_key::<CurrentAleo, _>(program.id(), &function_name, rng).unwrap();
+ 
+     // Reset the process.
+-    let process = Process::load_testing_only().unwrap();
++    let mut process = Process::load().unwrap();
+ 
+     // Initialize a new block store.
+     let block_store = BlockStore::<CurrentNetwork, BlockMemory<_>>::open(None).unwrap();
+@@ -1352,7 +1352,7 @@ finalize compute:
+     process.synthesize_key::<CurrentAleo, _>(program.id(), &function_name, rng).unwrap();
+ 
+     // Reset the process.
+-    let process = Process::load_testing_only().unwrap();
++    let mut process = Process::load().unwrap();
+ 
+     // Initialize a new block store.
+     let block_store = BlockStore::<CurrentNetwork, BlockMemory<_>>::open(None).unwrap();
+@@ -1479,7 +1479,7 @@ finalize mint_public:
+     process.synthesize_key::<CurrentAleo, _>(program.id(), &function_name, rng).unwrap();
+ 
+     // Reset the process.
+-    let process = Process::load_testing_only().unwrap();
++    let mut process = Process::load().unwrap();
+ 
+     // Initialize a new block store.
+     let block_store = BlockStore::<CurrentNetwork, BlockMemory<_>>::open(None).unwrap();
+@@ -1608,7 +1608,7 @@ finalize mint_public:
+     process.synthesize_key::<CurrentAleo, _>(program0.id(), &function_name, rng).unwrap();
+ 
+     // Reset the process.
+-    let process = Process::load_testing_only().unwrap();
++    let mut process = Process::load().unwrap();
+ 
+     // Initialize a new block store.
+     let block_store = BlockStore::<CurrentNetwork, BlockMemory<_>>::open(None).unwrap();
+@@ -1766,7 +1766,7 @@ finalize compute:
+     process.synthesize_key::<CurrentAleo, _>(program.id(), &function_name, rng).unwrap();
+ 
+     // Reset the process.
+-    let process = Process::load_testing_only().unwrap();
++    let mut process = Process::load().unwrap();
+ 
+     // Initialize a new block store.
+     let block_store = BlockStore::<CurrentNetwork, BlockMemory<_>>::open(None).unwrap();
+@@ -2195,7 +2195,7 @@ finalize compute:
+     process.synthesize_key::<CurrentAleo, _>(program.id(), &function_name, rng).unwrap();
+ 
+     // Reset the process.
+-    let process = Process::load_testing_only().unwrap();
++    let mut process = Process::load().unwrap();
+ 
+     // Initialize a new block store.
+     let block_store = BlockStore::<CurrentNetwork, BlockMemory<_>>::open(None).unwrap();
+@@ -2364,15 +2364,11 @@ fn test_process_deploy_credits_program() {
+     let rng = &mut TestRng::default();
+ 
+     // Initialize an empty process without the `credits` program.
+-    let empty_process = Process {
+-        universal_srs: Arc::new(UniversalSRS::<CurrentNetwork>::load().unwrap()),
+-        credits: None,
+-        stacks: Arc::new(Mutex::new(LruCache::new(NonZeroUsize::new(CurrentNetwork::MAX_STACKS).unwrap()))),
+-        store: None,
+-    };
++    let empty_process =
++        Process { universal_srs: Arc::new(UniversalSRS::<CurrentNetwork>::load().unwrap()), stacks: IndexMap::new() };
+ 
+     // Construct the process.
+-    let process = Process::load_testing_only().unwrap();
++    let process = Process::load().unwrap();
+ 
+     // Fetch the credits program
+     let program = Program::credits().unwrap();
+@@ -2426,7 +2422,7 @@ function {function_name}:
+     .unwrap();
+ 
+     // Reset the process.
+-    let process = Process::load_testing_only().unwrap();
++    let mut process = Process::load().unwrap();
+ 
+     // Initialize a new block store.
+     let block_store = BlockStore::<CurrentNetwork, BlockMemory<_>>::open(None).unwrap();
+@@ -2589,7 +2585,7 @@ fn test_long_import_chain_with_calls() {
+ #[test]
+ fn test_max_imports() {
+     // Construct the process.
+-    let mut process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let mut process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Add `MAX_IMPORTS` programs to the process.
+     for i in 0..CurrentNetwork::MAX_IMPORTS {
+@@ -2640,7 +2636,7 @@ fn test_program_exceeding_transaction_spend_limit() {
+     .unwrap();
+ 
+     // Initialize a `Process`.
+-    let mut process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let mut process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Attempt to add the program to the process, which should fail.
+     let result = process.add_program(&program);
+diff --git a/synthesizer/process/src/tests/test_process.rs b/synthesizer/process/src/tests/test_process.rs
+deleted file mode 100644
+index 47ca718f9..000000000
+--- a/synthesizer/process/src/tests/test_process.rs
++++ /dev/null
+@@ -1,94 +0,0 @@
+-// Copyright 2024 Aleo Network Foundation
+-// This file is part of the snarkVM library.
+-
+-// Licensed under the Apache License, Version 2.0 (the "License");
+-// you may not use this file except in compliance with the License.
+-// You may obtain a copy of the License at:
+-
+-// http://www.apache.org/licenses/LICENSE-2.0
+-
+-// Unless required by applicable law or agreed to in writing, software
+-// distributed under the License is distributed on an "AS IS" BASIS,
+-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-// See the License for the specific language governing permissions and
+-// limitations under the License.
+-
+-use std::str::FromStr;
+-
+-use console::{
+-    network::MainnetV0,
+-    prelude::Network,
+-    program::{Parser, ProgramID},
+-};
+-use synthesizer_program::Program;
+-
+-use crate::Process;
+-
+-type CurrentNetwork = MainnetV0;
+-
+-#[test]
+-pub fn test_credits() {
+-    let process = Process::load_testing_only().unwrap();
+-    let credits_id = ProgramID::<CurrentNetwork>::from_str("credits.aleo").unwrap();
+-    assert!(process.contains_program(&credits_id));
+-}
+-
+-#[test]
+-pub fn test_cache() {
+-    let (_, program1) = Program::<CurrentNetwork>::parse(
+-        r"
+-program testing1.aleo;
+-
+-function compute:
+-    input r0 as u32.private;
+-    input r1 as u32.public;
+-    add r0 r1 into r2;
+-    output r2 as u32.public;",
+-    )
+-    .unwrap();
+-    // Initialize a new process.
+-    let process = crate::test_helpers::sample_process(&program1);
+-    assert!(process.contains_program(program1.id()));
+-}
+-
+-#[test]
+-pub fn test_cache_evict() {
+-    let (_, program1) = Program::<CurrentNetwork>::parse(
+-        r"
+-program testing1.aleo;
+-
+-function compute:
+-    input r0 as u32.private;
+-    input r1 as u32.public;
+-    add r0 r1 into r2;
+-    output r2 as u32.public;",
+-    )
+-    .unwrap();
+-    // Initialize a new process.
+-    let mut process = crate::test_helpers::sample_process(&program1);
+-    assert!(process.contains_program(program1.id()));
+-
+-    for i in 2..=<CurrentNetwork as Network>::MAX_STACKS + 1 {
+-        let source = format!(
+-            r"
+-program testing{i}.aleo;
+-
+-function compute:
+-    input r0 as u32.private;
+-    input r1 as u32.public;
+-    add r0 r1 into r2;
+-    output r2 as u32.public;"
+-        );
+-        // Program1 should still be cached
+-        assert!(process.contains_program(program1.id()));
+-        let (_, program) = Program::<CurrentNetwork>::parse(&source).unwrap();
+-        process.add_program(&program).unwrap();
+-        assert!(process.contains_program(program.id()));
+-    }
+-
+-    // only MAX_STACKS programs are cached, so program1 should be evicted
+-    assert!(!process.contains_program(program1.id()));
+-    // test we still have credits.aleo
+-    let credits_id = ProgramID::<CurrentNetwork>::from_str("credits.aleo").unwrap();
+-    assert!(process.contains_program(&credits_id));
+-}
+diff --git a/synthesizer/process/src/verify_deployment.rs b/synthesizer/process/src/verify_deployment.rs
+index fb716d9e9..3aca6313a 100644
+--- a/synthesizer/process/src/verify_deployment.rs
++++ b/synthesizer/process/src/verify_deployment.rs
+@@ -56,7 +56,7 @@ mod tests {
+         let rng = &mut TestRng::default();
+ 
+         // Initialize the process.
+-        let process = Process::load_testing_only()?;
++        let process = Process::load()?;
+ 
+         // Fetch the large program to deploy.
+         let large_program = Program::from_str(include_str!("./resources/large_functions.aleo"))?;
+diff --git a/synthesizer/process/src/verify_fee.rs b/synthesizer/process/src/verify_fee.rs
+index eba0642e5..e9ec997a6 100644
+--- a/synthesizer/process/src/verify_fee.rs
++++ b/synthesizer/process/src/verify_fee.rs
+@@ -232,7 +232,7 @@ mod tests {
+         ];
+ 
+         // Construct a new process.
+-        let process = Process::load_testing_only().unwrap();
++        let process = Process::load().unwrap();
+ 
+         for transaction in transactions {
+             match transaction {
+diff --git a/synthesizer/program/src/logic/instruction/operation/async_.rs b/synthesizer/program/src/logic/instruction/operation/async_.rs
+index d00f57216..b151dd731 100644
+--- a/synthesizer/program/src/logic/instruction/operation/async_.rs
++++ b/synthesizer/program/src/logic/instruction/operation/async_.rs
+@@ -391,7 +391,7 @@ mod tests {
+     //     let operands = vec![operand_a, operand_b];
+     //
+     //     // Initialize the stack.
+-    //     let stack = Stack::new(&Process::load_testing_only()?, &program)?;
++    //     let stack = Stack::new(&Process::load()?, &program)?;
+     //
+     //     Ok((stack, operands))
+     // }
+diff --git a/synthesizer/program/tests/instruction/assert.rs b/synthesizer/program/tests/instruction/assert.rs
+index 142444706..6c06918b2 100644
+--- a/synthesizer/program/tests/instruction/assert.rs
++++ b/synthesizer/program/tests/instruction/assert.rs
+@@ -72,7 +72,7 @@ fn sample_stack(
+     let operands = vec![operand_a, operand_b];
+ 
+     // Initialize the stack.
+-    let stack = Stack::new(&Process::load_testing_only()?, &program)?;
++    let stack = Stack::new(&Process::load()?, &program)?;
+ 
+     Ok((stack, operands))
+ }
+diff --git a/synthesizer/program/tests/instruction/commit.rs b/synthesizer/program/tests/instruction/commit.rs
+index cc24b9a6e..c22f362f1 100644
+--- a/synthesizer/program/tests/instruction/commit.rs
++++ b/synthesizer/program/tests/instruction/commit.rs
+@@ -93,7 +93,7 @@ fn sample_stack(
+     let operands = vec![operand_a, operand_b];
+ 
+     // Initialize the stack.
+-    let stack = Stack::new(&Process::load_testing_only()?, &program)?;
++    let stack = Stack::new(&Process::load()?, &program)?;
+ 
+     Ok((stack, operands, r2))
+ }
+diff --git a/synthesizer/program/tests/instruction/hash.rs b/synthesizer/program/tests/instruction/hash.rs
+index e3d643d56..106474e97 100644
+--- a/synthesizer/program/tests/instruction/hash.rs
++++ b/synthesizer/program/tests/instruction/hash.rs
+@@ -109,7 +109,7 @@ fn sample_stack(
+     let operands = vec![Operand::Register(r0)];
+ 
+     // Initialize the stack.
+-    let stack = Stack::new(&Process::load_testing_only()?, &program)?;
++    let stack = Stack::new(&Process::load()?, &program)?;
+ 
+     Ok((stack, operands, r1))
+ }
+diff --git a/synthesizer/program/tests/instruction/is.rs b/synthesizer/program/tests/instruction/is.rs
+index 708c910d5..1d58f84cd 100644
+--- a/synthesizer/program/tests/instruction/is.rs
++++ b/synthesizer/program/tests/instruction/is.rs
+@@ -83,7 +83,7 @@ fn sample_stack(
+     let operands = vec![operand_a, operand_b];
+ 
+     // Initialize the stack.
+-    let stack = Stack::new(&Process::load_testing_only()?, &program)?;
++    let stack = Stack::new(&Process::load()?, &program)?;
+ 
+     Ok((stack, operands, r2))
+ }
+diff --git a/synthesizer/src/vm/finalize.rs b/synthesizer/src/vm/finalize.rs
+index 65d7274b7..199a57106 100644
+--- a/synthesizer/src/vm/finalize.rs
++++ b/synthesizer/src/vm/finalize.rs
+@@ -588,7 +588,7 @@ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+             // Acquire the write lock on the process.
+             // Note: Due to the highly-sensitive nature of processing all `finalize` calls,
+             // we choose to acquire the write lock for the entire duration of this atomic batch.
+-            let process = self.process.write();
++            let mut process = self.process.write();
+ 
+             // Initialize a list for the deployed stacks.
+             let mut stacks = Vec::new();
+diff --git a/synthesizer/src/vm/mod.rs b/synthesizer/src/vm/mod.rs
+index 3d8f7adf5..72b7166b7 100644
+--- a/synthesizer/src/vm/mod.rs
++++ b/synthesizer/src/vm/mod.rs
+@@ -54,6 +54,7 @@ use ledger_store::{
+     ConsensusStore,
+     FinalizeMode,
+     FinalizeStore,
++    TransactionStorage,
+     TransactionStore,
+     TransitionStore,
+     atomic_finalize,
+@@ -96,7 +97,7 @@ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+     #[inline]
+     pub fn from(store: ConsensusStore<N, C>) -> Result<Self> {
+         // Initialize a new process.
+-        let process = Process::load_from_storage(Some(store.storage_mode().clone()))?;
++        let mut process = Process::load()?;
+ 
+         // Initialize the store for 'credits.aleo'.
+         let credits = Program::<N>::credits()?;
+@@ -108,6 +109,83 @@ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+             }
+         }
+ 
++        // A helper function to retrieve all the deployments.
++        fn load_deployment_and_imports<N: Network, T: TransactionStorage<N>>(
++            process: &Process<N>,
++            transaction_store: &TransactionStore<N, T>,
++            transaction_id: N::TransactionID,
++        ) -> Result<Vec<(ProgramID<N>, Deployment<N>)>> {
++            // Retrieve the deployment from the transaction ID.
++            let deployment = match transaction_store.get_deployment(&transaction_id)? {
++                Some(deployment) => deployment,
++                None => bail!("Deployment transaction '{transaction_id}' is not found in storage."),
++            };
++
++            // Fetch the program from the deployment.
++            let program = deployment.program();
++            let program_id = program.id();
++
++            // Return early if the program is already loaded.
++            if process.contains_program(program_id) {
++                return Ok(vec![]);
++            }
++
++            // Prepare a vector for the deployments.
++            let mut deployments = vec![];
++
++            // Iterate through the program imports.
++            for import_program_id in program.imports().keys() {
++                // Add the imports to the process if does not exist yet.
++                if !process.contains_program(import_program_id) {
++                    // Fetch the deployment transaction ID.
++                    let Some(transaction_id) =
++                        transaction_store.deployment_store().find_transaction_id_from_program_id(import_program_id)?
++                    else {
++                        bail!("Transaction ID for '{program_id}' is not found in storage.");
++                    };
++
++                    // Add the deployment and its imports found recursively.
++                    deployments.extend_from_slice(&load_deployment_and_imports(
++                        process,
++                        transaction_store,
++                        transaction_id,
++                    )?);
++                }
++            }
++
++            // Once all the imports have been included, add the parent deployment.
++            deployments.push((*program_id, deployment));
++
++            Ok(deployments)
++        }
++
++        // Retrieve the transaction store.
++        let transaction_store = store.transaction_store();
++        // Retrieve the list of deployment transaction IDs.
++        let deployment_ids = transaction_store.deployment_transaction_ids().collect::<Vec<_>>();
++        // Load the deployments from the store.
++        for (i, chunk) in deployment_ids.chunks(256).enumerate() {
++            debug!(
++                "Loading deployments {}-{} (of {})...",
++                i * 256,
++                ((i + 1) * 256).min(deployment_ids.len()),
++                deployment_ids.len()
++            );
++            let deployments = cfg_iter!(chunk)
++                .map(|transaction_id| {
++                    // Load the deployment and its imports.
++                    load_deployment_and_imports(&process, transaction_store, **transaction_id)
++                })
++                .collect::<Result<Vec<_>>>()?;
++
++            for (program_id, deployment) in deployments.iter().flatten() {
++                // Load the deployment if it does not exist in the process yet.
++                if !process.contains_program(program_id) {
++                    process.load_deployment(deployment)?;
++                }
++            }
++        }
++
+         // Return the new VM.
+         Ok(Self {
+             process: Arc::new(RwLock::new(process)),
+diff --git a/synthesizer/tests/test_process_execute.rs b/synthesizer/tests/test_process_execute.rs
+index 5c1e3a3a7..8d63e707f 100644
+--- a/synthesizer/tests/test_process_execute.rs
++++ b/synthesizer/tests/test_process_execute.rs
+@@ -32,7 +32,7 @@ fn test_process_execute() {
+     // Load the tests.
+     let tests = load_tests::<_, ProgramTest>("./tests/process/execute", "./expectations/process/execute");
+     // Initialize a process.
+-    let process = Process::<CurrentNetwork>::load_testing_only().unwrap();
++    let process = Process::<CurrentNetwork>::load().unwrap();
+ 
+     // Run each test and compare it against its corresponding expectation.
+     tests.par_iter().for_each(|test| {
+diff --git a/vm/file/prover.rs b/vm/file/prover.rs
+index 993c0eeea..1bac807b4 100644
+--- a/vm/file/prover.rs
++++ b/vm/file/prover.rs
+@@ -228,7 +228,7 @@ function compute:
+         assert!(string.is_empty(), "Parser did not consume all of the string: '{string}'");
+ 
+         // Construct the process.
+-        let mut process = Process::load_testing_only().unwrap();
++        let mut process = Process::load().unwrap();
+         // Add the program to the process.
+         process.add_program(&program).unwrap();
+ 
+diff --git a/vm/file/verifier.rs b/vm/file/verifier.rs
+index 1b897f5ec..af0b4f967 100644
+--- a/vm/file/verifier.rs
++++ b/vm/file/verifier.rs
+@@ -228,7 +228,7 @@ function compute:
+         assert!(string.is_empty(), "Parser did not consume all of the string: '{string}'");
+ 
+         // Construct the process.
+-        let mut process = Process::load_testing_only().unwrap();
++        let mut process = Process::load().unwrap();
+         // Add the program to the process.
+         process.add_program(&program).unwrap();
+ 
+diff --git a/vm/package/build.rs b/vm/package/build.rs
+index 570545dd9..251e8cf1b 100644
+--- a/vm/package/build.rs
++++ b/vm/package/build.rs
+@@ -178,8 +178,11 @@ impl<N: Network> Package<N> {
+         let process = self.get_process()?;
+ 
+         // Retrieve the imported programs.
+-        let imported_programs =
+-            program.imports().keys().map(|program_id| process.get_program(program_id)).collect::<Result<Vec<_>>>()?;
++        let imported_programs = program
++            .imports()
++            .keys()
++            .map(|program_id| process.get_program(program_id).cloned())
++            .collect::<Result<Vec<_>>>()?;
+ 
+         // Synthesize each proving and verifying key.
+         for function_name in program.functions().keys() {
+@@ -228,7 +231,7 @@ impl<N: Network> Package<N> {
+                         CallOperator::Locator(locator) => {
+                             (process.get_program(locator.program_id())?, locator.resource())
+                         }
+-                        CallOperator::Resource(resource) => (program.clone(), resource),
++                        CallOperator::Resource(resource) => (program, resource),
+                     };
+                     // If this is a function call, save its corresponding prover and verifier files.
+                     if program.contains_function(resource) {
+diff --git a/vm/package/deploy.rs b/vm/package/deploy.rs
+index b3b893c46..f423ed51d 100644
+--- a/vm/package/deploy.rs
++++ b/vm/package/deploy.rs
+@@ -124,7 +124,7 @@ impl<N: Network> Package<N> {
+         println!("⏳ Deploying '{}'...\n", program_id.to_string().bold());
+ 
+         // Construct the process.
+-        let mut process = Process::<N>::load_no_storage()?;
++        let mut process = Process::<N>::load()?;
+ 
+         // Add program imports to the process.
+         let imports_directory = self.imports_directory();
+diff --git a/vm/package/execute.rs b/vm/package/execute.rs
+index 63feed089..e848a14ad 100644
+--- a/vm/package/execute.rs
++++ b/vm/package/execute.rs
+@@ -61,7 +61,7 @@ impl<N: Network> Package<N> {
+                 // Retrieve the program and resource.
+                 let (program, resource) = match call.operator() {
+                     CallOperator::Locator(locator) => (process.get_program(locator.program_id())?, locator.resource()),
+-                    CallOperator::Resource(resource) => (program.clone(), resource),
++                    CallOperator::Resource(resource) => (program, resource),
+                 };
+                 // If this is a function call, save its corresponding prover and verifier files.
+                 if program.contains_function(resource) {
+diff --git a/vm/package/mod.rs b/vm/package/mod.rs
+index 876c301b7..678d89240 100644
+--- a/vm/package/mod.rs
++++ b/vm/package/mod.rs
+@@ -151,7 +151,7 @@ impl<N: Network> Package<N> {
+     /// Returns a new process for the package.
+     pub fn get_process(&self) -> Result<Process<N>> {
+         // Create the process.
+-        let mut process = Process::load_testing_only()?;
++        let mut process = Process::load()?;
+ 
+         // Prepare the imports directory.
+         let imports_directory = self.imports_directory();

@@ -1,0 +1,95 @@
+diff --git a/ledger/block/src/header/metadata/serialize.rs b/ledger/block/src/header/metadata/serialize.rs
+index 1be1042d5..65ccd8b03 100644
+--- a/ledger/block/src/header/metadata/serialize.rs
++++ b/ledger/block/src/header/metadata/serialize.rs
+@@ -24,8 +24,8 @@ impl<N: Network> Serialize for Metadata<N> {
+                 metadata.serialize_field("network", &self.network)?;
+                 metadata.serialize_field("round", &self.round)?;
+                 metadata.serialize_field("height", &self.height)?;
+-                metadata.serialize_field("cumulative_weight", &self.cumulative_weight)?;
+-                metadata.serialize_field("cumulative_proof_target", &self.cumulative_proof_target)?;
++                metadata.serialize_field("cumulative_weight", &self.cumulative_weight.to_string())?;
++                metadata.serialize_field("cumulative_proof_target", &self.cumulative_proof_target.to_string())?;
+                 metadata.serialize_field("coinbase_target", &self.coinbase_target)?;
+                 metadata.serialize_field("proof_target", &self.proof_target)?;
+                 metadata.serialize_field("last_coinbase_target", &self.last_coinbase_target)?;
+@@ -44,12 +44,18 @@ impl<'de, N: Network> Deserialize<'de> for Metadata<N> {
+         match deserializer.is_human_readable() {
+             true => {
+                 let mut metadata = serde_json::Value::deserialize(deserializer)?;
++                let cumulative_weight: String =
++                    DeserializeExt::take_from_value::<D>(&mut metadata, "cumulative_weight")?;
++                let cumulative_proof_target: String =
++                    DeserializeExt::take_from_value::<D>(&mut metadata, "cumulative_proof_target")?;
++                let cumulative_weight = cumulative_weight.parse::<u128>().map_err(de::Error::custom)?;
++                let cumulative_proof_target = cumulative_proof_target.parse::<u128>().map_err(de::Error::custom)?;
+                 Ok(Self::new(
+                     DeserializeExt::take_from_value::<D>(&mut metadata, "network")?,
+                     DeserializeExt::take_from_value::<D>(&mut metadata, "round")?,
+                     DeserializeExt::take_from_value::<D>(&mut metadata, "height")?,
+-                    DeserializeExt::take_from_value::<D>(&mut metadata, "cumulative_weight")?,
+-                    DeserializeExt::take_from_value::<D>(&mut metadata, "cumulative_proof_target")?,
++                    cumulative_weight,
++                    cumulative_proof_target,
+                     DeserializeExt::take_from_value::<D>(&mut metadata, "coinbase_target")?,
+                     DeserializeExt::take_from_value::<D>(&mut metadata, "proof_target")?,
+                     DeserializeExt::take_from_value::<D>(&mut metadata, "last_coinbase_target")?,
+diff --git a/ledger/block/src/lib.rs b/ledger/block/src/lib.rs
+index af70f4ce1..8b35d163a 100644
+--- a/ledger/block/src/lib.rs
++++ b/ledger/block/src/lib.rs
+@@ -706,13 +706,41 @@ pub mod test_helpers {
+         // Return the block, transaction, and private key.
+         (block, transaction, private_key)
+     }
++
++    pub(crate) fn sample_metadata(rng: &mut TestRng) -> Metadata<CurrentNetwork> {
++        let network = CurrentNetwork::ID;
++        let round = u64::MAX;
++        let height = u32::MAX;
++        let cumulative_weight = u128::MAX - 1;
++        let cumulative_proof_target = u128::MAX - 1;
++        let coinbase_target = u64::MAX;
++        let proof_target = u64::MAX - 1;
++        let last_coinbase_target = u64::MAX;
++        let timestamp = i64::MAX - 1;
++        let last_coinbase_timestamp = timestamp - 1;
++        Metadata::new(
++            CurrentNetwork::ID,
++            round,
++            height,
++            cumulative_weight,
++            cumulative_proof_target,
++            coinbase_target,
++            proof_target,
++            last_coinbase_target,
++            last_coinbase_timestamp,
++            timestamp,
++        )
++        .unwrap()
++    }
+ }
+ 
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+ 
++    use console::network::MainnetV0;
+     use indexmap::IndexMap;
++    type CurrentNetwork = MainnetV0;
+ 
+     #[test]
+     fn test_find_transaction_for_transition_id() {
+@@ -850,4 +878,12 @@ mod tests {
+             assert_eq!(transaction.find_record(commitment), None);
+         }
+     }
++
++    #[test]
++    fn test_serde_metadata() {
++        let rng = &mut TestRng::default();
++        let metadata = crate::test_helpers::sample_metadata(rng);
++        let json_metadata = serde_json::to_string(&metadata).unwrap();
++        let deserialized_metadata: Metadata<CurrentNetwork> = serde_json::from_str(&json_metadata).unwrap();
++    }
+ }

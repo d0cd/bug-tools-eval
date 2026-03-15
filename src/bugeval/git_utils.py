@@ -67,6 +67,12 @@ def get_diff_stats(base: str, head: str, cwd: Path) -> CaseStats:
     )
 
 
+def get_changed_files(base: str, head: str, cwd: Path) -> list[str]:
+    """Return list of files changed between two commits."""
+    output = run_git("diff", "--name-only", base, head, cwd=cwd)
+    return [f for f in output.strip().splitlines() if f]
+
+
 def format_patch(base: str, head: str, cwd: Path) -> str:
     """Generate patch content between two commits."""
     return run_git("diff", base, head, cwd=cwd)

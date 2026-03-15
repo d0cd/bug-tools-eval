@@ -1,0 +1,123 @@
+diff --git a/ledger/src/state/ledger.rs b/ledger/src/state/ledger.rs
+index e292c342a..13271543a 100644
+--- a/ledger/src/state/ledger.rs
++++ b/ledger/src/state/ledger.rs
+@@ -509,24 +509,27 @@ impl<N: Network> LedgerState<N> {
+         // Check that the remaining block hashes are formed correctly (power of two).
+         if block_locators.len() > MAXIMUM_LINEAR_BLOCK_LOCATORS as usize {
+             // Iterate through all the quadratic ranged block locators excluding the genesis locator.
+-            let mut _previous_block_height = u32::MAX;
+-            for (_block_height, (_block_hash, block_header)) in block_locators
++            let mut previous_block_height = u32::MAX;
++            let mut accumulator = 1;
++
++            for (block_height, (_block_hash, block_header)) in block_locators
+                 .iter()
+                 .rev()
+                 .skip(num_linear_block_headers + 1)
+                 .take(num_quadratic_block_headers - 1)
+             {
+-                // // Check that the block heights decrement by a power of two.
+-                // if previous_block_height != u32::MAX && previous_block_height / 2 != *block_height {
+-                //     return Ok(false);
+-                // }
++                // Check that the block heights decrement by a power of two.
++                if previous_block_height != u32::MAX && previous_block_height.saturating_sub(accumulator) != *block_height {
++                    return Ok(false);
++                }
+ 
+                 // Check that there is no block header.
+                 if block_header.is_some() {
+                     return Ok(false);
+                 }
+ 
+-                // previous_block_height = *block_height;
++                previous_block_height = *block_height;
++                accumulator *= 2;
+             }
+         }
+ 
+diff --git a/src/environment/mod.rs b/src/environment/mod.rs
+index 27f613ff7..cf1a8bf4e 100644
+--- a/src/environment/mod.rs
++++ b/src/environment/mod.rs
+@@ -85,6 +85,8 @@ pub trait Environment: 'static + Clone + Debug + Default + Send + Sync {
+     const MAXIMUM_CONNECTION_FAILURES: u32 = 5;
+     /// The maximum number of candidate peers permitted to be stored in the node.
+     const MAXIMUM_CANDIDATE_PEERS: usize = 10_000;
++    /// The maximum number of sync nodes that the node may be connected to at any time.
++    const MAXIMUM_CONNECTED_SYNC_NODES: usize = 2;
+ 
+     /// The maximum size of a message that can be transmitted in the network.
+     const MAXIMUM_MESSAGE_SIZE: usize = 128 * 1024 * 1024; // 128 MiB
+diff --git a/src/network/peers.rs b/src/network/peers.rs
+index 67ba32042..539982fff 100644
+--- a/src/network/peers.rs
++++ b/src/network/peers.rs
+@@ -168,6 +168,16 @@ impl<N: Network, E: Environment> Peers<N, E> {
+         self.candidate_peers.read().await.clone()
+     }
+ 
++    ///
++    /// TODO (howardwu): Make this operation more efficient.
++    /// Returns the number of connected sync nodes.
++    ///
++    pub(crate) async fn number_of_connected_sync_nodes(&self) -> usize {
++        let connected_peers: HashSet<SocketAddr> = self.connected_peers.read().await.keys().into_iter().copied().collect();
++        let sync_nodes: HashSet<SocketAddr> = E::SYNC_NODES.iter().map(|ip| ip.parse().unwrap()).collect();
++        connected_peers.intersection(&sync_nodes).count()
++    }
++
+     ///
+     /// Returns the number of connected peers.
+     ///
+@@ -298,6 +308,9 @@ impl<N: Network, E: Environment> Peers<N, E> {
+                 let peer_nodes: Vec<SocketAddr> = E::PEER_NODES.iter().map(|ip| ip.parse().unwrap()).collect();
+                 self.add_candidate_peers(&peer_nodes).await;
+ 
++                // Retrieve the number of connected sync nodes.
++                let number_of_connected_sync_nodes = self.number_of_connected_sync_nodes().await;
++
+                 // Attempt to connect to more peers if the number of connected peers is below the minimum threshold.
+                 // Select the peers randomly from the list of candidate peers.
+                 for peer_ip in self
+@@ -307,6 +320,11 @@ impl<N: Network, E: Environment> Peers<N, E> {
+                     .copied()
+                     .choose_multiple(&mut OsRng::default(), E::MINIMUM_NUMBER_OF_PEERS)
+                 {
++                    // Ensure this node is not connected to more than the permitted number of sync nodes.
++                    if sync_nodes.contains(&peer_ip) && number_of_connected_sync_nodes >= E::MAXIMUM_CONNECTED_SYNC_NODES {
++                        continue;
++                    }
++
+                     if !self.is_connected_to(peer_ip).await {
+                         trace!("Attempting connection to {}...", peer_ip);
+ 
+@@ -454,6 +472,7 @@ impl<N: Network, E: Environment> Peers<N, E> {
+     /// as the peer providing this list could be subverting the protocol.
+     ///
+     async fn add_candidate_peers(&self, peers: &[SocketAddr]) {
++        // Acquire the candidate peers write lock.
+         let mut candidate_peers = self.candidate_peers.write().await;
+         // Ensure the combined number of peers does not surpass the threshold.
+         if candidate_peers.len() + peers.len() < E::MAXIMUM_CANDIDATE_PEERS {
+diff --git a/src/rpc/rpc_impl.rs b/src/rpc/rpc_impl.rs
+index 2220354fd..f4a532996 100644
+--- a/src/rpc/rpc_impl.rs
++++ b/src/rpc/rpc_impl.rs
+@@ -211,6 +211,7 @@ impl<N: Network, E: Environment> RpcFunctions<N> for RpcImpl<N, E> {
+         let connected_peers = self.peers.connected_peers().await;
+         let number_of_candidate_peers = candidate_peers.len();
+         let number_of_connected_peers = connected_peers.len();
++        let number_of_connected_sync_nodes = self.peers.number_of_connected_sync_nodes().await;
+ 
+         Ok(serde_json::json!({
+             "candidate_peers": candidate_peers,
+@@ -218,6 +219,7 @@ impl<N: Network, E: Environment> RpcFunctions<N> for RpcImpl<N, E> {
+             "latest_block_height": self.ledger.latest_block_height(),
+             "number_of_candidate_peers": number_of_candidate_peers,
+             "number_of_connected_peers": number_of_connected_peers,
++            "number_of_connected_sync_nodes": number_of_connected_sync_nodes,
+             "status": self.status.to_string(),
+             "type": E::NODE_TYPE,
+             "version": E::MESSAGE_VERSION,

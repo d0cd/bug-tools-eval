@@ -1,0 +1,141 @@
+diff --git a/compiler/passes/src/type_checking/check_program.rs b/compiler/passes/src/type_checking/check_program.rs
+index bd09fe09de..d8fe368e3a 100644
+--- a/compiler/passes/src/type_checking/check_program.rs
++++ b/compiler/passes/src/type_checking/check_program.rs
+@@ -228,21 +228,41 @@ impl<'a> ProgramVisitor<'a> for TypeChecker<'a> {
+ 
+         // Type check the function's return type.
+         // Note that checking that each of the component types are defined is sufficient to check that `output_type` is defined.
+-        function.output.iter().for_each(|output_type| {
+-            match output_type {
+-                // TODO: Verify that this is not needed when the import system is updated.
+-                Output::External(_) => {} // Do not type check external record function outputs.
+-                Output::Internal(output_type) => {
++        function.output.iter().for_each(|output| {
++            match output {
++                Output::External(external) => {
++                    // If the function is not a transition function, then it cannot output a record.
++                    // Note that an external output must always be a record.
++                    if !self.is_transition_function {
++                        self.emit_err(TypeCheckerError::function_cannot_output_record(external.span()));
++                    }
++                    // Otherwise, do not type check external record function outputs.
++                    // TODO: Verify that this is not needed when the import system is updated.
++                }
++                Output::Internal(function_output) => {
+                     // Check that the type of output is defined.
+-                    self.assert_type_is_defined(&output_type.type_, output_type.span);
++                    self.assert_type_is_defined(&function_output.type_, function_output.span);
++                    // If the function is not a transition function, then it cannot output a record.
++                    if let Type::Identifier(identifier) = function_output.type_ {
++                        if !self.is_transition_function
++                            && self
++                                .symbol_table
++                                .borrow()
++                                .lookup_struct(identifier.name)
++                                .unwrap()
++                                .is_record
++                        {
++                            self.emit_err(TypeCheckerError::function_cannot_output_record(function_output.span));
++                        }
++                    }
+                     // Check that the type of the output is not a tuple. This is necessary to forbid nested tuples.
+-                    if matches!(&output_type.type_, Type::Tuple(_)) {
+-                        self.emit_err(TypeCheckerError::nested_tuple_type(output_type.span))
++                    if matches!(&function_output.type_, Type::Tuple(_)) {
++                        self.emit_err(TypeCheckerError::nested_tuple_type(function_output.span))
+                     }
+                     // Check that the mode of the output is valid.
+                     // For functions, only public and private outputs are allowed
+-                    if output_type.mode == Mode::Const {
+-                        self.emit_err(TypeCheckerError::cannot_have_constant_output_mode(output_type.span));
++                    if function_output.mode == Mode::Const {
++                        self.emit_err(TypeCheckerError::cannot_have_constant_output_mode(function_output.span));
+                     }
+                 }
+             }
+diff --git a/errors/src/errors/type_checker/type_checker_error.rs b/errors/src/errors/type_checker/type_checker_error.rs
+index 01fbbdf083..acfb82e54f 100644
+--- a/errors/src/errors/type_checker/type_checker_error.rs
++++ b/errors/src/errors/type_checker/type_checker_error.rs
+@@ -532,4 +532,11 @@ create_messages!(
+         msg: format!("Unit expressions can only be used in return statements."),
+         help: None,
+     }
++
++    @formatted
++    function_cannot_output_record {
++        args: (),
++        msg: format!("A `function` cannot output a record."),
++        help: None,
++    }
+ );
+diff --git a/tests/compiler/function/function_returns_record_fail.leo b/tests/compiler/function/function_returns_record_fail.leo
+new file mode 100644
+index 0000000000..c4896f06be
+--- /dev/null
++++ b/tests/compiler/function/function_returns_record_fail.leo
+@@ -0,0 +1,32 @@
++/*
++namespace: Compile
++expectation: Fail
++*/
++
++program test.aleo {
++    record Board {
++        owner: address,
++        gates: u64,
++        data: u8,
++    }
++
++    function foo(board: Board, data: u8) -> Board {
++        return Board {
++            owner: board.owner,
++            gates: board.gates,
++            data: data,
++        };
++    }
++
++    function bar(board: Board) {
++        assert_eq(board.gates, 0u64);
++    }
++
++    transition main(board: Board) -> Board {
++        bar(board);
++        return foo(board, 1u8);
++    }
++
++
++
++}
+diff --git a/tests/expectations/compiler/function/function_returns_record_fail.out b/tests/expectations/compiler/function/function_returns_record_fail.out
+new file mode 100644
+index 0000000000..fb11bef5d6
+--- /dev/null
++++ b/tests/expectations/compiler/function/function_returns_record_fail.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [ETYC0372064]: A `function` cannot output a record.\n    --> compiler-test:10:45\n     |\n  10 |     function foo(board: Board, data: u8) -> Board {\n     |                                             ^^^^^\n"
+diff --git a/tests/expectations/compiler/records/init_expression_type_fail.out b/tests/expectations/compiler/records/init_expression_type_fail.out
+index 920a0e1bed..94b8f653c7 100644
+--- a/tests/expectations/compiler/records/init_expression_type_fail.out
++++ b/tests/expectations/compiler/records/init_expression_type_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372003]: Expected type `address` but type `u64` was found\n    --> compiler-test:15:20\n     |\n  15 |             owner: r1, // This variable should be type address.\n     |                    ^^\nError [ETYC0372003]: Expected type `u64` but type `address` was found\n    --> compiler-test:17:21\n     |\n  17 |             amount: r0, // This variable should be type u64.\n     |                     ^^\nError [ETYC0372047]: Cannot call another function from a standard function.\n    --> compiler-test:23:24\n     |\n  23 |         let t: Token = mint(x, c);\n     |                        ^^^^^^^^^^\n"
++  - "Error [ETYC0372064]: A `function` cannot output a record.\n    --> compiler-test:13:44\n     |\n  13 |     function mint(r0: address, r1: u64) -> Token {\n     |                                            ^^^^^\nError [ETYC0372003]: Expected type `address` but type `u64` was found\n    --> compiler-test:15:20\n     |\n  15 |             owner: r1, // This variable should be type address.\n     |                    ^^\nError [ETYC0372003]: Expected type `u64` but type `address` was found\n    --> compiler-test:17:21\n     |\n  17 |             amount: r0, // This variable should be type u64.\n     |                     ^^\nError [ETYC0372047]: Cannot call another function from a standard function.\n    --> compiler-test:23:24\n     |\n  23 |         let t: Token = mint(x, c);\n     |                        ^^^^^^^^^^\n"
+diff --git a/tests/expectations/compiler/records/init_expression_var_fail.out b/tests/expectations/compiler/records/init_expression_var_fail.out
+index a789023d86..8a742132d8 100644
+--- a/tests/expectations/compiler/records/init_expression_var_fail.out
++++ b/tests/expectations/compiler/records/init_expression_var_fail.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [ETYC0372013]: Struct initialization expression for `Token` is missing member `owner`.\n    --> compiler-test:14:16\n     |\n  14 |         return Token {\n  15 |             sender: r0, // This variable should be named `owner`.\n  16 |             gates: 0u64,\n  17 |             amount: r1,\n  18 |         };\n     |          ^^^^^^\nError [ETYC0372047]: Cannot call another function from a standard function.\n    --> compiler-test:23:24\n     |\n  23 |         let t: Token = mint(x, c);\n     |                        ^^^^^^^^^^\n"
++  - "Error [ETYC0372064]: A `function` cannot output a record.\n    --> compiler-test:13:44\n     |\n  13 |     function mint(r0: address, r1: u64) -> Token {\n     |                                            ^^^^^\nError [ETYC0372013]: Struct initialization expression for `Token` is missing member `owner`.\n    --> compiler-test:14:16\n     |\n  14 |         return Token {\n  15 |             sender: r0, // This variable should be named `owner`.\n  16 |             gates: 0u64,\n  17 |             amount: r1,\n  18 |         };\n     |          ^^^^^^\nError [ETYC0372047]: Cannot call another function from a standard function.\n    --> compiler-test:23:24\n     |\n  23 |         let t: Token = mint(x, c);\n     |                        ^^^^^^^^^^\n"

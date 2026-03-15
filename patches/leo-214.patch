@@ -1,0 +1,1360 @@
+diff --git a/asg/src/expression/variable_ref.rs b/asg/src/expression/variable_ref.rs
+index f16598ac44..bb514fb38d 100644
+--- a/asg/src/expression/variable_ref.rs
++++ b/asg/src/expression/variable_ref.rs
+@@ -132,6 +132,11 @@ impl<'a> FromAst<'a, leo_ast::Identifier> for &'a Expression<'a> {
+             } else {
+                 return Err(AsgError::illegal_input_variable_reference(&value.span).into());
+             }
++        } else if let Some(gc) = scope.resolve_global_const(&value.name) {
++            gc.variables
++                .iter()
++                .find(|&&v| v.borrow().name.name == value.name)
++                .unwrap()
+         } else {
+             match scope.resolve_variable(&value.name) {
+                 Some(v) => v,
+diff --git a/asg/src/program/function.rs b/asg/src/program/function.rs
+index 39ff826f91..67bd656a57 100644
+--- a/asg/src/program/function.rs
++++ b/asg/src/program/function.rs
+@@ -141,9 +141,13 @@ impl<'a> Function<'a> {
+                 .insert("self".to_string(), self_variable);
+         }
+         for (name, argument) in self.arguments.iter() {
+-            /* if self.scope.resolve_alias(name).is_some() {
+-                return Err(AsgError::cannot_shadow_name("function input", name, "alias", &argument.get().borrow().name.span).into());
+-            } */
++            if self.scope.resolve_global_const(name).is_some() {
++                return Err(AsgError::function_input_cannot_shadow_global_const(
++                    name,
++                    &argument.get().borrow().name.span,
++                )
++                .into());
++            }
+ 
+             self.scope.variables.borrow_mut().insert(name.clone(), argument.get());
+         }
+diff --git a/asg/src/program/mod.rs b/asg/src/program/mod.rs
+index c0e94dc561..51261a54b3 100644
+--- a/asg/src/program/mod.rs
++++ b/asg/src/program/mod.rs
+@@ -130,6 +130,29 @@ fn resolve_import_package_access(
+     }
+ }
+ 
++/// Checks whether a given string is found in any other global namespaces.
++/// If it is found it returns an error.
++fn check_top_level_namespaces<'a>(
++    name: &str,
++    span: &Span,
++    aliases: &IndexMap<String, &'a Alias<'a>>,
++    functions: &IndexMap<String, &'a Function<'a>>,
++    circuits: &IndexMap<String, &'a Circuit<'a>>,
++    global_consts: &IndexMap<String, &'a DefinitionStatement<'a>>,
++) -> Result<()> {
++    if aliases.contains_key(name) {
++        Err(AsgError::duplicate_alias_definition(name, span).into())
++    } else if global_consts.contains_key(name) {
++        Err(AsgError::duplicate_global_const_definition(name, span).into())
++    } else if functions.contains_key(name) {
++        Err(AsgError::duplicate_function_definition(name, span).into())
++    } else if circuits.contains_key(name) {
++        Err(AsgError::duplicate_circuit_definition(name, span).into())
++    } else {
++        Ok(())
++    }
++}
++
+ impl<'a> Program<'a> {
+     /// Returns a new Leo program ASG from the given Leo program AST and its imports.
+     ///
+@@ -264,44 +287,40 @@ impl<'a> Program<'a> {
+             scope.functions.borrow_mut().insert(name.name.to_string(), function);
+         }
+ 
+-        for (name, global_const) in program.global_consts.iter() {
+-            global_const
+-                .variable_names
+-                .iter()
+-                .for_each(|variable_name| assert!(name.contains(&variable_name.identifier.name.to_string())));
++        for (names, global_const) in program.global_consts.iter() {
+             let gc = <&Statement<'a>>::from_ast(scope, global_const, None)?;
+-            if let Statement::Definition(gc) = gc {
+-                scope.global_consts.borrow_mut().insert(name.clone(), gc);
++            if let Statement::Definition(def) = gc {
++                let name = names
++                    .iter()
++                    .enumerate()
++                    .map(|(i, name)| {
++                        assert_eq!(name.name, def.variables.get(i).unwrap().borrow().name.name);
++                        name.name.to_string()
++                    })
++                    .collect::<Vec<String>>()
++                    .join(",");
++
++                scope.global_consts.borrow_mut().insert(name, def);
+             }
+         }
+ 
+         // Load concrete definitions.
+         let mut aliases = IndexMap::new();
++        let mut functions = IndexMap::new();
++        let mut circuits = IndexMap::new();
++        let mut global_consts = IndexMap::new();
++
+         for (name, alias) in program.aliases.iter() {
+             assert_eq!(name.name, alias.name.name);
+             let asg_alias = *scope.aliases.borrow().get(name.name.as_ref()).unwrap();
+ 
+             let name = name.name.to_string();
+ 
+-            if aliases.contains_key(&name) {
+-                return Err(AsgError::duplicate_alias_definition(name, &alias.span).into());
+-            }
++            check_top_level_namespaces(&name, &alias.span, &aliases, &functions, &circuits, &global_consts)?;
+ 
+             aliases.insert(name, asg_alias);
+         }
+ 
+-        let mut global_consts = IndexMap::new();
+-        for (name, global_const) in program.global_consts.iter() {
+-            global_const
+-                .variable_names
+-                .iter()
+-                .for_each(|variable_name| assert!(name.contains(&variable_name.identifier.name.to_string())));
+-            let asg_global_const = *scope.global_consts.borrow().get(name).unwrap();
+-
+-            global_consts.insert(name.clone(), asg_global_const);
+-        }
+-
+-        let mut functions = IndexMap::new();
+         for (name, function) in program.functions.iter() {
+             assert_eq!(name.name, function.identifier.name);
+             let asg_function = *scope.functions.borrow().get(name.name.as_ref()).unwrap();
+@@ -310,21 +329,50 @@ impl<'a> Program<'a> {
+ 
+             let name = name.name.to_string();
+ 
+-            if functions.contains_key(&name) {
+-                return Err(AsgError::duplicate_function_definition(name, &function.span).into());
+-            }
++            check_top_level_namespaces(&name, &function.span, &aliases, &functions, &circuits, &global_consts)?;
+ 
+             functions.insert(name, asg_function);
+         }
+ 
+-        let mut circuits = IndexMap::new();
+         for (name, circuit) in program.circuits.iter() {
+             assert_eq!(name.name, circuit.circuit_name.name);
+             let asg_circuit = *scope.circuits.borrow().get(name.name.as_ref()).unwrap();
+ 
+             asg_circuit.fill_from_ast(circuit)?;
+ 
+-            circuits.insert(name.name.to_string(), asg_circuit);
++            let name = name.name.to_string();
++
++            check_top_level_namespaces(
++                &name,
++                &circuit.circuit_name.span,
++                &aliases,
++                &functions,
++                &circuits,
++                &global_consts,
++            )?;
++
++            circuits.insert(name, asg_circuit);
++        }
++
++        for (names, global_const) in program.global_consts.iter() {
++            let name = names
++                .iter()
++                .map(|name| name.name.to_string())
++                .collect::<Vec<String>>()
++                .join(",");
++
++            let asg_global_const = *scope.global_consts.borrow().get(&name).unwrap();
++
++            check_top_level_namespaces(
++                &name,
++                &global_const.span,
++                &aliases,
++                &functions,
++                &circuits,
++                &global_consts,
++            )?;
++
++            global_consts.insert(name.clone(), asg_global_const);
+         }
+ 
+         Ok(Program {
+diff --git a/asg/src/scope.rs b/asg/src/scope.rs
+index 6a35ad2672..84fa31dcee 100644
+--- a/asg/src/scope.rs
++++ b/asg/src/scope.rs
+@@ -151,6 +151,22 @@ impl<'a> Scope<'a> {
+         }
+     }
+ 
++    ///
++    /// Returns a reference to the global const definition statement corresponding to the name.
++    ///
++    /// If the current scope did not have this name present, then the parent scope is checked.
++    /// If there is no parent scope, then `None` is returned.
++    ///
++    pub fn resolve_global_const(&self, name: &str) -> Option<&'a DefinitionStatement<'a>> {
++        if let Some(resolved) = self.global_consts.borrow().get(name) {
++            Some(*resolved)
++        } else if let Some(resolved) = self.parent_scope.get() {
++            resolved.resolve_global_const(name)
++        } else {
++            None
++        }
++    }
++
+     ///
+     /// Returns a new scope given a parent scope.
+     ///
+diff --git a/asg/src/statement/definition.rs b/asg/src/statement/definition.rs
+index 6f658e048a..a896a9cb3a 100644
+--- a/asg/src/statement/definition.rs
++++ b/asg/src/statement/definition.rs
+@@ -110,10 +110,18 @@ impl<'a> FromAst<'a, leo_ast::DefinitionStatement> for &'a Statement<'a> {
+         }
+ 
+         for (variable, type_) in statement.variable_names.iter().zip(output_types.into_iter()) {
+-            /* let name = variable.identifier.name.as_ref();
+-            if scope.resolve_alias(name).is_some() {
+-                return Err(AsgError::cannot_shadow_name("function input", name, "alias", &variable.identifier.span).into());
+-            } */
++            let name = variable.identifier.name.as_ref();
++            if scope.resolve_global_const(name).is_some() {
++                return Err(
++                    AsgError::function_variable_cannot_shadow_global_const(name, &variable.identifier.span).into(),
++                );
++            } else if scope.resolve_variable(name).is_some() {
++                return Err(AsgError::function_variable_cannot_shadow_other_function_variable(
++                    name,
++                    &variable.identifier.span,
++                )
++                .into());
++            }
+ 
+             variables.push(&*scope.context.alloc_variable(RefCell::new(InnerVariable {
+                 id: scope.context.get_id(),
+diff --git a/ast-passes/src/import_resolution/importer.rs b/ast-passes/src/import_resolution/importer.rs
+index 003dd945f0..428f4411dc 100644
+--- a/ast-passes/src/import_resolution/importer.rs
++++ b/ast-passes/src/import_resolution/importer.rs
+@@ -21,25 +21,42 @@ use leo_errors::{AstError, Result, Span};
+ 
+ use indexmap::IndexMap;
+ 
+-pub struct Importer<T>
+-where
+-    T: ImportResolver,
+-{
+-    import_resolver: T,
+-}
++pub struct Importer {}
+ 
+-impl<T> Importer<T>
+-where
+-    T: ImportResolver,
+-{
+-    pub fn new(import_resolver: T) -> Self {
+-        Self { import_resolver }
+-    }
++impl Importer {
++    pub fn do_pass<T>(program: Program, importer: &mut T) -> Result<Ast>
++    where
++        T: ImportResolver,
++    {
++        let mut imported_symbols: Vec<(Vec<String>, ImportSymbol, Span)> = vec![];
++        for import_statement in program.import_statements.iter() {
++            resolve_import_package(&mut imported_symbols, vec![], &import_statement.package_or_packages);
++        }
++
++        let mut deduplicated_imports: IndexMap<Vec<String>, Span> = IndexMap::new();
++        for (package, _symbol, span) in imported_symbols.iter() {
++            deduplicated_imports.insert(package.clone(), span.clone());
++        }
++
++        let mut wrapped_resolver = CoreImportResolver::new(importer);
++
++        let mut resolved_packages: IndexMap<Vec<String>, Program> = IndexMap::new();
++        for (package, span) in deduplicated_imports {
++            let pretty_package = package.join(".");
++
++            let resolved_package =
++                match wrapped_resolver.resolve_package(&package.iter().map(|x| &**x).collect::<Vec<_>>()[..], &span)? {
++                    Some(x) => x,
++                    None => return Err(AstError::unresolved_import(pretty_package, &span).into()),
++                };
+ 
+-    pub fn do_pass(ast: Program, importer: T) -> Result<Ast> {
+-        Ok(Ast::new(
+-            ReconstructingDirector::new(Importer::new(importer)).reduce_program(&ast)?,
+-        ))
++            resolved_packages.insert(package.clone(), resolved_package);
++        }
++
++        let mut ast = program;
++        ast.imports = resolved_packages;
++
++        Ok(Ast::new(ast))
+     }
+ }
+ 
+@@ -108,66 +125,3 @@ fn resolve_import_package_access(
+         }
+     }
+ }
+-
+-impl<T> ReconstructingReducer for Importer<T>
+-where
+-    T: ImportResolver,
+-{
+-    fn in_circuit(&self) -> bool {
+-        false
+-    }
+-
+-    fn swap_in_circuit(&mut self) {}
+-
+-    fn reduce_program(
+-        &mut self,
+-        program: &Program,
+-        expected_input: Vec<FunctionInput>,
+-        import_statements: Vec<ImportStatement>,
+-        empty_imports: IndexMap<Vec<String>, Program>,
+-        aliases: IndexMap<Identifier, Alias>,
+-        circuits: IndexMap<Identifier, Circuit>,
+-        functions: IndexMap<Identifier, Function>,
+-        global_consts: IndexMap<String, DefinitionStatement>,
+-    ) -> Result<Program> {
+-        if !empty_imports.is_empty() {
+-            return Err(AstError::injected_programs(empty_imports.len()).into());
+-        }
+-
+-        let mut imported_symbols: Vec<(Vec<String>, ImportSymbol, Span)> = vec![];
+-        for import_statement in import_statements.iter() {
+-            resolve_import_package(&mut imported_symbols, vec![], &import_statement.package_or_packages);
+-        }
+-
+-        let mut deduplicated_imports: IndexMap<Vec<String>, Span> = IndexMap::new();
+-        for (package, _symbol, span) in imported_symbols.iter() {
+-            deduplicated_imports.insert(package.clone(), span.clone());
+-        }
+-
+-        let mut wrapped_resolver = CoreImportResolver::new(&mut self.import_resolver);
+-
+-        let mut resolved_packages: IndexMap<Vec<String>, Program> = IndexMap::new();
+-        for (package, span) in deduplicated_imports {
+-            let pretty_package = package.join(".");
+-
+-            let resolved_package =
+-                match wrapped_resolver.resolve_package(&package.iter().map(|x| &**x).collect::<Vec<_>>()[..], &span)? {
+-                    Some(x) => x,
+-                    None => return Err(AstError::unresolved_import(pretty_package, &span).into()),
+-                };
+-
+-            resolved_packages.insert(package.clone(), resolved_package);
+-        }
+-
+-        Ok(Program {
+-            name: program.name.clone(),
+-            expected_input,
+-            import_statements,
+-            imports: resolved_packages,
+-            aliases,
+-            circuits,
+-            functions,
+-            global_consts,
+-        })
+-    }
+-}
+diff --git a/ast/src/common/global_consts_json.rs b/ast/src/common/global_consts_json.rs
+new file mode 100644
+index 0000000000..68d0eb62a3
+--- /dev/null
++++ b/ast/src/common/global_consts_json.rs
+@@ -0,0 +1,57 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the Leo library.
++
++// The Leo library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The Leo library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
++
++use crate::{DefinitionStatement, Identifier};
++
++use indexmap::IndexMap;
++use serde::{Deserialize, Deserializer, Serialize, Serializer};
++
++#[allow(clippy::ptr_arg)]
++pub fn serialize<S: Serializer>(
++    global_consts: &IndexMap<Vec<Identifier>, DefinitionStatement>,
++    serializer: S,
++) -> Result<S::Ok, S::Error> {
++    let joined: IndexMap<String, DefinitionStatement> = global_consts
++        .into_iter()
++        .map(|(idents, program)| {
++            (
++                idents.iter().map(|i| i.name.to_string()).collect::<Vec<_>>().join(","),
++                program.clone(),
++            )
++        })
++        .collect();
++
++    joined.serialize(serializer)
++}
++
++pub fn deserialize<'de, D: Deserializer<'de>>(
++    deserializer: D,
++) -> Result<IndexMap<Vec<Identifier>, DefinitionStatement>, D::Error> {
++    Ok(IndexMap::<String, DefinitionStatement>::deserialize(deserializer)?
++        .into_iter()
++        .map(|(name, program)| {
++            (
++                name.split(',')
++                    .map(|ident_name| Identifier {
++                        name: ident_name.into(),
++                        span: Default::default(),
++                    })
++                    .collect::<Vec<Identifier>>(),
++                program,
++            )
++        })
++        .collect())
++}
+diff --git a/ast/src/common/mod.rs b/ast/src/common/mod.rs
+index db9e9a8934..dc05c0de0f 100644
+--- a/ast/src/common/mod.rs
++++ b/ast/src/common/mod.rs
+@@ -20,6 +20,8 @@ pub use array_dimensions::*;
+ pub mod const_self_keyword;
+ pub use const_self_keyword::*;
+ 
++pub mod global_consts_json;
++
+ pub mod identifier;
+ pub use identifier::*;
+ 
+diff --git a/ast/src/program.rs b/ast/src/program.rs
+index e666663e96..aee5660bd9 100644
+--- a/ast/src/program.rs
++++ b/ast/src/program.rs
+@@ -33,7 +33,8 @@ pub struct Program {
+     pub imports: IndexMap<Vec<String>, Program>,
+     pub aliases: IndexMap<Identifier, Alias>,
+     pub circuits: IndexMap<Identifier, Circuit>,
+-    pub global_consts: IndexMap<String, DefinitionStatement>,
++    #[serde(with = "crate::common::global_consts_json")]
++    pub global_consts: IndexMap<Vec<Identifier>, DefinitionStatement>,
+     pub functions: IndexMap<Identifier, Function>,
+ }
+ 
+diff --git a/ast/src/reducer/reconstructing_reducer.rs b/ast/src/reducer/reconstructing_reducer.rs
+index ce3df848a6..671c60ffce 100644
+--- a/ast/src/reducer/reconstructing_reducer.rs
++++ b/ast/src/reducer/reconstructing_reducer.rs
+@@ -387,7 +387,7 @@ pub trait ReconstructingReducer {
+         aliases: IndexMap<Identifier, Alias>,
+         circuits: IndexMap<Identifier, Circuit>,
+         functions: IndexMap<Identifier, Function>,
+-        global_consts: IndexMap<String, DefinitionStatement>,
++        global_consts: IndexMap<Vec<Identifier>, DefinitionStatement>,
+     ) -> Result<Program> {
+         Ok(Program {
+             name: program.name.clone(),
+diff --git a/compiler/src/compiler.rs b/compiler/src/compiler.rs
+index 3e22a03342..7d83268e48 100644
+--- a/compiler/src/compiler.rs
++++ b/compiler/src/compiler.rs
+@@ -251,7 +251,7 @@ impl<'a, F: PrimeField, G: GroupType<F>> Compiler<'a, F, G> {
+         // Preform import resolution.
+         ast = leo_ast_passes::Importer::do_pass(
+             ast.into_repr(),
+-            ImportParser::new(self.main_file_path.clone(), self.imports_map.clone()),
++            &mut ImportParser::new(self.main_file_path.clone(), self.imports_map.clone()),
+         )?;
+ 
+         if self.ast_snapshot_options.imports_resolved {
+diff --git a/errors/src/asg/asg_errors.rs b/errors/src/asg/asg_errors.rs
+index e7217461d3..6524b6ab95 100644
+--- a/errors/src/asg/asg_errors.rs
++++ b/errors/src/asg/asg_errors.rs
+@@ -420,6 +420,14 @@ create_errors!(
+         help: None,
+     }
+ 
++    /// For when a user defines an circuit with the same name twice.
++    @formatted
++    duplicate_circuit_definition {
++        args: (name: impl Display),
++        msg: format!("a circuit named \"{}\" already exists in this scope", name),
++        help: None,
++    }
++
+     /// For when a user defines a function input with the same name twice.
+     @formatted
+     duplicate_function_input_definition {
+@@ -436,11 +444,27 @@ create_errors!(
+         help: None,
+     }
+ 
+-    /// For when a named identifier is being shadowed.
++    /// For when a function input shadows a global const.
++    @formatted
++    function_input_cannot_shadow_global_const {
++        args: (name: impl Display),
++        msg: format!("a function input cannot be named `{}` as a global const with that name already exists in this scope", name),
++        help: None,
++    }
++
++    /// For when a variable definition shadows a global const.
++    @formatted
++    function_variable_cannot_shadow_global_const {
++        args: (name: impl Display),
++        msg: format!("a variable cannot be named `{}` as a global const with that name already exists in this scope", name),
++        help: None,
++    }
++
++    /// For when a variable definition shadows a function input.
+     @formatted
+-    cannot_shadow_name {
+-        args: (type_: impl Display, name: impl Display, location: impl Display),
+-        msg: format!("a {} cannot be named `{}` as a {} with that name already exists in this scope", type_, name, location),
++    function_variable_cannot_shadow_other_function_variable {
++        args: (name: impl Display),
++        msg: format!("a variable cannot be named `{}` as a function input or variable with that name already exists in this scope", name),
+         help: None,
+     }
+ );
+diff --git a/imports/src/parser/parse_package.rs b/imports/src/parser/parse_package.rs
+index 0bb41db4e4..c041fe57d9 100644
+--- a/imports/src/parser/parse_package.rs
++++ b/imports/src/parser/parse_package.rs
+@@ -35,7 +35,10 @@ impl ImportParser {
+             return self.parse_package(package.path(), remaining_segments, span);
+         }
+ 
+-        Self::parse_import_file(package, span)
++        let program = Self::parse_import_file(package, span)?;
++        let ast = leo_ast_passes::Importer::do_pass(program, self)?.into_repr();
++
++        Ok(ast)
+     }
+ 
+     ///
+diff --git a/parser/src/parser/file.rs b/parser/src/parser/file.rs
+index c28ad28021..993c2200ed 100644
+--- a/parser/src/parser/file.rs
++++ b/parser/src/parser/file.rs
+@@ -507,14 +507,13 @@ impl ParserContext {
+     /// Returns an [`(String, DefinitionStatement)`] AST node if the next tokens represent a global
+     /// const definition statement and assignment.
+     ///
+-    pub fn parse_global_const_declaration(&mut self) -> Result<(String, DefinitionStatement)> {
++    pub fn parse_global_const_declaration(&mut self) -> Result<(Vec<Identifier>, DefinitionStatement)> {
+         let statement = self.parse_definition_statement()?;
+         let variable_names = statement
+             .variable_names
+             .iter()
+-            .map(|variable_name| variable_name.identifier.name.to_string())
+-            .collect::<Vec<String>>()
+-            .join(",");
++            .map(|variable_name| variable_name.identifier.clone())
++            .collect::<Vec<Identifier>>();
+ 
+         Ok((variable_names, statement))
+     }
+diff --git a/test-framework/src/bin/tgc.rs b/test-framework/src/bin/tgc.rs
+index d92e4a0eaf..c55661b122 100644
+--- a/test-framework/src/bin/tgc.rs
++++ b/test-framework/src/bin/tgc.rs
+@@ -143,7 +143,7 @@ fn generate_asts(path: PathBuf, text: &str) -> Result<(String, String, String, S
+     let mut ast = leo_parser::parse_ast(path.clone().into_os_string().into_string().unwrap(), text)?;
+     let initial = ast.to_json_string()?;
+ 
+-    ast = leo_ast_passes::Importer::do_pass(ast.into_repr(), ImportParser::new(path, Default::default()))?;
++    ast = leo_ast_passes::Importer::do_pass(ast.into_repr(), &mut ImportParser::new(path, Default::default()))?;
+     let imports_resolved = ast.to_json_string()?;
+ 
+     ast = leo_ast_passes::Canonicalizer::do_pass(ast.into_repr())?;
+diff --git a/tests/compiler/aliases/alias_circuit_namespace_conflict_fail.leo b/tests/compiler/aliases/alias_circuit_namespace_conflict_fail.leo
+new file mode 100644
+index 0000000000..f2396a5878
+--- /dev/null
++++ b/tests/compiler/aliases/alias_circuit_namespace_conflict_fail.leo
+@@ -0,0 +1,17 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file:
++ - inputs/dummy.in
++*/
++
++
++type Int = u32;
++
++circuit Int {
++	x: u8;
++}
++
++function main(y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/aliases/alias_function_namespace_conflict_fail.leo b/tests/compiler/aliases/alias_function_namespace_conflict_fail.leo
+new file mode 100644
+index 0000000000..272d53e519
+--- /dev/null
++++ b/tests/compiler/aliases/alias_function_namespace_conflict_fail.leo
+@@ -0,0 +1,14 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file:
++ - inputs/dummy.in
++*/
++
++type int = u32;
++
++function int() {}
++
++function main(y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/aliases/alias_global_const_namespace_conflict_fail copy.leo b/tests/compiler/aliases/alias_global_const_namespace_conflict_fail copy.leo
+new file mode 100644
+index 0000000000..6a12761425
+--- /dev/null
++++ b/tests/compiler/aliases/alias_global_const_namespace_conflict_fail copy.leo	
+@@ -0,0 +1,14 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file:
++ - inputs/dummy.in
++*/
++
++type int = u32;
++
++const int = 8u8;
++
++function main(y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/circuits/circuit_alias_namespace_conflict_fail.leo b/tests/compiler/circuits/circuit_alias_namespace_conflict_fail.leo
+new file mode 100644
+index 0000000000..6a16938b37
+--- /dev/null
++++ b/tests/compiler/circuits/circuit_alias_namespace_conflict_fail.leo
+@@ -0,0 +1,16 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file:
++ - inputs/dummy.in
++*/
++
++circuit Int {
++	x: u8;
++}
++
++type Int = u32;
++
++function main(y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/circuits/circuit_function_namespace_conflict_fail.leo b/tests/compiler/circuits/circuit_function_namespace_conflict_fail.leo
+new file mode 100644
+index 0000000000..5ced98b02d
+--- /dev/null
++++ b/tests/compiler/circuits/circuit_function_namespace_conflict_fail.leo
+@@ -0,0 +1,16 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file:
++ - inputs/dummy.in
++*/
++
++circuit Foo {
++    x: u8;
++}
++
++function Foo() {}
++
++function main(y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/circuits/circuit_global_const_namespace_conflict_fail copy.leo b/tests/compiler/circuits/circuit_global_const_namespace_conflict_fail copy.leo
+new file mode 100644
+index 0000000000..53e363a137
+--- /dev/null
++++ b/tests/compiler/circuits/circuit_global_const_namespace_conflict_fail copy.leo	
+@@ -0,0 +1,16 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file:
++ - inputs/dummy.in
++*/
++
++circuit Foo {
++    x: u8;
++}
++
++const Foo = 8u8;
++
++function main(y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/function/duplicate_definition_fail.leo b/tests/compiler/function/duplicate_definition_fail.leo
+index 43ec30e787..9b003b6015 100644
+--- a/tests/compiler/function/duplicate_definition_fail.leo
++++ b/tests/compiler/function/duplicate_definition_fail.leo
+@@ -5,10 +5,12 @@ input_file: input/dummy.in
+ */
+ 
+ 
+-function main() {
++function main(y: bool) -> bool {
+     console.log("{}", 1u8);
++    return y;
+ }
+ 
+-function main() {
++function main(y: bool) -> bool {
+     console.log("{}", 2u8);
++    return y; 
+ }
+diff --git a/tests/compiler/function/function_alias_namespace_conflict_fail.leo b/tests/compiler/function/function_alias_namespace_conflict_fail.leo
+new file mode 100644
+index 0000000000..b8cad08251
+--- /dev/null
++++ b/tests/compiler/function/function_alias_namespace_conflict_fail.leo
+@@ -0,0 +1,14 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file:
++ - inputs/dummy.in
++*/
++
++function int() {}
++
++type int = u32;
++
++function main(y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/function/function_circuit_namespace_conflict_fail.leo b/tests/compiler/function/function_circuit_namespace_conflict_fail.leo
+new file mode 100644
+index 0000000000..3ddbb6c8c2
+--- /dev/null
++++ b/tests/compiler/function/function_circuit_namespace_conflict_fail.leo
+@@ -0,0 +1,16 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file:
++ - inputs/dummy.in
++*/
++
++function Foo() {}
++
++circuit Foo {
++    x: u8;
++}
++
++function main(y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/function/function_global_const_namespace_conflict_fail copy.leo b/tests/compiler/function/function_global_const_namespace_conflict_fail copy.leo
+new file mode 100644
+index 0000000000..1f3fd2880f
+--- /dev/null
++++ b/tests/compiler/function/function_global_const_namespace_conflict_fail copy.leo	
+@@ -0,0 +1,14 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file:
++ - inputs/dummy.in
++*/
++
++function foo() {}
++
++const foo = 8u8;
++
++function main(y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/function/shadow_global_const_input_fail copy.leo b/tests/compiler/function/shadow_global_const_input_fail copy.leo
+new file mode 100644
+index 0000000000..c07c729b2a
+--- /dev/null
++++ b/tests/compiler/function/shadow_global_const_input_fail copy.leo	
+@@ -0,0 +1,13 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file: input/dummy.in
++*/
++
++const hi = 1u32;
++
++function tester(hi: u8) {}
++
++function main (y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/function/shadow_global_const_var_fail.leo b/tests/compiler/function/shadow_global_const_var_fail.leo
+new file mode 100644
+index 0000000000..e2d340f2e8
+--- /dev/null
++++ b/tests/compiler/function/shadow_global_const_var_fail.leo
+@@ -0,0 +1,13 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file: input/dummy.in
++*/
++
++function tester(hi: u8) {
++    const hi = 1u8;
++}
++
++function main (y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/function/shadow_parameter_fail.leo b/tests/compiler/function/shadow_parameter_fail.leo
+new file mode 100644
+index 0000000000..3d44753da1
+--- /dev/null
++++ b/tests/compiler/function/shadow_parameter_fail.leo
+@@ -0,0 +1,13 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file: input/dummy.in
++*/
++
++function tester(hi: u8) {
++    const hi = 2u8;
++}
++
++function main (y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/global_consts/global_const_alias_namespace_conflict_fail.leo b/tests/compiler/global_consts/global_const_alias_namespace_conflict_fail.leo
+new file mode 100644
+index 0000000000..e76d422fe6
+--- /dev/null
++++ b/tests/compiler/global_consts/global_const_alias_namespace_conflict_fail.leo
+@@ -0,0 +1,14 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file:
++ - inputs/dummy.in
++*/
++
++const int = 8u8;
++
++type int = u32;
++
++function main(y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/global_consts/global_const_circuit_namespace_conflict_fail copy.leo b/tests/compiler/global_consts/global_const_circuit_namespace_conflict_fail copy.leo
+new file mode 100644
+index 0000000000..855aacc400
+--- /dev/null
++++ b/tests/compiler/global_consts/global_const_circuit_namespace_conflict_fail copy.leo	
+@@ -0,0 +1,16 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file:
++ - inputs/dummy.in
++*/
++
++const Foo = 8u8;
++
++circuit Foo {
++    x: u8;
++}
++
++function main(y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/global_consts/global_const_function_namespace_conflict_fail.leo b/tests/compiler/global_consts/global_const_function_namespace_conflict_fail.leo
+new file mode 100644
+index 0000000000..81e3fa489f
+--- /dev/null
++++ b/tests/compiler/global_consts/global_const_function_namespace_conflict_fail.leo
+@@ -0,0 +1,14 @@
++/*
++namespace: Compile
++expectation: Fail
++input_file:
++ - inputs/dummy.in
++*/
++
++const two = 2u8;
++
++function two() {}
++
++function main(y: bool) -> bool {
++    return y;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/global_consts/global_const_types.leo b/tests/compiler/global_consts/global_const_types.leo
+index 8550672aeb..db73b8cc04 100644
+--- a/tests/compiler/global_consts/global_const_types.leo
++++ b/tests/compiler/global_consts/global_const_types.leo
+@@ -19,7 +19,7 @@ const complex_group = (_, 1)group;
+ const field_test: field = 2;
+ const use_another_const = basic + 1;
+ const foo = Foo { width: 10, height: 20 };
+-const uno = uno();
++const one = uno();
+ const character = 'a';
+ const hello = "Hello, World!";
+ 
+@@ -49,7 +49,7 @@ function main(a: u32) -> bool {
+         && use_another_const == 9u32 // use another const test
+         && foo.width == 10u32 // circuit test
+         && foo.height == 20u32
+-        && uno == 1u32 // function test
++        && one == 1u32 // function test
+         && character == 'a' // char test
+         && hello == "Hello, World!";
+ }
+diff --git a/tests/compiler/global_consts/inputs/dummy.in b/tests/compiler/global_consts/inputs/dummy.in
+new file mode 100644
+index 0000000000..d63f21e6b5
+--- /dev/null
++++ b/tests/compiler/global_consts/inputs/dummy.in
+@@ -0,0 +1,6 @@
++[main]
++y: bool = true;
++x: bool = false;
++
++[registers]
++r0: bool = true;
+diff --git a/tests/compiler/import_local/import_all.leo b/tests/compiler/import_local/import_all.leo
+index 6d81a15dab..9839a6d139 100644
+--- a/tests/compiler/import_local/import_all.leo
++++ b/tests/compiler/import_local/import_all.leo
+@@ -11,6 +11,8 @@ function main(y: bool) -> bool {
+     const a = Point { x: 1u32, y: 0u32 };
+     const hello_alias: char5 = "hello";
+     const hello = "hello";
++    const eight = 8u8;
++    const fab = fab_gen();
+ 
+-    return( (foo() == 1u32) && hello_alias == hello) == y;
++    return( (foo() == 1u32) && hello_alias == hello && EIGHT == eight) == y;
+ }
+diff --git a/tests/compiler/import_local/local_imports/circuits.leo b/tests/compiler/import_local/local_imports/circuits.leo
+index fd589fd865..0a6857c965 100644
+--- a/tests/compiler/import_local/local_imports/circuits.leo
++++ b/tests/compiler/import_local/local_imports/circuits.leo
+@@ -8,3 +8,11 @@ function foo() -> u32 {
+ }
+ 
+ type char5 = [char; 5];
++ 
++const EIGHT = 8u8;
++
++import nested.c-d.Fab;
++
++function fab_gen() -> Fab {
++    return Fab { x: 3 };
++}
+\ No newline at end of file
+diff --git a/tests/compiler/import_local/local_imports/nested/c-d.leo b/tests/compiler/import_local/local_imports/nested/c-d.leo
+index 99a62646ee..e06de190df 100644
+--- a/tests/compiler/import_local/local_imports/nested/c-d.leo
++++ b/tests/compiler/import_local/local_imports/nested/c-d.leo
+@@ -1,3 +1,7 @@
++circuit Fab {
++    x: u8;
++}
++
+ function cd() -> bool {
+     return true;
+ }
+diff --git a/tests/compiler/tuples/basic.leo b/tests/compiler/tuples/basic.leo
+index 3a9b0e414c..51dbfaa7c2 100644
+--- a/tests/compiler/tuples/basic.leo
++++ b/tests/compiler/tuples/basic.leo
+@@ -5,7 +5,7 @@ input_file: inputs/true_true.in
+ */
+ 
+ function main(a: (bool, bool)) -> (bool, bool) {
+-    const a = (true, false);
++    const b = (true, false);
+ 
+-    return (a.0, a.1);
++    return (b.0, b.1);
+ }
+\ No newline at end of file
+diff --git a/tests/compiler/tuples/dependent.leo b/tests/compiler/tuples/dependent.leo
+index 3e46824bf5..7ba2b59dd1 100644
+--- a/tests/compiler/tuples/dependent.leo
++++ b/tests/compiler/tuples/dependent.leo
+@@ -5,7 +5,7 @@ input_file: inputs/true_true.in
+ */
+ 
+ function main(a: (bool, bool)) -> (bool, bool) {
+-    let a = (a.0 ? false : true, a.1 ? false : true);
++    let b = (a.0 ? false : true, a.1 ? false : true);
+ 
+-    return (a.0, a.1);
++    return (b.0, b.1);
+ }
+diff --git a/tests/compiler/tuples/destructured.leo b/tests/compiler/tuples/destructured.leo
+index d9f1c0def8..8810a989d5 100644
+--- a/tests/compiler/tuples/destructured.leo
++++ b/tests/compiler/tuples/destructured.leo
+@@ -5,7 +5,7 @@ input_file: inputs/true_true.in
+ */
+ 
+ function main(a: (bool, bool)) -> (bool, bool) {
+-    let (a, b) = (a.0 ? false : true, a.1 ? false : true);
++    let (b, c) = (a.0 ? false : true, a.1 ? false : true);
+ 
+-    return (b, a);
++    return (c, b);
+ }
+diff --git a/tests/expectations/compiler/compiler/aliases/alias_circuit_namespace_conflict_fail.leo.out b/tests/expectations/compiler/compiler/aliases/alias_circuit_namespace_conflict_fail.leo.out
+new file mode 100644
+index 0000000000..deffee764c
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/aliases/alias_circuit_namespace_conflict_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373044]: a alias named \"Int\" already exists in this scope\n    --> compiler-test:6:9\n     |\n   6 | circuit Int {\n     |         ^^^"
+diff --git a/tests/expectations/compiler/compiler/aliases/alias_function_namespace_conflict_fail.leo.out b/tests/expectations/compiler/compiler/aliases/alias_function_namespace_conflict_fail.leo.out
+new file mode 100644
+index 0000000000..71b0ec6d18
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/aliases/alias_function_namespace_conflict_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373044]: a alias named \"int\" already exists in this scope\n    --> compiler-test:5:1\n     |\n   5 | function int() {}\n     | ^^^^^^^^^^^^^^^^^"
+diff --git a/tests/expectations/compiler/compiler/aliases/alias_global_const_namespace_conflict_fail copy.leo.out b/tests/expectations/compiler/compiler/aliases/alias_global_const_namespace_conflict_fail copy.leo.out
+new file mode 100644
+index 0000000000..162a0f02ed
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/aliases/alias_global_const_namespace_conflict_fail copy.leo.out	
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373044]: a alias named \"int\" already exists in this scope\n    --> compiler-test:5:1\n     |\n   5 | const int = 8u8;\n     | ^^^^^^^^^^^^^^^"
+diff --git a/tests/expectations/compiler/compiler/circuits/circuit_alias_namespace_conflict_fail.leo.out b/tests/expectations/compiler/compiler/circuits/circuit_alias_namespace_conflict_fail.leo.out
+new file mode 100644
+index 0000000000..017fecf202
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/circuits/circuit_alias_namespace_conflict_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373044]: a alias named \"Int\" already exists in this scope\n    --> compiler-test:3:9\n     |\n   3 | circuit Int {\n     |         ^^^"
+diff --git a/tests/expectations/compiler/compiler/circuits/circuit_function_namespace_conflict_fail.leo.out b/tests/expectations/compiler/compiler/circuits/circuit_function_namespace_conflict_fail.leo.out
+new file mode 100644
+index 0000000000..bbeac5be1c
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/circuits/circuit_function_namespace_conflict_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373015]: a function named \"Foo\" already exists in this scope\n    --> compiler-test:3:9\n     |\n   3 | circuit Foo {\n     |         ^^^"
+diff --git a/tests/expectations/compiler/compiler/circuits/circuit_global_const_namespace_conflict_fail copy.leo.out b/tests/expectations/compiler/compiler/circuits/circuit_global_const_namespace_conflict_fail copy.leo.out
+new file mode 100644
+index 0000000000..f00773408c
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/circuits/circuit_global_const_namespace_conflict_fail copy.leo.out	
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373045]: a circuit named \"Foo\" already exists in this scope\n    --> compiler-test:7:1\n     |\n   7 | const Foo = 8u8;\n     | ^^^^^^^^^^^^^^^"
+diff --git a/tests/expectations/compiler/compiler/function/duplicate_definition_fail.leo.out b/tests/expectations/compiler/compiler/function/duplicate_definition_fail.leo.out
+index 3d740f571f..c7ba950269 100644
+--- a/tests/expectations/compiler/compiler/function/duplicate_definition_fail.leo.out
++++ b/tests/expectations/compiler/compiler/function/duplicate_definition_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [EASG0373015]: a function named \"main\" already exists in this scope\n    --> compiler-test:8:1\n     |\n   8 | function main() {\n   9 |      ...\n  10 | }\n     | ^"
++  - "Error [EASG0373015]: a function named \"main\" already exists in this scope\n    --> compiler-test:9:1\n     |\n   9 | function main(y: bool) -> bool {\n  10 |      ...\n  11 |      ...\n  12 | }\n     | ^"
+diff --git a/tests/expectations/compiler/compiler/function/duplicate_parameter_fail.leo.out b/tests/expectations/compiler/compiler/function/duplicate_parameter_fail.leo.out
+index 7edb1e7d52..66b341780f 100644
+--- a/tests/expectations/compiler/compiler/function/duplicate_parameter_fail.leo.out
++++ b/tests/expectations/compiler/compiler/function/duplicate_parameter_fail.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [EASG0373045]: a function input named \"a\" already exists in this scope\n    --> compiler-test:3:23\n     |\n   3 | function main(a: u32, a: u32) {\n     |                       ^"
++  - "Error [EASG0373046]: a function input named \"a\" already exists in this scope\n    --> compiler-test:3:23\n     |\n   3 | function main(a: u32, a: u32) {\n     |                       ^"
+diff --git a/tests/expectations/compiler/compiler/function/function_alias_namespace_conflict_fail.leo.out b/tests/expectations/compiler/compiler/function/function_alias_namespace_conflict_fail.leo.out
+new file mode 100644
+index 0000000000..3362cb13e7
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/function/function_alias_namespace_conflict_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373044]: a alias named \"int\" already exists in this scope\n    --> compiler-test:3:1\n     |\n   3 | function int() {}\n     | ^^^^^^^^^^^^^^^^^"
+diff --git a/tests/expectations/compiler/compiler/function/function_circuit_namespace_conflict_fail.leo.out b/tests/expectations/compiler/compiler/function/function_circuit_namespace_conflict_fail.leo.out
+new file mode 100644
+index 0000000000..d1aaa77036
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/function/function_circuit_namespace_conflict_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373015]: a function named \"Foo\" already exists in this scope\n    --> compiler-test:5:9\n     |\n   5 | circuit Foo {\n     |         ^^^"
+diff --git a/tests/expectations/compiler/compiler/function/function_global_const_namespace_conflict_fail copy.leo.out b/tests/expectations/compiler/compiler/function/function_global_const_namespace_conflict_fail copy.leo.out
+new file mode 100644
+index 0000000000..4f5d7221b3
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/function/function_global_const_namespace_conflict_fail copy.leo.out	
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373015]: a function named \"foo\" already exists in this scope\n    --> compiler-test:5:1\n     |\n   5 | const foo = 8u8;\n     | ^^^^^^^^^^^^^^^"
+diff --git a/tests/expectations/compiler/compiler/function/shadow_global_const_input_fail copy.leo.out b/tests/expectations/compiler/compiler/function/shadow_global_const_input_fail copy.leo.out
+new file mode 100644
+index 0000000000..1a9a12a532
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/function/shadow_global_const_input_fail copy.leo.out	
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373048]: a function input cannot be named `hi` as a global const with that name already exists in this scope\n    --> compiler-test:5:17\n     |\n   5 | function tester(hi: u8) {}\n     |                 ^^"
+diff --git a/tests/expectations/compiler/compiler/function/shadow_global_const_var_fail.leo.out b/tests/expectations/compiler/compiler/function/shadow_global_const_var_fail.leo.out
+new file mode 100644
+index 0000000000..dfb5575007
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/function/shadow_global_const_var_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373050]: a variable cannot be named `hi` as a function input or variable with that name already exists in this scope\n    --> compiler-test:4:11\n     |\n   4 |     const hi = 1u8;\n     |           ^^"
+diff --git a/tests/expectations/compiler/compiler/function/shadow_parameter_fail.leo.out b/tests/expectations/compiler/compiler/function/shadow_parameter_fail.leo.out
+new file mode 100644
+index 0000000000..1640957ef3
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/function/shadow_parameter_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373050]: a variable cannot be named `hi` as a function input or variable with that name already exists in this scope\n    --> compiler-test:4:11\n     |\n   4 |     const hi = 2u8;\n     |           ^^"
+diff --git a/tests/expectations/compiler/compiler/global_consts/global_const_alias_namespace_conflict_fail.leo.out b/tests/expectations/compiler/compiler/global_consts/global_const_alias_namespace_conflict_fail.leo.out
+new file mode 100644
+index 0000000000..431afecbd2
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/global_consts/global_const_alias_namespace_conflict_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373044]: a alias named \"int\" already exists in this scope\n    --> compiler-test:3:1\n     |\n   3 | const int = 8u8;\n     | ^^^^^^^^^^^^^^^"
+diff --git a/tests/expectations/compiler/compiler/global_consts/global_const_circuit_namespace_conflict_fail copy.leo.out b/tests/expectations/compiler/compiler/global_consts/global_const_circuit_namespace_conflict_fail copy.leo.out
+new file mode 100644
+index 0000000000..cc06fa82d5
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/global_consts/global_const_circuit_namespace_conflict_fail copy.leo.out	
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373045]: a circuit named \"Foo\" already exists in this scope\n    --> compiler-test:3:1\n     |\n   3 | const Foo = 8u8;\n     | ^^^^^^^^^^^^^^^"
+diff --git a/tests/expectations/compiler/compiler/global_consts/global_const_function_namespace_conflict_fail.leo.out b/tests/expectations/compiler/compiler/global_consts/global_const_function_namespace_conflict_fail.leo.out
+new file mode 100644
+index 0000000000..0fbb9c150a
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/global_consts/global_const_function_namespace_conflict_fail.leo.out
+@@ -0,0 +1,5 @@
++---
++namespace: Compile
++expectation: Fail
++outputs:
++  - "Error [EASG0373015]: a function named \"two\" already exists in this scope\n    --> compiler-test:3:1\n     |\n   3 | const two = 2u8;\n     | ^^^^^^^^^^^^^^^"
+diff --git a/tests/expectations/compiler/compiler/global_consts/global_const_types.leo.out b/tests/expectations/compiler/compiler/global_consts/global_const_types.leo.out
+index 1f8e049ff5..67962787bd 100644
+--- a/tests/expectations/compiler/compiler/global_consts/global_const_types.leo.out
++++ b/tests/expectations/compiler/compiler/global_consts/global_const_types.leo.out
+@@ -16,7 +16,7 @@ outputs:
+             r0:
+               type: bool
+               value: "false"
+-    initial_ast: b4e5073c07791c4726b69f3e60ec66ccebefb7a3811f4a3576fc4042f8c80114
+-    imports_resolved_ast: b4e5073c07791c4726b69f3e60ec66ccebefb7a3811f4a3576fc4042f8c80114
+-    canonicalized_ast: 03a4e0ffc6deea9c6500a9d91eb683a780e8f5961801bea1aab26c14e4543325
+-    type_inferenced_ast: 66d0a55ff2ab6931d5806dcbb2ff23f9dbc41a883f19a45af8a41d3be84e136d
++    initial_ast: d53a0267c4afe271c6488aeda9910433e3a947d96530ea1286eba511e6e8f17e
++    imports_resolved_ast: d53a0267c4afe271c6488aeda9910433e3a947d96530ea1286eba511e6e8f17e
++    canonicalized_ast: 86bc6722c866a18e2b4d022e67c82dfa0f20f1b4d86d2869f6267010ef45c0c6
++    type_inferenced_ast: 57202f3b3a4808ce13cce466b6e7a6b153c1950e6af6fcbe68bf04a4d95476f1
+diff --git a/tests/expectations/compiler/compiler/import_local/import_all.leo.out b/tests/expectations/compiler/compiler/import_local/import_all.leo.out
+index 9e299f3691..4b02dd6445 100644
+--- a/tests/expectations/compiler/compiler/import_local/import_all.leo.out
++++ b/tests/expectations/compiler/compiler/import_local/import_all.leo.out
+@@ -16,7 +16,7 @@ outputs:
+             r0:
+               type: bool
+               value: "true"
+-    initial_ast: 6e689aa459b9ea2fa0c18c9dc0f2512db9d430f5c7101cb3104a275711d60210
+-    imports_resolved_ast: c4260b58a631ee77b0492ba1354182b2c95d260dcf01a62e2a0797eb5f268478
+-    canonicalized_ast: 7e2eaf52ce5c79242b44357609ab667df411190bf7a11228d240c314f0ce0502
+-    type_inferenced_ast: be897b5b17a946c2595afcc8a802df5fa4e013ba3acb4159a0123d7cf1941544
++    initial_ast: af29b4526e16fa59b0c58106f77bc4453a845480a04c82a321157d667c6d07c9
++    imports_resolved_ast: ecd27f76f14e754b00f5c1b4d3f14092e76775865933668c7072885b77067e86
++    canonicalized_ast: dedb5d6243d79db6a186b4cc8bfbf652c8dcf982c4fc8a32b4bf51e8cf689253
++    type_inferenced_ast: 316391d0eec112e0fea34a14f2388c320f99d5da63211aea90cd7ca92eb81cf9
+diff --git a/tests/expectations/compiler/compiler/import_local/import_many.leo.out b/tests/expectations/compiler/compiler/import_local/import_many.leo.out
+index 551b30394a..83ca58a566 100644
+--- a/tests/expectations/compiler/compiler/import_local/import_many.leo.out
++++ b/tests/expectations/compiler/compiler/import_local/import_many.leo.out
+@@ -17,6 +17,6 @@ outputs:
+               type: bool
+               value: "true"
+     initial_ast: ae6826642faa492e34507695dbd11e5b44c319aecb0b1e78b29ce03ae446d907
+-    imports_resolved_ast: e08b138c63ede9de6e090e6b7fbcfbbc27a1ae49b032a6cffcafaa8f76410839
+-    canonicalized_ast: e08b138c63ede9de6e090e6b7fbcfbbc27a1ae49b032a6cffcafaa8f76410839
+-    type_inferenced_ast: b311680f4429cc16661f774b0547936be148a3dd9f478013adefe575629b88fa
++    imports_resolved_ast: 38cdae0ceb9feea0550ae88df86e9d0676c592fdc7a0a37f56da8c2d62dd3199
++    canonicalized_ast: 38cdae0ceb9feea0550ae88df86e9d0676c592fdc7a0a37f56da8c2d62dd3199
++    type_inferenced_ast: 93e0e825fc6daeabfd3891441979f4575d87a019996de7ce43241d1b535c5604
+diff --git a/tests/expectations/compiler/compiler/import_local/import_weird_names_nested.leo.out b/tests/expectations/compiler/compiler/import_local/import_weird_names_nested.leo.out
+index acb4a60b7e..3a3b98103a 100644
+--- a/tests/expectations/compiler/compiler/import_local/import_weird_names_nested.leo.out
++++ b/tests/expectations/compiler/compiler/import_local/import_weird_names_nested.leo.out
+@@ -17,6 +17,6 @@ outputs:
+               type: bool
+               value: "true"
+     initial_ast: bb86f336b58de89c79741628133e6aa997f3f49a6f066b8c054261e91e3f18a8
+-    imports_resolved_ast: 1fe862bf85cf0c88ce3c52066118d544f367984dbe97665b2719281de15c449c
+-    canonicalized_ast: 1fe862bf85cf0c88ce3c52066118d544f367984dbe97665b2719281de15c449c
+-    type_inferenced_ast: d8f6f5bde53232553d1ff891e7f78823645d9a8984139d06409cb2ccde562e76
++    imports_resolved_ast: 7f53319b8eeb7fd2e7e76e7cbe6f130b3af9918060519cc111a45f9739cd8085
++    canonicalized_ast: 7f53319b8eeb7fd2e7e76e7cbe6f130b3af9918060519cc111a45f9739cd8085
++    type_inferenced_ast: 1fcfebcdbf04cba7f2878b8efe881f598407a0f15c5419bb7da7a8ea9ec37438
+diff --git a/tests/expectations/compiler/compiler/statements/duplicate_variable.leo.out b/tests/expectations/compiler/compiler/statements/duplicate_variable.leo.out
+index e975210ed2..e0930ed9aa 100644
+--- a/tests/expectations/compiler/compiler/statements/duplicate_variable.leo.out
++++ b/tests/expectations/compiler/compiler/statements/duplicate_variable.leo.out
+@@ -2,4 +2,4 @@
+ namespace: Compile
+ expectation: Fail
+ outputs:
+-  - "Error [EASG0373016]: a variable named \"x\" already exists in this scope\n    --> compiler-test:5:3\n     |\n   5 |   let x = true;\n     |   ^^^^^^^^^^^^"
++  - "Error [EASG0373050]: a variable cannot be named `x` as a function input or variable with that name already exists in this scope\n    --> compiler-test:5:7\n     |\n   5 |   let x = true;\n     |       ^"
+diff --git a/tests/expectations/compiler/compiler/tuples/basic.leo.out b/tests/expectations/compiler/compiler/tuples/basic.leo.out
+index 3841846e9d..1a231ec76b 100644
+--- a/tests/expectations/compiler/compiler/tuples/basic.leo.out
++++ b/tests/expectations/compiler/compiler/tuples/basic.leo.out
+@@ -19,7 +19,7 @@ outputs:
+             c:
+               type: bool
+               value: "false"
+-    initial_ast: 51cc6c9ff08fa4320783cf8b6683f784a6325a0e371c7d93049c30eb9d04cf72
+-    imports_resolved_ast: 51cc6c9ff08fa4320783cf8b6683f784a6325a0e371c7d93049c30eb9d04cf72
+-    canonicalized_ast: 51cc6c9ff08fa4320783cf8b6683f784a6325a0e371c7d93049c30eb9d04cf72
+-    type_inferenced_ast: a1e55a4a926b0d9c8d0f611136c7f9ba8ed5c6156a85d1d04adc9faaadf1a611
++    initial_ast: 10550feaa2c5235500abf424e222f1f8383225ae3b6906c1cd76835e83286817
++    imports_resolved_ast: 10550feaa2c5235500abf424e222f1f8383225ae3b6906c1cd76835e83286817
++    canonicalized_ast: 10550feaa2c5235500abf424e222f1f8383225ae3b6906c1cd76835e83286817
++    type_inferenced_ast: db07b90097bb2605e23365d07d039b7845e9c7e7313a7ecaa01116dae93912ad
+diff --git a/tests/expectations/compiler/compiler/tuples/dependent.leo.out b/tests/expectations/compiler/compiler/tuples/dependent.leo.out
+index 8b49eeab86..4a3cf972dd 100644
+--- a/tests/expectations/compiler/compiler/tuples/dependent.leo.out
++++ b/tests/expectations/compiler/compiler/tuples/dependent.leo.out
+@@ -19,7 +19,7 @@ outputs:
+             c:
+               type: bool
+               value: "false"
+-    initial_ast: 6692e9d94d784dd3cd11dbf48ac13b0b54f61d83ba0d85bf038e9bf84590851f
+-    imports_resolved_ast: 6692e9d94d784dd3cd11dbf48ac13b0b54f61d83ba0d85bf038e9bf84590851f
+-    canonicalized_ast: 6692e9d94d784dd3cd11dbf48ac13b0b54f61d83ba0d85bf038e9bf84590851f
+-    type_inferenced_ast: 0d8c2b2b77762cfb957d5d6247366317b8fbe4ac7cb985df1b4d3511accf13b8
++    initial_ast: be3a0206397e9b0f95c696b4d7174ee81262e805fc787b3516b1b1a277892a4d
++    imports_resolved_ast: be3a0206397e9b0f95c696b4d7174ee81262e805fc787b3516b1b1a277892a4d
++    canonicalized_ast: be3a0206397e9b0f95c696b4d7174ee81262e805fc787b3516b1b1a277892a4d
++    type_inferenced_ast: 672df08a8f52ff75d5cdba1f4ebc070baba70a981351819d2205b3e8de76bfc7
+diff --git a/tests/expectations/compiler/compiler/tuples/destructured.leo.out b/tests/expectations/compiler/compiler/tuples/destructured.leo.out
+index 774c7fdf01..4c8ca35ede 100644
+--- a/tests/expectations/compiler/compiler/tuples/destructured.leo.out
++++ b/tests/expectations/compiler/compiler/tuples/destructured.leo.out
+@@ -19,7 +19,7 @@ outputs:
+             c:
+               type: bool
+               value: "true"
+-    initial_ast: 531df9191a6ee867da7a9c5aa5120a9ab93eec5d4d29bdc78aa965fce0f52c8d
+-    imports_resolved_ast: 531df9191a6ee867da7a9c5aa5120a9ab93eec5d4d29bdc78aa965fce0f52c8d
+-    canonicalized_ast: 531df9191a6ee867da7a9c5aa5120a9ab93eec5d4d29bdc78aa965fce0f52c8d
+-    type_inferenced_ast: b841d6651b93193e0bbd24df8b667bd16066ee77481dd3b8b0187c37968ca1c1
++    initial_ast: ea7f6cc8c9fe0deda02c3fde1f33dd71c33b6938c832af0f220fb681f56f9354
++    imports_resolved_ast: ea7f6cc8c9fe0deda02c3fde1f33dd71c33b6938c832af0f220fb681f56f9354
++    canonicalized_ast: ea7f6cc8c9fe0deda02c3fde1f33dd71c33b6938c832af0f220fb681f56f9354
++    type_inferenced_ast: 72d9dedc48ac69de544b2f35b1f0e675f4053f562fc708b30eebcfdc6ac59dc9

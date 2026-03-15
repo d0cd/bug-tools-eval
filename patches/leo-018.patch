@@ -1,0 +1,57 @@
+diff --git a/compiler/passes/src/type_checking/checker.rs b/compiler/passes/src/type_checking/checker.rs
+index e567f06ed8..0ae942d8b7 100644
+--- a/compiler/passes/src/type_checking/checker.rs
++++ b/compiler/passes/src/type_checking/checker.rs
+@@ -1239,6 +1239,9 @@ impl<'a, N: Network> TypeChecker<'a, N> {
+                     self.handler.emit_err(err);
+                 }
+             }
++
++            // Add the input to the type table.
++            self.type_table.insert(input_var.identifier().id(), input_var.type_().clone());
+         });
+ 
+         // Type check the function's return type.
+diff --git a/tests/expectations/compiler/function/function_input_else_assignment.out b/tests/expectations/compiler/function/function_input_else_assignment.out
+new file mode 100644
+index 0000000000..a34c7a3577
+--- /dev/null
++++ b/tests/expectations/compiler/function/function_input_else_assignment.out
+@@ -0,0 +1,18 @@
++---
++namespace: Compile
++expectation: Pass
++outputs:
++  - - compile:
++        - initial_symbol_table: 3a64910c315e257b67757ebc3478a2df7ff7aa2ae8ef8d258507e44b53942b82
++          type_checked_symbol_table: 69a0008fc51152856295a0ef75043069f34b5f0e1ce5b944e4d575a2d184a233
++          unrolled_symbol_table: 69a0008fc51152856295a0ef75043069f34b5f0e1ce5b944e4d575a2d184a233
++          initial_ast: 4c9ab22f340920e9a086b4b55e1e09065bf8839d7bf03d725003fc53cc6d5265
++          unrolled_ast: 4c9ab22f340920e9a086b4b55e1e09065bf8839d7bf03d725003fc53cc6d5265
++          ssa_ast: bf04c3808bc97d0b45f1e69cb8f9faed5f31e01cc03e359364bf22132b36216b
++          flattened_ast: cde3b5d0a6e6744e69645072cc44a21dd6a4ef77c087e4a0afab075abd3b7a70
++          destructured_ast: f10b829b1ac2863d3bc8cbf86b51c8947b5c1db6a0ebcb714d4c9f8f2dedb274
++          inlined_ast: f10b829b1ac2863d3bc8cbf86b51c8947b5c1db6a0ebcb714d4c9f8f2dedb274
++          dce_ast: 6fb7a52d2eeff93d53a26ddc38a0bdf71615b6aa7ab3ab22a894e96bd1d309f1
++          bytecode: e78a049b9529f1feeaa63bcf231b86c28e604487d185d98bbc0e4a2f201c3ec0
++          errors: ""
++          warnings: ""
+diff --git a/tests/tests/compiler/function/function_input_else_assignment.leo b/tests/tests/compiler/function/function_input_else_assignment.leo
+new file mode 100644
+index 0000000000..b6ef0d847a
+--- /dev/null
++++ b/tests/tests/compiler/function/function_input_else_assignment.leo
+@@ -0,0 +1,13 @@
++/*
++namespace: Compile
++expectation: Pass
++*/
++
++program test.aleo {
++    transition foo(a: u8) {
++        if false {
++        } else {
++            a = 0u8;
++        }
++    }
++}

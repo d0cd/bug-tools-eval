@@ -1,0 +1,215 @@
+diff --git a/compiler/src/value/address/address.rs b/compiler/src/value/address/address.rs
+index f706448c4d..a9fd35a42a 100644
+--- a/compiler/src/value/address/address.rs
++++ b/compiler/src/value/address/address.rs
+@@ -85,33 +85,57 @@ impl Address {
+         Ok(ConstrainedValue::Address(address))
+     }
+ 
+-    pub(crate) fn alloc_helper<Fn: FnOnce() -> Result<T, SynthesisError>, T: Borrow<String>>(
++    pub(crate) fn alloc_helper<
++        F: PrimeField,
++        CS: ConstraintSystem<F>,
++        Fn: FnOnce() -> Result<T, SynthesisError>,
++        T: Borrow<String>,
++    >(
++        cs: CS,
+         value_gen: Fn,
+     ) -> Result<AleoAddress<Components>, SynthesisError> {
+-        let address_string = match value_gen() {
+-            Ok(value) => {
+-                let string_value = value.borrow().clone();
+-                Ok(string_value)
+-            }
+-            _ => Err(SynthesisError::AssignmentMissing),
+-        }?;
+-
+-        AleoAddress::from_str(&address_string).map_err(|_| SynthesisError::AssignmentMissing)
++        if cs.is_in_setup_mode() {
++            Ok(AleoAddress::<Components>::default())
++        } else {
++            let address_string = value_gen()?.borrow().clone();
++            AleoAddress::from_str(&address_string).map_err(|_| SynthesisError::AssignmentMissing)
++        }
+     }
+ }
+ 
+ impl<F: PrimeField> AllocGadget<String, F> for Address {
++    fn alloc_constant<Fn: FnOnce() -> Result<T, SynthesisError>, T: Borrow<String>, CS: ConstraintSystem<F>>(
++        _cs: CS,
++        value_gen: Fn,
++    ) -> Result<Self, SynthesisError> {
++        let address = {
++            let address_string = value_gen()?.borrow().clone();
++            AleoAddress::from_str(&address_string).map_err(|_| SynthesisError::AssignmentMissing)?
++        };
++        let mut address_bytes = vec![];
++        address
++            .write_le(&mut address_bytes)
++            .map_err(|_| SynthesisError::AssignmentMissing)?;
++
++        let bytes = UInt8::constant_vec(&address_bytes[..]);
++
++        Ok(Address {
++            address: Some(address),
++            bytes,
++        })
++    }
++
+     fn alloc<Fn: FnOnce() -> Result<T, SynthesisError>, T: Borrow<String>, CS: ConstraintSystem<F>>(
+-        cs: CS,
++        mut cs: CS,
+         value_gen: Fn,
+     ) -> Result<Self, SynthesisError> {
+-        let address = Self::alloc_helper(value_gen)?;
++        let address = Self::alloc_helper(cs.ns(|| "allocate the address"), value_gen)?;
+         let mut address_bytes = vec![];
+         address
+             .write_le(&mut address_bytes)
+             .map_err(|_| SynthesisError::AssignmentMissing)?;
+ 
+-        let bytes = UInt8::alloc_vec(cs, &address_bytes[..])?;
++        let bytes = UInt8::alloc_vec(cs.ns(|| "allocate the address bytes"), &address_bytes[..])?;
+ 
+         Ok(Address {
+             address: Some(address),
+@@ -120,16 +144,16 @@ impl<F: PrimeField> AllocGadget<String, F> for Address {
+     }
+ 
+     fn alloc_input<Fn: FnOnce() -> Result<T, SynthesisError>, T: Borrow<String>, CS: ConstraintSystem<F>>(
+-        cs: CS,
++        mut cs: CS,
+         value_gen: Fn,
+     ) -> Result<Self, SynthesisError> {
+-        let address = Self::alloc_helper(value_gen)?;
++        let address = Self::alloc_helper(cs.ns(|| "allocate the address"), value_gen)?;
+         let mut address_bytes = vec![];
+         address
+             .write_le(&mut address_bytes)
+             .map_err(|_| SynthesisError::AssignmentMissing)?;
+ 
+-        let bytes = UInt8::alloc_input_vec_le(cs, &address_bytes[..])?;
++        let bytes = UInt8::alloc_input_vec_le(cs.ns(|| "allocate the address bytes"), &address_bytes[..])?;
+ 
+         Ok(Address {
+             address: Some(address),
+diff --git a/tests/compiler/address/branch.leo b/tests/compiler/address/branch.leo
+new file mode 100644
+index 0000000000..5b2023a43b
+--- /dev/null
++++ b/tests/compiler/address/branch.leo
+@@ -0,0 +1,15 @@
++/*
++namespace: Compile
++expectation: Pass
++input_file: inputs/branch.in
++*/
++
++
++function main (x: address, y: bool) -> bool {
++    let z = aleo18cw5zdez3zhypev3tnfhmwvhre9ramwle4up947gcyy5rnmjw5yqn93wsr;
++    if y {
++        z = aleo1f2gs8g0qpumlgzpvmkw3q07y6xrwsdr0lqsu9h9fgnh8d7e44v9qhpgpkj;
++    }
++
++    return z == aleo1f2gs8g0qpumlgzpvmkw3q07y6xrwsdr0lqsu9h9fgnh8d7e44v9qhpgpkj;
++}
+\ No newline at end of file
+diff --git a/tests/compiler/address/index.leo b/tests/compiler/address/index.leo
+new file mode 100644
+index 0000000000..5d7cb2b389
+--- /dev/null
++++ b/tests/compiler/address/index.leo
+@@ -0,0 +1,12 @@
++/*
++namespace: Compile
++expectation: Pass
++input_file: inputs/index.in
++*/
++
++function main (x: u32) -> bool {
++    const y = [aleo1x0rh2cudq93fhukrsce8sgvcphddv4qs0clph64stpg0hstfds9qjvxcg6; 3];
++    let z = y[x];
++
++	return z == y[0];
++}
+\ No newline at end of file
+diff --git a/tests/compiler/address/inputs/branch.in b/tests/compiler/address/inputs/branch.in
+new file mode 100644
+index 0000000000..24e6b338e0
+--- /dev/null
++++ b/tests/compiler/address/inputs/branch.in
+@@ -0,0 +1,6 @@
++[main]
++x: address = aleo1qnr4dkkvkgfqph0vzc3y6z2eu975wnpz2925ntjccd5cfqxtyu8sta57j8;
++y: bool = true;
++
++[registers]
++a: bool = false;
+\ No newline at end of file
+diff --git a/tests/compiler/address/inputs/index.in b/tests/compiler/address/inputs/index.in
+new file mode 100644
+index 0000000000..5e701ee7a6
+--- /dev/null
++++ b/tests/compiler/address/inputs/index.in
+@@ -0,0 +1,5 @@
++[main]
++x: u32 = 0;
++
++[registers]
++a: bool = false;
+\ No newline at end of file
+diff --git a/tests/expectations/compiler/compiler/address/branch.leo.out b/tests/expectations/compiler/compiler/address/branch.leo.out
+new file mode 100644
+index 0000000000..a4c062bc76
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/address/branch.leo.out
+@@ -0,0 +1,21 @@
++---
++namespace: Compile
++expectation: Pass
++outputs:
++  - circuit:
++      num_public_variables: 0
++      num_private_variables: 1024
++      num_constraints: 1536
++      at: 5afd1d58b6826912fe5cba06b60d9a7debdbad9e922b8a78ed49f7a7ca0ac65e
++      bt: db77c3470cf1b3c80c2e3b1b3ddc59d9891912489bfcf39b7f67c2f314ca7f6d
++      ct: d0993682df5b495f4a6784882e0f007dbc378adb35007d250e2c098975f4d32e
++    output:
++      - input_file: inputs/branch.in
++        output:
++          registers:
++            a:
++              type: bool
++              value: "true"
++    initial_ast: a7748573e4731753b76889c6d4c28e9589e114860a163da87957cf20b916f733
++    canonicalized_ast: a7748573e4731753b76889c6d4c28e9589e114860a163da87957cf20b916f733
++    type_inferenced_ast: af3663710ad6278c3d2e28a753d62084505746cd49de11949fe5e8e390ffcc60
+diff --git a/tests/expectations/compiler/compiler/address/index.leo.out b/tests/expectations/compiler/compiler/address/index.leo.out
+new file mode 100644
+index 0000000000..b4cda33ee6
+--- /dev/null
++++ b/tests/expectations/compiler/compiler/address/index.leo.out
+@@ -0,0 +1,21 @@
++---
++namespace: Compile
++expectation: Pass
++outputs:
++  - circuit:
++      num_public_variables: 0
++      num_private_variables: 1694
++      num_constraints: 2719
++      at: f9a9bc8304df327c7b16f088b61ac518fb3a7b6457ccc35a1ab9eab4565a1981
++      bt: 045eba0fdd405714f788492fd5914b053e0ece622e9a542270d8cfe85c0ee291
++      ct: e8fa4a33a657c70a7cecc7e9b284157b369b7ea57879948e108daf93e778551c
++    output:
++      - input_file: inputs/index.in
++        output:
++          registers:
++            a:
++              type: bool
++              value: "true"
++    initial_ast: 8934e4c1d645f6f98fe59f48bbf687623e811c99e504e87c6989bc00af62194a
++    canonicalized_ast: 8934e4c1d645f6f98fe59f48bbf687623e811c99e504e87c6989bc00af62194a
++    type_inferenced_ast: 70af835aeaec1d5bc1c4a3186635260ff44743e0d3a7aa5ac9f2c98ec03bd23e

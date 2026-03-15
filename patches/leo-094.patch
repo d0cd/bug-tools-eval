@@ -1,0 +1,127 @@
+diff --git a/.circleci/config.yml b/.circleci/config.yml
+index 8e2e2ea7ef..ec466f2fa1 100755
+--- a/.circleci/config.yml
++++ b/.circleci/config.yml
+@@ -42,15 +42,20 @@ commands:
+       - run:
+           name: Install Rust
+           command: |
+-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+-            source "$HOME/.cargo/env"
+-            rustup install 1.82.0
+-            rustup override set 1.82.0
+-            cargo --version --verbose
+-            rustc --version
++            # If Rust is not installed on the machine, install it
++            if ! command -v rustc &> /dev/null; then
++              curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
++              source "$HOME/.cargo/env"
++              rustup install 1.82.0
++              rustup override set 1.82.0
++              cargo --version --verbose
++              rustc --version
++            fi
+             if [ ! -f "Cargo.lock" ]; then
+               cargo generate-lockfile
+             fi
++            cargo install cargo-mtime
++            
+             
+ 
+   install-rust-windows:
+@@ -71,6 +76,7 @@ commands:
+             if (!(Test-Path "Cargo.lock" -PathType Leaf)) {
+                 cargo generate-lockfile
+             }
++            cargo install cargo-mtime
+ 
+   build-and-test:
+     description: "Build and run tests"
+@@ -79,12 +85,14 @@ commands:
+           name: Build
+           no_output_timeout: 30m
+           command: |
++            cargo-mtime . ~/.cache/mtimes/project.db
+             cargo test --no-run --all --locked --profile ci --features only_testnet
+       - run:
+           name: Run tests
+           no_output_timeout: 30m
+           # The `--verbose` flag is used to check which files are being recompiled. Ideally, this should be none.
+           command: |
++            cargo-mtime . ~/.cache/mtimes/project.db
+             cargo test --all --locked --profile ci --features only_testnet --verbose
+ 
+   install_rust_nightly:
+@@ -144,6 +152,7 @@ jobs:
+             - cargo-v1-{{ arch }}-{{ checksum "Cargo.toml" }}-{{ checksum "Cargo.lock" }}
+             - cargo-v1-{{ arch }}-{{ checksum "Cargo.toml" }}
+             - cargo-v1-{{ arch }}
++      - install-rust
+       - run:
+             name: Update Submodules
+             command: git submodule update --init --recursive
+diff --git a/.circleci/leo-example.sh b/.circleci/leo-example.sh
+index 2e794f8121..8fbce490c0 100755
+--- a/.circleci/leo-example.sh
++++ b/.circleci/leo-example.sh
+@@ -1,3 +1,9 @@
++# Alias the leo command to use the local binary.
++# Note: Use a full path for $LEO when running locally.
++leo() {
++  $LEO "$@"
++}
++
+ (
+   # Create a new Leo lottery example program.
+   $LEO example lottery || exit
+diff --git a/.github/workflows/codecov.yml b/.github/workflows/codecov.yml
+index 1e31031cbb..4a2ae1f647 100644
+--- a/.github/workflows/codecov.yml
++++ b/.github/workflows/codecov.yml
+@@ -55,7 +55,7 @@ jobs:
+           make install DESTDIR=../../kcov-build
+           cd ../..
+           rm -rf kcov-master
+-          for file in target/debug/deps/*-*; do if [[ "$file" != *\.* ]]; then mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --exclude-region='@kcov_skip(start):@kcov_skip(end)' --verify "target/cov/$(basename $file)" "$file"; fi done
++          for file in target/ci/deps/*-*; do if [[ "$file" != *\.* ]]; then mkdir -p "target/cov/$(basename $file)"; ./kcov-build/usr/local/bin/kcov --exclude-pattern=/.cargo,/usr/lib --exclude-region='@kcov_skip(start):@kcov_skip(end)' --verify "target/cov/$(basename $file)" "$file"; fi done
+ 
+       - name: Upload coverage to Codecov
+         uses: codecov/codecov-action@v3
+diff --git a/build.rs b/build.rs
+index 5420a093a7..c374d98662 100644
+--- a/build.rs
++++ b/build.rs
+@@ -71,8 +71,24 @@ fn check_file_licenses<P: AsRef<Path>>(path: P) {
+         }
+     }
+ 
+-    // Re-run upon any changes to the workspace.
+-    println!("cargo:rerun-if-changed=.");
++    // Watch the directories that contain Rust source files
++    println!("cargo:rerun-if-changed=compiler");
++    println!("cargo:rerun-if-changed=errors");
++    println!("cargo:rerun-if-changed=leo");
++    println!("cargo:rerun-if-changed=tests/test-framework");
++    println!("cargo:rerun-if-changed=utils");
++
++    // Watch the build script itself
++    println!("cargo:rerun-if-changed=build.rs");
++
++    // Watch the license header file
++    println!("cargo:rerun-if-changed=.resources/license_header");
++
++    // Watch the Cargo.toml file
++    println!("cargo:rerun-if-changed=Cargo.toml");
++
++    // Watch the Cargo.lock file
++    println!("cargo:rerun-if-changed=Cargo.lock");
+ }
+ 
+ // The build script; it currently only checks the licenses.
+diff --git a/examples b/examples
+index b75bb77851..155f8410fb 160000
+--- a/examples
++++ b/examples
+@@ -1 +1 @@
+-Subproject commit b75bb77851667f6ece0af4cacfc27715aa7186aa
++Subproject commit 155f8410fb199c971b50950882a74ff593f8f5d9

@@ -1,0 +1,585 @@
+diff --git a/asg/src/error/mod.rs b/asg/src/error/mod.rs
+index 7ee1eb62cf..7e2170b2d3 100644
+--- a/asg/src/error/mod.rs
++++ b/asg/src/error/mod.rs
+@@ -172,6 +172,16 @@ impl AsgConvertError {
+         )
+     }
+ 
++    pub fn invalid_const_assign(name: &str, span: &Span) -> Self {
++        Self::new_from_span(
++            format!(
++                "failed to create const variable(s) '{}' with non constant values.",
++                name
++            ),
++            span,
++        )
++    }
++
+     pub fn duplicate_function_definition(name: &str, span: &Span) -> Self {
+         Self::new_from_span(
+             format!("a function named \"{}\" already exists in this scope", name),
+diff --git a/asg/src/statement/definition.rs b/asg/src/statement/definition.rs
+index 4d2339a0f7..4e2ce3cd83 100644
+--- a/asg/src/statement/definition.rs
++++ b/asg/src/statement/definition.rs
+@@ -75,6 +75,17 @@ impl<'a> FromAst<'a, leo_ast::DefinitionStatement> for &'a Statement<'a> {
+ 
+         let value = <&Expression<'a>>::from_ast(scope, &statement.value, type_.clone().map(Into::into))?;
+ 
++        if matches!(statement.declaration_type, leo_ast::Declare::Const) && !value.is_consty() {
++            let var_names = statement
++                .variable_names
++                .iter()
++                .map(ToString::to_string)
++                .collect::<Vec<String>>()
++                .join(" ,");
++
++            return Err(AsgConvertError::invalid_const_assign(&var_names, &statement.span));
++        }
++
+         let type_ = type_.or_else(|| value.get_type());
+ 
+         let mut output_types = vec![];
+diff --git a/asg/tests/pass/address/ternary.leo b/asg/tests/pass/address/ternary.leo
+index f29e13ab5d..65a8eea1e7 100644
+--- a/asg/tests/pass/address/ternary.leo
++++ b/asg/tests/pass/address/ternary.leo
+@@ -2,7 +2,7 @@ function main(s: bool, c: address) {
+     const a = aleo1qnr4dkkvkgfqph0vzc3y6z2eu975wnpz2925ntjccd5cfqxtyu8sta57j8;
+     const b = aleo18qgam03qe483tdrcc3fkqwpp38ehff4a2xma6lu7hams6lfpgcpq3dq05r;
+ 
+-    const r = s? a: b;
++    let r = s ? a: b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/boolean/not_mutable.leo b/asg/tests/pass/boolean/not_mutable.leo
+index c621647ff9..92588434e4 100644
+--- a/asg/tests/pass/boolean/not_mutable.leo
++++ b/asg/tests/pass/boolean/not_mutable.leo
+@@ -1,4 +1,4 @@
+ function main () {
+-    let b = false;
++    const b = false;
+     const a = !b;
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/circuits/pedersen_mock.leo b/asg/tests/pass/circuits/pedersen_mock.leo
+index 0fc6752f2f..7f2dc12180 100644
+--- a/asg/tests/pass/circuits/pedersen_mock.leo
++++ b/asg/tests/pass/circuits/pedersen_mock.leo
+@@ -1,14 +1,14 @@
+ circuit PedersenHash {
+     parameters: [u32; 512]
+ 
+-    function new(parameters: [u32; 512]) -> Self {
++    function new(const parameters: [u32; 512]) -> Self {
+         return Self { parameters: parameters };
+     }
+ 
+-    function hash(self, bits: [bool; 512]) -> u32 {
++    function hash(self, const bits: [bool; 512]) -> u32 {
+         let digest: u32 = 0;
+         for i in 0..512 {
+-            const base = bits[i] ? self.parameters[i] : 0u32;
++            let base = bits[i] ? self.parameters[i] : 0u32;
+             digest += base;
+         }
+         return digest;
+diff --git a/asg/tests/pass/core/blake2s_random.leo b/asg/tests/pass/core/blake2s_random.leo
+index c9592fcbf8..72aef44932 100644
+--- a/asg/tests/pass/core/blake2s_random.leo
++++ b/asg/tests/pass/core/blake2s_random.leo
+@@ -1,7 +1,7 @@
+ import core.unstable.blake2s.Blake2s;
+ 
+ function main(seed: [u8; 32], message: [u8; 32], expected: [u8; 32]) {
+-    const actual = Blake2s::hash(seed, message);
++    let actual = Blake2s::hash(seed, message);
+ 
+     console.assert(expected == actual);
+ }
+diff --git a/asg/tests/pass/field/ternary.leo b/asg/tests/pass/field/ternary.leo
+index 05cb161b46..f193ad82a3 100644
+--- a/asg/tests/pass/field/ternary.leo
++++ b/asg/tests/pass/field/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: field, b: field, c: field) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/group/point_input.leo b/asg/tests/pass/group/point_input.leo
+index a3a8e63bd3..68d8c458a3 100644
+--- a/asg/tests/pass/group/point_input.leo
++++ b/asg/tests/pass/group/point_input.leo
+@@ -1,3 +1,3 @@
+ function main(a: group) {
+-    const b = a;
++    let b = a;
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/group/ternary.leo b/asg/tests/pass/group/ternary.leo
+index 97fba1f5b6..fb69b74521 100644
+--- a/asg/tests/pass/group/ternary.leo
++++ b/asg/tests/pass/group/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: group, b: group, c: group) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/integers/i128/ternary.leo b/asg/tests/pass/integers/i128/ternary.leo
+index 3783463b22..a923c428e6 100644
+--- a/asg/tests/pass/integers/i128/ternary.leo
++++ b/asg/tests/pass/integers/i128/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: i128, b: i128, c: i128) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/integers/i16/ternary.leo b/asg/tests/pass/integers/i16/ternary.leo
+index d66c73cb93..4586b87bb4 100644
+--- a/asg/tests/pass/integers/i16/ternary.leo
++++ b/asg/tests/pass/integers/i16/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: i16, b: i16, c: i16) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/integers/i32/ternary.leo b/asg/tests/pass/integers/i32/ternary.leo
+index 790769d62f..7927c2998b 100644
+--- a/asg/tests/pass/integers/i32/ternary.leo
++++ b/asg/tests/pass/integers/i32/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: i32, b: i32, c: i32) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/integers/i64/ternary.leo b/asg/tests/pass/integers/i64/ternary.leo
+index df63b3ad6a..1a2d03a77f 100644
+--- a/asg/tests/pass/integers/i64/ternary.leo
++++ b/asg/tests/pass/integers/i64/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: i64, b: i64, c: i64) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/integers/i8/ternary.leo b/asg/tests/pass/integers/i8/ternary.leo
+index 0956a9cd39..e1ec1943c9 100644
+--- a/asg/tests/pass/integers/i8/ternary.leo
++++ b/asg/tests/pass/integers/i8/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: i8, b: i8, c: i8) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/integers/u128/ternary.leo b/asg/tests/pass/integers/u128/ternary.leo
+index 99a6b997e0..22e2e67058 100644
+--- a/asg/tests/pass/integers/u128/ternary.leo
++++ b/asg/tests/pass/integers/u128/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: u128, b: u128, c: u128) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/integers/u16/ternary.leo b/asg/tests/pass/integers/u16/ternary.leo
+index d6131f9f4f..11d836570d 100644
+--- a/asg/tests/pass/integers/u16/ternary.leo
++++ b/asg/tests/pass/integers/u16/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: u16, b: u16, c: u16) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/integers/u32/ternary.leo b/asg/tests/pass/integers/u32/ternary.leo
+index f32ffc29fe..3c96a7236c 100644
+--- a/asg/tests/pass/integers/u32/ternary.leo
++++ b/asg/tests/pass/integers/u32/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: u32, b: u32, c: u32) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/integers/u64/ternary.leo b/asg/tests/pass/integers/u64/ternary.leo
+index 4427cd0466..4c4ddd8e0c 100644
+--- a/asg/tests/pass/integers/u64/ternary.leo
++++ b/asg/tests/pass/integers/u64/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: u64, b: u64, c: u64) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/integers/u8/ternary.leo b/asg/tests/pass/integers/u8/ternary.leo
+index 5123a511cd..1b436aa054 100644
+--- a/asg/tests/pass/integers/u8/ternary.leo
++++ b/asg/tests/pass/integers/u8/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: u8, b: u8, c: u8) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/mutability/let_mut_nested.leo b/asg/tests/pass/mutability/let_mut_nested.leo
+index 93236ef4c6..ace4bfb8b4 100644
+--- a/asg/tests/pass/mutability/let_mut_nested.leo
++++ b/asg/tests/pass/mutability/let_mut_nested.leo
+@@ -1,5 +1,5 @@
+ function main () {
+     let x = 2u8;
+     let y = x;
+-    const z = y / 2u8;
++    let z = y / 2u8;
+ }
+\ No newline at end of file
+diff --git a/asg/tests/pass/mutability/swap.leo b/asg/tests/pass/mutability/swap.leo
+index d0d663ea1a..05fb661085 100644
+--- a/asg/tests/pass/mutability/swap.leo
++++ b/asg/tests/pass/mutability/swap.leo
+@@ -1,6 +1,6 @@
+ // Swap two elements of an array.
+ function swap(a: [u32; 2], const i: u32, const j: u32) -> [u32; 2] {
+-    const t = a[i];
++    let t = a[i];
+     a[i] = a[j];
+     a[j] = t;
+     return a;
+@@ -11,7 +11,7 @@ function main() {
+     const expected: [u32; 2] = [1, 0];
+ 
+     // Do swap.
+-    const actual = swap(arr, 0, 1);
++    let actual = swap(arr, 0, 1);
+ 
+     // Check result.
+     for i in 0..2 {
+diff --git a/asg/tests/pass/statements/conditional/for_loop.leo b/asg/tests/pass/statements/conditional/for_loop.leo
+index db307f3c36..79df649236 100644
+--- a/asg/tests/pass/statements/conditional/for_loop.leo
++++ b/asg/tests/pass/statements/conditional/for_loop.leo
+@@ -7,7 +7,7 @@ function main(a: bool) {
+         }
+     }
+ 
+-    const r: u32 = a ? 6 : 0;
++    let r: u32 = a ? 6 : 0;
+ 
+     console.assert(r == b);
+ }
+diff --git a/asg/tests/pass/statements/ternary_basic.leo b/asg/tests/pass/statements/ternary_basic.leo
+index 38359004a9..675b681fa9 100644
+--- a/asg/tests/pass/statements/ternary_basic.leo
++++ b/asg/tests/pass/statements/ternary_basic.leo
+@@ -1,5 +1,5 @@
+ function main(a: bool, b: bool) {
+-    const c = a ? true : false;
++    let c = a ? true : false;
+ 
+-    const d = c == b;
++    let d = c == b;
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/address/ternary.leo b/compiler/tests/address/ternary.leo
+index f29e13ab5d..65a8eea1e7 100644
+--- a/compiler/tests/address/ternary.leo
++++ b/compiler/tests/address/ternary.leo
+@@ -2,7 +2,7 @@ function main(s: bool, c: address) {
+     const a = aleo1qnr4dkkvkgfqph0vzc3y6z2eu975wnpz2925ntjccd5cfqxtyu8sta57j8;
+     const b = aleo18qgam03qe483tdrcc3fkqwpp38ehff4a2xma6lu7hams6lfpgcpq3dq05r;
+ 
+-    const r = s? a: b;
++    let r = s ? a: b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/boolean/not_mutable.leo b/compiler/tests/boolean/not_mutable.leo
+index c621647ff9..92588434e4 100644
+--- a/compiler/tests/boolean/not_mutable.leo
++++ b/compiler/tests/boolean/not_mutable.leo
+@@ -1,4 +1,4 @@
+ function main () {
+-    let b = false;
++    const b = false;
+     const a = !b;
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/circuits/pedersen_mock.leo b/compiler/tests/circuits/pedersen_mock.leo
+index 0fc6752f2f..7f2dc12180 100644
+--- a/compiler/tests/circuits/pedersen_mock.leo
++++ b/compiler/tests/circuits/pedersen_mock.leo
+@@ -1,14 +1,14 @@
+ circuit PedersenHash {
+     parameters: [u32; 512]
+ 
+-    function new(parameters: [u32; 512]) -> Self {
++    function new(const parameters: [u32; 512]) -> Self {
+         return Self { parameters: parameters };
+     }
+ 
+-    function hash(self, bits: [bool; 512]) -> u32 {
++    function hash(self, const bits: [bool; 512]) -> u32 {
+         let digest: u32 = 0;
+         for i in 0..512 {
+-            const base = bits[i] ? self.parameters[i] : 0u32;
++            let base = bits[i] ? self.parameters[i] : 0u32;
+             digest += base;
+         }
+         return digest;
+diff --git a/compiler/tests/core/packages/unstable/blake2s/blake2s_random.leo b/compiler/tests/core/packages/unstable/blake2s/blake2s_random.leo
+index c9592fcbf8..72aef44932 100644
+--- a/compiler/tests/core/packages/unstable/blake2s/blake2s_random.leo
++++ b/compiler/tests/core/packages/unstable/blake2s/blake2s_random.leo
+@@ -1,7 +1,7 @@
+ import core.unstable.blake2s.Blake2s;
+ 
+ function main(seed: [u8; 32], message: [u8; 32], expected: [u8; 32]) {
+-    const actual = Blake2s::hash(seed, message);
++    let actual = Blake2s::hash(seed, message);
+ 
+     console.assert(expected == actual);
+ }
+diff --git a/compiler/tests/integers/i128/ternary.leo b/compiler/tests/integers/i128/ternary.leo
+index 3783463b22..a923c428e6 100644
+--- a/compiler/tests/integers/i128/ternary.leo
++++ b/compiler/tests/integers/i128/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: i128, b: i128, c: i128) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/integers/i16/ternary.leo b/compiler/tests/integers/i16/ternary.leo
+index d66c73cb93..4586b87bb4 100644
+--- a/compiler/tests/integers/i16/ternary.leo
++++ b/compiler/tests/integers/i16/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: i16, b: i16, c: i16) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/integers/i32/ternary.leo b/compiler/tests/integers/i32/ternary.leo
+index 790769d62f..7927c2998b 100644
+--- a/compiler/tests/integers/i32/ternary.leo
++++ b/compiler/tests/integers/i32/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: i32, b: i32, c: i32) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/integers/i64/ternary.leo b/compiler/tests/integers/i64/ternary.leo
+index df63b3ad6a..1a2d03a77f 100644
+--- a/compiler/tests/integers/i64/ternary.leo
++++ b/compiler/tests/integers/i64/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: i64, b: i64, c: i64) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/integers/i8/ternary.leo b/compiler/tests/integers/i8/ternary.leo
+index 0956a9cd39..e1ec1943c9 100644
+--- a/compiler/tests/integers/i8/ternary.leo
++++ b/compiler/tests/integers/i8/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: i8, b: i8, c: i8) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/integers/u128/ternary.leo b/compiler/tests/integers/u128/ternary.leo
+index 99a6b997e0..22e2e67058 100644
+--- a/compiler/tests/integers/u128/ternary.leo
++++ b/compiler/tests/integers/u128/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: u128, b: u128, c: u128) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/integers/u16/ternary.leo b/compiler/tests/integers/u16/ternary.leo
+index d6131f9f4f..11d836570d 100644
+--- a/compiler/tests/integers/u16/ternary.leo
++++ b/compiler/tests/integers/u16/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: u16, b: u16, c: u16) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/integers/u32/ternary.leo b/compiler/tests/integers/u32/ternary.leo
+index f32ffc29fe..3c96a7236c 100644
+--- a/compiler/tests/integers/u32/ternary.leo
++++ b/compiler/tests/integers/u32/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: u32, b: u32, c: u32) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/integers/u64/ternary.leo b/compiler/tests/integers/u64/ternary.leo
+index 4427cd0466..4c4ddd8e0c 100644
+--- a/compiler/tests/integers/u64/ternary.leo
++++ b/compiler/tests/integers/u64/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: u64, b: u64, c: u64) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/integers/u8/ternary.leo b/compiler/tests/integers/u8/ternary.leo
+index 5123a511cd..1b436aa054 100644
+--- a/compiler/tests/integers/u8/ternary.leo
++++ b/compiler/tests/integers/u8/ternary.leo
+@@ -1,5 +1,5 @@
+ function main(s: bool, a: u8, b: u8, c: u8) {
+-    const r = s ? a : b;
++    let r = s ? a : b;
+ 
+     console.assert(r == c);
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/mutability/let_mut_nested.leo b/compiler/tests/mutability/let_mut_nested.leo
+index 93236ef4c6..ace4bfb8b4 100644
+--- a/compiler/tests/mutability/let_mut_nested.leo
++++ b/compiler/tests/mutability/let_mut_nested.leo
+@@ -1,5 +1,5 @@
+ function main () {
+     let x = 2u8;
+     let y = x;
+-    const z = y / 2u8;
++    let z = y / 2u8;
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/mutability/swap.leo b/compiler/tests/mutability/swap.leo
+index d0d663ea1a..05fb661085 100644
+--- a/compiler/tests/mutability/swap.leo
++++ b/compiler/tests/mutability/swap.leo
+@@ -1,6 +1,6 @@
+ // Swap two elements of an array.
+ function swap(a: [u32; 2], const i: u32, const j: u32) -> [u32; 2] {
+-    const t = a[i];
++    let t = a[i];
+     a[i] = a[j];
+     a[j] = t;
+     return a;
+@@ -11,7 +11,7 @@ function main() {
+     const expected: [u32; 2] = [1, 0];
+ 
+     // Do swap.
+-    const actual = swap(arr, 0, 1);
++    let actual = swap(arr, 0, 1);
+ 
+     // Check result.
+     for i in 0..2 {
+diff --git a/compiler/tests/statements/conditional/for_loop.leo b/compiler/tests/statements/conditional/for_loop.leo
+index db307f3c36..79df649236 100644
+--- a/compiler/tests/statements/conditional/for_loop.leo
++++ b/compiler/tests/statements/conditional/for_loop.leo
+@@ -7,7 +7,7 @@ function main(a: bool) {
+         }
+     }
+ 
+-    const r: u32 = a ? 6 : 0;
++    let r: u32 = a ? 6 : 0;
+ 
+     console.assert(r == b);
+ }
+diff --git a/compiler/tests/statements/mod.rs b/compiler/tests/statements/mod.rs
+index d9be9023c3..847df96083 100644
+--- a/compiler/tests/statements/mod.rs
++++ b/compiler/tests/statements/mod.rs
+@@ -47,6 +47,14 @@ fn test_ternary_basic() {
+     assert_satisfied(program);
+ }
+ 
++#[test]
++fn test_ternary_non_const_conditional_fail() {
++    let program_string = include_str!("ternary_non_const_conditional_fail.leo");
++    let error = parse_program(program_string).err().unwrap();
++
++    expect_asg_error(error);
++}
++
+ // Iteration for i {start}..{stop} { statements }
+ 
+ #[test]
+diff --git a/compiler/tests/statements/ternary_basic.leo b/compiler/tests/statements/ternary_basic.leo
+index 38359004a9..675b681fa9 100644
+--- a/compiler/tests/statements/ternary_basic.leo
++++ b/compiler/tests/statements/ternary_basic.leo
+@@ -1,5 +1,5 @@
+ function main(a: bool, b: bool) {
+-    const c = a ? true : false;
++    let c = a ? true : false;
+ 
+-    const d = c == b;
++    let d = c == b;
+ }
+\ No newline at end of file
+diff --git a/compiler/tests/statements/ternary_non_const_conditional_fail.leo b/compiler/tests/statements/ternary_non_const_conditional_fail.leo
+new file mode 100644
+index 0000000000..a46fc84a7b
+--- /dev/null
++++ b/compiler/tests/statements/ternary_non_const_conditional_fail.leo
+@@ -0,0 +1,4 @@
++function main() {
++    let x = 3u8;
++    const y = x > 2u8? 1u8 : 2u8;
++}
+\ No newline at end of file

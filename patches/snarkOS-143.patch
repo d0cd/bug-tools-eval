@@ -1,0 +1,13 @@
+diff --git a/benchmarks/network/block_cache.rs b/benchmarks/network/block_cache.rs
+index bb7f47481..6f83e6a74 100644
+--- a/benchmarks/network/block_cache.rs
++++ b/benchmarks/network/block_cache.rs
+@@ -24,7 +24,7 @@ fn block_cache_perf(c: &mut Criterion) {
+     const MIN_BLOCK_SIZE: usize = 1024; // 1KiB
+     const MAX_BLOCK_SIZE: usize = 1024 * 1024; // 1MiB
+ 
+-    let mut cache = Cache::<8192>::default();
++    let mut cache = BlockCache::<8192>::default();
+ 
+     let seed: u64 = thread_rng().gen();
+     let mut rng = XorShiftRng::seed_from_u64(seed);

@@ -1,0 +1,227 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 721451806..20ee61813 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -141,7 +141,6 @@ optional = true
+ [features]
+ default = [ ]
+ prometheus = [ "snarkos-network/prometheus" ]
+-sqlite = [ "snarkos-storage/sqlite_storage" ]
+ compile_capnp_schema = [ "capnpc" ]
+ noconfig = [ ]
+ 
+diff --git a/snarkos/config.rs b/snarkos/config.rs
+index ea1772967..30ccc61cf 100644
+--- a/snarkos/config.rs
++++ b/snarkos/config.rs
+@@ -111,8 +111,6 @@ pub struct Storage {
+     pub trim: bool,
+     /// If `true`, scans superfluous blocks for valid forks at boot time. Can take a while.
+     pub scan_for_forks: bool,
+-    /// If `true`, uses sqlite instead of rocksdb for backend storage. Requires `sqlite` feature.
+-    pub use_sqlite: bool,
+     /// If `Some`, will reset canon to at most this block height.
+     pub max_head: Option<u32>,
+ }
+@@ -159,7 +157,6 @@ impl Default for Config {
+                 trim: false,
+                 validate: false,
+                 scan_for_forks: false,
+-                use_sqlite: false,
+                 max_head: None,
+             },
+         }
+@@ -235,7 +232,6 @@ impl Config {
+             "no-jsonrpc" => self.no_jsonrpc(arguments.is_present(option)),
+             "trim-storage" => self.trim_storage(arguments.is_present(option)),
+             "validate-storage" => self.validate_storage(arguments.is_present(option)),
+-            "sqlite" => self.storage.use_sqlite = arguments.is_present(option),
+             // Options
+             "connect" => self.connect(arguments.value_of(option)),
+             "export-canon-blocks" => self.export_canon_blocks(clap::value_t!(arguments.value_of(*option), u32).ok()),
+@@ -471,7 +467,6 @@ impl CLI for ConfigCli {
+             "import-canon-blocks",
+             "is-bootnode",
+             "is-miner",
+-            "sqlite",
+             "is-crawler",
+             "ip",
+             "port",
+diff --git a/snarkos/main.rs b/snarkos/main.rs
+index 9d36c13a1..928ff1341 100644
+--- a/snarkos/main.rs
++++ b/snarkos/main.rs
+@@ -26,14 +26,13 @@ use snarkos::{
+ use snarkos_consensus::{Consensus, ConsensusParameters, DeserializedLedger, DynLedger, MemoryPool, MerkleLedger};
+ use snarkos_network::{config::Config as NodeConfig, MinerInstance, Node, Sync};
+ use snarkos_rpc::start_rpc_server;
+-#[cfg(feature = "sqlite")]
+-use snarkos_storage::SqliteStorage;
+ use snarkos_storage::{
+     export_canon_blocks,
+     key_value::KeyValueStore,
+     AsyncStorage,
+     RocksDb,
+     SerialBlock,
++    SqliteStorage,
+     Storage,
+     VMBlock,
+     Validator,
+@@ -120,25 +119,19 @@ async fn start_server(config: Config) -> anyhow::Result<()> {
+     )?;
+ 
+     info!("Loading storage at '{}'...", path.to_str().unwrap_or_default());
+-    let storage = if config.storage.use_sqlite {
+-        #[cfg(feature = "sqlite")]
+-        {
+-            let mut sqlite_path = path.clone();
+-            sqlite_path.push("sqlite.db");
+-
+-            if config.storage.validate {
+-                error!("validator not implemented for sqlite");
+-                return Ok(());
+-            }
++    let storage = {
++        let mut sqlite_path = path.clone();
++        sqlite_path.push("sqlite.db");
+ 
+-            Arc::new(AsyncStorage::new(SqliteStorage::new(&sqlite_path)?))
+-        }
+-        #[cfg(not(feature = "sqlite"))]
+-        {
+-            error!("cannot use sqlite storage without `sqlite` compilation feature");
++        if config.storage.validate {
++            error!("validator not implemented for sqlite");
+             return Ok(());
+         }
+-    } else {
++
++        Arc::new(AsyncStorage::new(SqliteStorage::new(&sqlite_path)?))
++    };
++
++    /*
+         let storage = RocksDb::open(&path)?;
+ 
+         // For extra safety, validate storage too if a trim is requested.
+@@ -157,7 +150,8 @@ async fn start_server(config: Config) -> anyhow::Result<()> {
+         };
+ 
+         Arc::new(AsyncStorage::new(KeyValueStore::new(storage)))
+-    };
++
++    */
+ 
+     if let Some(max_head) = config.storage.max_head {
+         let canon_next = storage.get_block_hash(max_head + 1).await?;
+diff --git a/storage/Cargo.toml b/storage/Cargo.toml
+index 7de81ad4d..d87d2e517 100644
+--- a/storage/Cargo.toml
++++ b/storage/Cargo.toml
+@@ -18,7 +18,7 @@ license = "GPL-3.0"
+ edition = "2018"
+ 
+ [features]
+-default = [ "rocksdb_storage" ]
++default = [ "rocksdb_storage", "sqlite_storage" ]
+ rocksdb_storage = [ "rocksdb" ]
+ sqlite_storage = [ "rusqlite" ]
+ mem_storage = [ ]
+diff --git a/storage/src/storage/storage.rs b/storage/src/storage/storage.rs
+index 1967172c5..bb271eba9 100644
+--- a/storage/src/storage/storage.rs
++++ b/storage/src/storage/storage.rs
+@@ -47,8 +47,6 @@ pub struct ForkPath {
+     pub base_index: u32,
+     /// Set of digests from `base_index`'s corresponding block to the target block
+     pub path: Vec<Digest>,
+-    // / Tree of all descendent blocks to the target block
+-    // pub tail: DigestTree,
+ }
+ 
+ pub enum ForkDescription {
+diff --git a/storage/src/storage/sync.rs b/storage/src/storage/sync.rs
+index d94741f61..d8a69cc72 100644
+--- a/storage/src/storage/sync.rs
++++ b/storage/src/storage/sync.rs
+@@ -91,7 +91,8 @@ pub trait SyncStorage {
+                         return Ok(ForkDescription::TooLong);
+                     }
+                     let longest_path = self.longest_child_path(hash)?;
+-                    debug!("longest child path terminating in {:?}", longest_path.last());
++                    // let descendents = self.get_block_digest_tree(hash)?;
++                    debug!("longest child path terminating in {:?}", longest_path.len());
+                     side_chain_path.extend(longest_path);
+                     return Ok(ForkDescription::Path(ForkPath {
+                         base_index: block_num as u32,
+diff --git a/testing/src/network/mod.rs b/testing/src/network/mod.rs
+index 7d8c8b219..30d567769 100644
+--- a/testing/src/network/mod.rs
++++ b/testing/src/network/mod.rs
+@@ -25,7 +25,7 @@ pub mod topology;
+ use crate::sync::FIXTURE;
+ 
+ use snarkos_network::{errors::*, *};
+-use snarkos_storage::{key_value::KeyValueStore, MemDb};
++use snarkos_storage::{AsyncStorage, SqliteStorage};
+ 
+ use std::{net::SocketAddr, sync::Arc, time::Duration};
+ use tokio::{
+@@ -183,9 +183,12 @@ pub async fn test_node(setup: TestSetup) -> Node {
+     let is_miner = setup.consensus_setup.as_ref().map(|c| c.is_miner) == Some(true);
+     let config = test_config(setup.clone());
+     let node = match setup.consensus_setup {
+-        None => Node::new(config, Arc::new(KeyValueStore::new(MemDb::new())))
+-            .await
+-            .unwrap(),
++        None => Node::new(
++            config,
++            Arc::new(AsyncStorage::new(SqliteStorage::new_ephemeral().unwrap())),
++        )
++        .await
++        .unwrap(),
+         Some(consensus_setup) => {
+             let consensus = test_consensus(consensus_setup).await;
+             let mut node = Node::new(config, consensus.consensus.storage.clone()).await.unwrap();
+diff --git a/testing/src/storage/mod.rs b/testing/src/storage/mod.rs
+index 6eb11e344..308f4d0a9 100644
+--- a/testing/src/storage/mod.rs
++++ b/testing/src/storage/mod.rs
+@@ -25,7 +25,7 @@ pub mod validator;
+ 
+ // pub use snarkos_storage::validator::FixMode;
+ use snarkos_consensus::{DynLedger, MerkleLedger};
+-use snarkos_storage::{key_value::KeyValueStore, DynStorage, MemDb};
++use snarkos_storage::{AsyncStorage, DynStorage, SqliteStorage};
+ use snarkvm_algorithms::{MerkleParameters, CRH};
+ use snarkvm_dpc::testnet1::{instantiated::Components, Testnet1Components};
+ 
+@@ -46,6 +46,6 @@ pub fn initialize_test_blockchain() -> (DynStorage, DynLedger) {
+     let ledger = DynLedger(Box::new(
+         MerkleLedger::new(ledger_parameters, &[], &[], &[], &[]).unwrap(),
+     ));
+-    let store = Arc::new(KeyValueStore::new(MemDb::new()));
++    let store = Arc::new(AsyncStorage::new(SqliteStorage::new_ephemeral().unwrap()));
+     (store, ledger)
+ }
+diff --git a/testing/src/sync/fixture.rs b/testing/src/sync/fixture.rs
+index 01f3f06f5..cf26822dc 100644
+--- a/testing/src/sync/fixture.rs
++++ b/testing/src/sync/fixture.rs
+@@ -19,7 +19,7 @@ use crate::{
+     sync::genesis,
+ };
+ use snarkos_consensus::{DynLedger, MerkleLedger};
+-use snarkos_storage::{key_value::KeyValueStore, DynStorage, MemDb};
++use snarkos_storage::{AsyncStorage, DynStorage, SqliteStorage};
+ use snarkvm_algorithms::{MerkleParameters, CRH};
+ use snarkvm_dpc::{
+     testnet1::{instantiated::*, NoopProgram, Testnet1Components},
+@@ -49,7 +49,7 @@ pub struct Fixture {
+ 
+ impl Fixture {
+     pub fn storage(&self) -> DynStorage {
+-        Arc::new(KeyValueStore::new(MemDb::new()))
++        Arc::new(AsyncStorage::new(SqliteStorage::new_ephemeral().unwrap()))
+     }
+ 
+     pub fn ledger(&self) -> DynLedger {

@@ -1,0 +1,3686 @@
+diff --git a/node/consensus/src/lib.rs b/node/consensus/src/lib.rs
+index d77d9f99c..ece83e59e 100644
+--- a/node/consensus/src/lib.rs
++++ b/node/consensus/src/lib.rs
+@@ -528,7 +528,8 @@ impl<N: Network, C: ConsensusStorage<N>> Consensus<N, C> {
+         /* Fee */
+ 
+         // Ensure transactions with a positive balance must pay for its storage in bytes.
+-        if transaction.fee() >= 0 && transaction.to_bytes_le()?.len() < usize::try_from(transaction.fee()?)? {
++        let fee = transaction.fee()?;
++        if fee >= 0 && transaction.to_bytes_le()?.len() < usize::try_from(fee)? {
+             bail!("Transaction '{transaction_id}' has insufficient fee to cover its storage in bytes")
+         }
+ 
+diff --git a/node/executor/src/node_type.rs b/node/executor/src/node_type.rs
+index 8e1da4f64..f6913117c 100644
+--- a/node/executor/src/node_type.rs
++++ b/node/executor/src/node_type.rs
+@@ -63,7 +63,7 @@ impl NodeType {
+ 
+ impl core::fmt::Display for NodeType {
+     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+-        write!(f, match self {
++        write!(f, "{}", match self {
+             Self::Client => "Client",
+             Self::Prover => "Prover",
+             Self::Validator => "Validator",
+diff --git a/node/old_ledger/Cargo.toml b/node/old_ledger/Cargo.toml
+deleted file mode 100644
+index 8d09c962c..000000000
+--- a/node/old_ledger/Cargo.toml
++++ /dev/null
+@@ -1,73 +0,0 @@
+-[package]
+-name = "snarkos-node-ledger"
+-version = "2.0.2"
+-authors = [ "The Aleo Team <hello@aleo.org>" ]
+-description = "A node ledger for a decentralized operating system"
+-homepage = "https://aleo.org"
+-repository = "https://github.com/AleoHQ/snarkOS"
+-keywords = [
+-  "aleo",
+-  "cryptography",
+-  "blockchain",
+-  "decentralized",
+-  "zero-knowledge"
+-]
+-categories = [ "cryptography", "operating-systems" ]
+-license = "GPL-3.0"
+-edition = "2021"
+-
+-[features]
+-default = [ "parallel" ]
+-parallel = [ "rayon" ]
+-
+-[dependencies.anyhow]
+-version = "1"
+-
+-[dependencies.backoff]
+-version = "0.4"
+-features = [ "tokio" ]
+-
+-[dependencies.colored]
+-version = "2.0"
+-
+-[dependencies.futures]
+-version = "0.3"
+-
+-[dependencies.indexmap]
+-version = "1.9"
+-features = [ "rayon" ]
+-
+-[dependencies.once_cell]
+-version = "1.13"
+-
+-[dependencies.parking_lot]
+-version = "0.12"
+-
+-[dependencies.rand]
+-version = "0.8"
+-
+-[dependencies.rayon]
+-version = "1"
+-optional = true
+-
+-[dependencies.reqwest]
+-version = "0.11"
+-
+-[dependencies.snarkos-node-store]
+-path = "../store"
+-
+-[dependencies.snarkvm]
+-workspace = true
+-
+-[dependencies.time]
+-version = "0.3"
+-
+-[dependencies.tokio]
+-version = "1.21"
+-features = ["rt"]
+-
+-[dependencies.tracing]
+-version = "0.1"
+-
+-[dev-dependencies.tracing-test]
+-version = "0.2"
+diff --git a/node/old_ledger/LICENSE.md b/node/old_ledger/LICENSE.md
+deleted file mode 100644
+index b95c626e2..000000000
+--- a/node/old_ledger/LICENSE.md
++++ /dev/null
+@@ -1,596 +0,0 @@
+-GNU General Public License
+-==========================
+-
+-Version 3, 29 June 2007
+-
+-Copyright © 2007 Free Software Foundation, Inc. &lt;<https://fsf.org/>&gt;
+-
+-Everyone is permitted to copy and distribute verbatim copies of this license
+-document, but changing it is not allowed.
+-
+-## Preamble
+-
+-The GNU General Public License is a free, copyleft license for software and other
+-kinds of works.
+-
+-The licenses for most software and other practical works are designed to take away
+-your freedom to share and change the works. By contrast, the GNU General Public
+-License is intended to guarantee your freedom to share and change all versions of a
+-program--to make sure it remains free software for all its users. We, the Free
+-Software Foundation, use the GNU General Public License for most of our software; it
+-applies also to any other work released this way by its authors. You can apply it to
+-your programs, too.
+-
+-When we speak of free software, we are referring to freedom, not price. Our General
+-Public Licenses are designed to make sure that you have the freedom to distribute
+-copies of free software (and charge for them if you wish), that you receive source
+-code or can get it if you want it, that you can change the software or use pieces of
+-it in new free programs, and that you know you can do these things.
+-
+-To protect your rights, we need to prevent others from denying you these rights or
+-asking you to surrender the rights. Therefore, you have certain responsibilities if
+-you distribute copies of the software, or if you modify it: responsibilities to
+-respect the freedom of others.
+-
+-For example, if you distribute copies of such a program, whether gratis or for a fee,
+-you must pass on to the recipients the same freedoms that you received. You must make
+-sure that they, too, receive or can get the source code. And you must show them these
+-terms so they know their rights.
+-
+-Developers that use the GNU GPL protect your rights with two steps: **(1)** assert
+-copyright on the software, and **(2)** offer you this License giving you legal permission
+-to copy, distribute and/or modify it.
+-
+-For the developers' and authors' protection, the GPL clearly explains that there is
+-no warranty for this free software. For both users' and authors' sake, the GPL
+-requires that modified versions be marked as changed, so that their problems will not
+-be attributed erroneously to authors of previous versions.
+-
+-Some devices are designed to deny users access to install or run modified versions of
+-the software inside them, although the manufacturer can do so. This is fundamentally
+-incompatible with the aim of protecting users' freedom to change the software. The
+-systematic pattern of such abuse occurs in the area of products for individuals to
+-use, which is precisely where it is most unacceptable. Therefore, we have designed
+-this version of the GPL to prohibit the practice for those products. If such problems
+-arise substantially in other domains, we stand ready to extend this provision to
+-those domains in future versions of the GPL, as needed to protect the freedom of
+-users.
+-
+-Finally, every program is threatened constantly by software patents. States should
+-not allow patents to restrict development and use of software on general-purpose
+-computers, but in those that do, we wish to avoid the special danger that patents
+-applied to a free program could make it effectively proprietary. To prevent this, the
+-GPL assures that patents cannot be used to render the program non-free.
+-
+-The precise terms and conditions for copying, distribution and modification follow.
+-
+-## TERMS AND CONDITIONS
+-
+-### 0. Definitions
+-
+-“This License” refers to version 3 of the GNU General Public License.
+-
+-“Copyright” also means copyright-like laws that apply to other kinds of
+-works, such as semiconductor masks.
+-
+-“The Program” refers to any copyrightable work licensed under this
+-License. Each licensee is addressed as “you”. “Licensees” and
+-“recipients” may be individuals or organizations.
+-
+-To “modify” a work means to copy from or adapt all or part of the work in
+-a fashion requiring copyright permission, other than the making of an exact copy. The
+-resulting work is called a “modified version” of the earlier work or a
+-work “based on” the earlier work.
+-
+-A “covered work” means either the unmodified Program or a work based on
+-the Program.
+-
+-To “propagate” a work means to do anything with it that, without
+-permission, would make you directly or secondarily liable for infringement under
+-applicable copyright law, except executing it on a computer or modifying a private
+-copy. Propagation includes copying, distribution (with or without modification),
+-making available to the public, and in some countries other activities as well.
+-
+-To “convey” a work means any kind of propagation that enables other
+-parties to make or receive copies. Mere interaction with a user through a computer
+-network, with no transfer of a copy, is not conveying.
+-
+-An interactive user interface displays “Appropriate Legal Notices” to the
+-extent that it includes a convenient and prominently visible feature that **(1)**
+-displays an appropriate copyright notice, and **(2)** tells the user that there is no
+-warranty for the work (except to the extent that warranties are provided), that
+-licensees may convey the work under this License, and how to view a copy of this
+-License. If the interface presents a list of user commands or options, such as a
+-menu, a prominent item in the list meets this criterion.
+-
+-### 1. Source Code
+-
+-The “source code” for a work means the preferred form of the work for
+-making modifications to it. “Object code” means any non-source form of a
+-work.
+-
+-A “Standard Interface” means an interface that either is an official
+-standard defined by a recognized standards body, or, in the case of interfaces
+-specified for a particular programming language, one that is widely used among
+-developers working in that language.
+-
+-The “System Libraries” of an executable work include anything, other than
+-the work as a whole, that **(a)** is included in the normal form of packaging a Major
+-Component, but which is not part of that Major Component, and **(b)** serves only to
+-enable use of the work with that Major Component, or to implement a Standard
+-Interface for which an implementation is available to the public in source code form.
+-A “Major Component”, in this context, means a major essential component
+-(kernel, window system, and so on) of the specific operating system (if any) on which
+-the executable work runs, or a compiler used to produce the work, or an object code
+-interpreter used to run it.
+-
+-The “Corresponding Source” for a work in object code form means all the
+-source code needed to generate, install, and (for an executable work) run the object
+-code and to modify the work, including scripts to control those activities. However,
+-it does not include the work's System Libraries, or general-purpose tools or
+-generally available free programs which are used unmodified in performing those
+-activities but which are not part of the work. For example, Corresponding Source
+-includes interface definition files associated with source files for the work, and
+-the source code for shared libraries and dynamically linked subprograms that the work
+-is specifically designed to require, such as by intimate data communication or
+-control flow between those subprograms and other parts of the work.
+-
+-The Corresponding Source need not include anything that users can regenerate
+-automatically from other parts of the Corresponding Source.
+-
+-The Corresponding Source for a work in source code form is that same work.
+-
+-### 2. Basic Permissions
+-
+-All rights granted under this License are granted for the term of copyright on the
+-Program, and are irrevocable provided the stated conditions are met. This License
+-explicitly affirms your unlimited permission to run the unmodified Program. The
+-output from running a covered work is covered by this License only if the output,
+-given its content, constitutes a covered work. This License acknowledges your rights
+-of fair use or other equivalent, as provided by copyright law.
+-
+-You may make, run and propagate covered works that you do not convey, without
+-conditions so long as your license otherwise remains in force. You may convey covered
+-works to others for the sole purpose of having them make modifications exclusively
+-for you, or provide you with facilities for running those works, provided that you
+-comply with the terms of this License in conveying all material for which you do not
+-control copyright. Those thus making or running the covered works for you must do so
+-exclusively on your behalf, under your direction and control, on terms that prohibit
+-them from making any copies of your copyrighted material outside their relationship
+-with you.
+-
+-Conveying under any other circumstances is permitted solely under the conditions
+-stated below. Sublicensing is not allowed; section 10 makes it unnecessary.
+-
+-### 3. Protecting Users' Legal Rights From Anti-Circumvention Law
+-
+-No covered work shall be deemed part of an effective technological measure under any
+-applicable law fulfilling obligations under article 11 of the WIPO copyright treaty
+-adopted on 20 December 1996, or similar laws prohibiting or restricting circumvention
+-of such measures.
+-
+-When you convey a covered work, you waive any legal power to forbid circumvention of
+-technological measures to the extent such circumvention is effected by exercising
+-rights under this License with respect to the covered work, and you disclaim any
+-intention to limit operation or modification of the work as a means of enforcing,
+-against the work's users, your or third parties' legal rights to forbid circumvention
+-of technological measures.
+-
+-### 4. Conveying Verbatim Copies
+-
+-You may convey verbatim copies of the Program's source code as you receive it, in any
+-medium, provided that you conspicuously and appropriately publish on each copy an
+-appropriate copyright notice; keep intact all notices stating that this License and
+-any non-permissive terms added in accord with section 7 apply to the code; keep
+-intact all notices of the absence of any warranty; and give all recipients a copy of
+-this License along with the Program.
+-
+-You may charge any price or no price for each copy that you convey, and you may offer
+-support or warranty protection for a fee.
+-
+-### 5. Conveying Modified Source Versions
+-
+-You may convey a work based on the Program, or the modifications to produce it from
+-the Program, in the form of source code under the terms of section 4, provided that
+-you also meet all of these conditions:
+-
+-* **a)** The work must carry prominent notices stating that you modified it, and giving a
+-relevant date.
+-* **b)** The work must carry prominent notices stating that it is released under this
+-License and any conditions added under section 7. This requirement modifies the
+-requirement in section 4 to “keep intact all notices”.
+-* **c)** You must license the entire work, as a whole, under this License to anyone who
+-comes into possession of a copy. This License will therefore apply, along with any
+-applicable section 7 additional terms, to the whole of the work, and all its parts,
+-regardless of how they are packaged. This License gives no permission to license the
+-work in any other way, but it does not invalidate such permission if you have
+-separately received it.
+-* **d)** If the work has interactive user interfaces, each must display Appropriate Legal
+-Notices; however, if the Program has interactive interfaces that do not display
+-Appropriate Legal Notices, your work need not make them do so.
+-
+-A compilation of a covered work with other separate and independent works, which are
+-not by their nature extensions of the covered work, and which are not combined with
+-it such as to form a larger program, in or on a volume of a storage or distribution
+-medium, is called an “aggregate” if the compilation and its resulting
+-copyright are not used to limit the access or legal rights of the compilation's users
+-beyond what the individual works permit. Inclusion of a covered work in an aggregate
+-does not cause this License to apply to the other parts of the aggregate.
+-
+-### 6. Conveying Non-Source Forms
+-
+-You may convey a covered work in object code form under the terms of sections 4 and
+-5, provided that you also convey the machine-readable Corresponding Source under the
+-terms of this License, in one of these ways:
+-
+-* **a)** Convey the object code in, or embodied in, a physical product (including a
+-physical distribution medium), accompanied by the Corresponding Source fixed on a
+-durable physical medium customarily used for software interchange.
+-* **b)** Convey the object code in, or embodied in, a physical product (including a
+-physical distribution medium), accompanied by a written offer, valid for at least
+-three years and valid for as long as you offer spare parts or customer support for
+-that product model, to give anyone who possesses the object code either **(1)** a copy of
+-the Corresponding Source for all the software in the product that is covered by this
+-License, on a durable physical medium customarily used for software interchange, for
+-a price no more than your reasonable cost of physically performing this conveying of
+-source, or **(2)** access to copy the Corresponding Source from a network server at no
+-charge.
+-* **c)** Convey individual copies of the object code with a copy of the written offer to
+-provide the Corresponding Source. This alternative is allowed only occasionally and
+-noncommercially, and only if you received the object code with such an offer, in
+-accord with subsection 6b.
+-* **d)** Convey the object code by offering access from a designated place (gratis or for
+-a charge), and offer equivalent access to the Corresponding Source in the same way
+-through the same place at no further charge. You need not require recipients to copy
+-the Corresponding Source along with the object code. If the place to copy the object
+-code is a network server, the Corresponding Source may be on a different server
+-(operated by you or a third party) that supports equivalent copying facilities,
+-provided you maintain clear directions next to the object code saying where to find
+-the Corresponding Source. Regardless of what server hosts the Corresponding Source,
+-you remain obligated to ensure that it is available for as long as needed to satisfy
+-these requirements.
+-* **e)** Convey the object code using peer-to-peer transmission, provided you inform
+-other peers where the object code and Corresponding Source of the work are being
+-offered to the general public at no charge under subsection 6d.
+-
+-A separable portion of the object code, whose source code is excluded from the
+-Corresponding Source as a System Library, need not be included in conveying the
+-object code work.
+-
+-A “User Product” is either **(1)** a “consumer product”, which
+-means any tangible personal property which is normally used for personal, family, or
+-household purposes, or **(2)** anything designed or sold for incorporation into a
+-dwelling. In determining whether a product is a consumer product, doubtful cases
+-shall be resolved in favor of coverage. For a particular product received by a
+-particular user, “normally used” refers to a typical or common use of
+-that class of product, regardless of the status of the particular user or of the way
+-in which the particular user actually uses, or expects or is expected to use, the
+-product. A product is a consumer product regardless of whether the product has
+-substantial commercial, industrial or non-consumer uses, unless such uses represent
+-the only significant mode of use of the product.
+-
+-“Installation Information” for a User Product means any methods,
+-procedures, authorization keys, or other information required to install and execute
+-modified versions of a covered work in that User Product from a modified version of
+-its Corresponding Source. The information must suffice to ensure that the continued
+-functioning of the modified object code is in no case prevented or interfered with
+-solely because modification has been made.
+-
+-If you convey an object code work under this section in, or with, or specifically for
+-use in, a User Product, and the conveying occurs as part of a transaction in which
+-the right of possession and use of the User Product is transferred to the recipient
+-in perpetuity or for a fixed term (regardless of how the transaction is
+-characterized), the Corresponding Source conveyed under this section must be
+-accompanied by the Installation Information. But this requirement does not apply if
+-neither you nor any third party retains the ability to install modified object code
+-on the User Product (for example, the work has been installed in ROM).
+-
+-The requirement to provide Installation Information does not include a requirement to
+-continue to provide support service, warranty, or updates for a work that has been
+-modified or installed by the recipient, or for the User Product in which it has been
+-modified or installed. Access to a network may be denied when the modification itself
+-materially and adversely affects the operation of the network or violates the rules
+-and protocols for communication across the network.
+-
+-Corresponding Source conveyed, and Installation Information provided, in accord with
+-this section must be in a format that is publicly documented (and with an
+-implementation available to the public in source code form), and must require no
+-special password or key for unpacking, reading or copying.
+-
+-### 7. Additional Terms
+-
+-“Additional permissions” are terms that supplement the terms of this
+-License by making exceptions from one or more of its conditions. Additional
+-permissions that are applicable to the entire Program shall be treated as though they
+-were included in this License, to the extent that they are valid under applicable
+-law. If additional permissions apply only to part of the Program, that part may be
+-used separately under those permissions, but the entire Program remains governed by
+-this License without regard to the additional permissions.
+-
+-When you convey a copy of a covered work, you may at your option remove any
+-additional permissions from that copy, or from any part of it. (Additional
+-permissions may be written to require their own removal in certain cases when you
+-modify the work.) You may place additional permissions on material, added by you to a
+-covered work, for which you have or can give appropriate copyright permission.
+-
+-Notwithstanding any other provision of this License, for material you add to a
+-covered work, you may (if authorized by the copyright holders of that material)
+-supplement the terms of this License with terms:
+-
+-* **a)** Disclaiming warranty or limiting liability differently from the terms of
+-sections 15 and 16 of this License; or
+-* **b)** Requiring preservation of specified reasonable legal notices or author
+-attributions in that material or in the Appropriate Legal Notices displayed by works
+-containing it; or
+-* **c)** Prohibiting misrepresentation of the origin of that material, or requiring that
+-modified versions of such material be marked in reasonable ways as different from the
+-original version; or
+-* **d)** Limiting the use for publicity purposes of names of licensors or authors of the
+-material; or
+-* **e)** Declining to grant rights under trademark law for use of some trade names,
+-trademarks, or service marks; or
+-* **f)** Requiring indemnification of licensors and authors of that material by anyone
+-who conveys the material (or modified versions of it) with contractual assumptions of
+-liability to the recipient, for any liability that these contractual assumptions
+-directly impose on those licensors and authors.
+-
+-All other non-permissive additional terms are considered “further
+-restrictions” within the meaning of section 10. If the Program as you received
+-it, or any part of it, contains a notice stating that it is governed by this License
+-along with a term that is a further restriction, you may remove that term. If a
+-license document contains a further restriction but permits relicensing or conveying
+-under this License, you may add to a covered work material governed by the terms of
+-that license document, provided that the further restriction does not survive such
+-relicensing or conveying.
+-
+-If you add terms to a covered work in accord with this section, you must place, in
+-the relevant source files, a statement of the additional terms that apply to those
+-files, or a notice indicating where to find the applicable terms.
+-
+-Additional terms, permissive or non-permissive, may be stated in the form of a
+-separately written license, or stated as exceptions; the above requirements apply
+-either way.
+-
+-### 8. Termination
+-
+-You may not propagate or modify a covered work except as expressly provided under
+-this License. Any attempt otherwise to propagate or modify it is void, and will
+-automatically terminate your rights under this License (including any patent licenses
+-granted under the third paragraph of section 11).
+-
+-However, if you cease all violation of this License, then your license from a
+-particular copyright holder is reinstated **(a)** provisionally, unless and until the
+-copyright holder explicitly and finally terminates your license, and **(b)** permanently,
+-if the copyright holder fails to notify you of the violation by some reasonable means
+-prior to 60 days after the cessation.
+-
+-Moreover, your license from a particular copyright holder is reinstated permanently
+-if the copyright holder notifies you of the violation by some reasonable means, this
+-is the first time you have received notice of violation of this License (for any
+-work) from that copyright holder, and you cure the violation prior to 30 days after
+-your receipt of the notice.
+-
+-Termination of your rights under this section does not terminate the licenses of
+-parties who have received copies or rights from you under this License. If your
+-rights have been terminated and not permanently reinstated, you do not qualify to
+-receive new licenses for the same material under section 10.
+-
+-### 9. Acceptance Not Required for Having Copies
+-
+-You are not required to accept this License in order to receive or run a copy of the
+-Program. Ancillary propagation of a covered work occurring solely as a consequence of
+-using peer-to-peer transmission to receive a copy likewise does not require
+-acceptance. However, nothing other than this License grants you permission to
+-propagate or modify any covered work. These actions infringe copyright if you do not
+-accept this License. Therefore, by modifying or propagating a covered work, you
+-indicate your acceptance of this License to do so.
+-
+-### 10. Automatic Licensing of Downstream Recipients
+-
+-Each time you convey a covered work, the recipient automatically receives a license
+-from the original licensors, to run, modify and propagate that work, subject to this
+-License. You are not responsible for enforcing compliance by third parties with this
+-License.
+-
+-An “entity transaction” is a transaction transferring control of an
+-organization, or substantially all assets of one, or subdividing an organization, or
+-merging organizations. If propagation of a covered work results from an entity
+-transaction, each party to that transaction who receives a copy of the work also
+-receives whatever licenses to the work the party's predecessor in interest had or
+-could give under the previous paragraph, plus a right to possession of the
+-Corresponding Source of the work from the predecessor in interest, if the predecessor
+-has it or can get it with reasonable efforts.
+-
+-You may not impose any further restrictions on the exercise of the rights granted or
+-affirmed under this License. For example, you may not impose a license fee, royalty,
+-or other charge for exercise of rights granted under this License, and you may not
+-initiate litigation (including a cross-claim or counterclaim in a lawsuit) alleging
+-that any patent claim is infringed by making, using, selling, offering for sale, or
+-importing the Program or any portion of it.
+-
+-### 11. Patents
+-
+-A “contributor” is a copyright holder who authorizes use under this
+-License of the Program or a work on which the Program is based. The work thus
+-licensed is called the contributor's “contributor version”.
+-
+-A contributor's “essential patent claims” are all patent claims owned or
+-controlled by the contributor, whether already acquired or hereafter acquired, that
+-would be infringed by some manner, permitted by this License, of making, using, or
+-selling its contributor version, but do not include claims that would be infringed
+-only as a consequence of further modification of the contributor version. For
+-purposes of this definition, “control” includes the right to grant patent
+-sublicenses in a manner consistent with the requirements of this License.
+-
+-Each contributor grants you a non-exclusive, worldwide, royalty-free patent license
+-under the contributor's essential patent claims, to make, use, sell, offer for sale,
+-import and otherwise run, modify and propagate the contents of its contributor
+-version.
+-
+-In the following three paragraphs, a “patent license” is any express
+-agreement or commitment, however denominated, not to enforce a patent (such as an
+-express permission to practice a patent or covenant not to sue for patent
+-infringement). To “grant” such a patent license to a party means to make
+-such an agreement or commitment not to enforce a patent against the party.
+-
+-If you convey a covered work, knowingly relying on a patent license, and the
+-Corresponding Source of the work is not available for anyone to copy, free of charge
+-and under the terms of this License, through a publicly available network server or
+-other readily accessible means, then you must either **(1)** cause the Corresponding
+-Source to be so available, or **(2)** arrange to deprive yourself of the benefit of the
+-patent license for this particular work, or **(3)** arrange, in a manner consistent with
+-the requirements of this License, to extend the patent license to downstream
+-recipients. “Knowingly relying” means you have actual knowledge that, but
+-for the patent license, your conveying the covered work in a country, or your
+-recipient's use of the covered work in a country, would infringe one or more
+-identifiable patents in that country that you have reason to believe are valid.
+-
+-If, pursuant to or in connection with a single transaction or arrangement, you
+-convey, or propagate by procuring conveyance of, a covered work, and grant a patent
+-license to some of the parties receiving the covered work authorizing them to use,
+-propagate, modify or convey a specific copy of the covered work, then the patent
+-license you grant is automatically extended to all recipients of the covered work and
+-works based on it.
+-
+-A patent license is “discriminatory” if it does not include within the
+-scope of its coverage, prohibits the exercise of, or is conditioned on the
+-non-exercise of one or more of the rights that are specifically granted under this
+-License. You may not convey a covered work if you are a party to an arrangement with
+-a third party that is in the business of distributing software, under which you make
+-payment to the third party based on the extent of your activity of conveying the
+-work, and under which the third party grants, to any of the parties who would receive
+-the covered work from you, a discriminatory patent license **(a)** in connection with
+-copies of the covered work conveyed by you (or copies made from those copies), or **(b)**
+-primarily for and in connection with specific products or compilations that contain
+-the covered work, unless you entered into that arrangement, or that patent license
+-was granted, prior to 28 March 2007.
+-
+-Nothing in this License shall be construed as excluding or limiting any implied
+-license or other defenses to infringement that may otherwise be available to you
+-under applicable patent law.
+-
+-### 12. No Surrender of Others' Freedom
+-
+-If conditions are imposed on you (whether by court order, agreement or otherwise)
+-that contradict the conditions of this License, they do not excuse you from the
+-conditions of this License. If you cannot convey a covered work so as to satisfy
+-simultaneously your obligations under this License and any other pertinent
+-obligations, then as a consequence you may not convey it at all. For example, if you
+-agree to terms that obligate you to collect a royalty for further conveying from
+-those to whom you convey the Program, the only way you could satisfy both those terms
+-and this License would be to refrain entirely from conveying the Program.
+-
+-### 13. Use with the GNU Affero General Public License
+-
+-Notwithstanding any other provision of this License, you have permission to link or
+-combine any covered work with a work licensed under version 3 of the GNU Affero
+-General Public License into a single combined work, and to convey the resulting work.
+-The terms of this License will continue to apply to the part which is the covered
+-work, but the special requirements of the GNU Affero General Public License, section
+-13, concerning interaction through a network will apply to the combination as such.
+-
+-### 14. Revised Versions of this License
+-
+-The Free Software Foundation may publish revised and/or new versions of the GNU
+-General Public License from time to time. Such new versions will be similar in spirit
+-to the present version, but may differ in detail to address new problems or concerns.
+-
+-Each version is given a distinguishing version number. If the Program specifies that
+-a certain numbered version of the GNU General Public License “or any later
+-version” applies to it, you have the option of following the terms and
+-conditions either of that numbered version or of any later version published by the
+-Free Software Foundation. If the Program does not specify a version number of the GNU
+-General Public License, you may choose any version ever published by the Free
+-Software Foundation.
+-
+-If the Program specifies that a proxy can decide which future versions of the GNU
+-General Public License can be used, that proxy's public statement of acceptance of a
+-version permanently authorizes you to choose that version for the Program.
+-
+-Later license versions may give you additional or different permissions. However, no
+-additional obligations are imposed on any author or copyright holder as a result of
+-your choosing to follow a later version.
+-
+-### 15. Disclaimer of Warranty
+-
+-THERE IS NO WARRANTY FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW.
+-EXCEPT WHEN OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES
+-PROVIDE THE PROGRAM “AS IS” WITHOUT WARRANTY OF ANY KIND, EITHER
+-EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+-MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE ENTIRE RISK AS TO THE
+-QUALITY AND PERFORMANCE OF THE PROGRAM IS WITH YOU. SHOULD THE PROGRAM PROVE
+-DEFECTIVE, YOU ASSUME THE COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.
+-
+-### 16. Limitation of Liability
+-
+-IN NO EVENT UNLESS REQUIRED BY APPLICABLE LAW OR AGREED TO IN WRITING WILL ANY
+-COPYRIGHT HOLDER, OR ANY OTHER PARTY WHO MODIFIES AND/OR CONVEYS THE PROGRAM AS
+-PERMITTED ABOVE, BE LIABLE TO YOU FOR DAMAGES, INCLUDING ANY GENERAL, SPECIAL,
+-INCIDENTAL OR CONSEQUENTIAL DAMAGES ARISING OUT OF THE USE OR INABILITY TO USE THE
+-PROGRAM (INCLUDING BUT NOT LIMITED TO LOSS OF DATA OR DATA BEING RENDERED INACCURATE
+-OR LOSSES SUSTAINED BY YOU OR THIRD PARTIES OR A FAILURE OF THE PROGRAM TO OPERATE
+-WITH ANY OTHER PROGRAMS), EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE
+-POSSIBILITY OF SUCH DAMAGES.
+-
+-### 17. Interpretation of Sections 15 and 16
+-
+-If the disclaimer of warranty and limitation of liability provided above cannot be
+-given local legal effect according to their terms, reviewing courts shall apply local
+-law that most closely approximates an absolute waiver of all civil liability in
+-connection with the Program, unless a warranty or assumption of liability accompanies
+-a copy of the Program in return for a fee.
+-
+-_END OF TERMS AND CONDITIONS_
+-
+-## How to Apply These Terms to Your New Programs
+-
+-If you develop a new program, and you want it to be of the greatest possible use to
+-the public, the best way to achieve this is to make it free software which everyone
+-can redistribute and change under these terms.
+-
+-To do so, attach the following notices to the program. It is safest to attach them
+-to the start of each source file to most effectively state the exclusion of warranty;
+-and each file should have at least the “copyright” line and a pointer to
+-where the full notice is found.
+-
+-    <one line to give the program's name and a brief idea of what it does.>
+-    Copyright (C) <year>  <name of author>
+-
+-    This program is free software: you can redistribute it and/or modify
+-    it under the terms of the GNU General Public License as published by
+-    the Free Software Foundation, either version 3 of the License, or
+-    (at your option) any later version.
+-
+-    This program is distributed in the hope that it will be useful,
+-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-    GNU General Public License for more details.
+-
+-    You should have received a copy of the GNU General Public License
+-    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+-
+-Also add information on how to contact you by electronic and paper mail.
+-
+-If the program does terminal interaction, make it output a short notice like this
+-when it starts in an interactive mode:
+-
+-    <program>  Copyright (C) <year>  <name of author>
+-    This program comes with ABSOLUTELY NO WARRANTY; for details type 'show w'.
+-    This is free software, and you are welcome to redistribute it
+-    under certain conditions; type 'show c' for details.
+-
+-The hypothetical commands `show w` and `show c` should show the appropriate parts of
+-the General Public License. Of course, your program's commands might be different;
+-for a GUI interface, you would use an “about box”.
+-
+-You should also get your employer (if you work as a programmer) or school, if any, to
+-sign a “copyright disclaimer” for the program, if necessary. For more
+-information on this, and how to apply and follow the GNU GPL, see
+-&lt;<http://www.gnu.org/licenses/>&gt;.
+-
+-The GNU General Public License does not permit incorporating your program into
+-proprietary programs. If your program is a subroutine library, you may consider it
+-more useful to permit linking proprietary applications with the library. If this is
+-what you want to do, use the GNU Lesser General Public License instead of this
+-License. But first, please read
+-&lt;<http://www.gnu.org/philosophy/why-not-lgpl.html>&gt;.
+diff --git a/node/old_ledger/README.md b/node/old_ledger/README.md
+deleted file mode 100644
+index 235598314..000000000
+--- a/node/old_ledger/README.md
++++ /dev/null
+@@ -1,7 +0,0 @@
+-# snarkos-node-ledger
+-
+-[![Crates.io](https://img.shields.io/crates/v/snarkos-node-ledger.svg?color=neon)](https://crates.io/crates/snarkos-node-ledger)
+-[![Authors](https://img.shields.io/badge/authors-Aleo-orange.svg)](https://aleo.org)
+-[![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](./LICENSE.md)
+-
+-The `snarkos-node-ledger` crate provides the ledger and API interface for the Aleo blockchain.
+diff --git a/node/old_ledger/src/consensus/contains.rs b/node/old_ledger/src/consensus/contains.rs
+deleted file mode 100644
+index 2f547c7ae..000000000
+--- a/node/old_ledger/src/consensus/contains.rs
++++ /dev/null
+@@ -1,108 +0,0 @@
+-// Copyright (C) 2019-2022 Aleo Systems Inc.
+-// This file is part of the snarkOS library.
+-
+-// The snarkOS library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkOS library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+-
+-use super::*;
+-use crate::PuzzleCommitment;
+-
+-impl<N: Network, C: ConsensusStorage<N>> Consensus<N, C> {
+-    /// Returns `true` if the given state root exists.
+-    pub fn contains_state_root(&self, state_root: Field<N>) -> Result<bool> {
+-        self.blocks.contains_state_root(state_root)
+-    }
+-
+-    /// Returns `true` if the given block height exists.
+-    pub fn contains_block_height(&self, height: u32) -> Result<bool> {
+-        self.blocks.contains_block_height(height)
+-    }
+-
+-    /// Returns `true` if the given block hash exists.
+-    pub fn contains_block_hash(&self, block_hash: &N::BlockHash) -> Result<bool> {
+-        self.blocks.contains_block_hash(block_hash)
+-    }
+-
+-    /// Returns `true` if the given puzzle commitment exists.
+-    pub fn contains_puzzle_commitment(&self, puzzle_commitment: &PuzzleCommitment<N>) -> Result<bool> {
+-        self.blocks.contains_puzzle_commitment(puzzle_commitment)
+-    }
+-
+-    /// Returns `true` if the given program ID exists.
+-    pub fn contains_program_id(&self, program_id: &ProgramID<N>) -> Result<bool> {
+-        self.transactions.contains_program_id(program_id)
+-    }
+-
+-    /// Returns `true` if the given transaction ID exists.
+-    pub fn contains_transaction_id(&self, transaction_id: &N::TransactionID) -> Result<bool> {
+-        self.transactions.contains_transaction_id(transaction_id)
+-    }
+-
+-    /* Transition */
+-
+-    /// Returns `true` if the given transition ID exists.
+-    pub fn contains_transition_id(&self, transition_id: &N::TransitionID) -> Result<bool> {
+-        self.transitions.contains_transition_id(transition_id)
+-    }
+-
+-    /* Input */
+-
+-    /// Returns `true` if the given input ID exists.
+-    pub fn contains_input_id(&self, input_id: &Field<N>) -> Result<bool> {
+-        self.transitions.contains_input_id(input_id)
+-    }
+-
+-    /// Returns `true` if the given serial number exists.
+-    pub fn contains_serial_number(&self, serial_number: &Field<N>) -> Result<bool> {
+-        self.transitions.contains_serial_number(serial_number)
+-    }
+-
+-    /// Returns `true` if the given tag exists.
+-    pub fn contains_tag(&self, tag: &Field<N>) -> Result<bool> {
+-        self.transitions.contains_tag(tag)
+-    }
+-
+-    /* Output */
+-
+-    /// Returns `true` if the given output ID exists.
+-    pub fn contains_output_id(&self, output_id: &Field<N>) -> Result<bool> {
+-        self.transitions.contains_output_id(output_id)
+-    }
+-
+-    /// Returns `true` if the given commitment exists.
+-    pub fn contains_commitment(&self, commitment: &Field<N>) -> Result<bool> {
+-        self.transitions.contains_commitment(commitment)
+-    }
+-
+-    /// Returns `true` if the given checksum exists.
+-    pub fn contains_checksum(&self, checksum: &Field<N>) -> bool {
+-        self.transitions.contains_checksum(checksum)
+-    }
+-
+-    /// Returns `true` if the given nonce exists.
+-    pub fn contains_nonce(&self, nonce: &Group<N>) -> Result<bool> {
+-        self.transitions.contains_nonce(nonce)
+-    }
+-
+-    /* Metadata */
+-
+-    /// Returns `true` if the given transition public key exists.
+-    pub fn contains_tpk(&self, tpk: &Group<N>) -> Result<bool> {
+-        self.transitions.contains_tpk(tpk)
+-    }
+-
+-    /// Returns `true` if the given transition commitment exists.
+-    pub fn contains_tcm(&self, tcm: &Field<N>) -> Result<bool> {
+-        self.transitions.contains_tcm(tcm)
+-    }
+-}
+diff --git a/node/old_ledger/src/consensus/find.rs b/node/old_ledger/src/consensus/find.rs
+deleted file mode 100644
+index 89ad4014a..000000000
+--- a/node/old_ledger/src/consensus/find.rs
++++ /dev/null
+@@ -1,144 +0,0 @@
+-// Copyright (C) 2019-2022 Aleo Systems Inc.
+-// This file is part of the snarkOS library.
+-
+-// The snarkOS library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkOS library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+-
+-use super::*;
+-
+-use crate::PuzzleCommitment;
+-use std::borrow::Cow;
+-
+-impl<N: Network, C: ConsensusStorage<N>> Consensus<N, C> {
+-    /// Returns the block height that contains the given `state root`.
+-    pub fn find_block_height_from_state_root(&self, state_root: Field<N>) -> Result<Option<u32>> {
+-        self.blocks.find_block_height_from_state_root(state_root)
+-    }
+-
+-    /// Returns the block hash that contains the given `transaction ID`.
+-    pub fn find_block_hash(&self, transaction_id: &N::TransactionID) -> Result<Option<N::BlockHash>> {
+-        self.blocks.find_block_hash(transaction_id)
+-    }
+-
+-    /// Returns the block hash that contains the given `puzzle commitment`.
+-    pub fn find_block_hash_from_puzzle_commitment(
+-        &self,
+-        puzzle_commitment: &PuzzleCommitment<N>,
+-    ) -> Result<Option<N::BlockHash>> {
+-        self.blocks.find_block_hash_from_puzzle_commitment(puzzle_commitment)
+-    }
+-
+-    /// Returns the transaction ID that contains the given `program ID`.
+-    pub fn find_deployment_id(&self, program_id: &ProgramID<N>) -> Result<Option<N::TransactionID>> {
+-        self.transactions.find_deployment_id(program_id)
+-    }
+-
+-    /// Returns the transaction ID that contains the given `transition ID`.
+-    pub fn find_transaction_id(&self, transition_id: &N::TransitionID) -> Result<Option<N::TransactionID>> {
+-        self.transactions.find_transaction_id(transition_id)
+-    }
+-
+-    /// Returns the transition ID that contains the given `input ID` or `output ID`.
+-    pub fn find_transition_id(&self, id: &Field<N>) -> Result<N::TransitionID> {
+-        self.transitions.find_transition_id(id)
+-    }
+-
+-    /// Returns the record ciphertexts that belong to the given view key.
+-    pub fn find_record_ciphertexts<'a>(
+-        &'a self,
+-        view_key: &'a ViewKey<N>,
+-        filter: RecordsFilter<N>,
+-    ) -> Result<impl '_ + Iterator<Item = (Field<N>, Cow<'_, Record<N, Ciphertext<N>>>)>> {
+-        // Derive the address from the view key.
+-        let address = view_key.to_address();
+-        // Derive the `sk_tag` from the graph key.
+-        let sk_tag = match GraphKey::try_from(view_key) {
+-            Ok(graph_key) => graph_key.sk_tag(),
+-            Err(e) => bail!("Failed to derive the graph key from the view key: {e}"),
+-        };
+-
+-        Ok(self.records().flat_map(move |cow| {
+-            // Retrieve the commitment and record.
+-            let (commitment, record) = match cow {
+-                (Cow::Borrowed(commitment), record) => (*commitment, record),
+-                (Cow::Owned(commitment), record) => (commitment, record),
+-            };
+-
+-            // Determine whether to decrypt this record (or not), based on the filter.
+-            let commitment = match filter {
+-                RecordsFilter::All => Ok(Some(commitment)),
+-                RecordsFilter::Spent => Record::<N, Plaintext<N>>::tag(sk_tag, commitment).and_then(|tag| {
+-                    // Determine if the record is spent.
+-                    self.contains_tag(&tag).map(|is_spent| match is_spent {
+-                        true => Some(commitment),
+-                        false => None,
+-                    })
+-                }),
+-                RecordsFilter::Unspent => Record::<N, Plaintext<N>>::tag(sk_tag, commitment).and_then(|tag| {
+-                    // Determine if the record is spent.
+-                    self.contains_tag(&tag).map(|is_spent| match is_spent {
+-                        true => None,
+-                        false => Some(commitment),
+-                    })
+-                }),
+-                RecordsFilter::SlowSpent(private_key) => {
+-                    Record::<N, Plaintext<N>>::serial_number(private_key, commitment).and_then(|serial_number| {
+-                        // Determine if the record is spent.
+-                        self.contains_serial_number(&serial_number).map(|is_spent| match is_spent {
+-                            true => Some(commitment),
+-                            false => None,
+-                        })
+-                    })
+-                }
+-                RecordsFilter::SlowUnspent(private_key) => {
+-                    Record::<N, Plaintext<N>>::serial_number(private_key, commitment).and_then(|serial_number| {
+-                        // Determine if the record is spent.
+-                        self.contains_serial_number(&serial_number).map(|is_spent| match is_spent {
+-                            true => None,
+-                            false => Some(commitment),
+-                        })
+-                    })
+-                }
+-            };
+-
+-            match commitment {
+-                Ok(Some(commitment)) => match record.is_owner(&address, view_key) {
+-                    true => Some((commitment, record)),
+-                    false => None,
+-                },
+-                Ok(None) => None,
+-                Err(e) => {
+-                    warn!("Failed to process 'find_record_ciphertexts({:?})': {e}", filter);
+-                    None
+-                }
+-            }
+-        }))
+-    }
+-
+-    /// Returns the records that belong to the given view key.
+-    pub fn find_records<'a>(
+-        &'a self,
+-        view_key: &'a ViewKey<N>,
+-        filter: RecordsFilter<N>,
+-    ) -> Result<impl '_ + Iterator<Item = (Field<N>, Record<N, Plaintext<N>>)>> {
+-        self.find_record_ciphertexts(view_key, filter).map(|iter| {
+-            iter.flat_map(|(commitment, record)| match record.decrypt(view_key) {
+-                Ok(record) => Some((commitment, record)),
+-                Err(e) => {
+-                    warn!("Failed to decrypt the record: {e}");
+-                    None
+-                }
+-            })
+-        })
+-    }
+-}
+diff --git a/node/old_ledger/src/consensus/get.rs b/node/old_ledger/src/consensus/get.rs
+deleted file mode 100644
+index 0b792be5f..000000000
+--- a/node/old_ledger/src/consensus/get.rs
++++ /dev/null
+@@ -1,146 +0,0 @@
+-// Copyright (C) 2019-2022 Aleo Systems Inc.
+-// This file is part of the snarkOS library.
+-
+-// The snarkOS library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkOS library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+-
+-use super::*;
+-
+-impl<N: Network, C: ConsensusStorage<N>> Consensus<N, C> {
+-    /// Returns the state root that contains the given `block height`.
+-    pub fn get_state_root(&self, block_height: u32) -> Result<Option<Field<N>>> {
+-        self.blocks.get_state_root(block_height)
+-    }
+-
+-    /// Returns the block for the given block height.
+-    pub fn get_block(&self, height: u32) -> Result<Block<N>> {
+-        // Retrieve the block hash.
+-        let block_hash = match self.blocks.get_block_hash(height)? {
+-            Some(block_hash) => block_hash,
+-            None => bail!("Block {height} does not exist in storage"),
+-        };
+-        // Retrieve the block.
+-        match self.blocks.get_block(&block_hash)? {
+-            Some(block) => Ok(block),
+-            None => bail!("Block {height} ('{block_hash}') does not exist in storage"),
+-        }
+-    }
+-
+-    /// Returns the block hash for the given block height.
+-    pub fn get_hash(&self, height: u32) -> Result<N::BlockHash> {
+-        match self.blocks.get_block_hash(height)? {
+-            Some(block_hash) => Ok(block_hash),
+-            None => bail!("Missing block hash for block {height}"),
+-        }
+-    }
+-
+-    /// Returns the previous block hash for the given block height.
+-    pub fn get_previous_hash(&self, height: u32) -> Result<N::BlockHash> {
+-        match self.blocks.get_previous_block_hash(height)? {
+-            Some(previous_hash) => Ok(previous_hash),
+-            None => bail!("Missing previous block hash for block {height}"),
+-        }
+-    }
+-
+-    /// Returns the block header for the given block height.
+-    pub fn get_header(&self, height: u32) -> Result<Header<N>> {
+-        // Retrieve the block hash.
+-        let block_hash = match self.blocks.get_block_hash(height)? {
+-            Some(block_hash) => block_hash,
+-            None => bail!("Block {height} does not exist in storage"),
+-        };
+-        // Retrieve the block header.
+-        match self.blocks.get_block_header(&block_hash)? {
+-            Some(header) => Ok(header),
+-            None => bail!("Missing block header for block {height}"),
+-        }
+-    }
+-
+-    /// Returns the block transactions for the given block height.
+-    pub fn get_transactions(&self, height: u32) -> Result<Transactions<N>> {
+-        // Retrieve the block hash.
+-        let block_hash = match self.blocks.get_block_hash(height)? {
+-            Some(block_hash) => block_hash,
+-            None => bail!("Block {height} does not exist in storage"),
+-        };
+-        // Retrieve the block transaction.
+-        match self.blocks.get_block_transactions(&block_hash)? {
+-            Some(transactions) => Ok(transactions),
+-            None => bail!("Missing block transactions for block {height}"),
+-        }
+-    }
+-
+-    /// Returns the transaction for the given transaction ID.
+-    pub fn get_transaction(&self, transaction_id: N::TransactionID) -> Result<Transaction<N>> {
+-        // Retrieve the transaction.
+-        match self.transactions.get_transaction(&transaction_id)? {
+-            Some(transaction) => Ok(transaction),
+-            None => bail!("Missing transaction for ID {transaction_id}"),
+-        }
+-    }
+-
+-    /// Returns the program for the given program ID.
+-    pub fn get_program(&self, program_id: ProgramID<N>) -> Result<Program<N>> {
+-        match self.transactions.get_program(&program_id)? {
+-            Some(program) => Ok(program),
+-            None => bail!("Missing program for ID {program_id}"),
+-        }
+-    }
+-
+-    /// Returns the block coinbase solution for the given block height.
+-    pub fn get_coinbase(&self, height: u32) -> Result<Option<CoinbaseSolution<N>>> {
+-        // Retrieve the block hash.
+-        let block_hash = match self.blocks.get_block_hash(height)? {
+-            Some(block_hash) => block_hash,
+-            None => bail!("Block {height} does not exist in storage"),
+-        };
+-        // Retrieve the block coinbase solution.
+-        self.blocks.get_block_coinbase(&block_hash)
+-    }
+-
+-    /// Returns the block signature for the given block height.
+-    pub fn get_signature(&self, height: u32) -> Result<Signature<N>> {
+-        // Retrieve the block hash.
+-        let block_hash = match self.blocks.get_block_hash(height)? {
+-            Some(block_hash) => block_hash,
+-            None => bail!("Block {height} does not exist in storage"),
+-        };
+-        // Retrieve the block signature.
+-        match self.blocks.get_block_signature(&block_hash)? {
+-            Some(signature) => Ok(signature),
+-            None => bail!("Missing signature for block {height}"),
+-        }
+-    }
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-    use crate::consensus::test_helpers::CurrentConsensus;
+-    use snarkvm::console::network::Testnet3;
+-
+-    type CurrentNetwork = Testnet3;
+-
+-    #[test]
+-    fn test_get_block() {
+-        // Load the genesis block.
+-        let genesis = Block::from_bytes_le(CurrentNetwork::genesis_bytes()).unwrap();
+-
+-        // Initialize a new ledger.
+-        let ledger = CurrentConsensus::load(None, None).unwrap();
+-        // Retrieve the genesis block.
+-        let candidate = ledger.get_block(0).unwrap();
+-        // Ensure the genesis block matches.
+-        assert_eq!(genesis, candidate);
+-    }
+-}
+diff --git a/node/old_ledger/src/consensus/helpers/mod.rs b/node/old_ledger/src/consensus/helpers/mod.rs
+deleted file mode 100644
+index 0ea7dec17..000000000
+--- a/node/old_ledger/src/consensus/helpers/mod.rs
++++ /dev/null
+@@ -1,437 +0,0 @@
+-// Copyright (C) 2019-2022 Aleo Systems Inc.
+-// This file is part of the snarkOS library.
+-
+-// The snarkOS library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkOS library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+-
+-use super::*;
+-
+-/// Calculate the staking reward, given the starting supply and anchor time.
+-///     R_staking = floor((0.025 * S) / H_Y1)
+-///     S = Starting supply.
+-///     H_Y1 = Anchor block height at year 1.
+-pub const fn staking_reward(starting_supply: u64, anchor_time: u16) -> u64 {
+-    // Compute the anchor block height at year 1.
+-    let anchor_height_at_year_1 = anchor_block_height(anchor_time, 1);
+-    // Compute the annual staking reward: (0.025 * S).
+-    let annual_staking_reward = (starting_supply / 1000) * 25;
+-    // Compute the staking reward: (0.025 * S) / H_Y1.
+-    annual_staking_reward / anchor_height_at_year_1 as u64
+-}
+-
+-/// Calculates the coinbase reward for a given block.
+-///     R_coinbase = max(0, H_Y10 - H) * R_anchor * 2^(-1 * (D - B) / B).
+-///     R_anchor = Anchor reward.
+-///     H_Y10 = Anchor block height at year 10.
+-///     H = Current block height.
+-///     D = Time elapsed since the previous block.
+-///     B = Anchor block time.
+-pub fn coinbase_reward(
+-    previous_timestamp: i64,
+-    timestamp: i64,
+-    block_height: u32,
+-    starting_supply: u64,
+-    anchor_time: u16,
+-) -> Result<u64> {
+-    // Compute the anchor block height at year 10.
+-    let anchor_height_at_year_10 = anchor_block_height(anchor_time, 10);
+-    // Compute the anchor reward.
+-    let anchor_reward = anchor_reward(starting_supply, anchor_time);
+-    // Compute the remaining blocks until year 10, as a u64.
+-    let num_remaining_blocks_to_year_10 = anchor_height_at_year_10.saturating_sub(block_height) as u64;
+-    // Return the coinbase reward.
+-    match num_remaining_blocks_to_year_10.checked_mul(anchor_reward).ok_or_else(|| anyhow!("Anchor reward overflow"))? {
+-        // After the anchor block height at year 10, the coinbase reward is 0.
+-        0 => Ok(0),
+-        // Until the anchor block height at year 10, the coinbase reward is determined by this equation:
+-        //   (num_remaining_blocks_to_year_10 * anchor_reward) * 2^{-1 * ((timestamp - previous_timestamp) - ANCHOR_TIME) / ANCHOR_TIME}
+-        reward => retarget(reward, previous_timestamp, timestamp, anchor_time as u32, true, anchor_time),
+-    }
+-}
+-
+-/// Calculates the anchor reward.
+-///     R_anchor = floor((2 * S) / (H_Y10 * (H_Y10 + 1))).
+-///     S = Starting supply.
+-///     H_Y10 = Expected block height at year 10.
+-const fn anchor_reward(starting_supply: u64, anchor_time: u16) -> u64 {
+-    // Calculate the anchor block height at year 10.
+-    let anchor_height_at_year_10 = anchor_block_height(anchor_time, 10) as u64;
+-    // Compute the numerator.
+-    let numerator = 2 * starting_supply;
+-    // Compute the denominator.
+-    let denominator = anchor_height_at_year_10 * (anchor_height_at_year_10 + 1);
+-    // Return the anchor reward.
+-    numerator / denominator
+-}
+-
+-/// Returns the anchor block height after a given number of years for a specific anchor time.
+-pub const fn anchor_block_height(anchor_time: u16, num_years: u32) -> u32 {
+-    // Calculate the number of seconds in a year.
+-    const SECONDS_IN_A_YEAR: u32 = 60 * 60 * 24 * 365;
+-    // Calculate the one-year anchor block height.
+-    let anchor_block_height_at_year_1 = SECONDS_IN_A_YEAR / anchor_time as u32;
+-    // Return the anchor block height for the given number of years.
+-    anchor_block_height_at_year_1 * num_years
+-}
+-
+-/// Calculate the coinbase target for the given block height.
+-pub fn coinbase_target(
+-    previous_coinbase_target: u64,
+-    previous_block_timestamp: i64,
+-    block_timestamp: i64,
+-    anchor_time: u16,
+-    num_blocks_per_epoch: u32,
+-) -> Result<u64> {
+-    // Compute the new coinbase target.
+-    let candidate_target = retarget(
+-        previous_coinbase_target,
+-        previous_block_timestamp,
+-        block_timestamp,
+-        num_blocks_per_epoch,
+-        true,
+-        anchor_time,
+-    )?;
+-    // Return the new coinbase target, floored at 2^10 - 1.
+-    Ok(core::cmp::max((1u64 << 10).saturating_sub(1), candidate_target))
+-}
+-
+-/// Calculate the minimum proof target for the given coinbase target.
+-pub fn proof_target(coinbase_target: u64) -> u64 {
+-    coinbase_target.checked_shr(10).unwrap_or(0)
+-}
+-
+-/// Retarget algorithm using fixed point arithmetic from https://www.reference.cash/protocol/forks/2020-11-15-asert.
+-///     T_{i+1} = T_i * 2^(INV * (D - B) / TAU).
+-///     T_i = Current target.
+-///     D = Time elapsed since the previous block.
+-///     B = Expected time per block.
+-///     TAU = Rate of doubling (or half-life).
+-///     INV = {-1, 1} depending on whether the target is increasing or decreasing.
+-fn retarget(
+-    previous_target: u64,
+-    previous_block_timestamp: i64,
+-    block_timestamp: i64,
+-    half_life: u32,
+-    is_inverse: bool,
+-    anchor_time: u16,
+-) -> Result<u64> {
+-    // Compute the difference in block time elapsed, defined as:
+-    let mut drift = {
+-        // Determine the block time elapsed (in seconds) since the previous block.
+-        // Note: This operation includes a safety check for a repeat timestamp.
+-        let block_time_elapsed = core::cmp::max(block_timestamp.saturating_sub(previous_block_timestamp), 1);
+-
+-        // Determine the difference in block time elapsed (in seconds).
+-        // Note: This operation must be *standard subtraction* to account for faster blocks.
+-        block_time_elapsed - anchor_time as i64
+-    };
+-
+-    // If the drift is zero, return the previous target.
+-    if drift == 0 {
+-        return Ok(previous_target);
+-    }
+-
+-    // Negate the drift if the inverse flag is set.
+-    if is_inverse {
+-        drift *= -1;
+-    }
+-
+-    // Constants used for fixed point arithmetic.
+-    const RBITS: u32 = 16;
+-    const RADIX: u128 = 1 << RBITS;
+-
+-    // Compute the exponent factor, and decompose it into integral & fractional parts for fixed point arithmetic.
+-    let (integral, fractional) = {
+-        // Calculate the exponent factor.
+-        let exponent = (RADIX as i128).saturating_mul(drift as i128) / half_life as i128;
+-
+-        // Decompose into the integral and fractional parts.
+-        let integral = exponent >> RBITS;
+-        let fractional = (exponent - (integral << RBITS)) as u128;
+-        ensure!(fractional < RADIX, "Fractional part is not within the fixed point size");
+-        ensure!(exponent == (integral * (RADIX as i128) + fractional as i128), "Exponent is decomposed incorrectly");
+-
+-        (integral, fractional)
+-    };
+-
+-    // Approximate the fractional multiplier as 2^RBITS * 2^fractional, where:
+-    // 2^x ~= (1 + 0.695502049*x + 0.2262698*x**2 + 0.0782318*x**3)
+-    let fractional_multiplier = RADIX
+-        + ((195_766_423_245_049_u128 * fractional
+-            + 971_821_376_u128 * fractional.pow(2)
+-            + 5_127_u128 * fractional.pow(3)
+-            + 2_u128.pow(RBITS * 3 - 1))
+-            >> (RBITS * 3));
+-
+-    // Cast the previous coinbase target from a u64 to a u128.
+-    // The difficulty target must allow for leading zeros to account for overflows;
+-    // an additional 64-bits for the leading zeros suffices.
+-    let candidate_target = (previous_target as u128).saturating_mul(fractional_multiplier);
+-
+-    // Calculate the new difficulty.
+-    // Shift the target to multiply by 2^(integer) / RADIX.
+-    let shifts = integral - RBITS as i128;
+-    let mut candidate_target = if shifts < 0 {
+-        match candidate_target.checked_shr((-shifts) as u32) {
+-            Some(target) => core::cmp::max(target, 1),
+-            None => 1,
+-        }
+-    } else {
+-        match candidate_target.checked_shl(shifts as u32) {
+-            Some(target) => core::cmp::max(target, 1),
+-            None => u64::MAX as u128,
+-        }
+-    };
+-
+-    // Cap the target at `u64::MAX` if it has overflowed.
+-    candidate_target = core::cmp::min(candidate_target, u64::MAX as u128);
+-
+-    // Ensure that the leading 64 bits are zeros.
+-    ensure!(candidate_target.checked_shr(64) == Some(0), "The target has overflowed");
+-    // Cast the new target down from a u128 to a u64.
+-    Ok(candidate_target as u64)
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-    use snarkvm::{console::network::Testnet3, prelude::TestRng};
+-
+-    use rand::Rng;
+-
+-    type CurrentNetwork = Testnet3;
+-
+-    const ITERATIONS: usize = 1000;
+-
+-    const EXPECTED_ANCHOR_REWARD: u64 = 8;
+-    const EXPECTED_STAKING_REWARD: u64 = 17_440_385;
+-    const EXPECTED_COINBASE_REWARD_FOR_BLOCK_1: u64 = 126_143_992;
+-
+-    #[test]
+-    fn test_anchor_reward() {
+-        let reward = anchor_reward(CurrentNetwork::STARTING_SUPPLY, CurrentNetwork::ANCHOR_TIME);
+-        assert_eq!(reward, EXPECTED_ANCHOR_REWARD);
+-
+-        // Increasing the anchor time will increase the reward.
+-        let larger_reward = anchor_reward(CurrentNetwork::STARTING_SUPPLY, CurrentNetwork::ANCHOR_TIME + 1);
+-        assert!(reward < larger_reward);
+-
+-        // Decreasing the anchor time will decrease the reward.
+-        let smaller_reward = anchor_reward(CurrentNetwork::STARTING_SUPPLY, CurrentNetwork::ANCHOR_TIME - 1);
+-        assert!(reward > smaller_reward);
+-    }
+-
+-    #[test]
+-    fn test_staking_reward() {
+-        let reward = staking_reward(CurrentNetwork::STARTING_SUPPLY, CurrentNetwork::ANCHOR_TIME);
+-        assert_eq!(reward, EXPECTED_STAKING_REWARD);
+-
+-        // Increasing the anchor time will increase the reward.
+-        let larger_reward = staking_reward(CurrentNetwork::STARTING_SUPPLY, CurrentNetwork::ANCHOR_TIME + 1);
+-        assert!(reward < larger_reward);
+-
+-        // Decreasing the anchor time will decrease the reward.
+-        let smaller_reward = staking_reward(CurrentNetwork::STARTING_SUPPLY, CurrentNetwork::ANCHOR_TIME - 1);
+-        assert!(reward > smaller_reward);
+-    }
+-
+-    #[test]
+-    fn test_coinbase_reward() {
+-        let reward = coinbase_reward(
+-            CurrentNetwork::GENESIS_TIMESTAMP,
+-            CurrentNetwork::GENESIS_TIMESTAMP + CurrentNetwork::ANCHOR_TIME as i64,
+-            1,
+-            CurrentNetwork::STARTING_SUPPLY,
+-            CurrentNetwork::ANCHOR_TIME,
+-        )
+-        .unwrap();
+-        assert_eq!(reward, EXPECTED_COINBASE_REWARD_FOR_BLOCK_1);
+-
+-        // Increasing the block time to twice the anchor time *at most* halves the reward.
+-        let smaller_reward = coinbase_reward(
+-            CurrentNetwork::GENESIS_TIMESTAMP,
+-            CurrentNetwork::GENESIS_TIMESTAMP + (2 * CurrentNetwork::ANCHOR_TIME as i64),
+-            1,
+-            CurrentNetwork::STARTING_SUPPLY,
+-            CurrentNetwork::ANCHOR_TIME,
+-        )
+-        .unwrap();
+-        assert!(smaller_reward >= reward / 2);
+-
+-        // Increasing the block time beyond the anchor time will decrease the reward.
+-        let smaller_reward = coinbase_reward(
+-            CurrentNetwork::GENESIS_TIMESTAMP,
+-            CurrentNetwork::GENESIS_TIMESTAMP + CurrentNetwork::ANCHOR_TIME as i64 + 1,
+-            1,
+-            CurrentNetwork::STARTING_SUPPLY,
+-            CurrentNetwork::ANCHOR_TIME,
+-        )
+-        .unwrap();
+-        assert!(reward > smaller_reward);
+-
+-        // Decreasing the block time below the anchor time will increase the reward.
+-        let larger_reward = coinbase_reward(
+-            CurrentNetwork::GENESIS_TIMESTAMP,
+-            CurrentNetwork::GENESIS_TIMESTAMP + CurrentNetwork::ANCHOR_TIME as i64 - 1,
+-            1,
+-            CurrentNetwork::STARTING_SUPPLY,
+-            CurrentNetwork::ANCHOR_TIME,
+-        )
+-        .unwrap();
+-        assert!(reward < larger_reward);
+-
+-        // Decreasing the block time to 0 *at most* doubles the reward.
+-        let larger_reward = coinbase_reward(
+-            CurrentNetwork::GENESIS_TIMESTAMP,
+-            CurrentNetwork::GENESIS_TIMESTAMP,
+-            1,
+-            CurrentNetwork::STARTING_SUPPLY,
+-            CurrentNetwork::ANCHOR_TIME,
+-        )
+-        .unwrap();
+-        assert!(larger_reward <= reward * 2);
+-    }
+-
+-    #[test]
+-    fn test_coinbase_reward_up_to_year_10() {
+-        let anchor_height_at_year_10 = anchor_block_height(CurrentNetwork::ANCHOR_TIME, 10);
+-
+-        let mut block_height = 1;
+-        let mut previous_timestamp = CurrentNetwork::GENESIS_TIMESTAMP;
+-        let mut timestamp = CurrentNetwork::GENESIS_TIMESTAMP;
+-
+-        let mut previous_reward = coinbase_reward(
+-            previous_timestamp,
+-            timestamp,
+-            block_height,
+-            CurrentNetwork::STARTING_SUPPLY,
+-            CurrentNetwork::ANCHOR_TIME,
+-        )
+-        .unwrap();
+-
+-        block_height *= 2;
+-        timestamp = CurrentNetwork::GENESIS_TIMESTAMP + block_height as i64 * CurrentNetwork::ANCHOR_TIME as i64;
+-
+-        while block_height < anchor_height_at_year_10 {
+-            let reward = coinbase_reward(
+-                previous_timestamp,
+-                timestamp,
+-                block_height,
+-                CurrentNetwork::STARTING_SUPPLY,
+-                CurrentNetwork::ANCHOR_TIME,
+-            )
+-            .unwrap();
+-            assert!(reward <= previous_reward);
+-
+-            previous_reward = reward;
+-            previous_timestamp = timestamp;
+-            block_height *= 2;
+-            timestamp = CurrentNetwork::GENESIS_TIMESTAMP + block_height as i64 * CurrentNetwork::ANCHOR_TIME as i64;
+-        }
+-    }
+-
+-    #[test]
+-    fn test_coinbase_reward_after_year_10() {
+-        let mut rng = TestRng::default();
+-
+-        let anchor_height_at_year_10 = anchor_block_height(CurrentNetwork::ANCHOR_TIME, 10);
+-
+-        // Check that block `anchor_height_at_year_10` has a reward of 0.
+-        let reward = coinbase_reward(
+-            CurrentNetwork::GENESIS_TIMESTAMP,
+-            CurrentNetwork::GENESIS_TIMESTAMP + CurrentNetwork::ANCHOR_TIME as i64,
+-            anchor_height_at_year_10,
+-            CurrentNetwork::STARTING_SUPPLY,
+-            CurrentNetwork::ANCHOR_TIME,
+-        )
+-        .unwrap();
+-        assert_eq!(reward, 0);
+-
+-        // Check that the subsequent blocks have a reward of 0.
+-        for _ in 0..ITERATIONS {
+-            let block_height: u32 = rng.gen_range(anchor_height_at_year_10..anchor_height_at_year_10 * 10);
+-
+-            let timestamp =
+-                CurrentNetwork::GENESIS_TIMESTAMP + block_height as i64 * CurrentNetwork::ANCHOR_TIME as i64;
+-            let new_timestamp = timestamp + CurrentNetwork::ANCHOR_TIME as i64;
+-
+-            let reward = coinbase_reward(
+-                timestamp,
+-                new_timestamp,
+-                block_height,
+-                CurrentNetwork::STARTING_SUPPLY,
+-                CurrentNetwork::ANCHOR_TIME,
+-            )
+-            .unwrap();
+-
+-            assert_eq!(reward, 0);
+-        }
+-    }
+-
+-    #[test]
+-    fn test_targets() {
+-        let mut rng = TestRng::default();
+-
+-        let minimum_coinbase_target: u64 = 2u64.pow(10) - 1;
+-
+-        for _ in 0..ITERATIONS {
+-            let previous_coinbase_target: u64 = rng.gen_range(minimum_coinbase_target..u64::MAX);
+-            let previous_prover_target = proof_target(previous_coinbase_target);
+-
+-            let previous_timestamp = rng.gen();
+-
+-            // Targets stay the same when the timestamp is as expected.
+-            let new_timestamp = previous_timestamp + CurrentNetwork::ANCHOR_TIME as i64;
+-            let new_coinbase_target = coinbase_target(
+-                previous_coinbase_target,
+-                previous_timestamp,
+-                new_timestamp,
+-                CurrentNetwork::ANCHOR_TIME,
+-                CurrentNetwork::NUM_BLOCKS_PER_EPOCH,
+-            )
+-            .unwrap();
+-            let new_prover_target = proof_target(new_coinbase_target);
+-            assert_eq!(new_coinbase_target, previous_coinbase_target);
+-            assert_eq!(new_prover_target, previous_prover_target);
+-
+-            // Targets decrease (easier) when the timestamp is greater than expected.
+-            let new_timestamp = previous_timestamp + 2 * CurrentNetwork::ANCHOR_TIME as i64;
+-            let new_coinbase_target = coinbase_target(
+-                previous_coinbase_target,
+-                previous_timestamp,
+-                new_timestamp,
+-                CurrentNetwork::ANCHOR_TIME,
+-                CurrentNetwork::NUM_BLOCKS_PER_EPOCH,
+-            )
+-            .unwrap();
+-            let new_prover_target = proof_target(new_coinbase_target);
+-            assert!(new_coinbase_target < previous_coinbase_target);
+-            assert!(new_prover_target < previous_prover_target);
+-
+-            // Targets increase (harder) when the timestamp is less than expected.
+-            let new_timestamp = previous_timestamp + CurrentNetwork::ANCHOR_TIME as i64 / 2;
+-            let new_coinbase_target = coinbase_target(
+-                previous_coinbase_target,
+-                previous_timestamp,
+-                new_timestamp,
+-                CurrentNetwork::ANCHOR_TIME,
+-                CurrentNetwork::NUM_BLOCKS_PER_EPOCH,
+-            )
+-            .unwrap();
+-            let new_prover_target = proof_target(new_coinbase_target);
+-
+-            assert!(new_coinbase_target > previous_coinbase_target);
+-            assert!(new_prover_target > previous_prover_target);
+-        }
+-    }
+-}
+diff --git a/node/old_ledger/src/consensus/iterators.rs b/node/old_ledger/src/consensus/iterators.rs
+deleted file mode 100644
+index a5917a5f7..000000000
+--- a/node/old_ledger/src/consensus/iterators.rs
++++ /dev/null
+@@ -1,100 +0,0 @@
+-// Copyright (C) 2019-2022 Aleo Systems Inc.
+-// This file is part of the snarkOS library.
+-
+-// The snarkOS library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkOS library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+-
+-use super::*;
+-use crate::PuzzleCommitment;
+-
+-impl<N: Network, C: ConsensusStorage<N>> Consensus<N, C> {
+-    /// Returns an iterator over the state roots, for all blocks in `self`.
+-    pub fn state_roots(&self) -> impl '_ + Iterator<Item = Cow<'_, Field<N>>> {
+-        self.blocks.state_roots()
+-    }
+-
+-    /// Returns an iterator over the puzzle commitments, for all blocks in `self`.
+-    pub fn puzzle_commitments(&self) -> impl '_ + Iterator<Item = Cow<'_, PuzzleCommitment<N>>> {
+-        self.blocks.puzzle_commitments()
+-    }
+-
+-    /* Transaction */
+-
+-    /// Returns an iterator over the program IDs, for all transactions in `self`.
+-    pub fn program_ids(&self) -> impl '_ + Iterator<Item = Cow<'_, ProgramID<N>>> {
+-        self.transactions.program_ids()
+-    }
+-
+-    /// Returns an iterator over the programs, for all transactions in `self`.
+-    pub fn programs(&self) -> impl '_ + Iterator<Item = Cow<'_, Program<N>>> {
+-        self.transactions.programs()
+-    }
+-
+-    /// Returns an iterator over the transaction IDs, for all transactions in `self`.
+-    pub fn transaction_ids(&self) -> impl '_ + Iterator<Item = Cow<'_, N::TransactionID>> {
+-        self.transactions.transaction_ids()
+-    }
+-
+-    /* Transition */
+-
+-    /// Returns an iterator over the transition IDs, for all transitions.
+-    pub fn transition_ids(&self) -> impl '_ + Iterator<Item = Cow<'_, N::TransitionID>> {
+-        self.transitions.transition_ids()
+-    }
+-
+-    /* Input */
+-
+-    /// Returns an iterator over the input IDs, for all transition inputs.
+-    pub fn input_ids(&self) -> impl '_ + Iterator<Item = Cow<'_, Field<N>>> {
+-        self.transitions.input_ids()
+-    }
+-
+-    /// Returns an iterator over the serial numbers, for all transition inputs that are records.
+-    pub fn serial_numbers(&self) -> impl '_ + Iterator<Item = Cow<'_, Field<N>>> {
+-        self.transitions.serial_numbers()
+-    }
+-
+-    /// Returns an iterator over the tags, for all transition inputs that are records.
+-    pub fn tags(&self) -> impl '_ + Iterator<Item = Cow<'_, Field<N>>> {
+-        self.transitions.tags()
+-    }
+-
+-    /* Output */
+-
+-    /// Returns an iterator over the output IDs, for all transition outputs that are records.
+-    pub fn output_ids(&self) -> impl '_ + Iterator<Item = Cow<'_, Field<N>>> {
+-        self.transitions.output_ids()
+-    }
+-
+-    /// Returns an iterator over the commitments, for all transition outputs that are records.
+-    pub fn commitments(&self) -> impl '_ + Iterator<Item = Cow<'_, Field<N>>> {
+-        self.transitions.commitments()
+-    }
+-
+-    /// Returns an iterator over the nonces, for all transition outputs that are records.
+-    pub fn nonces(&self) -> impl '_ + Iterator<Item = Cow<'_, Group<N>>> {
+-        self.transitions.nonces()
+-    }
+-
+-    /// Returns an iterator over the `(commitment, record)` pairs, for all transition outputs that are records.
+-    pub fn records(&self) -> impl '_ + Iterator<Item = (Cow<'_, Field<N>>, Cow<'_, Record<N, Ciphertext<N>>>)> {
+-        self.transitions.records()
+-    }
+-
+-    /* Metadata */
+-
+-    /// Returns an iterator over the transition public keys, for all transactions.
+-    pub fn transition_public_keys(&self) -> impl '_ + Iterator<Item = Cow<'_, Group<N>>> {
+-        self.transitions.tpks()
+-    }
+-}
+diff --git a/node/old_ledger/src/consensus/latest.rs b/node/old_ledger/src/consensus/latest.rs
+deleted file mode 100644
+index 5521e511f..000000000
+--- a/node/old_ledger/src/consensus/latest.rs
++++ /dev/null
+@@ -1,91 +0,0 @@
+-// Copyright (C) 2019-2022 Aleo Systems Inc.
+-// This file is part of the snarkOS library.
+-
+-// The snarkOS library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkOS library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+-
+-use super::*;
+-
+-impl<N: Network, C: ConsensusStorage<N>> Consensus<N, C> {
+-    /// Returns the latest state root.
+-    pub const fn latest_state_root(&self) -> &Field<N> {
+-        self.block_tree.root()
+-    }
+-
+-    /// Returns the latest block.
+-    pub fn latest_block(&self) -> Result<Block<N>> {
+-        self.get_block(self.current_height)
+-    }
+-
+-    /// Returns the latest block hash.
+-    pub const fn latest_hash(&self) -> N::BlockHash {
+-        self.current_hash
+-    }
+-
+-    /// Returns the latest block height.
+-    pub const fn latest_height(&self) -> u32 {
+-        self.current_height
+-    }
+-
+-    /// Returns the latest round number.
+-    pub const fn latest_round(&self) -> u64 {
+-        self.current_round
+-    }
+-
+-    /// Returns the latest epoch number.
+-    pub fn latest_epoch_number(&self) -> u32 {
+-        self.current_height / N::NUM_BLOCKS_PER_EPOCH
+-    }
+-
+-    /// Returns the latest epoch challenge.
+-    pub fn latest_epoch_challenge(&self) -> Result<EpochChallenge<N>> {
+-        // Get the epoch's starting height (multiple of `NUM_BLOCKS_PER_EPOCH`).
+-        let epoch_starting_height = self.current_height - self.current_height % N::NUM_BLOCKS_PER_EPOCH;
+-        ensure!(epoch_starting_height % N::NUM_BLOCKS_PER_EPOCH == 0, "Invalid epoch starting height");
+-
+-        // Fetch the epoch block hash, defined as the 'previous block hash' from the starting block height.
+-        let epoch_block_hash = self.get_previous_hash(epoch_starting_height)?;
+-
+-        EpochChallenge::new(self.latest_epoch_number(), epoch_block_hash, N::COINBASE_PUZZLE_DEGREE)
+-    }
+-
+-    /// Returns the latest block header.
+-    pub fn latest_header(&self) -> Result<Header<N>> {
+-        self.get_header(self.current_height)
+-    }
+-
+-    /// Returns the latest block coinbase target.
+-    pub fn latest_coinbase_target(&self) -> Result<u64> {
+-        Ok(self.latest_header()?.coinbase_target())
+-    }
+-
+-    /// Returns the latest block proof target.
+-    pub fn latest_proof_target(&self) -> Result<u64> {
+-        Ok(self.latest_header()?.proof_target())
+-    }
+-
+-    /// Returns the latest coinbase timestamp.
+-    pub fn latest_coinbase_timestamp(&self) -> Result<i64> {
+-        Ok(self.latest_header()?.last_coinbase_timestamp())
+-    }
+-
+-    /// Returns the latest block timestamp.
+-    pub fn latest_timestamp(&self) -> Result<i64> {
+-        Ok(self.latest_header()?.timestamp())
+-    }
+-
+-    /// Returns the latest block transactions.
+-    pub fn latest_transactions(&self) -> Result<Transactions<N>> {
+-        self.get_transactions(self.current_height)
+-    }
+-}
+diff --git a/node/old_ledger/src/consensus/mod.rs b/node/old_ledger/src/consensus/mod.rs
+deleted file mode 100644
+index 8afd7c0a1..000000000
+--- a/node/old_ledger/src/consensus/mod.rs
++++ /dev/null
+@@ -1,1300 +0,0 @@
+-// Copyright (C) 2019-2022 Aleo Systems Inc.
+-// This file is part of the snarkOS library.
+-
+-// The snarkOS library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkOS library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+-
+-mod helpers;
+-pub use helpers::*;
+-
+-mod contains;
+-mod find;
+-mod get;
+-mod iterators;
+-mod latest;
+-
+-use crate::memory_pool::MemoryPool;
+-use snarkvm::{
+-    console::{
+-        account::{Address, GraphKey, PrivateKey, Signature, ViewKey},
+-        network::prelude::*,
+-        program::{Ciphertext, Identifier, Plaintext, ProgramID, Record},
+-        types::{Field, Group},
+-    },
+-    synthesizer::{
+-        block::{Block, BlockTree, Header, Metadata, Origin, Transaction, Transactions},
+-        coinbase_puzzle::{CoinbasePuzzle, CoinbaseSolution, EpochChallenge, ProverSolution},
+-        program::Program,
+-        state_path::StatePath,
+-        store::{BlockStore, ConsensusStorage, ConsensusStore, TransactionStore, TransitionStore},
+-        vm::VM,
+-    },
+-};
+-
+-use anyhow::Result;
+-use indexmap::IndexMap;
+-use std::borrow::Cow;
+-use time::OffsetDateTime;
+-
+-#[cfg(feature = "parallel")]
+-use rayon::prelude::*;
+-
+-#[derive(Copy, Clone, Debug)]
+-pub enum RecordsFilter<N: Network> {
+-    /// Returns all records associated with the account.
+-    All,
+-    /// Returns only records associated with the account that are **spent** with the graph key.
+-    Spent,
+-    /// Returns only records associated with the account that are **not spent** with the graph key.
+-    Unspent,
+-    /// Returns all records associated with the account that are **spent** with the given private key.
+-    SlowSpent(PrivateKey<N>),
+-    /// Returns all records associated with the account that are **not spent** with the given private key.
+-    SlowUnspent(PrivateKey<N>),
+-}
+-
+-#[derive(Clone)]
+-pub struct Consensus<N: Network, C: ConsensusStorage<N>> {
+-    /// The VM state.
+-    vm: VM<N, C>,
+-    /// The coinbase puzzle.
+-    coinbase_puzzle: CoinbasePuzzle<N>,
+-    /// The current block hash.
+-    current_hash: N::BlockHash,
+-    /// The current block height.
+-    current_height: u32,
+-    /// The current round number.
+-    current_round: u64,
+-    /// The current block tree.
+-    block_tree: BlockTree<N>,
+-    /// The block store.
+-    blocks: BlockStore<N, C::BlockStorage>,
+-    /// The transaction store.
+-    transactions: TransactionStore<N, C::TransactionStorage>,
+-    /// The transition store.
+-    transitions: TransitionStore<N, C::TransitionStorage>,
+-    /// The beacons.
+-    // TODO (howardwu): Update this to retrieve from a beacons store.
+-    beacons: IndexMap<Address<N>, ()>,
+-    /// The memory pool.
+-    memory_pool: MemoryPool<N>,
+-    // /// The mapping of program IDs to their global state.
+-    // states: MemoryMap<ProgramID<N>, IndexMap<Identifier<N>, Plaintext<N>>>,
+-}
+-
+-impl<N: Network, C: ConsensusStorage<N>> Consensus<N, C> {
+-    /// Loads the consensus module from storage.
+-    pub fn load(genesis: Option<Block<N>>, dev: Option<u16>) -> Result<Self> {
+-        // Retrieve the genesis hash.
+-        let genesis_hash = match genesis {
+-            Some(ref genesis) => genesis.hash(),
+-            None => Block::<N>::from_bytes_le(N::genesis_bytes())?.hash(),
+-        };
+-
+-        // Initialize the consensus store.
+-        let store = ConsensusStore::<N, C>::open(dev)?;
+-        // Initialize a new VM.
+-        let vm = VM::from(store)?;
+-        // Initialize consensus.
+-        let consensus = Self::from(vm, genesis)?;
+-
+-        // Ensure the ledger contains the correct genesis block.
+-        match consensus.contains_block_hash(&genesis_hash)? {
+-            true => Ok(consensus),
+-            false => bail!("Incorrect genesis block (run 'snarkos clean' and try again)"),
+-        }
+-    }
+-
+-    /// Initializes the consensus module from storage, with an optional genesis block.
+-    pub fn from(vm: VM<N, C>, genesis: Option<Block<N>>) -> Result<Self> {
+-        // Load the coinbase puzzle.
+-        let coinbase_puzzle = CoinbasePuzzle::<N>::load()?;
+-
+-        // Initialize the consensus.
+-        let mut consensus = Self {
+-            current_hash: Default::default(),
+-            current_height: 0,
+-            current_round: 0,
+-            block_tree: N::merkle_tree_bhp(&[])?,
+-            blocks: vm.block_store().clone(),
+-            transactions: vm.transaction_store().clone(),
+-            transitions: vm.transition_store().clone(),
+-            // TODO (howardwu): Update this to retrieve from a validators store.
+-            beacons: Default::default(),
+-            memory_pool: Default::default(),
+-            coinbase_puzzle,
+-            vm,
+-        };
+-
+-        // If the block store is empty, initialize the genesis block.
+-        if consensus.blocks.heights().max().is_none() {
+-            // Load the genesis block.
+-            let genesis = match genesis {
+-                Some(genesis) => genesis,
+-                None => Block::<N>::from_bytes_le(N::genesis_bytes())?,
+-            };
+-            // Add the initial beacon.
+-            consensus.add_beacon(genesis.signature().to_address())?;
+-            // Add the genesis block.
+-            consensus.add_next_block(&genesis)?;
+-        }
+-
+-        // Retrieve the latest height.
+-        let latest_height =
+-            *consensus.blocks.heights().max().ok_or_else(|| anyhow!("Failed to load blocks in consensus"))?;
+-        // Fetch the latest block.
+-        let block = consensus
+-            .get_block(latest_height)
+-            .map_err(|_| anyhow!("Failed to load block {latest_height} in consensus"))?;
+-
+-        // Set the current hash, height, and round.
+-        consensus.current_hash = block.hash();
+-        consensus.current_height = block.height();
+-        consensus.current_round = block.round();
+-
+-        // TODO (howardwu): Improve the performance here by using iterators.
+-        // Generate the block tree.
+-        let hashes: Vec<_> =
+-            (1..=latest_height).map(|height| consensus.get_hash(height).map(|hash| hash.to_bits_le())).try_collect()?;
+-        consensus.block_tree.append(&hashes)?;
+-
+-        // Add the genesis beacon.
+-        let genesis_beacon = consensus.get_block(0)?.signature().to_address();
+-        if !consensus.beacons.contains_key(&genesis_beacon) {
+-            consensus.add_beacon(genesis_beacon)?;
+-        }
+-
+-        // Safety check the existence of every block.
+-        cfg_into_iter!((0..=latest_height)).try_for_each(|height| {
+-            consensus.get_block(height)?;
+-            Ok::<_, Error>(())
+-        })?;
+-
+-        Ok(consensus)
+-    }
+-
+-    /// Adds the given unconfirmed transaction to the memory pool.
+-    pub fn add_unconfirmed_transaction(&mut self, transaction: Transaction<N>) -> Result<()> {
+-        // Check that the transaction is well-formed and unique.
+-        self.check_transaction_basic(&transaction)?;
+-
+-        // Insert the transaction to the memory pool.
+-        self.memory_pool.add_unconfirmed_transaction(&transaction);
+-
+-        Ok(())
+-    }
+-
+-    /// Adds the given unconfirmed solution to the memory pool.
+-    pub fn add_unconfirmed_solution(&mut self, solution: &ProverSolution<N>) -> Result<()> {
+-        // Ensure that prover solutions are not accepted after 10 years.
+-        if self.latest_height() > anchor_block_height(N::ANCHOR_TIME, 10) {
+-            bail!("Coinbase proofs are no longer accepted after year 10.");
+-        }
+-        // Ensure the prover solution is not already in the ledger.
+-        if self.contains_puzzle_commitment(&solution.commitment())? {
+-            bail!("Prover solution is already in the ledger.");
+-        }
+-        // Ensure the prover solution is not already in the memory pool.
+-        if self.memory_pool.contains_unconfirmed_solution(solution.commitment()) {
+-            bail!("Prover solution is already in the memory pool.");
+-        }
+-
+-        // Compute the current epoch challenge.
+-        let epoch_challenge = self.latest_epoch_challenge()?;
+-        // Retrieve the current proof target.
+-        let proof_target = self.latest_proof_target()?;
+-
+-        // Ensure that the prover solution is valid for the given epoch.
+-        if !solution.verify(self.coinbase_puzzle.coinbase_verifying_key()?, &epoch_challenge, proof_target)? {
+-            bail!("Invalid prover solution '{}' for the current epoch.", solution.commitment());
+-        }
+-
+-        // Insert the solution to the memory pool.
+-        self.memory_pool.add_unconfirmed_solution(solution)?;
+-
+-        Ok(())
+-    }
+-
+-    /// Returns the candidate coinbase target of the valid unconfirmed solutions in the memory pool.
+-    pub fn candidate_coinbase_target(&self) -> Result<u128> {
+-        // Retrieve the latest proof target.
+-        let latest_proof_target = self.latest_proof_target()?;
+-        // Compute the candidate coinbase target.
+-        self.memory_pool.candidate_coinbase_target(latest_proof_target)
+-    }
+-
+-    /// Returns `true` if the coinbase target is met.
+-    pub fn is_coinbase_target_met(&self) -> Result<bool> {
+-        // Retrieve the latest block header.
+-        let header = self.latest_header()?;
+-        // Compute the candidate coinbase target.
+-        let cumuluative_proof_target = self.memory_pool.candidate_coinbase_target(header.proof_target())?;
+-        // Check if the coinbase target is met.
+-        Ok(cumuluative_proof_target >= header.coinbase_target() as u128)
+-    }
+-
+-    /// Returns a candidate for the next block in the ledger.
+-    pub fn propose_next_block<R: Rng + CryptoRng>(&self, private_key: &PrivateKey<N>, rng: &mut R) -> Result<Block<N>> {
+-        // Retrieve the latest state root.
+-        let latest_state_root = self.latest_state_root();
+-        // Retrieve the latest block.
+-        let latest_block = self.latest_block()?;
+-        // Retrieve the latest proof target.
+-        let latest_proof_target = latest_block.proof_target();
+-        // Retrieve the latest coinbase target.
+-        let latest_coinbase_target = latest_block.coinbase_target();
+-
+-        // Select the transactions from the memory pool.
+-        let transactions = self.memory_pool.candidate_transactions(self).into_iter().collect::<Transactions<N>>();
+-        // Select the prover solutions from the memory pool.
+-        let prover_solutions =
+-            self.memory_pool.candidate_solutions(self.latest_height(), latest_proof_target, latest_coinbase_target)?;
+-
+-        // Construct the coinbase solution.
+-        let (coinbase, coinbase_accumulator_point) = match &prover_solutions {
+-            Some(prover_solutions) => {
+-                let epoch_challenge = self.latest_epoch_challenge()?;
+-                let coinbase_solution =
+-                    self.coinbase_puzzle.accumulate_unchecked(&epoch_challenge, prover_solutions)?;
+-                let coinbase_accumulator_point = coinbase_solution.to_accumulator_point()?;
+-
+-                (Some(coinbase_solution), coinbase_accumulator_point)
+-            }
+-            None => (None, Field::<N>::zero()),
+-        };
+-
+-        // Fetch the next round state.
+-        let next_timestamp = OffsetDateTime::now_utc().unix_timestamp();
+-        let next_height = self.latest_height().saturating_add(1);
+-        let next_round = latest_block.round().saturating_add(1);
+-
+-        // TODO (raychu86): Pay the provers. Currently we do not pay the provers with the `credits.aleo` program
+-        //  and instead, will track prover leaderboards via the `coinbase_solution` in each block.
+-        if let Some(prover_solutions) = prover_solutions {
+-            // Calculate the coinbase reward.
+-            let coinbase_reward = coinbase_reward(
+-                latest_block.last_coinbase_timestamp(),
+-                next_timestamp,
+-                next_height,
+-                N::STARTING_SUPPLY,
+-                N::ANCHOR_TIME,
+-            )?;
+-
+-            // Compute the cumulative proof target of the prover solutions as a u128.
+-            let cumulative_proof_target: u128 = prover_solutions.iter().try_fold(0u128, |cumulative, solution| {
+-                cumulative
+-                    .checked_add(solution.to_target()? as u128)
+-                    .ok_or_else(|| anyhow!("Cumulative proof target overflowed"))
+-            })?;
+-
+-            // Calculate the rewards for the individual provers.
+-            let mut prover_rewards: Vec<(Address<N>, u64)> = Vec::new();
+-            for prover_solution in prover_solutions {
+-                // Prover compensation is defined as:
+-                //   1/2 * coinbase_reward * (prover_target / cumulative_prover_target)
+-                //   = (coinbase_reward * prover_target) / (2 * cumulative_prover_target)
+-
+-                // Compute the numerator.
+-                let numerator = (coinbase_reward as u128)
+-                    .checked_mul(prover_solution.to_target()? as u128)
+-                    .ok_or_else(|| anyhow!("Prover reward numerator overflowed"))?;
+-
+-                // Compute the denominator.
+-                let denominator = cumulative_proof_target
+-                    .checked_mul(2)
+-                    .ok_or_else(|| anyhow!("Prover reward denominator overflowed"))?;
+-
+-                // Compute the prover reward.
+-                let prover_reward = u64::try_from(
+-                    numerator.checked_div(denominator).ok_or_else(|| anyhow!("Prover reward overflowed"))?,
+-                )?;
+-
+-                prover_rewards.push((prover_solution.address(), prover_reward));
+-            }
+-        }
+-
+-        // Construct the next coinbase target.
+-        let next_coinbase_target = coinbase_target(
+-            latest_coinbase_target,
+-            latest_block.last_coinbase_timestamp(),
+-            next_timestamp,
+-            N::ANCHOR_TIME,
+-            N::NUM_BLOCKS_PER_EPOCH,
+-        )?;
+-
+-        // Construct the next proof target.
+-        let next_proof_target = proof_target(next_coinbase_target);
+-
+-        // Construct the next coinbase timestamp.
+-        let next_coinbase_timestamp = match coinbase {
+-            Some(_) => next_timestamp,
+-            None => latest_block.last_coinbase_timestamp(),
+-        };
+-
+-        // Construct the metadata.
+-        let metadata = Metadata::new(
+-            N::ID,
+-            next_round,
+-            next_height,
+-            next_coinbase_target,
+-            next_proof_target,
+-            next_coinbase_timestamp,
+-            next_timestamp,
+-        )?;
+-
+-        // Construct the header.
+-        let header = Header::from(*latest_state_root, transactions.to_root()?, coinbase_accumulator_point, metadata)?;
+-
+-        // Construct the new block.
+-        Block::new(private_key, latest_block.hash(), header, transactions, coinbase, rng)
+-    }
+-
+-    /// Checks the given block is valid next block.
+-    pub fn check_next_block(&self, block: &Block<N>) -> Result<()> {
+-        // Ensure the previous block hash is correct.
+-        if self.current_hash != block.previous_hash() {
+-            bail!("The next block has an incorrect previous block hash")
+-        }
+-
+-        // Ensure the block hash does not already exist.
+-        if self.contains_block_hash(&block.hash())? {
+-            bail!("Block hash '{}' already exists in the ledger", block.hash())
+-        }
+-
+-        // Ensure the next block height is correct.
+-        if self.latest_height() > 0 && self.latest_height() + 1 != block.height() {
+-            bail!("The next block has an incorrect block height")
+-        }
+-
+-        // Ensure the block height does not already exist.
+-        if self.contains_block_height(block.height())? {
+-            bail!("Block height '{}' already exists in the ledger", block.height())
+-        }
+-
+-        // TODO (raychu86): Ensure the next round number includes timeouts.
+-        // Ensure the next round is correct.
+-        if self.latest_round() > 0 && self.latest_round() + 1 /*+ block.number_of_timeouts()*/ != block.round() {
+-            bail!("The next block has an incorrect round number")
+-        }
+-
+-        // TODO (raychu86): Ensure the next block timestamp is the median of proposed blocks.
+-        // Ensure the next block timestamp is after the current block timestamp.
+-        if block.height() > 0 {
+-            let next_timestamp = block.header().timestamp();
+-            let latest_timestamp = self.latest_block()?.header().timestamp();
+-            if next_timestamp <= latest_timestamp {
+-                bail!("The next block timestamp {next_timestamp} is before the current timestamp {latest_timestamp}")
+-            }
+-        }
+-
+-        for transaction_id in block.transaction_ids() {
+-            // Ensure the transaction in the block do not already exist.
+-            if self.contains_transaction_id(transaction_id)? {
+-                bail!("Transaction '{transaction_id}' already exists in the ledger")
+-            }
+-        }
+-
+-        /* Input */
+-
+-        // Ensure that the origin are valid.
+-        for origin in block.origins() {
+-            match origin {
+-                // Check that the commitment exists in the ledger.
+-                Origin::Commitment(commitment) => {
+-                    if !self.contains_commitment(commitment)? {
+-                        bail!("The given transaction references a non-existent commitment {}", &commitment)
+-                    }
+-                }
+-                // TODO (raychu86): Ensure that the state root exists in the ledger.
+-                // Check that the state root is an existing state root.
+-                Origin::StateRoot(_state_root) => {
+-                    bail!("State roots are currently not supported (yet)")
+-                }
+-            }
+-        }
+-
+-        // Ensure the ledger does not already contain a given serial numbers.
+-        for serial_number in block.serial_numbers() {
+-            if self.contains_serial_number(serial_number)? {
+-                bail!("Serial number '{serial_number}' already exists in the ledger")
+-            }
+-        }
+-
+-        /* Output */
+-
+-        // Ensure the ledger does not already contain a given commitments.
+-        for commitment in block.commitments() {
+-            if self.contains_commitment(commitment)? {
+-                bail!("Commitment '{commitment}' already exists in the ledger")
+-            }
+-        }
+-
+-        // Ensure the ledger does not already contain a given nonces.
+-        for nonce in block.nonces() {
+-            if self.contains_nonce(nonce)? {
+-                bail!("Nonce '{nonce}' already exists in the ledger")
+-            }
+-        }
+-
+-        /* Metadata */
+-
+-        // Ensure the ledger does not already contain a given transition public keys.
+-        for tpk in block.transition_public_keys() {
+-            if self.contains_tpk(tpk)? {
+-                bail!("Transition public key '{tpk}' already exists in the ledger")
+-            }
+-        }
+-
+-        /* Block Header */
+-
+-        // If the block is the genesis block, check that it is valid.
+-        if block.height() == 0 && !block.is_genesis() {
+-            bail!("Invalid genesis block");
+-        }
+-
+-        // Ensure the block header is valid.
+-        if !block.header().is_valid() {
+-            bail!("Invalid block header: {:?}", block.header());
+-        }
+-
+-        /* Block Hash */
+-
+-        // Compute the Merkle root of the block header.
+-        let header_root = match block.header().to_root() {
+-            Ok(root) => root,
+-            Err(error) => bail!("Failed to compute the Merkle root of the block header: {error}"),
+-        };
+-
+-        // Check the block hash.
+-        match N::hash_bhp1024(&[block.previous_hash().to_bits_le(), header_root.to_bits_le()].concat()) {
+-            Ok(candidate_hash) => {
+-                // Ensure the block hash matches the one in the block.
+-                if candidate_hash != *block.hash() {
+-                    bail!("Block {} ({}) has an incorrect block hash.", block.height(), block.hash());
+-                }
+-            }
+-            Err(error) => {
+-                bail!("Unable to compute block hash for block {} ({}): {error}", block.height(), block.hash())
+-            }
+-        };
+-
+-        /* Signature */
+-
+-        // Ensure the block is signed by an authorized beacon.
+-        let signer = block.signature().to_address();
+-        if !self.beacons.contains_key(&signer) {
+-            let beacon = self.beacons.iter().next().unwrap().0;
+-            eprintln!("{} {signer} {} {}", *beacon, *beacon == signer, self.beacons.contains_key(&signer));
+-            bail!("Block {} ({}) is signed by an unauthorized beacon ({})", block.height(), block.hash(), signer);
+-        }
+-
+-        // Check the signature.
+-        if !block.signature().verify(&signer, &[*block.hash()]) {
+-            bail!("Invalid signature for block {} ({})", block.height(), block.hash());
+-        }
+-
+-        /* Transactions */
+-
+-        // Compute the transactions root.
+-        match block.transactions().to_root() {
+-            // Ensure the transactions root matches the one in the block header.
+-            Ok(root) => {
+-                if root != block.header().transactions_root() {
+-                    bail!(
+-                        "Block {} ({}) has an incorrect transactions root: expected {}",
+-                        block.height(),
+-                        block.hash(),
+-                        block.header().transactions_root()
+-                    );
+-                }
+-            }
+-            Err(error) => bail!("Failed to compute the Merkle root of the block transactions: {error}"),
+-        };
+-
+-        // Ensure the transactions list is not empty.
+-        if block.transactions().is_empty() {
+-            bail!("Cannot validate an empty transactions list");
+-        }
+-
+-        // Ensure the number of transactions is within the allowed range.
+-        if block.transactions().len() > Transactions::<N>::MAX_TRANSACTIONS {
+-            bail!("Cannot validate a block with more than {} transactions", Transactions::<N>::MAX_TRANSACTIONS);
+-        }
+-
+-        // Ensure each transaction is well-formed and unique.
+-        cfg_iter!(block.transactions()).try_for_each(|(_, transaction)| {
+-            self.check_transaction_basic(transaction)
+-                .map_err(|e| anyhow!("Invalid transaction found in the transactions list: {e}"))
+-        })?;
+-
+-        /* Coinbase Proof */
+-
+-        // Ensure the coinbase solution is valid, if it exists.
+-        if let Some(coinbase) = block.coinbase() {
+-            // Ensure coinbase solutions are not accepted after the anchor block height at year 10.
+-            if block.height() > anchor_block_height(N::ANCHOR_TIME, 10) {
+-                bail!("Coinbase proofs are no longer accepted after the anchor block height at year 10.");
+-            }
+-            // Ensure the coinbase accumulator point matches in the block header.
+-            if block.header().coinbase_accumulator_point() != coinbase.to_accumulator_point()? {
+-                bail!("Coinbase accumulator point does not match the coinbase solution.");
+-            }
+-            // Ensure the puzzle commitments are new.
+-            for puzzle_commitment in coinbase.puzzle_commitments() {
+-                if self.contains_puzzle_commitment(&puzzle_commitment)? {
+-                    bail!("Puzzle commitment {puzzle_commitment} already exists in the ledger");
+-                }
+-            }
+-            // Ensure the last coinbase timestamp matches the *next block timestamp*.
+-            if block.last_coinbase_timestamp() != block.timestamp() {
+-                bail!("The last coinbase timestamp does not match the next block timestamp.");
+-            }
+-            // Ensure the coinbase solution is valid.
+-            if !self.coinbase_puzzle.verify(
+-                coinbase,
+-                &self.latest_epoch_challenge()?,
+-                self.latest_coinbase_target()?,
+-                self.latest_proof_target()?,
+-            )? {
+-                bail!("Invalid coinbase solution: {:?}", coinbase);
+-            }
+-        } else {
+-            // Ensure that the block header does not contain a coinbase accumulator point.
+-            if block.header().coinbase_accumulator_point() != Field::<N>::zero() {
+-                bail!("Coinbase accumulator point should be zero as there is no coinbase solution in the block.");
+-            }
+-            // Ensure the last coinbase timestamp matches the *latest coinbase timestamp*.
+-            if block.height() > 0 && block.last_coinbase_timestamp() != self.latest_coinbase_timestamp()? {
+-                bail!("The last coinbase timestamp does not match the latest coinbase timestamp.");
+-            }
+-        }
+-
+-        /* Fees */
+-
+-        // Prepare the block height, credits program ID, and genesis function name.
+-        let height = block.height();
+-        let credits_program_id = ProgramID::from_str("credits.aleo")?;
+-        let credits_genesis = Identifier::from_str("genesis")?;
+-
+-        // Ensure the fee is correct for each transition.
+-        for transition in block.transitions() {
+-            if height > 0 {
+-                // Ensure the genesis function is not called.
+-                if *transition.program_id() == credits_program_id && *transition.function_name() == credits_genesis {
+-                    bail!("The genesis function cannot be called.");
+-                }
+-                // Ensure the transition fee is not negative.
+-                if transition.fee().is_negative() {
+-                    bail!("The transition fee cannot be negative.");
+-                }
+-            }
+-        }
+-
+-        Ok(())
+-    }
+-
+-    /// Adds the given block as the next block in the chain.
+-    pub fn add_next_block(&mut self, block: &Block<N>) -> Result<()> {
+-        // Ensure the given block is a valid next block.
+-        self.check_next_block(block)?;
+-
+-        /* ATOMIC CODE SECTION */
+-
+-        // Add the block to the ledger. This code section executes atomically.
+-        {
+-            let mut consensus = self.clone();
+-
+-            // Update the blocks.
+-            consensus.current_hash = block.hash();
+-            consensus.current_height = block.height();
+-            consensus.current_round = block.round();
+-            consensus.block_tree.append(&[block.hash().to_bits_le()])?;
+-            consensus.blocks.insert(*consensus.block_tree.root(), block)?;
+-
+-            // Update the VM.
+-            for transaction in block.transactions().values() {
+-                consensus.vm.finalize(transaction)?;
+-            }
+-
+-            // Clear the memory pool of unconfirmed transactions that are now invalid.
+-            consensus.memory_pool.clear_invalid_transactions(&consensus.clone());
+-
+-            // Clear the memory pool of the unconfirmed solutions if a new epoch has started.
+-            if block.epoch_number() > self.latest_epoch_number() {
+-                consensus.memory_pool.clear_unconfirmed_solutions();
+-            } else if let Some(coinbase_solution) = block.coinbase() {
+-                // Clear the memory pool of unconfirmed solutions that are now invalid.
+-                coinbase_solution.partial_solutions().iter().map(|s| s.commitment()).for_each(|commitment| {
+-                    consensus.memory_pool.remove_unconfirmed_solution(&commitment);
+-                });
+-            }
+-
+-            *self = Self {
+-                current_hash: consensus.current_hash,
+-                current_height: consensus.current_height,
+-                current_round: consensus.current_round,
+-                block_tree: consensus.block_tree,
+-                blocks: consensus.blocks,
+-                transactions: consensus.transactions,
+-                transitions: consensus.transitions,
+-                beacons: consensus.beacons,
+-                vm: consensus.vm,
+-                memory_pool: consensus.memory_pool,
+-                coinbase_puzzle: consensus.coinbase_puzzle,
+-            };
+-        }
+-
+-        Ok(())
+-    }
+-
+-    /// Adds a given address to the beacon set.
+-    pub fn add_beacon(&mut self, address: Address<N>) -> Result<()> {
+-        if self.beacons.insert(address, ()).is_some() {
+-            bail!("'{address}' is already in the beacon set.")
+-        } else {
+-            Ok(())
+-        }
+-    }
+-
+-    /// Removes a given address from the beacon set.
+-    pub fn remove_beacon(&mut self, address: Address<N>) -> Result<()> {
+-        if self.beacons.remove(&address).is_none() { bail!("'{address}' is not in the beacon set.") } else { Ok(()) }
+-    }
+-
+-    /// Returns the VM.
+-    pub fn vm(&self) -> &VM<N, C> {
+-        &self.vm
+-    }
+-
+-    /// Returns the coinbase puzzle.
+-    pub const fn coinbase_puzzle(&self) -> &CoinbasePuzzle<N> {
+-        &self.coinbase_puzzle
+-    }
+-
+-    /// Returns the block tree.
+-    pub const fn block_tree(&self) -> &BlockTree<N> {
+-        &self.block_tree
+-    }
+-
+-    /// Returns the beacon set.
+-    pub const fn beacons(&self) -> &IndexMap<Address<N>, ()> {
+-        &self.beacons
+-    }
+-
+-    /// Returns the memory pool.
+-    pub const fn memory_pool(&self) -> &MemoryPool<N> {
+-        &self.memory_pool
+-    }
+-
+-    /// Returns a state path for the given commitment.
+-    pub fn to_state_path(&self, commitment: &Field<N>) -> Result<StatePath<N>> {
+-        StatePath::new_commitment(&self.block_tree, &self.blocks, commitment)
+-    }
+-
+-    /// Checks the given transaction is well formed and unique.
+-    pub fn check_transaction_basic(&self, transaction: &Transaction<N>) -> Result<()> {
+-        let transaction_id = transaction.id();
+-
+-        // Ensure the ledger does not already contain the given transaction ID.
+-        if self.contains_transaction_id(&transaction_id)? {
+-            bail!("Transaction '{transaction_id}' already exists in the ledger")
+-        }
+-
+-        // Ensure the transaction is valid.
+-        if !self.vm.verify(transaction) {
+-            bail!("Transaction '{transaction_id}' is invalid")
+-        }
+-
+-        /* Input */
+-
+-        // Ensure the ledger does not already contain the given input ID.
+-        for input_id in transaction.input_ids() {
+-            if self.contains_input_id(input_id)? {
+-                bail!("Input ID '{input_id}' already exists in the ledger")
+-            }
+-        }
+-
+-        // Ensure the ledger does not already contain a given serial numbers.
+-        for serial_number in transaction.serial_numbers() {
+-            if self.contains_serial_number(serial_number)? {
+-                bail!("Serial number '{serial_number}' already exists in the ledger")
+-            }
+-        }
+-
+-        // Ensure the ledger does not already contain a given tag.
+-        for tag in transaction.tags() {
+-            if self.contains_tag(tag)? {
+-                bail!("Tag '{tag}' already exists in the ledger")
+-            }
+-        }
+-
+-        // Ensure that the origin are valid.
+-        for origin in transaction.origins() {
+-            match origin {
+-                // Check that the commitment exists in the ledger.
+-                Origin::Commitment(commitment) => {
+-                    if !self.contains_commitment(commitment)? {
+-                        bail!("The given transaction references a non-existent commitment {}", &commitment)
+-                    }
+-                }
+-                // TODO (raychu86): Ensure that the state root exists in the ledger.
+-                // Check that the state root is an existing state root.
+-                Origin::StateRoot(_state_root) => {
+-                    bail!("State roots are currently not supported (yet)")
+-                }
+-            }
+-        }
+-
+-        /* Output */
+-
+-        // Ensure the ledger does not already contain the given output ID.
+-        for output_id in transaction.output_ids() {
+-            if self.contains_output_id(output_id)? {
+-                bail!("Output ID '{output_id}' already exists in the ledger")
+-            }
+-        }
+-
+-        // Ensure the ledger does not already contain a given commitments.
+-        for commitment in transaction.commitments() {
+-            if self.contains_commitment(commitment)? {
+-                bail!("Commitment '{commitment}' already exists in the ledger")
+-            }
+-        }
+-
+-        // Ensure the ledger does not already contain a given nonces.
+-        for nonce in transaction.nonces() {
+-            if self.contains_nonce(nonce)? {
+-                bail!("Nonce '{nonce}' already exists in the ledger")
+-            }
+-        }
+-
+-        /* Program */
+-
+-        // Ensure that the ledger does not already contain the given program ID.
+-        if let Transaction::Deploy(_, deployment, _) = &transaction {
+-            let program_id = deployment.program_id();
+-            if self.contains_program_id(program_id)? {
+-                bail!("Program ID '{program_id}' already exists in the ledger")
+-            }
+-        }
+-
+-        /* Metadata */
+-
+-        // Ensure the ledger does not already contain a given transition public keys.
+-        for tpk in transaction.transition_public_keys() {
+-            if self.contains_tpk(tpk)? {
+-                bail!("Transition public key '{tpk}' already exists in the ledger")
+-            }
+-        }
+-
+-        // Ensure the ledger does not already contain a given transition commitment.
+-        for tcm in transaction.transition_commitments() {
+-            if self.contains_tcm(tcm)? {
+-                bail!("Transition commitment '{tcm}' already exists in the ledger")
+-            }
+-        }
+-
+-        Ok(())
+-    }
+-}
+-
+-#[cfg(test)]
+-pub(crate) mod test_helpers {
+-    use super::*;
+-    use snarkvm::{
+-        console::{account::PrivateKey, network::Testnet3, program::Value},
+-        prelude::TestRng,
+-        synthesizer::{Block, ConsensusMemory},
+-    };
+-
+-    use once_cell::sync::OnceCell;
+-
+-    type CurrentNetwork = Testnet3;
+-    pub(crate) type CurrentConsensus = Consensus<CurrentNetwork, ConsensusMemory<CurrentNetwork>>;
+-
+-    pub(crate) fn sample_vm() -> VM<CurrentNetwork, ConsensusMemory<CurrentNetwork>> {
+-        VM::from(ConsensusStore::open(None).unwrap()).unwrap()
+-    }
+-
+-    pub(crate) fn sample_genesis_private_key(rng: &mut TestRng) -> PrivateKey<CurrentNetwork> {
+-        static INSTANCE: OnceCell<PrivateKey<CurrentNetwork>> = OnceCell::new();
+-        *INSTANCE.get_or_init(|| {
+-            // Initialize a new caller.
+-            PrivateKey::<CurrentNetwork>::new(rng).unwrap()
+-        })
+-    }
+-
+-    #[allow(dead_code)]
+-    pub(crate) fn sample_genesis_block(rng: &mut TestRng) -> Block<CurrentNetwork> {
+-        static INSTANCE: OnceCell<Block<CurrentNetwork>> = OnceCell::new();
+-        INSTANCE
+-            .get_or_init(|| {
+-                // Initialize the VM.
+-                let vm = crate::consensus::test_helpers::sample_vm();
+-                // Initialize a new caller.
+-                let caller_private_key = PrivateKey::<CurrentNetwork>::new(rng).unwrap();
+-                // Return the block.
+-                Block::genesis(&vm, &caller_private_key, rng).unwrap()
+-            })
+-            .clone()
+-    }
+-
+-    pub(crate) fn sample_genesis_block_with_private_key(
+-        rng: &mut TestRng,
+-        private_key: PrivateKey<CurrentNetwork>,
+-    ) -> Block<CurrentNetwork> {
+-        static INSTANCE: OnceCell<Block<CurrentNetwork>> = OnceCell::new();
+-        INSTANCE
+-            .get_or_init(|| {
+-                // Initialize the VM.
+-                let vm = crate::consensus::test_helpers::sample_vm();
+-                // Return the block.
+-                Block::genesis(&vm, &private_key, rng).unwrap()
+-            })
+-            .clone()
+-    }
+-
+-    pub(crate) fn sample_genesis_ledger(rng: &mut TestRng) -> CurrentConsensus {
+-        // Sample the genesis private key.
+-        let private_key = sample_genesis_private_key(rng);
+-        // Sample the genesis block.
+-        let genesis = sample_genesis_block_with_private_key(rng, private_key);
+-
+-        // Initialize the ledger with the genesis block and the associated private key.
+-        let ledger = CurrentConsensus::load(Some(genesis.clone()), None).unwrap();
+-        assert_eq!(0, ledger.latest_height());
+-        assert_eq!(genesis.hash(), ledger.latest_hash());
+-        assert_eq!(genesis.round(), ledger.latest_round());
+-        assert_eq!(genesis, ledger.get_block(0).unwrap());
+-
+-        ledger
+-    }
+-
+-    pub(crate) fn sample_program() -> Program<CurrentNetwork> {
+-        static INSTANCE: OnceCell<Program<CurrentNetwork>> = OnceCell::new();
+-        INSTANCE
+-            .get_or_init(|| {
+-                // Initialize a new program.
+-                Program::<CurrentNetwork>::from_str(
+-                    r"
+-program testing.aleo;
+-
+-interface message:
+-    amount as u128;
+-
+-record token:
+-    owner as address.private;
+-    gates as u64.private;
+-    amount as u64.private;
+-
+-function compute:
+-    input r0 as message.private;
+-    input r1 as message.public;
+-    input r2 as message.private;
+-    input r3 as token.record;
+-    add r0.amount r1.amount into r4;
+-    cast r3.owner r3.gates r3.amount into r5 as token.record;
+-    output r4 as u128.public;
+-    output r5 as token.record;",
+-                )
+-                .unwrap()
+-            })
+-            .clone()
+-    }
+-
+-    pub(crate) fn sample_deployment_transaction(rng: &mut TestRng) -> Transaction<CurrentNetwork> {
+-        static INSTANCE: OnceCell<Transaction<CurrentNetwork>> = OnceCell::new();
+-        INSTANCE
+-            .get_or_init(|| {
+-                // Initialize the program.
+-                let program = sample_program();
+-
+-                // Initialize a new caller.
+-                let caller_private_key = crate::consensus::test_helpers::sample_genesis_private_key(rng);
+-                let caller_view_key = ViewKey::try_from(&caller_private_key).unwrap();
+-
+-                // Initialize the ledger.
+-                let ledger = crate::consensus::test_helpers::sample_genesis_ledger(rng);
+-
+-                // Fetch the unspent records.
+-                let records = ledger
+-                    .find_records(&caller_view_key, RecordsFilter::SlowUnspent(caller_private_key))
+-                    .unwrap()
+-                    .filter(|(_, record)| !record.gates().is_zero())
+-                    .collect::<indexmap::IndexMap<_, _>>();
+-                trace!("Unspent Records:\n{:#?}", records);
+-
+-                // Prepare the additional fee.
+-                let credits = records.values().next().unwrap().clone();
+-                let additional_fee = (credits, 10);
+-
+-                // Initialize the VM.
+-                let vm = sample_vm();
+-                // Deploy.
+-                let transaction = Transaction::deploy(&vm, &caller_private_key, &program, additional_fee, rng).unwrap();
+-                // Verify.
+-                assert!(vm.verify(&transaction));
+-                // Return the transaction.
+-                transaction
+-            })
+-            .clone()
+-    }
+-
+-    pub(crate) fn sample_execution_transaction(rng: &mut TestRng) -> Transaction<CurrentNetwork> {
+-        static INSTANCE: OnceCell<Transaction<CurrentNetwork>> = OnceCell::new();
+-        INSTANCE
+-            .get_or_init(|| {
+-                // Initialize a new caller.
+-                let caller_private_key = crate::consensus::test_helpers::sample_genesis_private_key(rng);
+-                let caller_view_key = ViewKey::try_from(&caller_private_key).unwrap();
+-                let address = Address::try_from(&caller_private_key).unwrap();
+-
+-                // Initialize the ledger.
+-                let ledger = crate::consensus::test_helpers::sample_genesis_ledger(rng);
+-
+-                // Fetch the unspent records.
+-                let records = ledger
+-                    .find_records(&caller_view_key, RecordsFilter::SlowUnspent(caller_private_key))
+-                    .unwrap()
+-                    .filter(|(_, record)| !record.gates().is_zero())
+-                    .collect::<indexmap::IndexMap<_, _>>();
+-                trace!("Unspent Records:\n{:#?}", records);
+-                // Select a record to spend.
+-                let record = records.values().next().unwrap().clone();
+-
+-                // Initialize the VM.
+-                let vm = sample_vm();
+-
+-                // Authorize.
+-                let authorization = vm
+-                    .authorize(
+-                        &caller_private_key,
+-                        &ProgramID::from_str("credits.aleo").unwrap(),
+-                        Identifier::from_str("transfer").unwrap(),
+-                        &[
+-                            Value::<CurrentNetwork>::Record(record),
+-                            Value::<CurrentNetwork>::from_str(&address.to_string()).unwrap(),
+-                            Value::<CurrentNetwork>::from_str("1u64").unwrap(),
+-                        ],
+-                        rng,
+-                    )
+-                    .unwrap();
+-                assert_eq!(authorization.len(), 1);
+-
+-                // Execute.
+-                let transaction = Transaction::execute_authorization(&vm, authorization, rng).unwrap();
+-                // Verify.
+-                assert!(vm.verify(&transaction));
+-                // Return the transaction.
+-                transaction
+-            })
+-            .clone()
+-    }
+-}
+-
+-#[cfg(test)]
+-mod tests {
+-    use super::*;
+-    use crate::consensus::test_helpers::CurrentConsensus;
+-    use snarkvm::{
+-        console::{network::Testnet3, program::Value},
+-        prelude::TestRng,
+-        synthesizer::ConsensusMemory,
+-    };
+-
+-    use tracing_test::traced_test;
+-
+-    type CurrentNetwork = Testnet3;
+-
+-    #[test]
+-    fn test_validators() {
+-        // Initialize an RNG.
+-        let rng = &mut TestRng::default();
+-
+-        // Sample the private key, view key, and address.
+-        let private_key = PrivateKey::<CurrentNetwork>::new(rng).unwrap();
+-        let view_key = ViewKey::try_from(private_key).unwrap();
+-        let address = Address::try_from(&view_key).unwrap();
+-
+-        // Initialize the VM.
+-        let vm = crate::consensus::test_helpers::sample_vm();
+-
+-        // Create a genesis block.
+-        let genesis = Block::genesis(&vm, &private_key, rng).unwrap();
+-
+-        // Initialize the validators.
+-        let validators: IndexMap<Address<_>, ()> = [(address, ())].into_iter().collect();
+-
+-        // Ensure the block is signed by an authorized validator.
+-        let signer = genesis.signature().to_address();
+-        if !validators.contains_key(&signer) {
+-            let validator = validators.iter().next().unwrap().0;
+-            eprintln!("{} {} {} {}", *validator, signer, *validator == signer, validators.contains_key(&signer));
+-            eprintln!(
+-                "Block {} ({}) is signed by an unauthorized validator ({})",
+-                genesis.height(),
+-                genesis.hash(),
+-                signer
+-            );
+-        }
+-        assert!(validators.contains_key(&signer));
+-    }
+-
+-    #[test]
+-    fn test_load() {
+-        let rng = &mut TestRng::default();
+-
+-        // Sample the genesis private key.
+-        let private_key = crate::consensus::test_helpers::sample_genesis_private_key(rng);
+-        // Initialize the store.
+-        let store = ConsensusStore::<_, ConsensusMemory<_>>::open(None).unwrap();
+-        // Create a genesis block.
+-        let genesis = Block::genesis(&VM::from(store).unwrap(), &private_key, rng).unwrap();
+-
+-        // Initialize consensus with the genesis block.
+-        let ledger = CurrentConsensus::load(Some(genesis.clone()), None).unwrap();
+-        assert_eq!(ledger.latest_hash(), genesis.hash());
+-        assert_eq!(ledger.latest_height(), genesis.height());
+-        assert_eq!(ledger.latest_round(), genesis.round());
+-        assert_eq!(ledger.latest_block().unwrap(), genesis);
+-    }
+-
+-    #[test]
+-    fn test_from() {
+-        // Load the genesis block.
+-        let genesis = Block::<CurrentNetwork>::from_bytes_le(CurrentNetwork::genesis_bytes()).unwrap();
+-
+-        // Initialize the VM.
+-        let vm = VM::from(ConsensusStore::<_, ConsensusMemory<_>>::open(None).unwrap()).unwrap();
+-        // Initialize consensus without the genesis block.
+-        let ledger = CurrentConsensus::from(vm, None).unwrap();
+-        assert_eq!(ledger.latest_hash(), genesis.hash());
+-        assert_eq!(ledger.latest_height(), genesis.height());
+-        assert_eq!(ledger.latest_round(), genesis.round());
+-        assert_eq!(ledger.latest_block().unwrap(), genesis);
+-
+-        // Initialize the ledger with the genesis block.
+-        let ledger = CurrentConsensus::load(Some(genesis.clone()), None).unwrap();
+-        assert_eq!(ledger.latest_hash(), genesis.hash());
+-        assert_eq!(ledger.latest_height(), genesis.height());
+-        assert_eq!(ledger.latest_round(), genesis.round());
+-        assert_eq!(ledger.latest_block().unwrap(), genesis);
+-    }
+-
+-    #[test]
+-    fn test_state_path() {
+-        // Load the genesis block.
+-        let genesis = Block::<CurrentNetwork>::from_bytes_le(CurrentNetwork::genesis_bytes()).unwrap();
+-        // Initialize the ledger with the genesis block.
+-        let ledger = CurrentConsensus::load(Some(genesis), None).unwrap();
+-        // Retrieve the genesis block.
+-        let genesis = ledger.get_block(0).unwrap();
+-
+-        // Construct the state path.
+-        let commitments = genesis.transactions().commitments().collect::<Vec<_>>();
+-        let commitment = commitments[0];
+-
+-        let _state_path = ledger.to_state_path(commitment).unwrap();
+-    }
+-
+-    #[test]
+-    #[traced_test]
+-    fn test_ledger_deploy() {
+-        let rng = &mut TestRng::default();
+-
+-        // Sample the genesis private key.
+-        let private_key = crate::consensus::test_helpers::sample_genesis_private_key(rng);
+-        // Sample the genesis ledger.
+-        let mut ledger = test_helpers::sample_genesis_ledger(rng);
+-
+-        // Add a transaction to the memory pool.
+-        let transaction = crate::consensus::test_helpers::sample_deployment_transaction(rng);
+-        ledger.add_unconfirmed_transaction(transaction.clone()).unwrap();
+-
+-        // Propose the next block.
+-        let next_block = ledger.propose_next_block(&private_key, rng).unwrap();
+-
+-        // Construct a next block.
+-        ledger.add_next_block(&next_block).unwrap();
+-        assert_eq!(ledger.latest_height(), 1);
+-        assert_eq!(ledger.latest_hash(), next_block.hash());
+-        assert!(ledger.contains_transaction_id(&transaction.id()).unwrap());
+-        assert!(transaction.input_ids().count() > 0);
+-        assert!(ledger.contains_input_id(transaction.input_ids().next().unwrap()).unwrap());
+-
+-        // Ensure that the VM can't re-deploy the same program.
+-        assert!(ledger.vm.finalize(&transaction).is_err());
+-        // Ensure that the ledger deems the same transaction invalid.
+-        assert!(ledger.check_transaction_basic(&transaction).is_err());
+-        // Ensure that the ledger cannot add the same transaction.
+-        assert!(ledger.add_unconfirmed_transaction(transaction).is_err());
+-    }
+-
+-    #[test]
+-    #[traced_test]
+-    fn test_ledger_execute() {
+-        let rng = &mut TestRng::default();
+-
+-        // Sample the genesis private key.
+-        let private_key = crate::consensus::test_helpers::sample_genesis_private_key(rng);
+-        // Sample the genesis ledger.
+-        let mut ledger = test_helpers::sample_genesis_ledger(rng);
+-
+-        // Add a transaction to the memory pool.
+-        let transaction = crate::consensus::test_helpers::sample_execution_transaction(rng);
+-        ledger.add_unconfirmed_transaction(transaction.clone()).unwrap();
+-
+-        // Propose the next block.
+-        let next_block = ledger.propose_next_block(&private_key, rng).unwrap();
+-
+-        // Construct a next block.
+-        ledger.add_next_block(&next_block).unwrap();
+-        assert_eq!(ledger.latest_height(), 1);
+-        assert_eq!(ledger.latest_hash(), next_block.hash());
+-
+-        // Ensure that the ledger deems the same transaction invalid.
+-        assert!(ledger.check_transaction_basic(&transaction).is_err());
+-        // Ensure that the ledger cannot add the same transaction.
+-        assert!(ledger.add_unconfirmed_transaction(transaction).is_err());
+-    }
+-
+-    #[test]
+-    #[traced_test]
+-    fn test_ledger_execute_many() {
+-        let rng = &mut TestRng::default();
+-
+-        // Sample the genesis private key, view key, and address.
+-        let private_key = crate::consensus::test_helpers::sample_genesis_private_key(rng);
+-        let view_key = ViewKey::try_from(private_key).unwrap();
+-        let _address = Address::try_from(&view_key).unwrap();
+-
+-        // Initialize the store.
+-        let store = ConsensusStore::<_, ConsensusMemory<_>>::open(None).unwrap();
+-        // Create a genesis block.
+-        let genesis = Block::genesis(&VM::from(store).unwrap(), &private_key, rng).unwrap();
+-        // Initialize the ledger.
+-        let mut ledger = CurrentConsensus::load(Some(genesis), None).unwrap();
+-
+-        for height in 1..6 {
+-            // Fetch the unspent records.
+-            let records: Vec<_> = ledger
+-                .find_records(&view_key, RecordsFilter::Unspent)
+-                .unwrap()
+-                .filter(|(_, record)| !record.gates().is_zero())
+-                .collect();
+-            assert_eq!(records.len(), 1 << (height - 1));
+-
+-            for (_, record) in records {
+-                // Create a new transaction.
+-                let transaction = Transaction::execute(
+-                    ledger.vm(),
+-                    &private_key,
+-                    &ProgramID::from_str("credits.aleo").unwrap(),
+-                    Identifier::from_str("split").unwrap(),
+-                    &[
+-                        Value::Record(record.clone()),
+-                        Value::from_str(&format!("{}u64", ***record.gates() / 2)).unwrap(),
+-                    ],
+-                    None,
+-                    rng,
+-                )
+-                .unwrap();
+-                // Add the transaction to the memory pool.
+-                ledger.add_unconfirmed_transaction(transaction).unwrap();
+-            }
+-            assert_eq!(ledger.memory_pool().num_unconfirmed_transactions(), 1 << (height - 1));
+-
+-            // Propose the next block.
+-            let next_block = ledger.propose_next_block(&private_key, rng).unwrap();
+-
+-            // Construct a next block.
+-            ledger.add_next_block(&next_block).unwrap();
+-            assert_eq!(ledger.latest_height(), height);
+-            assert_eq!(ledger.latest_hash(), next_block.hash());
+-        }
+-    }
+-
+-    #[test]
+-    #[traced_test]
+-    fn test_proof_target() {
+-        let rng = &mut TestRng::default();
+-
+-        // Sample the genesis private key and address.
+-        let private_key = crate::consensus::test_helpers::sample_genesis_private_key(rng);
+-        let address = Address::try_from(&private_key).unwrap();
+-
+-        // Sample the genesis ledger.
+-        let mut ledger = crate::consensus::test_helpers::sample_genesis_ledger(rng);
+-
+-        // Fetch the proof target and epoch challenge for the block.
+-        let proof_target = ledger.latest_proof_target().unwrap();
+-        let epoch_challenge = ledger.latest_epoch_challenge().unwrap();
+-
+-        for _ in 0..100 {
+-            // Generate a prover solution.
+-            let prover_solution = ledger.coinbase_puzzle.prove(&epoch_challenge, address, rng.gen()).unwrap();
+-
+-            // Check that the prover solution meets the proof target requirement.
+-            if prover_solution.to_target().unwrap() >= proof_target {
+-                assert!(ledger.add_unconfirmed_solution(&prover_solution).is_ok())
+-            } else {
+-                assert!(ledger.add_unconfirmed_solution(&prover_solution).is_err())
+-            }
+-        }
+-    }
+-
+-    #[test]
+-    #[traced_test]
+-    fn test_coinbase_target() {
+-        let rng = &mut TestRng::default();
+-
+-        // Sample the genesis private key and address.
+-        let private_key = crate::consensus::test_helpers::sample_genesis_private_key(rng);
+-        let address = Address::try_from(&private_key).unwrap();
+-
+-        // Sample the genesis ledger.
+-        let mut ledger = test_helpers::sample_genesis_ledger(rng);
+-
+-        // Add a transaction to the memory pool.
+-        let transaction = crate::consensus::test_helpers::sample_execution_transaction(rng);
+-        ledger.add_unconfirmed_transaction(transaction).unwrap();
+-
+-        // Ensure that the ledger can't create a block that satisfies the coinbase target.
+-        let proposed_block = ledger.propose_next_block(&private_key, rng).unwrap();
+-        // Ensure the block does not contain a coinbase solution.
+-        assert!(proposed_block.coinbase().is_none());
+-
+-        // Check that the ledger won't generate a block for a cumulative target that does not meet the requirements.
+-        let mut cumulative_target = 0u128;
+-        let epoch_challenge = ledger.latest_epoch_challenge().unwrap();
+-
+-        while cumulative_target < ledger.latest_coinbase_target().unwrap() as u128 {
+-            // Generate a prover solution.
+-            let prover_solution = match ledger.coinbase_puzzle.prove(&epoch_challenge, address, rng.gen()) {
+-                Ok(prover_solution) => prover_solution,
+-                Err(_) => continue,
+-            };
+-
+-            // Try to add the prover solution to the memory pool.
+-            if ledger.add_unconfirmed_solution(&prover_solution).is_ok() {
+-                // Add to the cumulative target if the prover solution is valid.
+-                cumulative_target += prover_solution.to_target().unwrap() as u128;
+-            }
+-        }
+-
+-        // Ensure that the ledger can create a block that satisfies the coinbase target.
+-        let proposed_block = ledger.propose_next_block(&private_key, rng).unwrap();
+-        // Ensure the block contains a coinbase solution.
+-        assert!(proposed_block.coinbase().is_some());
+-    }
+-}
+diff --git a/node/old_ledger/src/lib.rs b/node/old_ledger/src/lib.rs
+deleted file mode 100644
+index 63130a249..000000000
+--- a/node/old_ledger/src/lib.rs
++++ /dev/null
+@@ -1,276 +0,0 @@
+-// Copyright (C) 2019-2022 Aleo Systems Inc.
+-// This file is part of the snarkOS library.
+-
+-// The snarkOS library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkOS library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+-
+-#![forbid(unsafe_code)]
+-
+-#[macro_use]
+-extern crate tracing;
+-
+-pub mod consensus;
+-pub use consensus::*;
+-
+-mod memory_pool;
+-
+-use snarkvm::prelude::*;
+-
+-use anyhow::{anyhow, ensure, Result};
+-use colored::Colorize;
+-use core::time::Duration;
+-use futures::{Future, StreamExt};
+-use indexmap::IndexMap;
+-use parking_lot::RwLock;
+-use std::{net::IpAddr, sync::Arc};
+-use tokio::task;
+-
+-type RecordMap<N> = IndexMap<Field<N>, Record<N, Plaintext<N>>>;
+-
+-#[derive(Clone)]
+-pub struct Ledger<N: Network, C: ConsensusStorage<N>> {
+-    /// The consensus module.
+-    consensus: Arc<RwLock<Consensus<N, C>>>,
+-    /// The account private key.
+-    private_key: PrivateKey<N>,
+-    /// The account view key.
+-    view_key: ViewKey<N>,
+-    /// The account address.
+-    address: Address<N>,
+-}
+-
+-impl<N: Network, C: ConsensusStorage<N>> Ledger<N, C> {
+-    /// Loads an instance of the ledger.
+-    pub fn load(private_key: PrivateKey<N>, genesis: Option<Block<N>>, dev: Option<u16>) -> Result<Self> {
+-        // Initialize consensus.
+-        let consensus = Arc::new(RwLock::new(Consensus::load(genesis, dev)?));
+-        // Return the ledger.
+-        Self::from(consensus, private_key)
+-    }
+-
+-    /// Initializes a new instance of the ledger.
+-    pub fn from(consensus: Arc<RwLock<Consensus<N, C>>>, private_key: PrivateKey<N>) -> Result<Self> {
+-        // Derive the view key and address.
+-        let view_key = ViewKey::try_from(private_key)?;
+-        let address = Address::try_from(&view_key)?;
+-
+-        // Return the ledger.
+-        Ok(Self { consensus, private_key, view_key, address })
+-    }
+-
+-    /// Returns the consensus module.
+-    pub const fn consensus(&self) -> &Arc<RwLock<Consensus<N, C>>> {
+-        &self.consensus
+-    }
+-
+-    /// Returns the ledger address.
+-    pub const fn address(&self) -> Address<N> {
+-        self.address
+-    }
+-
+-    /// Adds the given unconfirmed transaction to the memory pool.
+-    pub fn add_unconfirmed_transaction(&self, transaction: Transaction<N>) -> Result<()> {
+-        self.consensus.write().add_unconfirmed_transaction(transaction)
+-    }
+-
+-    /// Adds the given unconfirmed solution to the memory pool.
+-    pub fn add_unconfirmed_solution(&self, solution: &ProverSolution<N>) -> Result<()> {
+-        self.consensus.write().add_unconfirmed_solution(solution)
+-    }
+-
+-    /// Returns the unspent records.
+-    pub fn find_unspent_records(&self) -> Result<RecordMap<N>> {
+-        Ok(self
+-            .consensus
+-            .read()
+-            .find_records(&self.view_key, RecordsFilter::Unspent)?
+-            .filter(|(_, record)| !record.gates().is_zero())
+-            .collect::<IndexMap<_, _>>())
+-    }
+-
+-    /// Returns the spent records.
+-    pub fn find_spent_records(&self) -> Result<RecordMap<N>> {
+-        Ok(self
+-            .consensus
+-            .read()
+-            .find_records(&self.view_key, RecordsFilter::Spent)?
+-            .filter(|(_, record)| !record.gates().is_zero())
+-            .collect::<IndexMap<_, _>>())
+-    }
+-
+-    /// Creates a deploy transaction.
+-    pub fn create_deploy(&self, program: &Program<N>, additional_fee: u64) -> Result<Transaction<N>> {
+-        // Fetch the unspent records.
+-        let records = self.find_unspent_records()?;
+-        ensure!(!records.len().is_zero(), "The Aleo account has no records to spend.");
+-
+-        // Prepare the additional fee.
+-        let credits = records.values().max_by(|a, b| (**a.gates()).cmp(&**b.gates())).unwrap().clone();
+-        ensure!(***credits.gates() >= additional_fee, "The additional fee is more than the record balance.");
+-
+-        // Initialize an RNG.
+-        let rng = &mut ::rand::thread_rng();
+-        // Deploy.
+-        let transaction = Transaction::deploy(
+-            self.consensus.read().vm(),
+-            &self.private_key,
+-            program,
+-            (credits, additional_fee),
+-            rng,
+-        )?;
+-        // Verify.
+-        assert!(self.consensus.read().vm().verify(&transaction));
+-        // Return the transaction.
+-        Ok(transaction)
+-    }
+-
+-    /// Creates a transfer transaction.
+-    pub fn create_transfer(&self, to: &Address<N>, amount: u64) -> Result<Transaction<N>> {
+-        // Fetch the unspent records.
+-        let records = self.find_unspent_records()?;
+-        ensure!(!records.len().is_zero(), "The Aleo account has no records to spend.");
+-
+-        // Initialize an RNG.
+-        let rng = &mut ::rand::thread_rng();
+-
+-        // Create a new transaction.
+-        Transaction::execute(
+-            self.consensus.read().vm(),
+-            &self.private_key,
+-            &ProgramID::from_str("credits.aleo")?,
+-            Identifier::from_str("transfer")?,
+-            &[
+-                Value::Record(records.values().next().unwrap().clone()),
+-                Value::from_str(&format!("{to}"))?,
+-                Value::from_str(&format!("{amount}u64"))?,
+-            ],
+-            None,
+-            rng,
+-        )
+-    }
+-
+-    /// Syncs the ledger with the network.
+-    #[allow(dead_code)]
+-    pub(crate) async fn initial_sync_with_network(self: &Arc<Self>, leader_ip: IpAddr) -> Result<()> {
+-        /// The number of concurrent requests with the network.
+-        const CONCURRENT_REQUESTS: usize = 100;
+-        /// Url to fetch the blocks from.
+-        const TARGET_URL: &str = "https://vm.aleo.org/testnet3/block/testnet3/";
+-
+-        async fn handle_dispatch_error<'a, T, F>(func: impl Fn() -> F + 'a) -> Result<T>
+-        where
+-            F: Future<Output = Result<T, Error>>,
+-        {
+-            use backoff::{future::retry, ExponentialBackoff};
+-
+-            fn default_backoff() -> ExponentialBackoff {
+-                ExponentialBackoff {
+-                    max_interval: Duration::from_secs(10),
+-                    max_elapsed_time: Some(Duration::from_secs(45)),
+-                    ..Default::default()
+-                }
+-            }
+-
+-            fn from_anyhow_err(err: Error) -> backoff::Error<Error> {
+-                use backoff::Error;
+-
+-                if let Ok(err) = err.downcast::<reqwest::Error>() {
+-                    debug!("Server error: {err}; retrying...");
+-                    Error::Transient { err: err.into(), retry_after: None }
+-                } else {
+-                    Error::Transient { err: anyhow!("Block parse error"), retry_after: None }
+-                }
+-            }
+-
+-            retry(default_backoff(), || async { func().await.map_err(from_anyhow_err) }).await
+-        }
+-
+-        // Fetch the ledger height.
+-        let ledger_height = self.consensus.read().latest_height();
+-
+-        // Create a Client to maintain a connection pool throughout the sync.
+-        let client = reqwest::Client::builder().build()?;
+-
+-        // Fetch the latest height.
+-        let latest_height = client
+-            .get(format!("http://{leader_ip}/testnet3/latest/height"))
+-            .send()
+-            .await?
+-            .text()
+-            .await?
+-            .parse::<u32>()?;
+-
+-        // Start a timer.
+-        let timer = std::time::Instant::now();
+-
+-        // Sync the ledger to the latest block height.
+-        if latest_height > ledger_height + 1 {
+-            futures::stream::iter((ledger_height + 1)..=latest_height)
+-                .map(|height| {
+-                    trace!("Requesting block {height} of {latest_height}");
+-
+-                    // Download the block with an exponential backoff retry policy.
+-                    let client_clone = client.clone();
+-                    handle_dispatch_error(move || {
+-                        let client = client_clone.clone();
+-                        async move {
+-                            // Get the URL for the block download.
+-                            let block_url = format!("{TARGET_URL}{height}.block");
+-
+-                            // Fetch the bytes from the given url
+-                            let block_bytes = client.get(block_url).send().await?.bytes().await?;
+-
+-                            // Parse the block.
+-                            let block =
+-                                task::spawn_blocking(move || Block::from_bytes_le(&block_bytes)).await.unwrap()?;
+-
+-                            std::future::ready(Ok(block)).await
+-                        }
+-                    })
+-                })
+-                .buffered(CONCURRENT_REQUESTS)
+-                .for_each(|block| async {
+-                    let block = block.unwrap();
+-                    // Use blocking tasks, as deserialization and adding blocks are expensive operations.
+-                    let self_clone = self.clone();
+-
+-                    task::spawn_blocking(move || {
+-                        // Add the block to the ledger.
+-                        self_clone.consensus.write().add_next_block(&block).unwrap();
+-
+-                        // Retrieve the current height.
+-                        let height = block.height();
+-                        // Compute the percentage completed.
+-                        let percentage = height * 100 / latest_height;
+-                        // Compute the heuristic slowdown factor (in millis).
+-                        let slowdown = (100 * (latest_height - height)) as u128;
+-                        // Compute the time remaining (in millis).
+-                        let millis_per_block = (timer.elapsed().as_millis()) / (height - ledger_height) as u128;
+-                        let time_remaining = (latest_height - height) as u128 * millis_per_block + slowdown;
+-                        // Prepare the estimate message (in secs).
+-                        let estimate = format!("(est. {} minutes remaining)", time_remaining / (60 * 1000));
+-                        // Log the progress.
+-                        info!(
+-                            "Synced up to block {height} of {latest_height} - {percentage}% complete {}",
+-                            estimate.dimmed()
+-                        );
+-                    })
+-                    .await
+-                    .unwrap();
+-                })
+-                .await;
+-        }
+-
+-        Ok(())
+-    }
+-}
+diff --git a/node/old_ledger/src/memory_pool/mod.rs b/node/old_ledger/src/memory_pool/mod.rs
+deleted file mode 100644
+index ebbf79e9f..000000000
+--- a/node/old_ledger/src/memory_pool/mod.rs
++++ /dev/null
+@@ -1,45 +0,0 @@
+-// Copyright (C) 2019-2022 Aleo Systems Inc.
+-// This file is part of the snarkOS library.
+-
+-// The snarkOS library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkOS library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+-
+-mod solutions;
+-mod transactions;
+-
+-use crate::{anchor_block_height, Consensus};
+-use snarkvm::prelude::{ConsensusStorage, Itertools, Network, ProverSolution, PuzzleCommitment, Transaction};
+-
+-use anyhow::{anyhow, Result};
+-use std::collections::HashMap;
+-
+-#[derive(Clone, Debug)]
+-pub struct MemoryPool<N: Network> {
+-    /// The pool of unconfirmed transactions.
+-    unconfirmed_transactions: HashMap<N::TransactionID, Transaction<N>>,
+-    /// The pool of unconfirmed solutions and their proof targets.
+-    unconfirmed_solutions: HashMap<PuzzleCommitment<N>, (ProverSolution<N>, u64)>,
+-}
+-
+-impl<N: Network> Default for MemoryPool<N> {
+-    fn default() -> Self {
+-        Self::new()
+-    }
+-}
+-
+-impl<N: Network> MemoryPool<N> {
+-    /// Initializes a new instance of a memory pool.
+-    pub fn new() -> Self {
+-        Self { unconfirmed_transactions: Default::default(), unconfirmed_solutions: Default::default() }
+-    }
+-}
+diff --git a/node/old_ledger/src/memory_pool/solutions.rs b/node/old_ledger/src/memory_pool/solutions.rs
+deleted file mode 100644
+index 61ec7828a..000000000
+--- a/node/old_ledger/src/memory_pool/solutions.rs
++++ /dev/null
+@@ -1,130 +0,0 @@
+-// Copyright (C) 2019-2022 Aleo Systems Inc.
+-// This file is part of the snarkOS library.
+-
+-// The snarkOS library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkOS library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+-
+-use super::*;
+-
+-impl<N: Network> MemoryPool<N> {
+-    /// Returns `true` if the given unconfirmed solution exists in the memory pool.
+-    pub fn contains_unconfirmed_solution(&self, puzzle_commitment: PuzzleCommitment<N>) -> bool {
+-        self.unconfirmed_solutions.contains_key(&puzzle_commitment)
+-    }
+-
+-    /// Returns the number of unconfirmed solutions in the memory pool.
+-    pub fn num_unconfirmed_solutions(&self) -> usize {
+-        self.unconfirmed_solutions.len()
+-    }
+-
+-    /// Returns the unconfirmed solutions in the memory pool.
+-    pub fn unconfirmed_solutions(&self) -> impl '_ + Iterator<Item = &(ProverSolution<N>, u64)> {
+-        self.unconfirmed_solutions.values()
+-    }
+-
+-    /// Returns the candidate coinbase target of the valid unconfirmed solutions in the memory pool.
+-    pub fn candidate_coinbase_target(&self, latest_proof_target: u64) -> Result<u128> {
+-        // Filter the solutions by the latest proof target, ensure they are unique, and rank in descending order of proof target.
+-        let mut candidate_proof_targets = self
+-            .unconfirmed_solutions
+-            .iter()
+-            .filter(|(_, (_, proof_target))| *proof_target >= latest_proof_target)
+-            .unique_by(|(k, _)| *k)
+-            .map(|(_, v)| v.1)
+-            .sorted_by(|a, b| b.cmp(a))
+-            .take(N::MAX_PROVER_SOLUTIONS);
+-
+-        // Compute the cumulative proof target of the prover solutions as a u128.
+-        candidate_proof_targets.try_fold(0u128, |cumulative, proof_target| {
+-            cumulative.checked_add(proof_target as u128).ok_or_else(|| anyhow!("Candidate coinbase target overflowed"))
+-        })
+-    }
+-
+-    /// Returns a candidate set of unconfirmed solutions for inclusion in a block.
+-    pub fn candidate_solutions(
+-        &self,
+-        latest_height: u32,
+-        latest_proof_target: u64,
+-        latest_coinbase_target: u64,
+-    ) -> Result<Option<Vec<ProverSolution<N>>>> {
+-        // If the latest height is greater than or equal to the anchor height at year 10, then return 'None'.
+-        if latest_height >= anchor_block_height(N::ANCHOR_TIME, 10) {
+-            return Ok(None);
+-        }
+-
+-        // Filter the solutions by the latest proof target, ensure they are unique, and rank in descending order of proof target.
+-        let candidate_solutions: Vec<_> = self
+-            .unconfirmed_solutions
+-            .iter()
+-            .filter(|(_, (_, proof_target))| *proof_target >= latest_proof_target)
+-            .sorted_by(|a, b| b.1.1.cmp(&a.1.1))
+-            .map(|(_, v)| v.0)
+-            .unique_by(|s| s.commitment())
+-            .take(N::MAX_PROVER_SOLUTIONS)
+-            .collect();
+-
+-        // Compute the cumulative proof target of the prover solutions as a u128.
+-        let cumulative_proof_target: u128 = candidate_solutions.iter().try_fold(0u128, |cumulative, solution| {
+-            cumulative
+-                .checked_add(solution.to_target()? as u128)
+-                .ok_or_else(|| anyhow!("Cumulative proof target overflowed"))
+-        })?;
+-
+-        // Return the prover solutions if the cumulative target is greater than or equal to the coinbase target.
+-        match cumulative_proof_target >= latest_coinbase_target as u128 {
+-            true => Ok(Some(candidate_solutions)),
+-            false => Ok(None),
+-        }
+-    }
+-
+-    /// Adds the given unconfirmed solution to the memory pool.
+-    pub fn add_unconfirmed_solution(&mut self, solution: &ProverSolution<N>) -> Result<bool> {
+-        // Ensure the solution does not already exist in the memory pool.
+-        match !self.contains_unconfirmed_solution(solution.commitment()) {
+-            true => {
+-                // Compute the proof target.
+-                let proof_target = solution.to_target()?;
+-                self.unconfirmed_solutions.insert(solution.commitment(), (*solution, proof_target));
+-                trace!("✉️  Added a prover solution with target '{proof_target}' to the memory pool");
+-                Ok(true)
+-            }
+-            false => {
+-                trace!("Prover solution '{}' already exists in memory pool", solution.commitment());
+-                Ok(false)
+-            }
+-        }
+-    }
+-
+-    /// Clears an unconfirmed solution from the memory pool.
+-    pub fn remove_unconfirmed_solution(&mut self, puzzle_commitment: &PuzzleCommitment<N>) {
+-        self.unconfirmed_solutions.remove(puzzle_commitment);
+-    }
+-
+-    /// Clears a list of unconfirmed solutions from the memory pool.
+-    pub fn remove_unconfirmed_solutions(&mut self, puzzle_commitments: &[PuzzleCommitment<N>]) {
+-        // This code section executes atomically.
+-
+-        let mut memory_pool = self.clone();
+-
+-        for puzzle_commitment in puzzle_commitments {
+-            memory_pool.unconfirmed_solutions.remove(puzzle_commitment);
+-        }
+-
+-        *self = memory_pool;
+-    }
+-
+-    /// Clears all unconfirmed solutions from the memory pool.
+-    pub fn clear_unconfirmed_solutions(&mut self) {
+-        self.unconfirmed_solutions.clear();
+-    }
+-}
+diff --git a/node/old_ledger/src/memory_pool/transactions.rs b/node/old_ledger/src/memory_pool/transactions.rs
+deleted file mode 100644
+index 2d3c67673..000000000
+--- a/node/old_ledger/src/memory_pool/transactions.rs
++++ /dev/null
+@@ -1,122 +0,0 @@
+-// Copyright (C) 2019-2022 Aleo Systems Inc.
+-// This file is part of the snarkOS library.
+-
+-// The snarkOS library is free software: you can redistribute it and/or modify
+-// it under the terms of the GNU General Public License as published by
+-// the Free Software Foundation, either version 3 of the License, or
+-// (at your option) any later version.
+-
+-// The snarkOS library is distributed in the hope that it will be useful,
+-// but WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+-// GNU General Public License for more details.
+-
+-// You should have received a copy of the GNU General Public License
+-// along with the snarkOS library. If not, see <https://www.gnu.org/licenses/>.
+-
+-use super::*;
+-
+-impl<N: Network> MemoryPool<N> {
+-    /// Returns `true` if the given unconfirmed transaction exists in the memory pool.
+-    pub fn contains_unconfirmed_transaction(&self, transaction_id: N::TransactionID) -> bool {
+-        self.unconfirmed_transactions.contains_key(&transaction_id)
+-    }
+-
+-    /// Returns the number of unconfirmed transactions in the memory pool.
+-    pub fn num_unconfirmed_transactions(&self) -> usize {
+-        self.unconfirmed_transactions.len()
+-    }
+-
+-    /// Returns the unconfirmed transactions in the memory pool.
+-    pub fn unconfirmed_transactions(&self) -> impl '_ + Iterator<Item = &Transaction<N>> {
+-        self.unconfirmed_transactions.values()
+-    }
+-
+-    /// Returns a candidate set of unconfirmed transactions for inclusion in a block.
+-    pub fn candidate_transactions<C: ConsensusStorage<N>>(&self, consensus: &Consensus<N, C>) -> Vec<Transaction<N>> {
+-        // TODO (raychu86): Add more sophisticated logic for transaction selection.
+-
+-        // Add the transactions from the memory pool that do not have input collisions.
+-        let mut transactions = Vec::new();
+-        let mut input_ids = Vec::new();
+-        let mut output_ids = Vec::new();
+-
+-        'outer: for transaction in self.unconfirmed_transactions.values() {
+-            // Ensure the transaction is well-formed.
+-            if consensus.check_transaction_basic(transaction).is_err() {
+-                continue;
+-            }
+-
+-            // Ensure the input IDs are unique.
+-            for input_id in transaction.input_ids() {
+-                if input_ids.contains(&input_id) {
+-                    continue 'outer;
+-                }
+-            }
+-            // Ensure the output IDs are unique.
+-            for output_id in transaction.output_ids() {
+-                if output_ids.contains(&output_id) {
+-                    continue 'outer;
+-                }
+-            }
+-
+-            transactions.push(transaction.clone());
+-            input_ids.extend(transaction.input_ids());
+-            output_ids.extend(transaction.output_ids());
+-        }
+-
+-        transactions
+-    }
+-
+-    /// Adds the given unconfirmed transaction to the memory pool.
+-    pub fn add_unconfirmed_transaction(&mut self, transaction: &Transaction<N>) -> bool {
+-        // Ensure the transaction does not already exist in the memory pool.
+-        match !self.contains_unconfirmed_transaction(transaction.id()) {
+-            true => {
+-                self.unconfirmed_transactions.insert(transaction.id(), transaction.clone());
+-                trace!("✉️  Added transaction '{}' to the memory pool", transaction.id());
+-                true
+-            }
+-            false => {
+-                trace!("Transaction '{}' already exists in memory pool", transaction.id());
+-                false
+-            }
+-        }
+-    }
+-
+-    /// Clears an unconfirmed transaction from the memory pool.
+-    pub fn remove_unconfirmed_transaction(&mut self, transaction_id: &N::TransactionID) {
+-        self.unconfirmed_transactions.remove(transaction_id);
+-    }
+-
+-    /// Clears a list of unconfirmed transactions from the memory pool.
+-    pub fn remove_unconfirmed_transactions(&mut self, transaction_ids: &[N::TransactionID]) {
+-        // This code section executes atomically.
+-
+-        let mut memory_pool = self.clone();
+-
+-        for transaction_id in transaction_ids {
+-            memory_pool.unconfirmed_transactions.remove(transaction_id);
+-        }
+-
+-        *self = memory_pool;
+-    }
+-
+-    /// Clears the memory pool of unconfirmed transactions that are now invalid.
+-    pub fn clear_invalid_transactions<C: ConsensusStorage<N>>(&mut self, consensus: &Consensus<N, C>) {
+-        self.unconfirmed_transactions = self
+-            .unconfirmed_transactions
+-            .iter()
+-            .filter_map(|(transaction_id, transaction)| {
+-                // Ensure the transaction is valid.
+-                match consensus.check_transaction_basic(transaction) {
+-                    Ok(_) => Some((*transaction_id, transaction.clone())),
+-                    Err(_) => {
+-                        trace!("Removed transaction '{transaction_id}' from the memory pool");
+-                        None
+-                    }
+-                }
+-            })
+-            .collect();
+-    }
+-}

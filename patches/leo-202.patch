@@ -1,0 +1,3467 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 7818d1c8d8..ed99c354cb 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -223,17 +223,6 @@ dependencies = [
+  "wait-timeout",
+ ]
+ 
+-[[package]]
+-name = "async-recursion"
+-version = "1.1.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "3b43422f69d8ff38f95f1b2bb76517c91589a924d1559a0e935d7c8ce0274c11"
+-dependencies = [
+- "proc-macro2",
+- "quote 1.0.36",
+- "syn 2.0.66",
+-]
+-
+ [[package]]
+ name = "async-trait"
+ version = "0.1.80"
+@@ -257,85 +246,6 @@ version = "1.3.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
+ 
+-[[package]]
+-name = "axum"
+-version = "0.7.5"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "3a6c9af12842a67734c9a2e355436e5d03b22383ed60cf13cd0c18fbfe3dcbcf"
+-dependencies = [
+- "async-trait",
+- "axum-core",
+- "bytes",
+- "futures-util",
+- "http 1.1.0",
+- "http-body 1.0.0",
+- "http-body-util",
+- "hyper 1.3.1",
+- "hyper-util",
+- "itoa",
+- "matchit",
+- "memchr",
+- "mime",
+- "percent-encoding",
+- "pin-project-lite",
+- "rustversion",
+- "serde",
+- "serde_json",
+- "serde_path_to_error",
+- "serde_urlencoded",
+- "sync_wrapper 1.0.1",
+- "tokio",
+- "tower",
+- "tower-layer",
+- "tower-service",
+- "tracing",
+-]
+-
+-[[package]]
+-name = "axum-core"
+-version = "0.4.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a15c63fd72d41492dc4f497196f5da1fb04fb7529e631d73630d1b491e47a2e3"
+-dependencies = [
+- "async-trait",
+- "bytes",
+- "futures-util",
+- "http 1.1.0",
+- "http-body 1.0.0",
+- "http-body-util",
+- "mime",
+- "pin-project-lite",
+- "rustversion",
+- "sync_wrapper 0.1.2",
+- "tower-layer",
+- "tower-service",
+- "tracing",
+-]
+-
+-[[package]]
+-name = "axum-extra"
+-version = "0.9.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0be6ea09c9b96cb5076af0de2e383bd2bc0c18f827cf1967bdd353e0b910d733"
+-dependencies = [
+- "axum",
+- "axum-core",
+- "bytes",
+- "futures-util",
+- "headers",
+- "http 1.1.0",
+- "http-body 1.0.0",
+- "http-body-util",
+- "mime",
+- "pin-project-lite",
+- "serde",
+- "serde_json",
+- "tower",
+- "tower-layer",
+- "tower-service",
+- "tracing",
+-]
+-
+ [[package]]
+ name = "backtrace"
+ version = "0.3.72"
+@@ -384,27 +294,6 @@ dependencies = [
+  "serde",
+ ]
+ 
+-[[package]]
+-name = "bindgen"
+-version = "0.65.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "cfdf7b466f9a4903edc73f95d6d2bcd5baf8ae620638762244d3f60143643cc5"
+-dependencies = [
+- "bitflags 1.3.2",
+- "cexpr",
+- "clang-sys",
+- "lazy_static",
+- "lazycell",
+- "peeking_take_while",
+- "prettyplease",
+- "proc-macro2",
+- "quote 1.0.36",
+- "regex",
+- "rustc-hash",
+- "shlex",
+- "syn 2.0.66",
+-]
+-
+ [[package]]
+ name = "bitflags"
+ version = "1.3.2"
+@@ -462,7 +351,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "05efc5cfd9110c8416e471df0e96702d58690178e206e61b7173706673c93706"
+ dependencies = [
+  "memchr",
+- "regex-automata 0.4.6",
++ "regex-automata",
+  "serde",
+ ]
+ 
+@@ -484,23 +373,6 @@ version = "1.6.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "514de17de45fdb8dc022b1a7975556c53c86f9f0aa5f534b98977b171857c2c9"
+ 
+-[[package]]
+-name = "bzip2-sys"
+-version = "0.1.11+1.0.8"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "736a955f3fa7875102d57c82b8cac37ec45224a07fd32d58f9f7a186b6cd4cdc"
+-dependencies = [
+- "cc",
+- "libc",
+- "pkg-config",
+-]
+-
+-[[package]]
+-name = "cassowary"
+-version = "0.3.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "df8670b8c7b9dae1793364eafadf7239c40d669904660c5960d74cfd80b46a53"
+-
+ [[package]]
+ name = "cast"
+ version = "0.3.0"
+@@ -512,20 +384,6 @@ name = "cc"
+ version = "1.0.98"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "41c270e7540d725e65ac7f1b212ac8ce349719624d7bcff99f8e2e488e8cf03f"
+-dependencies = [
+- "jobserver",
+- "libc",
+- "once_cell",
+-]
+-
+-[[package]]
+-name = "cexpr"
+-version = "0.6.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "6fac387a98bb7c37292057cffc56d62ecb629900026402633ae9160df93a8766"
+-dependencies = [
+- "nom",
+-]
+ 
+ [[package]]
+ name = "cfg-if"
+@@ -569,17 +427,6 @@ dependencies = [
+  "half",
+ ]
+ 
+-[[package]]
+-name = "clang-sys"
+-version = "1.8.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0b023947811758c97c59bf9d1c188fd619ad4718dcaa767947df1cadb14f39f4"
+-dependencies = [
+- "glob",
+- "libc",
+- "libloading",
+-]
+-
+ [[package]]
+ name = "clap"
+ version = "4.5.6"
+@@ -608,7 +455,7 @@ version = "4.5.5"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "c780290ccf4fb26629baa7a1081e68ced113f1d3ec302fa5948f1c381ebf06c6"
+ dependencies = [
+- "heck 0.5.0",
++ "heck",
+  "proc-macro2",
+  "quote 1.0.36",
+  "syn 2.0.66",
+@@ -865,19 +712,6 @@ dependencies = [
+  "syn 2.0.66",
+ ]
+ 
+-[[package]]
+-name = "dashmap"
+-version = "5.5.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "978747c1d849a7d2ee5e8adc0159961c48fb7e5db2f06af6723b80123bb53856"
+-dependencies = [
+- "cfg-if",
+- "hashbrown 0.14.5",
+- "lock_api",
+- "once_cell",
+- "parking_lot_core",
+-]
+-
+ [[package]]
+ name = "der"
+ version = "0.7.9"
+@@ -1127,16 +961,6 @@ dependencies = [
+  "percent-encoding",
+ ]
+ 
+-[[package]]
+-name = "forwarded-header-value"
+-version = "0.1.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8835f84f38484cc86f110a805655697908257fb9a7af005234060891557198e9"
+-dependencies = [
+- "nonempty",
+- "thiserror",
+-]
+-
+ [[package]]
+ name = "fsio"
+ version = "0.1.3"
+@@ -1183,7 +1007,6 @@ dependencies = [
+  "futures-core",
+  "futures-task",
+  "futures-util",
+- "num_cpus",
+ ]
+ 
+ [[package]]
+@@ -1192,17 +1015,6 @@ version = "0.3.30"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "a44623e20b9681a318efdd71c299b6b222ed6f231972bfe2f224ebad6311f0c1"
+ 
+-[[package]]
+-name = "futures-macro"
+-version = "0.3.30"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "87750cf4b7a4c0625b1529e4c543c2182106e4dedc60a2a6455e00d212c489ac"
+-dependencies = [
+- "proc-macro2",
+- "quote 1.0.36",
+- "syn 2.0.66",
+-]
+-
+ [[package]]
+ name = "futures-sink"
+ version = "0.3.30"
+@@ -1215,12 +1027,6 @@ version = "0.3.30"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "38d84fa142264698cdce1a9f9172cf383a0c82de1bddcf3092901442c4097004"
+ 
+-[[package]]
+-name = "futures-timer"
+-version = "3.0.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "f288b0a4f20f9a56b5d1da57e2227c661b7b16168e2f72365f57b63326e29b24"
+-
+ [[package]]
+ name = "futures-util"
+ version = "0.3.30"
+@@ -1230,7 +1036,6 @@ dependencies = [
+  "futures-channel",
+  "futures-core",
+  "futures-io",
+- "futures-macro",
+  "futures-sink",
+  "futures-task",
+  "memchr",
+@@ -1274,10 +1079,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "c4567c8db10ae91089c99af84c68c38da3ec2f087c3f82960bcdbf3656b6f4d7"
+ dependencies = [
+  "cfg-if",
+- "js-sys",
+  "libc",
+  "wasi",
+- "wasm-bindgen",
+ ]
+ 
+ [[package]]
+@@ -1286,32 +1089,6 @@ version = "0.29.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "40ecd4077b5ae9fd2e9e169b102c6c330d0605168eb0e8bf79952b256dbefffd"
+ 
+-[[package]]
+-name = "glob"
+-version = "0.3.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
+-
+-[[package]]
+-name = "governor"
+-version = "0.6.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "68a7f542ee6b35af73b06abc0dad1c1bae89964e4e253bc4b587b91c9637867b"
+-dependencies = [
+- "cfg-if",
+- "dashmap",
+- "futures",
+- "futures-timer",
+- "no-std-compat",
+- "nonzero_ext",
+- "parking_lot",
+- "portable-atomic",
+- "quanta",
+- "rand",
+- "smallvec",
+- "spinning_top",
+-]
+-
+ [[package]]
+ name = "h2"
+ version = "0.3.26"
+@@ -1376,36 +1153,6 @@ dependencies = [
+  "allocator-api2",
+ ]
+ 
+-[[package]]
+-name = "headers"
+-version = "0.4.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "322106e6bd0cba2d5ead589ddb8150a13d7c4217cf80d7c4f682ca994ccc6aa9"
+-dependencies = [
+- "base64 0.21.7",
+- "bytes",
+- "headers-core",
+- "http 1.1.0",
+- "httpdate",
+- "mime",
+- "sha1",
+-]
+-
+-[[package]]
+-name = "headers-core"
+-version = "0.3.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "54b4a22553d4242c49fddb9ba998a99962b5cc6f22cb5a3482bec22522403ce4"
+-dependencies = [
+- "http 1.1.0",
+-]
+-
+-[[package]]
+-name = "heck"
+-version = "0.4.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
+-
+ [[package]]
+ name = "heck"
+ version = "0.5.0"
+@@ -1529,7 +1276,6 @@ dependencies = [
+  "http 1.1.0",
+  "http-body 1.0.0",
+  "httparse",
+- "httpdate",
+  "itoa",
+  "pin-project-lite",
+  "smallvec",
+@@ -1632,12 +1378,6 @@ dependencies = [
+  "unicode-width",
+ ]
+ 
+-[[package]]
+-name = "indoc"
+-version = "2.0.5"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b248f5224d1d606005e02c97f5aa4e88eeb230488bcc03bc9ca4d7991399f2b5"
+-
+ [[package]]
+ name = "instant"
+ version = "0.1.13"
+@@ -1688,15 +1428,6 @@ dependencies = [
+  "either",
+ ]
+ 
+-[[package]]
+-name = "itertools"
+-version = "0.12.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+-dependencies = [
+- "either",
+-]
+-
+ [[package]]
+ name = "itertools"
+ version = "0.13.0"
+@@ -1712,15 +1443,6 @@ version = "1.0.11"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "49f1f14873335454500d59611f1cf4a4b0f786f9ac11f4312a78e4cf2566695b"
+ 
+-[[package]]
+-name = "jobserver"
+-version = "0.1.31"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d2b099aaa34a9751c5bf0878add70444e1ed2dd73f347be99003d4577277de6e"
+-dependencies = [
+- "libc",
+-]
+-
+ [[package]]
+ name = "js-sys"
+ version = "0.3.69"
+@@ -1730,33 +1452,12 @@ dependencies = [
+  "wasm-bindgen",
+ ]
+ 
+-[[package]]
+-name = "jsonwebtoken"
+-version = "9.3.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b9ae10193d25051e74945f1ea2d0b42e03cc3b890f7e4cc5faa44997d808193f"
+-dependencies = [
+- "base64 0.21.7",
+- "js-sys",
+- "pem",
+- "ring",
+- "serde",
+- "serde_json",
+- "simple_asn1",
+-]
+-
+ [[package]]
+ name = "lazy_static"
+ version = "1.4.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+ 
+-[[package]]
+-name = "lazycell"
+-version = "1.3.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
+-
+ [[package]]
+ name = "leo-abnf"
+ version = "1.12.0"
+@@ -1854,6 +1555,7 @@ dependencies = [
+  "leo-parser",
+  "leo-retriever",
+  "leo-span",
++ "num-format",
+  "rand",
+  "rand_chacha",
+  "rand_core",
+@@ -1864,10 +1566,10 @@ dependencies = [
+  "serde",
+  "serde_json",
+  "serial_test",
+- "snarkos-cli",
+  "snarkvm",
+  "sys-info",
+  "test_dir",
++ "text-tables",
+  "toml 0.8.14",
+  "tracing",
+  "tracing-subscriber",
+@@ -1884,11 +1586,12 @@ dependencies = [
+  "lazy_static",
+  "leo-errors",
+  "leo-retriever",
++ "num-format",
+  "rand",
+  "serde",
+  "serial_test",
+- "snarkos-cli",
+  "snarkvm",
++ "text-tables",
+  "toml 0.8.14",
+  "tracing",
+ ]
+@@ -1984,16 +1687,6 @@ version = "0.2.155"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "97b3888a4aecf77e811145cadf6eef5901f4782c53886191b2f693f24761847c"
+ 
+-[[package]]
+-name = "libloading"
+-version = "0.8.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0c2a198fb6b0eada2a8df47933734e6d35d350665a33a3593d7164fa52c75c19"
+-dependencies = [
+- "cfg-if",
+- "windows-targets 0.52.5",
+-]
+-
+ [[package]]
+ name = "libredox"
+ version = "0.1.3"
+@@ -2004,21 +1697,6 @@ dependencies = [
+  "libc",
+ ]
+ 
+-[[package]]
+-name = "librocksdb-sys"
+-version = "0.11.0+8.1.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d3386f101bcb4bd252d8e9d2fb41ec3b0862a15a62b478c355b2982efa469e3e"
+-dependencies = [
+- "bindgen",
+- "bzip2-sys",
+- "cc",
+- "glob",
+- "libc",
+- "libz-sys",
+- "lz4-sys",
+-]
+-
+ [[package]]
+ name = "libz-sys"
+ version = "1.1.18"
+@@ -2069,110 +1747,32 @@ dependencies = [
+ ]
+ 
+ [[package]]
+-name = "lz4-sys"
+-version = "1.9.4"
++name = "memchr"
++version = "2.7.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "57d27b317e207b10f69f5e75494119e391a96f48861ae870d1da6edac98ca900"
+-dependencies = [
+- "cc",
+- "libc",
+-]
++checksum = "6c8640c5d730cb13ebd907d8d04b52f55ac9a2eec55b440c8892f40d56c76c1d"
+ 
+ [[package]]
+-name = "matchers"
+-version = "0.1.0"
++name = "mime"
++version = "0.3.17"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
++
++[[package]]
++name = "mime_guess"
++version = "2.0.4"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8263075bb86c5a1b1427b5ae862e8889656f126e9f77c484496e8b47cf5c5558"
++checksum = "4192263c238a5f0d0c6bfd21f336a313a4ce1c450542449ca191bb657b4642ef"
+ dependencies = [
+- "regex-automata 0.1.10",
++ "mime",
++ "unicase",
+ ]
+ 
+ [[package]]
+-name = "matchit"
+-version = "0.7.3"
++name = "minimal-lexical"
++version = "0.2.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
+-
+-[[package]]
+-name = "memchr"
+-version = "2.7.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "6c8640c5d730cb13ebd907d8d04b52f55ac9a2eec55b440c8892f40d56c76c1d"
+-
+-[[package]]
+-name = "memoffset"
+-version = "0.7.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "5de893c32cde5f383baa4c04c5d6dbdd735cfd4a794b0debdb2bb1b421da5ff4"
+-dependencies = [
+- "autocfg",
+-]
+-
+-[[package]]
+-name = "metrics"
+-version = "0.22.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "2be3cbd384d4e955b231c895ce10685e3d8260c5ccffae898c96c723b0772835"
+-dependencies = [
+- "ahash",
+- "portable-atomic",
+-]
+-
+-[[package]]
+-name = "metrics-exporter-prometheus"
+-version = "0.13.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "9bf4e7146e30ad172c42c39b3246864bd2d3c6396780711a1baf749cfe423e21"
+-dependencies = [
+- "base64 0.21.7",
+- "hyper 0.14.28",
+- "hyper-tls 0.5.0",
+- "indexmap 2.2.6",
+- "ipnet",
+- "metrics",
+- "metrics-util",
+- "quanta",
+- "thiserror",
+- "tokio",
+- "tracing",
+-]
+-
+-[[package]]
+-name = "metrics-util"
+-version = "0.16.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8b07a5eb561b8cbc16be2d216faf7757f9baf3bfb94dbb0fae3df8387a5bb47f"
+-dependencies = [
+- "crossbeam-epoch",
+- "crossbeam-utils",
+- "hashbrown 0.14.5",
+- "metrics",
+- "num_cpus",
+- "quanta",
+- "sketches-ddsketch",
+-]
+-
+-[[package]]
+-name = "mime"
+-version = "0.3.17"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
+-
+-[[package]]
+-name = "mime_guess"
+-version = "2.0.4"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "4192263c238a5f0d0c6bfd21f336a313a4ce1c450542449ca191bb657b4642ef"
+-dependencies = [
+- "mime",
+- "unicase",
+-]
+-
+-[[package]]
+-name = "minimal-lexical"
+-version = "0.2.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
++checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
+ 
+ [[package]]
+ name = "miniz_oxide"
+@@ -2218,25 +1818,6 @@ version = "0.5.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ab250442c86f1850815b5d268639dff018c0627022bc1940eb2d642ca1ce12f0"
+ 
+-[[package]]
+-name = "nix"
+-version = "0.26.4"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "598beaf3cc6fdd9a5dfb1630c2800c7acd31df7aaf0f565796fba2b53ca1af1b"
+-dependencies = [
+- "bitflags 1.3.2",
+- "cfg-if",
+- "libc",
+- "memoffset",
+- "pin-utils",
+-]
+-
+-[[package]]
+-name = "no-std-compat"
+-version = "0.4.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "b93853da6d84c2e3c7d730d6473e8817692dd89be387eb01b94d7f108ecb5b8c"
+-
+ [[package]]
+ name = "nom"
+ version = "7.1.3"
+@@ -2247,18 +1828,6 @@ dependencies = [
+  "minimal-lexical",
+ ]
+ 
+-[[package]]
+-name = "nonempty"
+-version = "0.7.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "e9e591e719385e6ebaeb5ce5d3887f7d5676fceca6411d1925ccc95745f3d6f7"
+-
+-[[package]]
+-name = "nonzero_ext"
+-version = "0.3.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "38bf9645c8b145698bb0b18a4637dcacbc421ea49bef2317e4fd8065a387cf21"
+-
+ [[package]]
+ name = "nu-ansi-term"
+ version = "0.46.0"
+@@ -2354,9 +1923,6 @@ name = "once_cell"
+ version = "1.19.0"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
+-dependencies = [
+- "parking_lot_core",
+-]
+ 
+ [[package]]
+ name = "oorandom"
+@@ -2449,22 +2015,6 @@ version = "1.0.15"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
+ 
+-[[package]]
+-name = "peeking_take_while"
+-version = "0.1.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "19b17cddbe7ec3f8bc800887bab5e717348c95ea2ca0b1bf0837fb964dc67099"
+-
+-[[package]]
+-name = "pem"
+-version = "3.0.4"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8e459365e590736a54c3fa561947c84837534b8e9af6fc5bf781307e82658fae"
+-dependencies = [
+- "base64 0.22.1",
+- "serde",
+-]
+-
+ [[package]]
+ name = "percent-encoding"
+ version = "2.3.1"
+@@ -2598,16 +2148,6 @@ dependencies = [
+  "termtree",
+ ]
+ 
+-[[package]]
+-name = "prettyplease"
+-version = "0.2.20"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "5f12335488a2f3b0a83b14edad48dca9879ce89b2edd10e80237e4e852dd645e"
+-dependencies = [
+- "proc-macro2",
+- "syn 2.0.66",
+-]
+-
+ [[package]]
+ name = "proc-macro2"
+ version = "1.0.84"
+@@ -2617,21 +2157,6 @@ dependencies = [
+  "unicode-ident",
+ ]
+ 
+-[[package]]
+-name = "quanta"
+-version = "0.12.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8e5167a477619228a0b284fac2674e3c388cba90631d7b7de620e6f1fcd08da5"
+-dependencies = [
+- "crossbeam-utils",
+- "libc",
+- "once_cell",
+- "raw-cpuid",
+- "wasi",
+- "web-sys",
+- "winapi",
+-]
+-
+ [[package]]
+ name = "quick-xml"
+ version = "0.23.1"
+@@ -2695,34 +2220,6 @@ dependencies = [
+  "rand_core",
+ ]
+ 
+-[[package]]
+-name = "ratatui"
+-version = "0.25.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a5659e52e4ba6e07b2dad9f1158f578ef84a73762625ddb51536019f34d180eb"
+-dependencies = [
+- "bitflags 2.5.0",
+- "cassowary",
+- "crossterm",
+- "indoc",
+- "itertools 0.12.1",
+- "lru",
+- "paste",
+- "stability",
+- "strum",
+- "unicode-segmentation",
+- "unicode-width",
+-]
+-
+-[[package]]
+-name = "raw-cpuid"
+-version = "11.0.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "e29830cbb1290e404f24c73af91c5d8d631ce7e128691e9477556b540cd01ecd"
+-dependencies = [
+- "bitflags 2.5.0",
+-]
+-
+ [[package]]
+ name = "rayon"
+ version = "1.10.0"
+@@ -2771,17 +2268,8 @@ checksum = "b91213439dad192326a0d7c6ee3955910425f441d7038e0d6933b0aec5c4517f"
+ dependencies = [
+  "aho-corasick",
+  "memchr",
+- "regex-automata 0.4.6",
+- "regex-syntax 0.8.3",
+-]
+-
+-[[package]]
+-name = "regex-automata"
+-version = "0.1.10"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132"
+-dependencies = [
+- "regex-syntax 0.6.29",
++ "regex-automata",
++ "regex-syntax",
+ ]
+ 
+ [[package]]
+@@ -2792,15 +2280,9 @@ checksum = "86b83b8b9847f9bf95ef68afb0b8e6cdb80f498442f5179a29fad448fcc1eaea"
+ dependencies = [
+  "aho-corasick",
+  "memchr",
+- "regex-syntax 0.8.3",
++ "regex-syntax",
+ ]
+ 
+-[[package]]
+-name = "regex-syntax"
+-version = "0.6.29"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
+-
+ [[package]]
+ name = "regex-syntax"
+ version = "0.8.3"
+@@ -2835,7 +2317,7 @@ dependencies = [
+  "serde",
+  "serde_json",
+  "serde_urlencoded",
+- "sync_wrapper 0.1.2",
++ "sync_wrapper",
+  "system-configuration",
+  "tokio",
+  "tokio-native-tls",
+@@ -2879,7 +2361,7 @@ dependencies = [
+  "serde",
+  "serde_json",
+  "serde_urlencoded",
+- "sync_wrapper 0.1.2",
++ "sync_wrapper",
+  "system-configuration",
+  "tokio",
+  "tokio-native-tls",
+@@ -2906,16 +2388,6 @@ dependencies = [
+  "windows-sys 0.52.0",
+ ]
+ 
+-[[package]]
+-name = "rocksdb"
+-version = "0.21.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "bb6f170a4041d50a0ce04b0d2e14916d6ca863ea2e422689a5b694395d299ffe"
+-dependencies = [
+- "libc",
+- "librocksdb-sys",
+-]
+-
+ [[package]]
+ name = "rpassword"
+ version = "7.3.1"
+@@ -2943,12 +2415,6 @@ version = "0.1.24"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "719b953e2095829ee67db738b3bfa9fa368c94900df327b3f07fe6e794d2fe1f"
+ 
+-[[package]]
+-name = "rustc-hash"
+-version = "1.1.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
+-
+ [[package]]
+ name = "rustc_version"
+ version = "0.4.0"
+@@ -3021,12 +2487,6 @@ dependencies = [
+  "untrusted",
+ ]
+ 
+-[[package]]
+-name = "rustversion"
+-version = "1.0.17"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "955d28af4278de8121b7ebeb796b6a45735dc01436d898801014aced2773a3d6"
+-
+ [[package]]
+ name = "rusty-hook"
+ version = "0.11.2"
+@@ -3143,25 +2603,6 @@ dependencies = [
+  "urlencoding",
+ ]
+ 
+-[[package]]
+-name = "self_update"
+-version = "0.39.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "1a34ad8e4a86884ab42e9b8690e9343abdcfe5fa38a0318cfe1565ba9ad437b4"
+-dependencies = [
+- "hyper 0.14.28",
+- "indicatif",
+- "log",
+- "quick-xml",
+- "regex",
+- "reqwest 0.11.27",
+- "self-replace",
+- "semver",
+- "serde_json",
+- "tempfile",
+- "urlencoding",
+-]
+-
+ [[package]]
+ name = "self_update"
+ version = "0.40.0"
+@@ -3221,16 +2662,6 @@ dependencies = [
+  "serde",
+ ]
+ 
+-[[package]]
+-name = "serde_path_to_error"
+-version = "0.1.16"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "af99884400da37c88f5e9146b7f1fd0fbcae8f6eec4e9da38b67d05486f814a6"
+-dependencies = [
+- "itoa",
+- "serde",
+-]
+-
+ [[package]]
+ name = "serde_spanned"
+ version = "0.6.6"
+@@ -3273,510 +2704,113 @@ dependencies = [
+  "futures",
+  "log",
+  "once_cell",
+- "parking_lot",
+- "scc",
+- "serial_test_derive",
+-]
+-
+-[[package]]
+-name = "serial_test_derive"
+-version = "3.1.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "82fe9db325bcef1fbcde82e078a5cc4efdf787e96b3b9cf45b50b529f2083d67"
+-dependencies = [
+- "proc-macro2",
+- "quote 1.0.36",
+- "syn 2.0.66",
+-]
+-
+-[[package]]
+-name = "sha1"
+-version = "0.10.6"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "e3bf829a2d51ab4a5ddf1352d8470c140cadc8301b2ae1789db023f01cedd6ba"
+-dependencies = [
+- "cfg-if",
+- "cpufeatures",
+- "digest",
+-]
+-
+-[[package]]
+-name = "sha2"
+-version = "0.10.8"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "793db75ad2bcafc3ffa7c68b215fee268f537982cd901d132f89c6343f3a3dc8"
+-dependencies = [
+- "cfg-if",
+- "cpufeatures",
+- "digest",
+-]
+-
+-[[package]]
+-name = "sharded-slab"
+-version = "0.1.7"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
+-dependencies = [
+- "lazy_static",
+-]
+-
+-[[package]]
+-name = "shlex"
+-version = "1.3.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
+-
+-[[package]]
+-name = "signal-hook"
+-version = "0.3.17"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8621587d4798caf8eb44879d42e56b9a93ea5dcd315a6487c357130095b62801"
+-dependencies = [
+- "libc",
+- "signal-hook-registry",
+-]
+-
+-[[package]]
+-name = "signal-hook-mio"
+-version = "0.2.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "29ad2e15f37ec9a6cc544097b78a1ec90001e9f71b81338ca39f430adaca99af"
+-dependencies = [
+- "libc",
+- "mio",
+- "signal-hook",
+-]
+-
+-[[package]]
+-name = "signal-hook-registry"
+-version = "1.4.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a9e9e0b4211b72e7b8b6e85c807d36c212bdb33ea8587f7569562a84df5465b1"
+-dependencies = [
+- "libc",
+-]
+-
+-[[package]]
+-name = "signature"
+-version = "2.2.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
+-dependencies = [
+- "digest",
+- "rand_core",
+-]
+-
+-[[package]]
+-name = "simple_asn1"
+-version = "0.6.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "adc4e5204eb1910f40f9cfa375f6f05b68c3abac4b6fd879c8ff5e7ae8a0a085"
+-dependencies = [
+- "num-bigint",
+- "num-traits",
+- "thiserror",
+- "time",
+-]
+-
+-[[package]]
+-name = "sketches-ddsketch"
+-version = "0.2.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "85636c14b73d81f541e525f585c0a2109e6744e1565b5c1668e31c70c10ed65c"
+-
+-[[package]]
+-name = "slab"
+-version = "0.4.9"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "8f92a496fb766b417c996b9c5e57daf2f7ad3b0bebe1ccfca4856390e3d3bb67"
+-dependencies = [
+- "autocfg",
+-]
+-
+-[[package]]
+-name = "smallvec"
+-version = "1.13.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
+-dependencies = [
+- "serde",
+-]
+-
+-[[package]]
+-name = "smol_str"
+-version = "0.2.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "dd538fb6910ac1099850255cf94a94df6551fbdd602454387d0adb2d1ca6dead"
+-dependencies = [
+- "serde",
+-]
+-
+-[[package]]
+-name = "snarkos-account"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
+-dependencies = [
+- "anyhow",
+- "colored",
+- "rand",
+- "snarkvm",
+-]
+-
+-[[package]]
+-name = "snarkos-cli"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
+-dependencies = [
+- "aleo-std",
+- "anstyle",
+- "anyhow",
+- "bincode",
+- "clap",
+- "colored",
+- "crossterm",
+- "indexmap 2.2.6",
+- "nix",
+- "num_cpus",
+- "parking_lot",
+- "rand",
+- "rand_chacha",
+- "rayon",
+- "self_update 0.39.0",
+- "serde",
+- "serde_json",
+- "snarkos-account",
+- "snarkos-display",
+- "snarkos-node",
+- "snarkos-node-cdn",
+- "snarkos-node-metrics",
+- "snarkos-node-rest",
+- "snarkvm",
+- "sys-info",
+- "thiserror",
+- "time",
+- "tokio",
+- "tracing",
+- "tracing-subscriber",
+- "ureq",
+- "zeroize",
+-]
+-
+-[[package]]
+-name = "snarkos-display"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
+-dependencies = [
+- "anyhow",
+- "crossterm",
+- "ratatui",
+- "snarkos-node",
+- "snarkvm",
+- "tokio",
+-]
+-
+-[[package]]
+-name = "snarkos-node"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
+-dependencies = [
+- "aleo-std",
+- "anyhow",
+- "async-trait",
+- "colored",
+- "futures-util",
+- "indexmap 2.2.6",
+- "num_cpus",
+- "once_cell",
+- "parking_lot",
+- "rand",
+- "rayon",
+- "serde_json",
+- "snarkos-account",
+- "snarkos-node-bft",
+- "snarkos-node-cdn",
+- "snarkos-node-consensus",
+- "snarkos-node-metrics",
+- "snarkos-node-rest",
+- "snarkos-node-router",
+- "snarkos-node-sync",
+- "snarkos-node-tcp",
+- "snarkvm",
+- "time",
+- "tokio",
+- "tokio-util",
+- "tracing",
+-]
+-
+-[[package]]
+-name = "snarkos-node-bft"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
+-dependencies = [
+- "aleo-std",
+- "anyhow",
+- "async-recursion",
+- "async-trait",
+- "bytes",
+- "colored",
+- "futures",
+- "indexmap 2.2.6",
+- "parking_lot",
+- "rand",
+- "rayon",
+- "serde",
+- "sha2",
+- "snarkos-account",
+- "snarkos-node-bft-events",
+- "snarkos-node-bft-ledger-service",
+- "snarkos-node-bft-storage-service",
+- "snarkos-node-metrics",
+- "snarkos-node-sync",
+- "snarkos-node-tcp",
+- "snarkvm",
+- "time",
+- "tokio",
+- "tokio-stream",
+- "tokio-util",
+- "tracing",
+-]
+-
+-[[package]]
+-name = "snarkos-node-bft-events"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
+-dependencies = [
+- "anyhow",
+- "bytes",
+- "indexmap 2.2.6",
+- "rayon",
+- "serde",
+- "snarkos-node-metrics",
+- "snarkos-node-sync-locators",
+- "snarkvm",
+- "tokio-util",
+- "tracing",
+-]
+-
+-[[package]]
+-name = "snarkos-node-bft-ledger-service"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
+-dependencies = [
+- "async-trait",
+- "indexmap 2.2.6",
+- "lru",
+- "parking_lot",
+- "rand",
+- "snarkos-node-metrics",
+- "snarkvm",
+- "tokio",
+- "tracing",
+-]
+-
+-[[package]]
+-name = "snarkos-node-bft-storage-service"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
+-dependencies = [
+- "aleo-std",
+- "indexmap 2.2.6",
+- "parking_lot",
+- "snarkvm",
+- "tracing",
++ "parking_lot",
++ "scc",
++ "serial_test_derive",
+ ]
+ 
+ [[package]]
+-name = "snarkos-node-cdn"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
++name = "serial_test_derive"
++version = "3.1.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "82fe9db325bcef1fbcde82e078a5cc4efdf787e96b3b9cf45b50b529f2083d67"
+ dependencies = [
+- "anyhow",
+- "bincode",
+- "colored",
+- "futures",
+- "parking_lot",
+- "rayon",
+- "reqwest 0.11.27",
+- "serde",
+- "serde_json",
+- "snarkvm",
+- "tokio",
+- "tracing",
++ "proc-macro2",
++ "quote 1.0.36",
++ "syn 2.0.66",
+ ]
+ 
+ [[package]]
+-name = "snarkos-node-consensus"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
++name = "sha2"
++version = "0.10.8"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "793db75ad2bcafc3ffa7c68b215fee268f537982cd901d132f89c6343f3a3dc8"
+ dependencies = [
+- "aleo-std",
+- "anyhow",
+- "colored",
+- "indexmap 2.2.6",
+- "lru",
+- "parking_lot",
+- "rand",
+- "snarkos-account",
+- "snarkos-node-bft",
+- "snarkos-node-bft-ledger-service",
+- "snarkos-node-bft-storage-service",
+- "snarkos-node-metrics",
+- "snarkvm",
+- "tokio",
+- "tracing",
++ "cfg-if",
++ "cpufeatures",
++ "digest",
+ ]
+ 
+ [[package]]
+-name = "snarkos-node-metrics"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
++name = "sharded-slab"
++version = "0.1.7"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "f40ca3c46823713e0d4209592e8d6e826aa57e928f09752619fc696c499637f6"
+ dependencies = [
+- "metrics-exporter-prometheus",
+- "parking_lot",
+- "rayon",
+- "snarkvm",
+- "time",
+- "tokio",
++ "lazy_static",
+ ]
+ 
+ [[package]]
+-name = "snarkos-node-rest"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
++name = "signal-hook"
++version = "0.3.17"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "8621587d4798caf8eb44879d42e56b9a93ea5dcd315a6487c357130095b62801"
+ dependencies = [
+- "anyhow",
+- "axum",
+- "axum-extra",
+- "http 1.1.0",
+- "indexmap 2.2.6",
+- "jsonwebtoken",
+- "once_cell",
+- "parking_lot",
+- "rand",
+- "rayon",
+- "serde",
+- "serde_json",
+- "snarkos-node-consensus",
+- "snarkos-node-router",
+- "snarkvm",
+- "time",
+- "tokio",
+- "tower",
+- "tower-http",
+- "tower_governor",
+- "tracing",
++ "libc",
++ "signal-hook-registry",
+ ]
+ 
+ [[package]]
+-name = "snarkos-node-router"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
++name = "signal-hook-mio"
++version = "0.2.3"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "29ad2e15f37ec9a6cc544097b78a1ec90001e9f71b81338ca39f430adaca99af"
+ dependencies = [
+- "anyhow",
+- "async-trait",
+- "bincode",
+- "bytes",
+- "colored",
+- "futures",
+- "indexmap 2.2.6",
+- "linked-hash-map",
+- "parking_lot",
+- "rand",
+- "reqwest 0.11.27",
+- "serde",
+- "snarkos-account",
+- "snarkos-node-metrics",
+- "snarkos-node-router-messages",
+- "snarkos-node-sync-locators",
+- "snarkos-node-tcp",
+- "snarkvm",
+- "time",
+- "tokio",
+- "tokio-stream",
+- "tokio-util",
+- "tracing",
++ "libc",
++ "mio",
++ "signal-hook",
+ ]
+ 
+ [[package]]
+-name = "snarkos-node-router-messages"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
++name = "signal-hook-registry"
++version = "1.4.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "a9e9e0b4211b72e7b8b6e85c807d36c212bdb33ea8587f7569562a84df5465b1"
+ dependencies = [
+- "anyhow",
+- "bytes",
+- "indexmap 2.2.6",
+- "rayon",
+- "serde",
+- "snarkos-node-bft-events",
+- "snarkos-node-sync-locators",
+- "snarkvm",
+- "tokio",
+- "tokio-util",
+- "tracing",
++ "libc",
+ ]
+ 
+ [[package]]
+-name = "snarkos-node-sync"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
++name = "signature"
++version = "2.2.0"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "77549399552de45a898a580c1b41d445bf730df867cc44e6c0233bbc4b8329de"
+ dependencies = [
+- "anyhow",
+- "indexmap 2.2.6",
+- "itertools 0.12.1",
+- "once_cell",
+- "parking_lot",
+- "rand",
+- "serde",
+- "snarkos-node-bft-ledger-service",
+- "snarkos-node-router",
+- "snarkos-node-sync-communication-service",
+- "snarkos-node-sync-locators",
+- "snarkvm",
+- "tokio",
+- "tracing",
++ "digest",
++ "rand_core",
+ ]
+ 
+ [[package]]
+-name = "snarkos-node-sync-communication-service"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
++name = "slab"
++version = "0.4.9"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "8f92a496fb766b417c996b9c5e57daf2f7ad3b0bebe1ccfca4856390e3d3bb67"
+ dependencies = [
+- "async-trait",
+- "tokio",
++ "autocfg",
+ ]
+ 
+ [[package]]
+-name = "snarkos-node-sync-locators"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
++name = "smallvec"
++version = "1.13.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "3c5e1a9a646d36c3599cd173a41282daf47c44583ad367b8e6837255952e5c67"
+ dependencies = [
+- "anyhow",
+- "indexmap 2.2.6",
+  "serde",
+- "snarkvm",
+- "tracing",
+ ]
+ 
+ [[package]]
+-name = "snarkos-node-tcp"
+-version = "2.2.7"
+-source = "git+https://github.com/AleoNet/snarkOS.git?rev=01ea476#01ea4768ed62d3f1933745568f023fadcf15cdf1"
++name = "smol_str"
++version = "0.2.2"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "dd538fb6910ac1099850255cf94a94df6551fbdd602454387d0adb2d1ca6dead"
+ dependencies = [
+- "async-trait",
+- "bytes",
+- "futures-util",
+- "once_cell",
+- "parking_lot",
+- "snarkos-node-metrics",
+- "tokio",
+- "tokio-util",
+- "tracing",
++ "serde",
+ ]
+ 
+ [[package]]
+ name = "snarkvm"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "anstyle",
+  "anyhow",
+@@ -3794,7 +2828,6 @@ dependencies = [
+  "snarkvm-circuit",
+  "snarkvm-console",
+  "snarkvm-ledger",
+- "snarkvm-metrics",
+  "snarkvm-parameters",
+  "snarkvm-synthesizer",
+  "snarkvm-utilities",
+@@ -3806,7 +2839,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-algorithms"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -3836,7 +2869,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-account",
+  "snarkvm-circuit-algorithms",
+@@ -3850,7 +2883,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-account"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-algorithms",
+  "snarkvm-circuit-network",
+@@ -3861,7 +2894,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-algorithms"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-types",
+  "snarkvm-console-algorithms",
+@@ -3871,7 +2904,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-collections"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-algorithms",
+  "snarkvm-circuit-types",
+@@ -3881,7 +2914,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-environment"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "indexmap 2.2.6",
+  "itertools 0.11.0",
+@@ -3899,12 +2932,12 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-environment-witness"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ 
+ [[package]]
+ name = "snarkvm-circuit-network"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-algorithms",
+  "snarkvm-circuit-collections",
+@@ -3915,7 +2948,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-program"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "paste",
+  "snarkvm-circuit-account",
+@@ -3930,7 +2963,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-address",
+@@ -3945,7 +2978,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-address"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -3958,7 +2991,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-boolean"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-console-types-boolean",
+@@ -3967,7 +3000,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-field"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -3977,7 +3010,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-group"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -3989,7 +3022,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-integers"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -4001,7 +3034,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-scalar"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -4012,7 +3045,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-string"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -4024,7 +3057,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-console-account",
+  "snarkvm-console-algorithms",
+@@ -4037,7 +3070,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-account"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "bs58",
+  "snarkvm-console-network",
+@@ -4048,7 +3081,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-algorithms"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "blake2s_simd",
+  "smallvec",
+@@ -4061,7 +3094,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-collections"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "aleo-std",
+  "rayon",
+@@ -4072,7 +3105,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-network"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "anyhow",
+  "indexmap 2.2.6",
+@@ -4095,7 +3128,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-network-environment"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "anyhow",
+  "bech32",
+@@ -4113,7 +3146,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-program"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "enum_index",
+  "enum_index_derive",
+@@ -4134,7 +3167,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-address",
+@@ -4149,7 +3182,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-address"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -4160,7 +3193,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-boolean"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-console-network-environment",
+ ]
+@@ -4168,7 +3201,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-field"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -4178,7 +3211,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-group"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -4189,7 +3222,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-integers"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -4200,7 +3233,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-scalar"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -4211,7 +3244,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-string"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -4222,7 +3255,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-curves"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "rand",
+  "rayon",
+@@ -4236,7 +3269,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-fields"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -4253,7 +3286,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -4277,7 +3310,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-authority"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "anyhow",
+  "rand",
+@@ -4289,7 +3322,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-block"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "indexmap 2.2.6",
+  "rayon",
+@@ -4308,20 +3341,19 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-committee"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "indexmap 2.2.6",
+  "rayon",
+  "serde_json",
+  "snarkvm-console",
+  "snarkvm-ledger-narwhal-batch-header",
+- "snarkvm-metrics",
+ ]
+ 
+ [[package]]
+ name = "snarkvm-ledger-narwhal"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-ledger-narwhal-batch-certificate",
+  "snarkvm-ledger-narwhal-batch-header",
+@@ -4334,7 +3366,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal-batch-certificate"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "indexmap 2.2.6",
+  "rayon",
+@@ -4347,7 +3379,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal-batch-header"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "indexmap 2.2.6",
+  "rayon",
+@@ -4359,7 +3391,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal-data"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "bytes",
+  "serde_json",
+@@ -4370,7 +3402,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal-subdag"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "indexmap 2.2.6",
+  "rayon",
+@@ -4385,7 +3417,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal-transmission"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "bytes",
+  "serde_json",
+@@ -4398,7 +3430,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal-transmission-id"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "snarkvm-console",
+  "snarkvm-ledger-puzzle",
+@@ -4407,7 +3439,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-puzzle"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -4427,7 +3459,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-puzzle-epoch"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "anyhow",
+  "colored",
+@@ -4442,7 +3474,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-query"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "async-trait",
+  "reqwest 0.11.27",
+@@ -4455,19 +3487,16 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-store"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "aleo-std-storage",
+  "anyhow",
+  "bincode",
+  "indexmap 2.2.6",
+- "once_cell",
+  "parking_lot",
+  "rayon",
+- "rocksdb",
+  "serde",
+  "serde_json",
+- "smallvec",
+  "snarkvm-console",
+  "snarkvm-ledger-authority",
+  "snarkvm-ledger-block",
+@@ -4476,22 +3505,12 @@ dependencies = [
+  "snarkvm-ledger-puzzle",
+  "snarkvm-synthesizer-program",
+  "snarkvm-synthesizer-snark",
+- "tracing",
+-]
+-
+-[[package]]
+-name = "snarkvm-metrics"
+-version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
+-dependencies = [
+- "metrics",
+- "metrics-exporter-prometheus",
+ ]
+ 
+ [[package]]
+ name = "snarkvm-parameters"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -4516,7 +3535,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-synthesizer"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -4545,7 +3564,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-synthesizer-process"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "aleo-std",
+  "colored",
+@@ -4568,7 +3587,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-synthesizer-program"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "indexmap 2.2.6",
+  "paste",
+@@ -4582,7 +3601,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-synthesizer-snark"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "bincode",
+  "once_cell",
+@@ -4595,7 +3614,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-utilities"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -4616,7 +3635,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-utilities-derives"
+ version = "0.16.19"
+-source = "git+https://github.com/AleoNet/snarkVM.git?rev=140ff26#140ff26f87697c2e9d18212cce2cc831fc4b146a"
++source = "git+https://github.com/AleoNet/snarkVM.git?rev=fddd8b9#fddd8b92b4c6417e37d62722b3b937534dc4fb26"
+ dependencies = [
+  "proc-macro2",
+  "quote 1.0.36",
+@@ -4639,15 +3658,6 @@ version = "0.9.8"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
+ 
+-[[package]]
+-name = "spinning_top"
+-version = "0.3.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d96d2d1d716fb500937168cc09353ffdc7a012be8475ac7308e1bdf0e3923300"
+-dependencies = [
+- "lock_api",
+-]
+-
+ [[package]]
+ name = "spki"
+ version = "0.7.3"
+@@ -4658,44 +3668,12 @@ dependencies = [
+  "der",
+ ]
+ 
+-[[package]]
+-name = "stability"
+-version = "0.1.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "ebd1b177894da2a2d9120208c3386066af06a488255caabc5de8ddca22dbc3ce"
+-dependencies = [
+- "quote 1.0.36",
+- "syn 1.0.109",
+-]
+-
+ [[package]]
+ name = "strsim"
+ version = "0.11.1"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
+ 
+-[[package]]
+-name = "strum"
+-version = "0.25.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
+-dependencies = [
+- "strum_macros",
+-]
+-
+-[[package]]
+-name = "strum_macros"
+-version = "0.25.3"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "23dc1fa9ac9c169a78ba62f0b841814b7abae11bdd047b9c58f893439e309ea0"
+-dependencies = [
+- "heck 0.4.1",
+- "proc-macro2",
+- "quote 1.0.36",
+- "rustversion",
+- "syn 2.0.66",
+-]
+-
+ [[package]]
+ name = "subtle"
+ version = "2.5.0"
+@@ -4741,12 +3719,6 @@ version = "0.1.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "2047c6ded9c721764247e62cd3b03c09ffc529b2ba5b10ec482ae507a4a70160"
+ 
+-[[package]]
+-name = "sync_wrapper"
+-version = "1.0.1"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "a7065abeca94b6a8a577f9bd45aa0867a2238b74e8eb67cf10d492bc39351394"
+-
+ [[package]]
+ name = "synom"
+ version = "0.11.3"
+@@ -4823,6 +3795,12 @@ dependencies = [
+  "rand",
+ ]
+ 
++[[package]]
++name = "text-tables"
++version = "0.3.1"
++source = "registry+https://github.com/rust-lang/crates.io-index"
++checksum = "5dc41925991e82af3c3e21e25a9aad92e72930af57fbcc4b07867a18d1cd0459"
++
+ [[package]]
+ name = "thiserror"
+ version = "1.0.61"
+@@ -4860,12 +3838,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "5dfd88e563464686c916c7e46e623e520ddc6d79fa6641390f2e3fa86e83e885"
+ dependencies = [
+  "deranged",
+- "itoa",
+  "num-conv",
+  "powerfmt",
+  "serde",
+  "time-core",
+- "time-macros",
+ ]
+ 
+ [[package]]
+@@ -4874,16 +3850,6 @@ version = "0.1.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ef927ca75afb808a4d64dd374f00a2adf8d0fcff8e7b184af886c3c87ec4a3f3"
+ 
+-[[package]]
+-name = "time-macros"
+-version = "0.2.18"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "3f252a68540fde3a3877aeea552b832b40ab9a69e318efd078774a01ddee1ccf"
+-dependencies = [
+- "num-conv",
+- "time-core",
+-]
+-
+ [[package]]
+ name = "tiny-keccak"
+ version = "2.0.2"
+@@ -4929,25 +3895,11 @@ dependencies = [
+  "libc",
+  "mio",
+  "num_cpus",
+- "parking_lot",
+  "pin-project-lite",
+- "signal-hook-registry",
+  "socket2",
+- "tokio-macros",
+  "windows-sys 0.48.0",
+ ]
+ 
+-[[package]]
+-name = "tokio-macros"
+-version = "2.3.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "5f5ae998a069d4b5aba8ee9dad856af7d520c3699e6159b185c2acd48155d39a"
+-dependencies = [
+- "proc-macro2",
+- "quote 1.0.36",
+- "syn 2.0.66",
+-]
+-
+ [[package]]
+ name = "tokio-native-tls"
+ version = "0.3.1"
+@@ -4958,17 +3910,6 @@ dependencies = [
+  "tokio",
+ ]
+ 
+-[[package]]
+-name = "tokio-stream"
+-version = "0.1.15"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "267ac89e0bec6e691e5813911606935d77c476ff49024f98abcea3e7b15e37af"
+-dependencies = [
+- "futures-core",
+- "pin-project-lite",
+- "tokio",
+-]
+-
+ [[package]]
+ name = "tokio-util"
+ version = "0.7.11"
+@@ -5038,24 +3979,6 @@ dependencies = [
+  "tokio",
+  "tower-layer",
+  "tower-service",
+- "tracing",
+-]
+-
+-[[package]]
+-name = "tower-http"
+-version = "0.5.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "1e9cd434a998747dd2c4276bc96ee2e0c7a2eadf3cae88e52be55a05fa9053f5"
+-dependencies = [
+- "bitflags 2.5.0",
+- "bytes",
+- "http 1.1.0",
+- "http-body 1.0.0",
+- "http-body-util",
+- "pin-project-lite",
+- "tower-layer",
+- "tower-service",
+- "tracing",
+ ]
+ 
+ [[package]]
+@@ -5070,29 +3993,12 @@ version = "0.3.2"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "b6bc1c9ce2b5135ac7f93c72918fc37feb872bdc6a5533a8b85eb4b86bfdae52"
+ 
+-[[package]]
+-name = "tower_governor"
+-version = "0.3.2"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "3790eac6ad3fb8d9d96c2b040ae06e2517aa24b067545d1078b96ae72f7bb9a7"
+-dependencies = [
+- "axum",
+- "forwarded-header-value",
+- "governor",
+- "http 1.1.0",
+- "pin-project",
+- "thiserror",
+- "tower",
+- "tracing",
+-]
+-
+ [[package]]
+ name = "tracing"
+ version = "0.1.40"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "c3523ab5a71916ccf420eebdf5521fcef02141234bbc0b8a49f2fdc4544364ef"
+ dependencies = [
+- "log",
+  "pin-project-lite",
+  "tracing-attributes",
+  "tracing-core",
+@@ -5136,14 +4042,10 @@ version = "0.3.18"
+ source = "registry+https://github.com/rust-lang/crates.io-index"
+ checksum = "ad0f048c97dbd9faa9b7df56362b8ebcaa52adb06b498c050d2f4e32f90a7a8b"
+ dependencies = [
+- "matchers",
+  "nu-ansi-term",
+- "once_cell",
+- "regex",
+  "sharded-slab",
+  "smallvec",
+  "thread_local",
+- "tracing",
+  "tracing-core",
+  "tracing-log",
+ ]
+@@ -5190,12 +4092,6 @@ dependencies = [
+  "tinyvec",
+ ]
+ 
+-[[package]]
+-name = "unicode-segmentation"
+-version = "1.11.0"
+-source = "registry+https://github.com/rust-lang/crates.io-index"
+-checksum = "d4c87d22b6e3f4a18d4d40ef354e97c90fcb14dd91d7dc0aa9d8a1172ebf7202"
+-
+ [[package]]
+ name = "unicode-width"
+ version = "0.1.12"
+diff --git a/Cargo.toml b/Cargo.toml
+index bd762adb04..08e094dd42 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -43,14 +43,10 @@ members = [
+   "utils/retriever"
+ ]
+ 
+-[workspace.dependencies.snarkos-cli]
+-git = "https://github.com/AleoNet/snarkOS.git"
+-rev = "01ea476"
+-
+ [workspace.dependencies.snarkvm]
+ #version = "0.16.19"
+ git = "https://github.com/AleoNet/snarkVM.git"
+-rev = "140ff26"
++rev = "fddd8b9"
+ 
+ [lib]
+ path = "leo/lib.rs"
+@@ -65,6 +61,8 @@ ci_skip = [ "leo-compiler/ci_skip" ]
+ noconfig = [ ]
+ 
+ [dependencies]
++num-format = "0.4.4"
++text-tables = "0.3.1"
+ ureq = "2.9.7"
+ 
+ [dependencies.leo-ast]
+@@ -156,9 +154,6 @@ version = "1.0"
+ [dependencies.serial_test]
+ version = "3.1.1"
+ 
+-[dependencies.snarkos-cli]
+-workspace = true
+-
+ [dependencies.snarkvm]
+ workspace = true
+ features = [ "circuit", "console" ]
+diff --git a/errors/src/errors/cli/cli_errors.rs b/errors/src/errors/cli/cli_errors.rs
+index 02c7ef23a9..15f9308394 100644
+--- a/errors/src/errors/cli/cli_errors.rs
++++ b/errors/src/errors/cli/cli_errors.rs
+@@ -243,4 +243,25 @@ create_messages!(
+         msg: format!("Failed to build program: {error}"),
+         help: None,
+     }
++
++    @backtraced
++    failed_to_parse_record {
++        args: (error: impl Display),
++        msg: format!("Failed to parse the record string.\nSnarkVM Error: {error}"),
++        help: None,
++    }
++
++    @backtraced
++    string_parse_error {
++        args: (error: impl Display),
++        msg: format!("{error}"),
++        help: None,
++    }
++
++    @backtraced
++    broadcast_error {
++        args: (error: impl Display),
++        msg: format!("{error}"),
++        help: None,
++    }
+ );
+diff --git a/errors/src/errors/package/package_errors.rs b/errors/src/errors/package/package_errors.rs
+index 19546afbec..c33ca4accd 100644
+--- a/errors/src/errors/package/package_errors.rs
++++ b/errors/src/errors/package/package_errors.rs
+@@ -404,4 +404,18 @@ create_messages!(
+         msg: format!("Failed to read manifest file from the provided file path {path} - {error}"),
+         help: None,
+     }
++
++    @backtraced
++    insufficient_balance {
++        args: (address: impl Display, balance: impl Display, fee: impl Display),
++        msg: format!("❌ Your public balance of {balance} for {address} is insufficient to pay the base fee of {fee}"),
++        help: None,
++    }
++
++    @backtraced
++    execution_error {
++        args: (error: impl Display),
++        msg: format!("❌ Execution error: {error}"),
++        help: Some("Make sure that you are using the right `--network` options.".to_string()),
++    }
+ );
+diff --git a/errors/src/errors/utils/util_errors.rs b/errors/src/errors/utils/util_errors.rs
+index f91cfbd59f..ee94964810 100644
+--- a/errors/src/errors/utils/util_errors.rs
++++ b/errors/src/errors/utils/util_errors.rs
+@@ -50,14 +50,14 @@ create_messages!(
+     @formatted
+     snarkvm_parsing_error {
+         args: (),
+-        msg: format!("SnarkVM failure to parse `.aleo` program"),
++        msg: "SnarkVM failure to parse `.aleo` program".to_string(),
+         help: None,
+     }
+ 
+     @formatted
+     circular_dependency_error {
+         args: (),
+-        msg: format!("Circular dependency detected"),
++        msg: "Circular dependency detected".to_string(),
+         help: None,
+     }
+ 
+@@ -65,7 +65,7 @@ create_messages!(
+     network_error {
+         args: (url: impl Display, status: impl Display),
+         msg: format!("Failed network request to {url}. Status: {status}"),
+-        help: None,
++        help: Some("Make sure that you are using the correct `--network` and `--endpoint` options.".to_string()),
+     }
+ 
+     @formatted
+diff --git a/leo/cli/cli.rs b/leo/cli/cli.rs
+index bc3b647821..67b009bb21 100644
+--- a/leo/cli/cli.rs
++++ b/leo/cli/cli.rs
+@@ -126,7 +126,7 @@ pub fn run_with_args(cli: CLI) -> Result<()> {
+ 
+     // Get custom root folder and create context for it.
+     // If not specified, default context will be created in cwd.
+-    let context = handle_error(Context::new(cli.path, cli.home));
++    let context = handle_error(Context::new(cli.path, cli.home, false));
+ 
+     match cli.command {
+         Commands::Add { command } => command.try_execute(context),
+diff --git a/leo/cli/commands/deploy.rs b/leo/cli/commands/deploy.rs
+index 64ed03fad1..40d7399f0c 100644
+--- a/leo/cli/commands/deploy.rs
++++ b/leo/cli/commands/deploy.rs
+@@ -15,13 +15,25 @@
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use super::*;
++use aleo_std::StorageMode;
+ use leo_retriever::NetworkName;
+-use snarkos_cli::commands::{Deploy as SnarkOSDeploy, Developer};
+ use snarkvm::{
++    circuit::{Aleo, AleoTestnetV0, AleoV0},
+     cli::helpers::dotenv_private_key,
+-    prelude::{MainnetV0, TestnetV0},
++    ledger::query::Query as SnarkVMQuery,
++    package::Package as SnarkVMPackage,
++    prelude::{
++        deployment_cost,
++        store::{helpers::memory::ConsensusMemory, ConsensusStore},
++        MainnetV0,
++        PrivateKey,
++        ProgramOwner,
++        TestnetV0,
++        VM,
++    },
+ };
+-use std::path::PathBuf;
++use std::{path::PathBuf, str::FromStr};
++use text_tables;
+ 
+ /// Deploys an Aleo program.
+ #[derive(Parser, Debug)]
+@@ -39,7 +51,7 @@ pub struct Deploy {
+     )]
+     pub(crate) wait: u64,
+     #[clap(flatten)]
+-    pub(crate) compiler_options: BuildOptions,
++    pub(crate) options: BuildOptions,
+ }
+ 
+ impl Command for Deploy {
+@@ -52,79 +64,165 @@ impl Command for Deploy {
+ 
+     fn prelude(&self, context: Context) -> Result<Self::Input> {
+         if !self.no_build {
+-            (Build { options: self.compiler_options.clone() }).execute(context)?;
++            (Build { options: self.options.clone() }).execute(context)?;
+         }
+         Ok(())
+     }
+ 
+     fn apply(self, context: Context, _: Self::Input) -> Result<Self::Output> {
+         // Parse the network.
+-        let network = NetworkName::try_from(self.compiler_options.network.as_str())?;
+-        // Get the program name.
+-        let project_name = match network {
+-            NetworkName::MainnetV0 => context.open_manifest::<MainnetV0>()?.program_id().to_string(),
+-            NetworkName::TestnetV0 => context.open_manifest::<TestnetV0>()?.program_id().to_string(),
+-        };
+-
+-        // Get the private key.
+-        let mut private_key = self.fee_options.private_key;
+-        if private_key.is_none() {
+-            private_key =
+-                Some(dotenv_private_key().map_err(CliError::failed_to_read_environment_private_key)?.to_string());
++        let network = NetworkName::try_from(self.options.network.as_str())?;
++        match network {
++            NetworkName::MainnetV0 => handle_deploy::<AleoV0, MainnetV0>(&self, context),
++            NetworkName::TestnetV0 => handle_deploy::<AleoTestnetV0, TestnetV0>(&self, context),
+         }
++    }
++}
+ 
+-        let mut all_paths: Vec<(String, PathBuf)> = Vec::new();
+-
+-        // Extract post-ordered list of local dependencies' paths from `leo.lock`.
+-        if self.recursive {
+-            // Cannot combine with private fee.
+-            if self.fee_options.record.is_some() {
+-                return Err(CliError::recursive_deploy_with_record().into());
+-            }
+-            all_paths = context.local_dependency_paths()?;
++// A helper function to handle deployment logic.
++fn handle_deploy<A: Aleo<Network = N, BaseField = N::Field>, N: Network>(
++    command: &Deploy,
++    context: Context,
++) -> Result<<Deploy as Command>::Output> {
++    // Get the program name.
++    let project_name = context.open_manifest::<N>()?.program_id().to_string();
++
++    // Get the private key.
++    let private_key = match &command.fee_options.private_key {
++        Some(key) => PrivateKey::from_str(key)?,
++        None => PrivateKey::from_str(
++            &dotenv_private_key().map_err(CliError::failed_to_read_environment_private_key)?.to_string(),
++        )?,
++    };
++
++    // Specify the query
++    let query = SnarkVMQuery::from(&command.options.endpoint);
++
++    let mut all_paths: Vec<(String, PathBuf)> = Vec::new();
++
++    // Extract post-ordered list of local dependencies' paths from `leo.lock`.
++    if command.recursive {
++        // Cannot combine with private fee.
++        if command.fee_options.record.is_some() {
++            return Err(CliError::recursive_deploy_with_record().into());
+         }
++        all_paths = context.local_dependency_paths()?;
++    }
+ 
+-        // Add the parent program to be deployed last.
+-        all_paths.push((project_name, context.dir()?.join("build")));
+-
+-        for (index, (name, path)) in all_paths.iter().enumerate() {
+-            // Set the deploy arguments.
+-            let mut deploy_args = vec![
+-                "snarkos".to_string(),
+-                "--private-key".to_string(),
+-                private_key.as_ref().unwrap().clone(),
+-                "--query".to_string(),
+-                self.compiler_options.endpoint.clone(),
+-                "--priority-fee".to_string(),
+-                self.fee_options.priority_fee.to_string(),
+-                "--network".to_string(),
+-                network.id().to_string(),
+-                "--path".to_string(),
+-                path.to_str().unwrap().parse().unwrap(),
+-                "--broadcast".to_string(),
+-                format!("{}/{}/transaction/broadcast", self.compiler_options.endpoint, self.compiler_options.network)
+-                    .to_string(),
+-                name.clone(),
+-            ];
+-
+-            // Use record as payment option if it is provided.
+-            if let Some(record) = self.fee_options.record.clone() {
+-                deploy_args.push("--record".to_string());
+-                deploy_args.push(record);
+-            };
+-
+-            let deploy = SnarkOSDeploy::try_parse_from(deploy_args).unwrap();
+-
+-            // Deploy program.
+-            Developer::Deploy(deploy).parse().map_err(CliError::failed_to_execute_deploy)?;
+-
+-            // Sleep for `wait_gap` seconds.
+-            // This helps avoid parents from being serialized before children.
++    // Add the parent program to be deployed last.
++    all_paths.push((project_name, context.dir()?.join("build")));
++
++    for (index, (name, path)) in all_paths.iter().enumerate() {
++        // Fetch the package from the directory.
++        let package = SnarkVMPackage::<N>::open(path)?;
++
++        println!("📦 Creating deployment transaction for '{}'...\n", &name.bold());
++
++        // Generate the deployment
++        let deployment = package.deploy::<A>(None)?;
++        let deployment_id = deployment.to_deployment_id()?;
++
++        let store = ConsensusStore::<N, ConsensusMemory<N>>::open(StorageMode::Production)?;
++
++        // Initialize the VM.
++        let vm = VM::from(store)?;
++
++        // Compute the minimum deployment cost.
++        let (mut total_cost, (storage_cost, synthesis_cost, namespace_cost)) = deployment_cost(&deployment)?;
++
++        // Display the deployment cost breakdown using `credit` denomination.
++        total_cost += command.fee_options.priority_fee;
++        deploy_cost_breakdown(
++            name,
++            total_cost as f64 / 1_000_000.0,
++            storage_cost as f64 / 1_000_000.0,
++            synthesis_cost as f64 / 1_000_000.0,
++            namespace_cost as f64 / 1_000_000.0,
++            command.fee_options.priority_fee as f64 / 1_000_000.0,
++        );
++
++        // Initialize an RNG.
++        let rng = &mut rand::thread_rng();
++
++        // Prepare the fees.
++        let fee = match &command.fee_options.record {
++            Some(record) => {
++                let fee_record = parse_record(&private_key, record)?;
++                let fee_authorization = vm.authorize_fee_private(
++                    &private_key,
++                    fee_record,
++                    total_cost,
++                    command.fee_options.priority_fee,
++                    deployment_id,
++                    rng,
++                )?;
++                vm.execute_fee_authorization(fee_authorization, Some(query.clone()), rng)?
++            }
++            None => {
++                // Make sure the user has enough public balance to pay for the deployment.
++                check_balance(
++                    &private_key,
++                    &command.options.endpoint,
++                    &command.options.network,
++                    context.clone(),
++                    total_cost,
++                )?;
++                let fee_authorization = vm.authorize_fee_public(
++                    &private_key,
++                    total_cost,
++                    command.fee_options.priority_fee,
++                    deployment_id,
++                    rng,
++                )?;
++                vm.execute_fee_authorization(fee_authorization, Some(query.clone()), rng)?
++            }
++        };
++        // Construct the owner.
++        let owner = ProgramOwner::new(&private_key, deployment_id, rng)?;
++
++        // Generate the deployment transaction.
++        let transaction = Transaction::from_deployment(owner, deployment, fee)?;
++
++        // Determine if the transaction should be broadcast, stored, or displayed to the user.
++        if !command.fee_options.dry_run {
++            println!("✅ Created deployment transaction for '{}'", name.bold());
++            handle_broadcast(
++                &format!("{}/{}/transaction/broadcast", command.options.endpoint, command.options.network),
++                transaction,
++                name,
++            )?;
++            // Wait between successive deployments to prevent out of order deployments.
+             if index < all_paths.len() - 1 {
+-                std::thread::sleep(std::time::Duration::from_secs(self.wait));
++                std::thread::sleep(std::time::Duration::from_secs(command.wait));
+             }
++        } else {
++            println!("✅ Successful dry run deployment for '{}'", name.bold());
+         }
+-
+-        Ok(())
+     }
++
++    Ok(())
++}
++
++// A helper function to display a cost breakdown of the deployment.
++fn deploy_cost_breakdown(
++    name: &String,
++    total_cost: f64,
++    storage_cost: f64,
++    synthesis_cost: f64,
++    namespace_cost: f64,
++    priority_fee: f64,
++) {
++    println!("Base deployment cost for '{}' is {} credits.", name.bold(), total_cost);
++    // Display the cost breakdown in a table.
++    let data = [
++        [name, "Cost (credits)"],
++        ["Transaction Storage", &format!("{:.6}", storage_cost)],
++        ["Program Synthesis", &format!("{:.6}", synthesis_cost)],
++        ["Namespace", &format!("{:.6}", namespace_cost)],
++        ["Priority Fee", &format!("{:.6}", priority_fee)],
++        ["Total", &format!("{:.6}", total_cost)],
++    ];
++    let mut out = Vec::new();
++    text_tables::render(&mut out, data).unwrap();
++    println!("{}", ::std::str::from_utf8(&out).unwrap());
+ }
+diff --git a/leo/cli/commands/execute.rs b/leo/cli/commands/execute.rs
+index ee60e34f9b..acbe198716 100644
+--- a/leo/cli/commands/execute.rs
++++ b/leo/cli/commands/execute.rs
+@@ -15,12 +15,36 @@
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use super::*;
++use aleo_std::StorageMode;
+ use clap::Parser;
++use snarkvm::{
++    cli::helpers::dotenv_private_key,
++    prelude::{Network, Parser as SnarkVMParser},
++};
++use std::collections::HashMap;
++
++use crate::cli::query::QueryCommands;
+ use leo_retriever::NetworkName;
+-use snarkos_cli::commands::{Developer, Execute as SnarkOSExecute};
+ use snarkvm::{
+-    cli::{helpers::dotenv_private_key, Execute as SnarkVMExecute},
+-    prelude::{MainnetV0, Network, Parser as SnarkVMParser, TestnetV0},
++    circuit::{Aleo, AleoTestnetV0, AleoV0},
++    cli::LOCALE,
++    ledger::Transaction::Execute as ExecuteTransaction,
++    package::Package as SnarkVMPackage,
++    prelude::{
++        execution_cost,
++        query::Query as SnarkVMQuery,
++        store::{
++            helpers::memory::{BlockMemory, ConsensusMemory},
++            ConsensusStore,
++        },
++        Identifier,
++        Locator,
++        Process,
++        Program as SnarkVMProgram,
++        ProgramID,
++        Value,
++        VM,
++    },
+ };
+ 
+ /// Build, Prove and Run Leo program with inputs
+@@ -64,20 +88,58 @@ impl Command for Execute {
+         // Parse the network.
+         let network = NetworkName::try_from(self.compiler_options.network.as_str())?;
+         match network {
+-            NetworkName::MainnetV0 => handle_execute::<MainnetV0>(self, context),
+-            NetworkName::TestnetV0 => handle_execute::<TestnetV0>(self, context),
++            NetworkName::MainnetV0 => handle_execute::<AleoV0>(self, context),
++            NetworkName::TestnetV0 => handle_execute::<AleoTestnetV0>(self, context),
+         }
+     }
+ }
+ 
+ // A helper function to handle the `execute` command.
+-fn handle_execute<N: Network>(command: Execute, context: Context) -> Result<<Execute as Command>::Output> {
++fn handle_execute<A: Aleo>(command: Execute, context: Context) -> Result<<Execute as Command>::Output> {
++    // If input values are provided, then run the program with those inputs.
++    // Otherwise, use the input file.
++    let mut inputs = command.inputs.clone();
++
++    // Add the inputs to the arguments.
++    if let Some(file) = command.file.clone() {
++        // Get the contents from the file.
++        let path = context.dir()?.join(file);
++        let raw_content =
++            std::fs::read_to_string(&path).map_err(|err| PackageError::failed_to_read_file(path.display(), err))?;
++        // Parse the values from the file.
++        let mut content = raw_content.as_str();
++        let mut values = vec![];
++        while let Ok((remaining, value)) = snarkvm::prelude::Value::<A::Network>::parse(content) {
++            content = remaining;
++            values.push(value);
++        }
++        // Check that the remaining content is empty.
++        if !content.trim().is_empty() {
++            return Err(PackageError::failed_to_read_input_file(path.display()).into());
++        }
++        // Convert the values to strings.
++        let mut inputs_from_file = values.into_iter().map(|value| value.to_string()).collect::<Vec<String>>();
++        // Add the inputs from the file to the arguments.
++        inputs.append(&mut inputs_from_file);
++    }
++
++    // Initialize an RNG.
++    let rng = &mut rand::thread_rng();
++
++    // Get the private key.
++    let private_key = match command.fee_options.private_key.clone() {
++        Some(key) => PrivateKey::from_str(&key)?,
++        None => PrivateKey::from_str(
++            &dotenv_private_key().map_err(CliError::failed_to_read_environment_private_key)?.to_string(),
++        )?,
++    };
++
+     // If the `broadcast` flag is set, then broadcast the transaction.
+     if command.broadcast {
+         // Get the program name.
+-        let program_name = match (command.program, command.local) {
++        let program_name = match (command.program.clone(), command.local) {
+             (Some(name), true) => {
+-                let local = context.open_manifest::<N>()?.program_id().to_string();
++                let local = context.open_manifest::<A::Network>()?.program_id().to_string();
+                 // Throw error if local name doesn't match the specified name.
+                 if name == local {
+                     local
+@@ -85,120 +147,231 @@ fn handle_execute<N: Network>(command: Execute, context: Context) -> Result<<Exe
+                     return Err(PackageError::conflicting_on_chain_program_name(local, name).into());
+                 }
+             }
+-            (Some(name), false) => name,
+-            (None, true) => context.open_manifest::<N>()?.program_id().to_string(),
++            (Some(name), false) => name.clone(),
++            (None, true) => context.open_manifest::<A::Network>()?.program_id().to_string(),
+             (None, false) => return Err(PackageError::missing_on_chain_program_name().into()),
+         };
+ 
+-        // Get the private key.
+-        let private_key = match command.fee_options.private_key {
+-            Some(private_key) => private_key,
+-            None => dotenv_private_key().map_err(CliError::failed_to_read_environment_private_key)?.to_string(),
++        // Specify the query
++        let query =
++            SnarkVMQuery::<A::Network, BlockMemory<A::Network>>::from(command.compiler_options.endpoint.clone());
++
++        // Initialize the storage.
++        let store = ConsensusStore::<A::Network, ConsensusMemory<A::Network>>::open(StorageMode::Production)?;
++
++        // Initialize the VM.
++        let vm = VM::from(store)?;
++
++        // Load the main program, and all of its imports.
++        let program_id = &ProgramID::<A::Network>::from_str(&format!("{}.aleo", program_name))?;
++        // TODO: X
++        load_program_from_network(&command, context.clone(), &mut vm.process().write(), program_id)?;
++
++        let fee_record = if let Some(record) = command.fee_options.record {
++            Some(parse_record(&private_key, &record)?)
++        } else {
++            None
+         };
+ 
+-        // Set deploy arguments.
+-        let mut fee_args = vec![
+-            "snarkos".to_string(),
+-            "--private-key".to_string(),
+-            private_key.clone(),
+-            "--query".to_string(),
+-            command.compiler_options.endpoint.clone(),
+-            "--priority-fee".to_string(),
+-            command.fee_options.priority_fee.to_string(),
+-            "--network".to_string(),
+-            N::ID.to_string(),
+-            "--broadcast".to_string(),
+-            format!("{}/{}/transaction/broadcast", command.compiler_options.endpoint, command.compiler_options.network)
+-                .to_string(),
+-        ];
+-
+-        // Use record as payment option if it is provided.
+-        if let Some(record) = command.fee_options.record.clone() {
+-            fee_args.push("--record".to_string());
+-            fee_args.push(record);
++        // Create a new transaction.
++        let transaction = vm.execute(
++            &private_key,
++            (program_id, command.name),
++            inputs.iter(),
++            fee_record.clone(),
++            command.fee_options.priority_fee,
++            Some(query),
++            rng,
++        )?;
++
++        // Check the transaction cost.
++        let (mut total_cost, (storage_cost, finalize_cost)) = if let ExecuteTransaction(_, execution, _) = &transaction
++        {
++            execution_cost(&vm.process().read(), execution)?
++        } else {
++            panic!("All transactions should be of type Execute.")
+         };
+ 
+-        // Execute program.
+-        Developer::Execute(
+-            SnarkOSExecute::try_parse_from(
+-                [
+-                    // The arguments for determining fee.
+-                    fee_args,
+-                    // The program ID and function name.
+-                    vec![program_name, command.name],
+-                    // The function inputs.
+-                    command.inputs,
+-                ]
+-                .concat(),
+-            )
+-            .unwrap(),
+-        )
+-        .parse()
+-        .map_err(CliError::failed_to_execute_deploy)?;
++        // Print the cost breakdown.
++        total_cost += command.fee_options.priority_fee;
++        execution_cost_breakdown(
++            &program_name,
++            total_cost as f64 / 1_000_000.0,
++            storage_cost as f64 / 1_000_000.0,
++            finalize_cost as f64 / 1_000_000.0,
++            command.fee_options.priority_fee as f64 / 1_000_000.0,
++        );
++
++        // Check if the public balance is sufficient.
++        if fee_record.is_none() {
++            check_balance::<A::Network>(
++                &private_key,
++                &command.compiler_options.endpoint,
++                &command.compiler_options.network,
++                context,
++                total_cost,
++            )?;
++        }
++
++        // Broadcast the execution transaction.
++        if !command.fee_options.dry_run {
++            println!("✅ Created execution transaction for '{}'", program_id.to_string().bold());
++            handle_broadcast(
++                &format!(
++                    "{}/{}/transaction/broadcast",
++                    command.compiler_options.endpoint, command.compiler_options.network
++                ),
++                transaction,
++                &program_name,
++            )?;
++        } else {
++            println!("✅ Successful dry run execution for '{}'", program_id.to_string().bold());
++        }
+ 
+         return Ok(());
+     }
+ 
+-    // If input values are provided, then run the program with those inputs.
+-    // Otherwise, use the input file.
+-    let mut inputs = command.inputs;
++    // Open the Leo build/ directory.
++    let path = context.dir()?.join("build/");
+ 
+-    // Compose the `execute` command.
+-    let mut arguments = vec![SNARKVM_COMMAND.to_string(), command.name];
++    // Unset the Leo panic hook.
++    let _ = std::panic::take_hook();
+ 
+-    // Add the inputs to the arguments.
+-    match command.file {
+-        Some(file) => {
+-            // Get the contents from the file.
+-            let path = context.dir()?.join(file);
+-            let raw_content =
+-                std::fs::read_to_string(&path).map_err(|err| PackageError::failed_to_read_file(path.display(), err))?;
+-            // Parse the values from the file.
+-            let mut content = raw_content.as_str();
+-            let mut values = vec![];
+-            while let Ok((remaining, value)) = snarkvm::prelude::Value::<N>::parse(content) {
+-                content = remaining;
+-                values.push(value);
+-            }
+-            // Check that the remaining content is empty.
+-            if !content.trim().is_empty() {
+-                return Err(PackageError::failed_to_read_input_file(path.display()).into());
++    // Conduct the execution locally (code lifted from snarkVM).
++    // Load the package.
++    let package = SnarkVMPackage::open(&path)?;
++    // Convert the inputs.
++    let inputs = inputs.iter().map(|input| Value::from_str(input).unwrap()).collect::<Vec<Value<A::Network>>>();
++    // Execute the request.
++    let (response, execution, metrics) = package
++        .execute::<A, _>(
++            command.compiler_options.endpoint.clone(),
++            &private_key,
++            Identifier::try_from(command.name.clone())?,
++            &inputs,
++            rng,
++        )
++        .map_err(PackageError::execution_error)?;
++
++    let fee = None;
++
++    // Construct the transaction.
++    let transaction = Transaction::from_execution(execution, fee)?;
++
++    // Log the metrics.
++    use num_format::ToFormattedString;
++
++    // Count the number of times a function is called.
++    let mut program_frequency = HashMap::<String, usize>::new();
++    for metric in metrics.iter() {
++        // Prepare the function name string.
++        let function_name_string = format!("'{}/{}'", metric.program_id, metric.function_name).bold();
++
++        // Prepare the function constraints string
++        let function_constraints_string = format!(
++            "{function_name_string} - {} constraints",
++            metric.num_function_constraints.to_formatted_string(LOCALE)
++        );
++
++        // Increment the counter for the function call.
++        match program_frequency.get_mut(&function_constraints_string) {
++            Some(counter) => *counter += 1,
++            None => {
++                let _ = program_frequency.insert(function_constraints_string, 1);
+             }
+-            // Convert the values to strings.
+-            let mut inputs_from_file = values.into_iter().map(|value| value.to_string()).collect::<Vec<String>>();
+-            // Add the inputs from the file to the arguments.
+-            arguments.append(&mut inputs_from_file);
+         }
+-        None => arguments.append(&mut inputs),
+     }
+ 
+-    // Add the compiler options to the arguments.
+-    if command.compiler_options.offline {
+-        arguments.push(String::from("--offline"));
++    println!("⛓  Constraints\n");
++    for (function_constraints, counter) in program_frequency {
++        // Log the constraints
++        let counter_string = match counter {
++            1 => "(called 1 time)".to_string().dimmed(),
++            counter => format!("(called {counter} times)").dimmed(),
++        };
++
++        println!(" •  {function_constraints} {counter_string}",)
+     }
+ 
+-    // Add the endpoint to the arguments.
+-    arguments.push(String::from("--endpoint"));
+-    arguments.push(command.compiler_options.endpoint.clone());
++    // Log the outputs.
++    match response.outputs().len() {
++        0 => (),
++        1 => println!("\n➡️  Output\n"),
++        _ => println!("\n➡️  Outputs\n"),
++    };
++    for output in response.outputs() {
++        println!(" • {output}");
++    }
++    println!();
+ 
+-    // Open the Leo build/ directory.
+-    let path = context.dir()?;
+-    let build_directory = BuildDirectory::open(&path)?;
++    // Print the transaction.
++    println!("{transaction}\n");
+ 
+-    // Change the cwd to the Leo build/ directory to compile aleo files.
+-    std::env::set_current_dir(&build_directory)
+-        .map_err(|err| PackageError::failed_to_set_cwd(build_directory.display(), err))?;
++    // Prepare the locator.
++    let locator = Locator::<A::Network>::from_str(&format!("{}/{}", package.program_id(), command.name))?;
++    // Prepare the path string.
++    let path_string = format!("(in \"{}\")", path.display());
+ 
+-    // Unset the Leo panic hook.
+-    let _ = std::panic::take_hook();
++    println!("✅ Executed '{}' {}", locator.to_string().bold(), path_string.dimmed());
++    Ok(())
++}
+ 
+-    // Call the `execute` command.
+-    println!();
+-    let command = SnarkVMExecute::try_parse_from(&arguments).map_err(CliError::failed_to_parse_execute)?;
+-    let res = command.parse().map_err(CliError::failed_to_execute_execute)?;
++/// A helper function to recursively load the program and all of its imports into the process. Lifted from snarkOS.
++fn load_program_from_network<N: Network>(
++    command: &Execute,
++    context: Context,
++    process: &mut Process<N>,
++    program_id: &ProgramID<N>,
++) -> Result<()> {
++    // Fetch the program.
++    let program_src = Query {
++        endpoint: command.compiler_options.endpoint.clone(),
++        network: command.compiler_options.network.clone(),
++        command: QueryCommands::Program {
++            command: crate::cli::commands::query::Program {
++                name: program_id.to_string(),
++                mappings: false,
++                mapping_value: None,
++            },
++        },
++    }
++    .execute(Context::new(context.path.clone(), context.home.clone(), true)?)?;
++    let program = SnarkVMProgram::<N>::from_str(&program_src).unwrap();
++
++    // Return early if the program is already loaded.
++    if process.contains_program(program.id()) {
++        return Ok(());
++    }
+ 
+-    // Log the output of the `execute` command.
+-    tracing::info!("{}", res);
++    // Iterate through the program imports.
++    for import_program_id in program.imports().keys() {
++        // Add the imports to the process if does not exist yet.
++        if !process.contains_program(import_program_id) {
++            // Recursively load the program and its imports.
++            load_program_from_network(command, context.clone(), process, import_program_id)?;
++        }
++    }
++
++    // Add the program to the process if it does not already exist.
++    if !process.contains_program(program.id()) {
++        process.add_program(&program)?;
++    }
+ 
+     Ok(())
+ }
++
++// A helper function to display a cost breakdown of the execution.
++fn execution_cost_breakdown(name: &String, total_cost: f64, storage_cost: f64, finalize_cost: f64, priority_fee: f64) {
++    println!("Base execution cost for '{}' is {} credits.", name.bold(), total_cost);
++    // Display the cost breakdown in a table.
++    let data = [
++        [name, "Cost (credits)"],
++        ["Transaction Storage", &format!("{:.6}", storage_cost)],
++        ["On-chain Execution", &format!("{:.6}", finalize_cost)],
++        ["Priority Fee", &format!("{:.6}", priority_fee)],
++        ["Total", &format!("{:.6}", total_cost)],
++    ];
++    let mut out = Vec::new();
++    text_tables::render(&mut out, data).unwrap();
++    println!("{}", ::std::str::from_utf8(&out).unwrap());
++}
+diff --git a/leo/cli/commands/mod.rs b/leo/cli/commands/mod.rs
+index e71415a2bc..99fd2a46d0 100644
+--- a/leo/cli/commands/mod.rs
++++ b/leo/cli/commands/mod.rs
+@@ -57,11 +57,16 @@ use super::*;
+ use crate::cli::helpers::context::*;
+ use leo_errors::{emitter::Handler, CliError, PackageError, Result};
+ use leo_package::{build::*, outputs::OutputsDirectory, package::*};
++use snarkvm::prelude::{block::Transaction, Address, Ciphertext, Plaintext, PrivateKey, Record, ViewKey};
+ 
+ use clap::Parser;
+ use colored::Colorize;
++use std::str::FromStr;
+ use tracing::span::Span;
+ 
++use crate::cli::query::QueryCommands;
++use snarkvm::console::network::Network;
++
+ /// Base trait for the Leo CLI, see methods and their documentation for details.
+ pub trait Command {
+     /// If the current command requires running another command beforehand
+@@ -128,7 +133,11 @@ pub trait Command {
+ /// require Build command output as their input.
+ #[derive(Parser, Clone, Debug)]
+ pub struct BuildOptions {
+-    #[clap(long, help = "Endpoint to retrieve network state from.", default_value = "http://api.explorer.aleo.org/v1")]
++    #[clap(
++        long,
++        help = "Endpoint to retrieve network state from.",
++        default_value = "https://api.explorer.aleo.org/v1"
++    )]
+     pub endpoint: String,
+     #[clap(long, help = "Network to broadcast to. Defaults to mainnet.", default_value = "mainnet")]
+     pub(crate) network: String,
+@@ -199,10 +208,12 @@ impl Default for BuildOptions {
+ 
+ /// On Chain Execution Options to set preferences for keys, fees and networks.
+ /// Used by Execute and Deploy commands.
+-#[derive(Parser, Clone, Debug)]
++#[derive(Parser, Clone, Debug, Default)]
+ pub struct FeeOptions {
++    #[clap(short, long, help = "Performs a dry-run of transaction generation")]
++    pub(crate) dry_run: bool,
+     #[clap(long, help = "Priority fee in microcredits. Defaults to 0.", default_value = "0")]
+-    pub(crate) priority_fee: String,
++    pub(crate) priority_fee: u64,
+     #[clap(long, help = "Private key to authorize fee expenditure.")]
+     pub(crate) private_key: Option<String>,
+     #[clap(
+@@ -213,8 +224,113 @@ pub struct FeeOptions {
+     record: Option<String>,
+ }
+ 
+-impl Default for FeeOptions {
+-    fn default() -> Self {
+-        Self { priority_fee: "0".to_string(), private_key: None, record: None }
++/// Parses the record string. If the string is a ciphertext, then attempt to decrypt it. Lifted from snarkOS.
++pub fn parse_record<N: Network>(private_key: &PrivateKey<N>, record: &str) -> Result<Record<N, Plaintext<N>>> {
++    match record.starts_with("record1") {
++        true => {
++            // Parse the ciphertext.
++            let ciphertext = Record::<N, Ciphertext<N>>::from_str(record)?;
++            // Derive the view key.
++            let view_key = ViewKey::try_from(private_key)?;
++            // Decrypt the ciphertext.
++            Ok(ciphertext.decrypt(&view_key)?)
++        }
++        false => Ok(Record::<N, Plaintext<N>>::from_str(record)?),
++    }
++}
++
++fn check_balance<N: Network>(
++    private_key: &PrivateKey<N>,
++    endpoint: &str,
++    network: &str,
++    context: Context,
++    total_cost: u64,
++) -> Result<()> {
++    // Derive the account address.
++    let address = Address::<N>::try_from(ViewKey::try_from(private_key)?)?;
++    // Query the public balance of the address on the `account` mapping from `credits.aleo`.
++    let mut public_balance = Query {
++        endpoint: endpoint.to_string(),
++        network: network.to_string(),
++        command: QueryCommands::Program {
++            command: crate::cli::commands::query::Program {
++                name: "credits".to_string(),
++                mappings: false,
++                mapping_value: Some(vec!["account".to_string(), address.to_string()]),
++            },
++        },
+     }
++    .execute(Context::new(context.path.clone(), context.home.clone(), true)?)?;
++    // Remove the last 3 characters since they represent the `u64` suffix.
++    public_balance.truncate(public_balance.len() - 3);
++    // Compare balance.
++    if public_balance.parse::<u64>().unwrap() < total_cost {
++        Err(PackageError::insufficient_balance(address, public_balance, total_cost).into())
++    } else {
++        Ok(())
++    }
++}
++
++/// Determine if the transaction should be broadcast or displayed to user.
++fn handle_broadcast<N: Network>(endpoint: &String, transaction: Transaction<N>, operation: &String) -> Result<()> {
++    println!("Broadcasting transaction to {}...", endpoint.clone());
++    // Get the transaction id.
++    let transaction_id = transaction.id();
++
++    // Send the deployment request to the local development node.
++    return match ureq::post(endpoint).send_json(&transaction) {
++        Ok(id) => {
++            // Remove the quotes from the response.
++            let _response_string =
++                id.into_string().map_err(CliError::string_parse_error)?.trim_matches('\"').to_string();
++
++            match transaction {
++                Transaction::Deploy(..) => {
++                    println!(
++                        "⌛ Deployment {transaction_id} ('{}') has been broadcast to {}.",
++                        operation.bold(),
++                        endpoint
++                    )
++                }
++                Transaction::Execute(..) => {
++                    println!(
++                        "⌛ Execution {transaction_id} ('{}') has been broadcast to {}.",
++                        operation.bold(),
++                        endpoint
++                    )
++                }
++                Transaction::Fee(..) => {
++                    println!("❌ Failed to broadcast fee '{}' to the {}.", operation.bold(), endpoint)
++                }
++            }
++            Ok(())
++        }
++        Err(error) => {
++            let error_message = match error {
++                ureq::Error::Status(code, response) => {
++                    format!("(status code {code}: {:?})", response.into_string().map_err(CliError::string_parse_error)?)
++                }
++                ureq::Error::Transport(err) => format!("({err})"),
++            };
++
++            let msg = match transaction {
++                Transaction::Deploy(..) => {
++                    format!("❌ Failed to deploy '{}' to {}: {}", operation.bold(), &endpoint, error_message)
++                }
++                Transaction::Execute(..) => {
++                    format!(
++                        "❌ Failed to broadcast execution '{}' to {}: {}",
++                        operation.bold(),
++                        &endpoint,
++                        error_message
++                    )
++                }
++                Transaction::Fee(..) => {
++                    format!("❌ Failed to broadcast fee '{}' to {}: {}", operation.bold(), &endpoint, error_message)
++                }
++            };
++
++            Err(CliError::broadcast_error(msg).into())
++        }
++    };
+ }
+diff --git a/leo/cli/commands/query/mod.rs b/leo/cli/commands/query/mod.rs
+index f5030f378f..2ca7645165 100644
+--- a/leo/cli/commands/query/mod.rs
++++ b/leo/cli/commands/query/mod.rs
+@@ -19,8 +19,8 @@ use super::*;
+ mod block;
+ use block::Block;
+ 
+-mod program;
+-use program::Program;
++pub mod program;
++pub use program::Program;
+ 
+ mod state_root;
+ use state_root::StateRoot;
+@@ -49,19 +49,19 @@ pub struct Query {
+         short,
+         long,
+         global = true,
+-        help = "Endpoint to retrieve network state from. Defaults to http://api.explorer.aleo.org/v1.",
+-        default_value = "http://api.explorer.aleo.org/v1"
++        help = "Endpoint to retrieve network state from. Defaults to https://api.explorer.aleo.org/v1.",
++        default_value = "https://api.explorer.aleo.org/v1"
+     )]
+     pub endpoint: String,
+-    #[clap(short, long, global = true, help = "Network to use. Defaults to testnet3.", default_value = "testnet3")]
++    #[clap(short, long, global = true, help = "Network to use. Defaults to mainnet.", default_value = "mainnet")]
+     pub(crate) network: String,
+     #[clap(subcommand)]
+-    command: QueryCommands,
++    pub command: QueryCommands,
+ }
+ 
+ impl Command for Query {
+     type Input = ();
+-    type Output = ();
++    type Output = String;
+ 
+     fn log_span(&self) -> Span {
+         tracing::span!(tracing::Level::INFO, "Leo")
+@@ -72,6 +72,7 @@ impl Command for Query {
+     }
+ 
+     fn apply(self, context: Context, _: Self::Input) -> Result<Self::Output> {
++        let recursive = context.recursive;
+         let output = match self.command {
+             QueryCommands::Block { command } => command.apply(context, ())?,
+             QueryCommands::Transaction { command } => command.apply(context, ())?,
+@@ -79,7 +80,7 @@ impl Command for Query {
+             QueryCommands::Stateroot { command } => command.apply(context, ())?,
+             QueryCommands::Committee { command } => command.apply(context, ())?,
+             QueryCommands::Mempool { command } => {
+-                if self.endpoint == "http://api.explorer.aleo.org/v1" {
++                if self.endpoint == "https://api.explorer.aleo.org/v1" {
+                     tracing::warn!(
+                         "⚠️  `leo query mempool` is only valid when using a custom endpoint. Specify one using `--endpoint`."
+                     );
+@@ -87,7 +88,7 @@ impl Command for Query {
+                 command.apply(context, ())?
+             }
+             QueryCommands::Peers { command } => {
+-                if self.endpoint == "http://api.explorer.aleo.org/v1" {
++                if self.endpoint == "https://api.explorer.aleo.org/v1" {
+                     tracing::warn!(
+                         "⚠️  `leo query peers` is only valid when using a custom endpoint. Specify one using `--endpoint`."
+                     );
+@@ -103,10 +104,13 @@ impl Command for Query {
+             .call()
+             .map_err(|err| UtilError::failed_to_retrieve_from_endpoint(err, Default::default()))?;
+         if response.status() == 200 {
+-            tracing::info!("✅ Successfully retrieved data from '{url}'.\n");
+             // Unescape the newlines.
+-            println!("{}\n", response.into_string().unwrap().replace("\\n", "\n"));
+-            Ok(())
++            let result = response.into_string().unwrap().replace("\\n", "\n").replace('\"', "");
++            if !recursive {
++                tracing::info!("✅ Successfully retrieved data from '{url}'.\n");
++                println!("{}\n", result);
++            }
++            Ok(result)
+         } else {
+             Err(UtilError::network_error(url, response.status(), Default::default()).into())
+         }
+@@ -114,7 +118,7 @@ impl Command for Query {
+ }
+ 
+ #[derive(Parser, Debug)]
+-enum QueryCommands {
++pub enum QueryCommands {
+     #[clap(about = "Query block information")]
+     Block {
+         #[clap(flatten)]
+diff --git a/leo/cli/helpers/context.rs b/leo/cli/helpers/context.rs
+index e80ec3ddcc..ca1cbdde3e 100644
+--- a/leo/cli/helpers/context.rs
++++ b/leo/cli/helpers/context.rs
+@@ -39,11 +39,14 @@ pub struct Context {
+     pub path: Option<PathBuf>,
+     /// Path to use for the Aleo registry, None when default
+     pub home: Option<PathBuf>,
++    /// Recursive flag.
++    // TODO: Shift from callee to caller by including display method
++    pub recursive: bool,
+ }
+ 
+ impl Context {
+-    pub fn new(path: Option<PathBuf>, home: Option<PathBuf>) -> Result<Context> {
+-        Ok(Context { path, home })
++    pub fn new(path: Option<PathBuf>, home: Option<PathBuf>, recursive: bool) -> Result<Context> {
++        Ok(Context { path, home, recursive })
+     }
+ 
+     /// Returns the path of the parent directory to the Leo package.
+diff --git a/leo/package/Cargo.toml b/leo/package/Cargo.toml
+index a0ac2621e6..ed2c7a6299 100644
+--- a/leo/package/Cargo.toml
++++ b/leo/package/Cargo.toml
+@@ -26,9 +26,6 @@ version = "=1.12.0"
+ path = "../../utils/retriever"
+ version = "1.12.0"
+ 
+-[dependencies.snarkos-cli]
+-workspace = true
+-
+ [dependencies.snarkvm]
+ workspace = true
+ 
+@@ -40,6 +37,9 @@ default-features = false
+ version = "1.9"
+ features = [ "serde" ]
+ 
++[dependencies.num-format]
++version = "0.4.4"
++
+ [dependencies.rand]
+ version = "0.8"
+ 
+@@ -50,6 +50,9 @@ features = [ "derive" ]
+ [dependencies.serial_test]
+ version = "3.1.1"
+ 
++[dependencies.text-tables]
++version = "0.3.1"
++
+ [dependencies.toml]
+ version = "0.8"
+ 

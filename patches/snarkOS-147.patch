@@ -1,0 +1,115 @@
+diff --git a/.cargo/config b/.cargo/config
+index 81ae99b32..8dab6d1fb 100644
+--- a/.cargo/config
++++ b/.cargo/config
+@@ -3,3 +3,4 @@ rustflags = ["-C", "target-cpu=native"]
+ 
+ [target.wasm32-unknown-unknown]
+ runner = 'wasm-bindgen-test-runner'
++crate-type = ["cdylib"]
+diff --git a/algorithms/src/crh/pedersen.rs b/algorithms/src/crh/pedersen.rs
+index 68b709359..48d37550d 100644
+--- a/algorithms/src/crh/pedersen.rs
++++ b/algorithms/src/crh/pedersen.rs
+@@ -7,7 +7,7 @@ use snarkos_models::{
+ 
+ use rand::Rng;
+ 
+-// #[cfg(feature = "pedersen-parallel")]
++#[cfg(feature = "pedersen-parallel")]
+ use rayon::prelude::*;
+ 
+ pub fn bytes_to_bits(bytes: &[u8]) -> Vec<bool> {
+@@ -69,38 +69,38 @@ impl<G: Group, S: PedersenSize> CRH for PedersenCRH<G, S> {
+ 
+         // Compute sum of h_i^{m_i} for all i.
+         let result = {
+-            // #[cfg(feature = "pedersen-parallel")]
+-            // {
+-            bytes_to_bits(input)
+-                .par_chunks(S::WINDOW_SIZE)
+-                .zip(&self.parameters.bases)
+-                .map(|(bits, powers)| {
+-                    let mut encoded = G::zero();
+-                    for (bit, base) in bits.iter().zip(powers.iter()) {
+-                        if *bit {
+-                            encoded += base;
++            #[cfg(feature = "pedersen-parallel")]
++            {
++                bytes_to_bits(input)
++                    .par_chunks(S::WINDOW_SIZE)
++                    .zip(&self.parameters.bases)
++                    .map(|(bits, powers)| {
++                        let mut encoded = G::zero();
++                        for (bit, base) in bits.iter().zip(powers.iter()) {
++                            if *bit {
++                                encoded += base;
++                            }
+                         }
+-                    }
+-                    encoded
+-                })
+-                .reduce(G::zero, |a, b| a + &b)
+-            // }
+-            // #[cfg(not(feature = "pedersen-parallel"))]
+-            // {
+-            //     bytes_to_bits(input)
+-            //         .chunks(S::WINDOW_SIZE)
+-            //         .zip(&self.parameters.bases)
+-            //         .map(|(bits, powers)| {
+-            //             let mut encoded = G::zero();
+-            //             for (bit, base) in bits.iter().zip(powers.iter()) {
+-            //                 if *bit {
+-            //                     encoded += base;
+-            //                 }
+-            //             }
+-            //             encoded
+-            //         })
+-            //         .fold(G::zero(), |a, b| a + &b)
+-            // }
++                        encoded
++                    })
++                    .reduce(G::zero, |a, b| a + &b)
++            }
++            #[cfg(not(feature = "pedersen-parallel"))]
++            {
++                bytes_to_bits(input)
++                    .chunks(S::WINDOW_SIZE)
++                    .zip(&self.parameters.bases)
++                    .map(|(bits, powers)| {
++                        let mut encoded = G::zero();
++                        for (bit, base) in bits.iter().zip(powers.iter()) {
++                            if *bit {
++                                encoded += base;
++                            }
++                        }
++                        encoded
++                    })
++                    .fold(G::zero(), |a, b| a + &b)
++            }
+         };
+ 
+         Ok(result)
+diff --git a/toolkit/src/lib.rs b/toolkit/src/lib.rs
+index 95cab0664..508dd1da7 100644
+--- a/toolkit/src/lib.rs
++++ b/toolkit/src/lib.rs
+@@ -1,5 +1,7 @@
+ #[macro_use]
+ extern crate thiserror;
++
++#[cfg(target_arch = "wasm32")]
+ #[macro_use]
+ extern crate wasm_bindgen_test;
+ 
+diff --git a/toolkit/src/wasm/mod.rs b/toolkit/src/wasm/mod.rs
+index a1367f2c8..a53c216a2 100644
+--- a/toolkit/src/wasm/mod.rs
++++ b/toolkit/src/wasm/mod.rs
+@@ -1,5 +1,6 @@
+ pub mod account;
+ pub use account::*;
+ 
++#[cfg(target_arch = "wasm32")]
+ #[cfg(test)]
+ pub mod tests;

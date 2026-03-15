@@ -1,0 +1,36 @@
+diff --git a/synthesizer/program/src/logic/instruction/operation/snark_verify.rs b/synthesizer/program/src/logic/instruction/operation/snark_verify.rs
+index a03d9d0d2..d04e4816b 100644
+--- a/synthesizer/program/src/logic/instruction/operation/snark_verify.rs
++++ b/synthesizer/program/src/logic/instruction/operation/snark_verify.rs
+@@ -88,7 +88,7 @@ impl<N: Network, const VARIANT: u8> SnarkVerification<N, VARIANT> {
+     /// Returns the operands in the operation.
+     #[inline]
+     pub fn operands(&self) -> &[Operand<N>] {
+-        // Sanity check that there are exactly three operands.
++        // Sanity check that there are exactly four operands.
+         debug_assert!(self.operands.len() == 4, "Instruction '{}' must have four operands", Self::opcode());
+         // Return the operands.
+         &self.operands
+@@ -306,7 +306,7 @@ impl<N: Network, const VARIANT: u8> SnarkVerification<N, VARIANT> {
+         let inputs = registers.load(stack, &self.operands[2])?;
+         let proof = registers.load(stack, &self.operands[3])?;
+ 
+-        // Verify the signature.
++        // Verify the proof.
+         let _function_name = "snark.verify";
+         let output = evaluate_varuna_proof_internal(
+             SnarkVerifyVariant::new(VARIANT),
+diff --git a/synthesizer/src/vm/verify.rs b/synthesizer/src/vm/verify.rs
+index d4bcb4d90..c050d3e17 100644
+--- a/synthesizer/src/vm/verify.rs
++++ b/synthesizer/src/vm/verify.rs
+@@ -141,8 +141,7 @@ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+         lap!(timer, "Check for duplicate elements");
+ 
+         // Get the consensus version.
+-        let current_block_height = self.block_store().current_block_height();
+-        let consensus_version = N::CONSENSUS_VERSION(self.block_store().current_block_height())?;
++        let consensus_version = N::CONSENSUS_VERSION(current_block_height)?;
+ 
+         // Construct the transaction checksum.
+         let checksum = Data::<Transaction<N>>::Buffer(transaction.to_bytes_le()?.into()).to_checksum::<N>()?;

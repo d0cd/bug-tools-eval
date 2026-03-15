@@ -1,0 +1,2346 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 196bbcc91..b97e470ba 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -4542,7 +4542,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "anyhow",
+  "dotenvy",
+@@ -4565,7 +4565,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-algorithms"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -4593,7 +4593,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-algorithms-cuda"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "blst",
+  "cc",
+@@ -4604,7 +4604,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-account",
+  "snarkvm-circuit-algorithms",
+@@ -4618,7 +4618,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-account"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-network",
+  "snarkvm-circuit-types",
+@@ -4628,7 +4628,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-algorithms"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-types",
+  "snarkvm-console-algorithms",
+@@ -4638,7 +4638,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-collections"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-algorithms",
+  "snarkvm-circuit-types",
+@@ -4648,7 +4648,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-environment"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "indexmap 2.12.1",
+  "itertools 0.14.0",
+@@ -4666,12 +4666,12 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-environment-witness"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ 
+ [[package]]
+ name = "snarkvm-circuit-network"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-algorithms",
+  "snarkvm-circuit-collections",
+@@ -4682,7 +4682,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-program"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-account",
+  "snarkvm-circuit-algorithms",
+@@ -4696,7 +4696,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-address",
+@@ -4711,7 +4711,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-address"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -4724,7 +4724,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-boolean"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-console-types-boolean",
+@@ -4733,7 +4733,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-field"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -4743,7 +4743,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-group"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -4755,7 +4755,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-integers"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -4767,7 +4767,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-scalar"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -4778,7 +4778,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-circuit-types-string"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-circuit-environment",
+  "snarkvm-circuit-types-boolean",
+@@ -4790,7 +4790,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-console-account",
+  "snarkvm-console-algorithms",
+@@ -4803,7 +4803,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-account"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "bs58",
+  "snarkvm-console-network",
+@@ -4814,7 +4814,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-algorithms"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "blake2s_simd",
+  "hex",
+@@ -4829,7 +4829,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-collections"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "aleo-std",
+  "rayon",
+@@ -4840,7 +4840,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-network"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "anyhow",
+  "enum-iterator",
+@@ -4860,7 +4860,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-network-environment"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "anyhow",
+  "bech32",
+@@ -4878,7 +4878,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-program"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "enum-iterator",
+  "enum_index",
+@@ -4899,7 +4899,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-address",
+@@ -4914,7 +4914,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-address"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -4925,7 +4925,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-boolean"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-console-network-environment",
+ ]
+@@ -4933,7 +4933,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-field"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -4943,7 +4943,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-group"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -4954,7 +4954,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-integers"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -4965,7 +4965,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-scalar"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -4976,7 +4976,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-console-types-string"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-console-network-environment",
+  "snarkvm-console-types-boolean",
+@@ -4987,7 +4987,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-curves"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "rand 0.8.5",
+  "rayon",
+@@ -5001,7 +5001,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-fields"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -5018,7 +5018,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -5048,7 +5048,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-authority"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "anyhow",
+  "rand 0.8.5",
+@@ -5060,7 +5060,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-block"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "anyhow",
+  "indexmap 2.12.1",
+@@ -5082,7 +5082,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-committee"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "anyhow",
+  "indexmap 2.12.1",
+@@ -5101,7 +5101,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-ledger-narwhal-batch-certificate",
+  "snarkvm-ledger-narwhal-batch-header",
+@@ -5114,7 +5114,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal-batch-certificate"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "indexmap 2.12.1",
+  "rayon",
+@@ -5127,7 +5127,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal-batch-header"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "indexmap 2.12.1",
+  "rayon",
+@@ -5140,7 +5140,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal-data"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "bytes",
+  "serde_json",
+@@ -5151,7 +5151,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal-subdag"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "indexmap 2.12.1",
+  "rayon",
+@@ -5166,7 +5166,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal-transmission"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "bytes",
+  "serde_json",
+@@ -5179,7 +5179,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-narwhal-transmission-id"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "snarkvm-console",
+  "snarkvm-ledger-puzzle",
+@@ -5188,7 +5188,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-puzzle"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -5208,7 +5208,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-puzzle-epoch"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -5231,7 +5231,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-query"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "anyhow",
+  "async-trait",
+@@ -5248,7 +5248,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-store"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "aleo-std-storage",
+  "anyhow",
+@@ -5276,7 +5276,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-ledger-test-helpers"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -5294,7 +5294,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-metrics"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "metrics",
+ ]
+@@ -5302,7 +5302,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-parameters"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -5325,7 +5325,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-synthesizer"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -5359,7 +5359,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-synthesizer-process"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "aleo-std",
+  "colored 3.0.0",
+@@ -5384,7 +5384,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-synthesizer-program"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "enum-iterator",
+  "indexmap 2.12.1",
+@@ -5403,7 +5403,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-synthesizer-snark"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "bincode",
+  "serde_json",
+@@ -5416,7 +5416,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-utilities"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "aleo-std",
+  "anyhow",
+@@ -5439,7 +5439,7 @@ dependencies = [
+ [[package]]
+ name = "snarkvm-utilities-derives"
+ version = "4.4.0"
+-source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=b176b1409#b176b14095a58bbcba6b31f975015c4293ad18d4"
++source = "git+https://github.com/ProvableHQ/snarkVM.git?rev=d8e736636dd#d8e736636dd11e1cf11717977802c61184da1cb2"
+ dependencies = [
+  "proc-macro2",
+  "quote 1.0.42",
+diff --git a/Cargo.toml b/Cargo.toml
+index d0c3363ea..9c441c07c 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -48,7 +48,7 @@ default-features = false
+ [workspace.dependencies.snarkvm]
+ #path = "../snarkVM"
+ git = "https://github.com/ProvableHQ/snarkVM.git"
+-rev = "b176b1409"
++rev = "d8e736636dd"
+ #version = "=4.4.0"
+ default-features = false
+ 
+diff --git a/cli/src/helpers/logger.rs b/cli/src/helpers/logger.rs
+index 01e431127..487ca0973 100644
+--- a/cli/src/helpers/logger.rs
++++ b/cli/src/helpers/logger.rs
+@@ -109,7 +109,9 @@ fn parse_log_filter(filter_str: &str) -> Result<EnvFilter> {
+ }
+ 
+ /// Sets the log filter based on the given verbosity level.
++/// Initializes the logger with the specified verbosity level, where 0 is the lowest verbosity and 6 the highest.
+ ///
++/// The following shows what messages are enabled at each level.
+ /// ```ignore
+ /// 0 => info
+ /// 1 => info, debug
+diff --git a/node/bft/ledger-service/src/ledger.rs b/node/bft/ledger-service/src/ledger.rs
+index 95c63d662..425b51177 100644
+--- a/node/bft/ledger-service/src/ledger.rs
++++ b/node/bft/ledger-service/src/ledger.rs
+@@ -19,8 +19,10 @@ use snarkos_utilities::Stoppable;
+ 
+ use snarkvm::{
+     ledger::{
++        Block,
+         Ledger,
+-        block::{Block, Transaction},
++        PendingBlock,
++        Transaction,
+         committee::Committee,
+         narwhal::{BatchCertificate, Data, Subdag, Transmission, TransmissionID},
+         puzzle::{Solution, SolutionID},
+@@ -336,6 +338,14 @@ impl<N: Network, C: ConsensusStorage<N>> LedgerService<N> for CoreLedgerService<
+         spawn_blocking!(ledger.check_transaction_basic(&transaction, None, &mut rand::thread_rng()))
+     }
+ 
++    fn check_block_subdag(&self, block: Block<N>, prefix: &[PendingBlock<N>]) -> Result<PendingBlock<N>> {
++        self.ledger.check_block_subdag(block, prefix)
++    }
++
++    fn check_block_content(&self, block: PendingBlock<N>) -> Result<Block<N>> {
++        self.ledger.check_block_content(block, &mut rand::thread_rng())
++    }
++
+     /// Checks the given block is valid next block.
+     fn check_next_block(&self, block: &Block<N>) -> Result<()> {
+         self.ledger.check_next_block(block, &mut rand::thread_rng())
+diff --git a/node/bft/ledger-service/src/mock.rs b/node/bft/ledger-service/src/mock.rs
+index a34e28d1e..a0c335f2a 100644
+--- a/node/bft/ledger-service/src/mock.rs
++++ b/node/bft/ledger-service/src/mock.rs
+@@ -16,7 +16,9 @@
+ use crate::{LedgerService, fmt_id};
+ use snarkvm::{
+     ledger::{
+-        block::{Block, Transaction},
++        Block,
++        PendingBlock,
++        Transaction,
+         committee::Committee,
+         narwhal::{BatchCertificate, Data, Subdag, Transmission, TransmissionID},
+         puzzle::{Solution, SolutionID},
+@@ -211,6 +213,14 @@ impl<N: Network> LedgerService<N> for MockLedgerService<N> {
+         Ok(())
+     }
+ 
++    fn check_block_subdag(&self, _block: Block<N>, _prefix: &[PendingBlock<N>]) -> Result<PendingBlock<N>> {
++        unimplemented!();
++    }
++
++    fn check_block_content(&self, _block: PendingBlock<N>) -> Result<Block<N>> {
++        unimplemented!();
++    }
++
+     /// Checks the given block is valid next block.
+     fn check_next_block(&self, _block: &Block<N>) -> Result<()> {
+         Ok(())
+diff --git a/node/bft/ledger-service/src/prover.rs b/node/bft/ledger-service/src/prover.rs
+index 02854f368..b496c58c9 100644
+--- a/node/bft/ledger-service/src/prover.rs
++++ b/node/bft/ledger-service/src/prover.rs
+@@ -16,7 +16,9 @@
+ use crate::LedgerService;
+ use snarkvm::{
+     ledger::{
+-        block::{Block, Transaction},
++        Block,
++        PendingBlock,
++        Transaction,
+         committee::Committee,
+         narwhal::{BatchCertificate, Data, Subdag, Transmission, TransmissionID},
+         puzzle::{Solution, SolutionID},
+@@ -166,6 +168,14 @@ impl<N: Network> LedgerService<N> for ProverLedgerService<N> {
+         Ok(())
+     }
+ 
++    fn check_block_subdag(&self, _block: Block<N>, _prefix: &[PendingBlock<N>]) -> Result<PendingBlock<N>> {
++        bail!("Cannot check block subDAG in prover")
++    }
++
++    fn check_block_content(&self, _pending_block: PendingBlock<N>) -> Result<Block<N>> {
++        bail!("Cannot check block content in prover")
++    }
++
+     /// Checks the given block is valid next block.
+     fn check_next_block(&self, _block: &Block<N>) -> Result<()> {
+         Ok(())
+diff --git a/node/bft/ledger-service/src/traits.rs b/node/bft/ledger-service/src/traits.rs
+index 842fb19f6..99576fc53 100644
+--- a/node/bft/ledger-service/src/traits.rs
++++ b/node/bft/ledger-service/src/traits.rs
+@@ -15,7 +15,9 @@
+ 
+ use snarkvm::{
+     ledger::{
+-        block::{Block, Transaction},
++        Block,
++        PendingBlock,
++        Transaction,
+         committee::Committee,
+         narwhal::{BatchCertificate, Data, Subdag, Transmission, TransmissionID},
+         puzzle::{Solution, SolutionID},
+@@ -106,6 +108,12 @@ pub trait LedgerService<N: Network>: Debug + Send + Sync {
+         transaction: Transaction<N>,
+     ) -> Result<()>;
+ 
++    /// Checks that the subDAG in a given block is valid, but does not fully verify the block.
++    fn check_block_subdag(&self, block: Block<N>, prefix: &[PendingBlock<N>]) -> Result<PendingBlock<N>>;
++
++    /// Takes a pending block and performs the remaining checks to full verify it.
++    fn check_block_content(&self, _block: PendingBlock<N>) -> Result<Block<N>>;
++
+     /// Checks the given block is valid next block.
+     fn check_next_block(&self, block: &Block<N>) -> Result<()>;
+ 
+diff --git a/node/bft/ledger-service/src/translucent.rs b/node/bft/ledger-service/src/translucent.rs
+index b4ffb988d..e7f38e2cd 100644
+--- a/node/bft/ledger-service/src/translucent.rs
++++ b/node/bft/ledger-service/src/translucent.rs
+@@ -19,8 +19,10 @@ use snarkos_utilities::Stoppable;
+ 
+ use snarkvm::{
+     ledger::{
++        Block,
+         Ledger,
+-        block::{Block, Transaction},
++        PendingBlock,
++        Transaction,
+         committee::Committee,
+         narwhal::{Data, Subdag, Transmission, TransmissionID},
+         puzzle::{Solution, SolutionID},
+@@ -177,6 +179,14 @@ impl<N: Network, C: ConsensusStorage<N>> LedgerService<N> for TranslucentLedgerS
+         Ok(())
+     }
+ 
++    fn check_block_subdag(&self, _block: Block<N>, _prefix: &[PendingBlock<N>]) -> Result<PendingBlock<N>> {
++        unimplemented!();
++    }
++
++    fn check_block_content(&self, _block: PendingBlock<N>) -> Result<Block<N>> {
++        unimplemented!();
++    }
++
+     /// Always succeeds.
+     fn check_next_block(&self, _block: &Block<N>) -> Result<()> {
+         Ok(())
+diff --git a/node/bft/src/bft.rs b/node/bft/src/bft.rs
+index cc3159e86..0ce559dab 100644
+--- a/node/bft/src/bft.rs
++++ b/node/bft/src/bft.rs
+@@ -524,18 +524,18 @@ impl<N: Network> BFT<N> {
+         trace!("Checking if the leader is ready to be committed for round {commit_round}...");
+ 
+         // Retrieve the committee lookback for the commit round.
+-        let Ok(committee_lookback) = self.ledger().get_committee_lookback_for_round(commit_round) else {
+-            bail!("BFT failed to retrieve the committee with lag for commit round {commit_round}");
+-        };
++        let committee_lookback = self.ledger().get_committee_lookback_for_round(commit_round).with_context(|| {
++            format!("BFT failed to retrieve the committee with lag for commit round {commit_round}")
++        })?;
+ 
+         // Either retrieve the cached leader or compute it.
+         let leader = match self.ledger().latest_leader() {
+             Some((cached_round, cached_leader)) if cached_round == commit_round => cached_leader,
+             _ => {
+                 // Compute the leader for the commit round.
+-                let Ok(computed_leader) = committee_lookback.get_leader(commit_round) else {
+-                    bail!("BFT failed to compute the leader for commit round {commit_round}");
+-                };
++                let computed_leader = committee_lookback
++                    .get_leader(commit_round)
++                    .with_context(|| format!("BFT failed to compute the leader for commit round {commit_round}"))?;
+ 
+                 // Cache the computed leader.
+                 self.ledger().update_latest_leader(commit_round, computed_leader);
+@@ -551,15 +551,16 @@ impl<N: Network> BFT<N> {
+             return Ok(());
+         };
+         // Retrieve all of the certificates for the **certificate** round.
+-        let Some(certificates) = self.dag.read().get_certificates_for_round(certificate_round) else {
+-            // TODO (howardwu): Investigate how many certificates we should have at this point.
+-            bail!("BFT failed to retrieve the certificates for certificate round {certificate_round}");
+-        };
++        let certificates = self.dag.read().get_certificates_for_round(certificate_round).with_context(|| {
++            format!("BFT failed to retrieve the certificates for certificate round {certificate_round}")
++        })?;
++
+         // Retrieve the committee lookback for the certificate round (i.e. the round just after the commit round).
+-        let Ok(certificate_committee_lookback) = self.ledger().get_committee_lookback_for_round(certificate_round)
+-        else {
+-            bail!("BFT failed to retrieve the committee lookback for certificate round {certificate_round}");
+-        };
++        let certificate_committee_lookback =
++            self.ledger().get_committee_lookback_for_round(certificate_round).with_context(|| {
++                format!("BFT failed to retrieve the committee lookback for certificate round {certificate_round}")
++            })?;
++
+         // Construct a set over the authors who included the leader's certificate in the certificate round.
+         let authors = certificates
+             .values()
+@@ -571,12 +572,15 @@ impl<N: Network> BFT<N> {
+         // Check if the leader is ready to be committed.
+         if !certificate_committee_lookback.is_availability_threshold_reached(&authors) {
+             // If the leader is not ready to be committed, return early.
+-            trace!("BFT is not ready to commit {commit_round}");
++            trace!("BFT is not ready to commit {commit_round}. Availability threshold has not been reached yet.");
+             return Ok(());
+         }
+ 
+-        /* Proceeding to commit the leader. */
+-        info!("Proceeding to commit round {commit_round} with leader '{}'", fmt_id(leader));
++        if IS_SYNCING {
++            info!("Proceeding to commit round {commit_round} with leader '{}' from block sync", fmt_id(leader));
++        } else {
++            info!("Proceeding to commit round {commit_round} with leader '{}'", fmt_id(leader));
++        }
+ 
+         // Commit the leader certificate, and all previous leader certificates since the last committed round.
+         self.commit_leader_certificate::<ALLOW_LEDGER_ACCESS, IS_SYNCING>(leader_certificate).await
+@@ -648,10 +652,9 @@ impl<N: Network> BFT<N> {
+             // Retrieve the leader certificate round.
+             let leader_round = leader_certificate.round();
+             // Compute the commit subdag.
+-            let commit_subdag = match self.order_dag_with_dfs::<ALLOW_LEDGER_ACCESS>(leader_certificate) {
+-                Ok(subdag) => subdag,
+-                Err(e) => bail!("BFT failed to order the DAG with DFS - {e}"),
+-            };
++            let commit_subdag = self
++                .order_dag_with_dfs::<ALLOW_LEDGER_ACCESS>(leader_certificate)
++                .with_context(|| "BFT failed to order the DAG with DFS")?;
+             // If the node is not syncing, trigger consensus, as this will build a new block for the ledger.
+             if !IS_SYNCING {
+                 // Initialize a map for the deduped transmissions.
+@@ -694,14 +697,14 @@ impl<N: Network> BFT<N> {
+                             continue;
+                         }
+                         // Retrieve the transmission.
+-                        let Some(transmission) = self.storage().get_transmission(*transmission_id) else {
+-                            bail!(
++                        let transmission = self.storage().get_transmission(*transmission_id).with_context(|| {
++                            format!(
+                                 "BFT failed to retrieve transmission '{}.{}' from round {}",
+                                 fmt_id(transmission_id),
+                                 fmt_id(transmission_id.checksum().unwrap_or_default()).dimmed(),
+                                 certificate.round()
+-                            );
+-                        };
++                            )
++                        })?;
+                         // Insert the transaction ID or solution ID into the map.
+                         match transmission_id {
+                             TransmissionID::Solution(id, _) => {
+@@ -757,14 +760,20 @@ impl<N: Network> BFT<N> {
+                 }
+ 
+                 info!(
+-                    "\n\nCommitting a subdag from round {anchor_round} with {num_transmissions} transmissions: {subdag_metadata:?}\n"
++                    "\n\nCommitting a subDAG with anchor round {anchor_round} and {num_transmissions} transmissions: {subdag_metadata:?} (syncing={IS_SYNCING})\n",
+                 );
+             }
+ 
+             // Update the DAG, as the subdag was successfully included into a block.
+-            let mut dag_write = self.dag.write();
+-            for certificate in commit_subdag.values().flatten() {
+-                dag_write.commit(certificate, self.storage().max_gc_rounds());
++            {
++                let mut dag_write = self.dag.write();
++                let mut count = 0;
++                for certificate in commit_subdag.values().flatten() {
++                    dag_write.commit(certificate, self.storage().max_gc_rounds());
++                    count += 1;
++                }
++
++                trace!("Committed {count} certificates to the DAG");
+             }
+ 
+             // Update the validator telemetry.
+diff --git a/node/bft/src/helpers/storage.rs b/node/bft/src/helpers/storage.rs
+index ee0450c78..46d4beafe 100644
+--- a/node/bft/src/helpers/storage.rs
++++ b/node/bft/src/helpers/storage.rs
+@@ -22,9 +22,10 @@ use snarkvm::{
+         narwhal::{BatchCertificate, BatchHeader, Transmission, TransmissionID},
+     },
+     prelude::{Address, Field, Network, Result, anyhow, bail, ensure},
+-    utilities::{cfg_into_iter, cfg_iter, cfg_sorted_by},
++    utilities::{cfg_into_iter, cfg_iter, cfg_sorted_by, flatten_error},
+ };
+ 
++use anyhow::Context;
+ use indexmap::{IndexMap, IndexSet, map::Entry};
+ #[cfg(feature = "locktick")]
+ use locktick::parking_lot::RwLock;
+@@ -124,7 +125,7 @@ impl<N: Network> Storage<N> {
+         let storage = Self(Arc::new(StorageInner {
+             ledger,
+             current_height: Default::default(),
+-            current_round: Default::default(),
++            current_round: AtomicU64::new(current_round),
+             gc_round: Default::default(),
+             max_gc_rounds,
+             rounds: Default::default(),
+@@ -133,8 +134,6 @@ impl<N: Network> Storage<N> {
+             batch_ids: Default::default(),
+             transmissions,
+         }));
+-        // Update the storage to the current round.
+-        storage.update_current_round(current_round);
+         // Perform GC on the current round.
+         // Since there are no certificates yet, this only sets `gc_round`.
+         storage.garbage_collect_certificates(current_round);
+@@ -183,6 +182,8 @@ impl<N: Network> Storage<N> {
+             if next_round < storage_round {
+                 return Ok(storage_round);
+             }
++
++            trace!("Incrementing storage from round {storage_round} to {next_round}");
+         }
+ 
+         // Retrieve the current committee.
+@@ -416,6 +417,12 @@ impl<N: Network> Storage<N> {
+ 
+     /// Checks the given `batch_header` for validity, returning the missing transmissions from storage.
+     ///
++    /// # Arguments
++    /// - `batch_header`: The batch header to check.
++    /// - `transmissions`: All transmissions referenced by the certificate.
++    /// - `aborted_transmissions`: The set of aborted transmissions in this certificate.
++    ///
++    /// # Invariants
+     /// This method ensures the following invariants:
+     /// - The batch ID does not already exist in storage.
+     /// - The author is a member of the committee for the batch round.
+@@ -560,6 +567,12 @@ impl<N: Network> Storage<N> {
+ 
+     /// Checks the given `certificate` for validity, returning the missing transmissions from storage.
+     ///
++    /// # Arguments
++    /// - `certificate`: The certificate to check.
++    /// - `transmissions`: The transmissions contained in the certificate.
++    /// - `aborted_transmissions`: The aborted transmission contained in the certificate.
++    ///
++    /// # Invariants
+     /// This method ensures the following invariants:
+     /// - The certificate ID does not already exist in storage.
+     /// - The batch ID does not already exist in storage.
+@@ -640,6 +653,12 @@ impl<N: Network> Storage<N> {
+     ///
+     /// This method triggers updates to the `rounds`, `certificates`, `batch_ids`, and `transmissions` maps.
+     ///
++    /// # Arguments
++    /// - `certificate`: The certificate to insert.
++    /// - `transmissions`: The transmissions contained in the certificate, or the subset of the transmissions that in the certificate that do not yet exist in storage.
++    /// - `aborted_transmissions`: The aborted transmission contained in the certificate.
++    ///
++    /// # Invariants
+     /// This method ensures the following invariants:
+     /// - The certificate ID does not already exist in storage.
+     /// - The batch ID does not already exist in storage.
+@@ -712,7 +731,7 @@ impl<N: Network> Storage<N> {
+         Ok(())
+     }
+ 
+-    /// Removes the given `certificate ID` from storage.
++    /// Removes the given `certificate ID` from storage. This method is used to garbage collect individual certificates once blocks are committed.
+     ///
+     /// This method triggers updates to the `rounds`, `certificates`, `batch_ids`, and `transmissions` maps.
+     ///
+@@ -770,7 +789,7 @@ impl<N: Network> Storage<N> {
+ 
+     /// Syncs the current round with the block.
+     pub(crate) fn sync_round_with_block(&self, next_round: u64) {
+-        // Retrieve the current round in the block.
++        // Ensure we sync to at least round 1.
+         let next_round = next_round.max(1);
+         // If the round in the block is greater than the current round in storage, sync the round.
+         if next_round > self.current_round() {
+@@ -778,6 +797,11 @@ impl<N: Network> Storage<N> {
+             self.update_current_round(next_round);
+             // Log the updated round.
+             info!("Synced to round {next_round}...");
++        } else {
++            trace!(
++                "Skipping sync to round {next_round} as it is less than the current round ({})",
++                self.current_round()
++            );
+         }
+     }
+ 
+@@ -882,8 +906,12 @@ impl<N: Network> Storage<N> {
+             certificate.round(),
+             certificate.transmission_ids().len()
+         );
+-        if let Err(error) = self.insert_certificate(certificate, missing_transmissions, aborted_transmissions) {
+-            error!("Failed to insert certificate '{certificate_id}' from block {} - {error}", block.height());
++
++        if let Err(error) = self
++            .insert_certificate(certificate, missing_transmissions, aborted_transmissions)
++            .with_context(|| format!("Failed to insert certificate '{certificate_id}' from block {}", block.height()))
++        {
++            error!("{}", &flatten_error(&error));
+         }
+     }
+ }
+diff --git a/node/bft/src/primary.rs b/node/bft/src/primary.rs
+index b7bfca751..f04389ae7 100644
+--- a/node/bft/src/primary.rs
++++ b/node/bft/src/primary.rs
+@@ -1827,9 +1827,7 @@ impl<N: Network> Primary<N> {
+         let (missing_transmissions, missing_previous_certificates) = tokio::try_join!(
+             missing_transmissions_handle,
+             missing_previous_certificates_handle,
+-        ).map_err(|e| {
+-            anyhow!("Failed to fetch missing transmissions and previous certificates for round {batch_round} from '{peer_ip}' - {e}")
+-        })?;
++        ).with_context(|| format!("Failed to fetch missing transmissions and previous certificates for round {batch_round} from '{peer_ip}"))?;
+ 
+         // Iterate through the missing previous certificates.
+         for batch_certificate in missing_previous_certificates {
+diff --git a/node/bft/src/sync/mod.rs b/node/bft/src/sync/mod.rs
+index a8c097105..d6e4ce2a2 100644
+--- a/node/bft/src/sync/mod.rs
++++ b/node/bft/src/sync/mod.rs
+@@ -31,12 +31,11 @@ use snarkvm::{
+         network::{ConsensusVersion, Network},
+         types::Field,
+     },
+-    ledger::{authority::Authority, block::Block, narwhal::BatchCertificate},
+-    prelude::{cfg_into_iter, cfg_iter},
+-    utilities::flatten_error,
++    ledger::{PendingBlock, authority::Authority, block::Block, narwhal::BatchCertificate},
++    utilities::{cfg_into_iter, cfg_iter, ensure_equals, flatten_error},
+ };
+ 
+-use anyhow::{Context, Result, anyhow, bail};
++use anyhow::{Context, Result, anyhow, bail, ensure};
+ use indexmap::IndexMap;
+ #[cfg(feature = "locktick")]
+ use locktick::{parking_lot::Mutex, tokio::Mutex as TMutex};
+@@ -45,7 +44,7 @@ use parking_lot::Mutex;
+ #[cfg(not(feature = "serial"))]
+ use rayon::prelude::*;
+ use std::{
+-    collections::{BTreeMap, HashMap},
++    collections::{HashMap, VecDeque},
+     future::Future,
+     net::SocketAddr,
+     sync::Arc,
+@@ -92,12 +91,12 @@ pub struct Sync<N: Network> {
+     sync_lock: Arc<TMutex<()>>,
+     /// The latest block responses.
+     ///
+-    /// This is used in [`Sync::sync_storage_with_block()`] to accumulate blocks  whose addition to the ledger is
+-    /// deferred until certain checks pass.
++    /// This is used in [`Sync::sync_storage_with_block()`] to accumulate blocks
++    /// whose addition to the ledger is deferred until certain checks pass.
+     /// Blocks need to be processed in order, hence a BTree map.
+     ///
+     /// Whenever a new block is added to this map, BlockSync::set_sync_height needs to be called.
+-    latest_block_responses: Arc<TMutex<BTreeMap<u32, Block<N>>>>,
++    pending_blocks: Arc<TMutex<VecDeque<PendingBlock<N>>>>,
+ }
+ 
+ impl<N: Network> Sync<N> {
+@@ -123,7 +122,7 @@ impl<N: Network> Sync<N> {
+             handles: Default::default(),
+             response_lock: Default::default(),
+             sync_lock: Default::default(),
+-            latest_block_responses: Default::default(),
++            pending_blocks: Default::default(),
+         }
+     }
+ 
+@@ -137,7 +136,9 @@ impl<N: Network> Sync<N> {
+         info!("Syncing storage with the ledger...");
+ 
+         // Sync the storage with the ledger.
+-        self.sync_storage_with_ledger_at_bootup().await?;
++        self.sync_storage_with_ledger_at_bootup()
++            .await
++            .with_context(|| "Syncing storage with the ledger at bootup failed")?;
+ 
+         debug!("Finished initial block synchronization at startup");
+         Ok(())
+@@ -197,7 +198,17 @@ impl<N: Network> Sync<N> {
+                 let _ =
+                     tokio::time::timeout(Self::MAX_SYNC_INTERVAL, self_.block_sync.wait_for_block_responses()).await;
+ 
+-                self_.try_advancing_block_synchronization(&ping).await;
++                let ping = ping.clone();
++                let self_ = self_.clone();
++                let hdl = tokio::spawn(async move {
++                    self_.try_advancing_block_synchronization(&ping).await;
++                });
++
++                if let Err(err) = hdl.await
++                    && let Ok(panic) = err.try_into_panic()
++                {
++                    error!("Sync block advancement panicked: {panic:?}");
++                }
+ 
+                 // We perform no additional rate limiting here as
+                 // requests are already rate-limited.
+@@ -242,7 +253,13 @@ impl<N: Network> Sync<N> {
+             while let Some((peer_ip, blocks, latest_consensus_version, callback)) =
+                 rx_block_sync_insert_block_response.recv().await
+             {
+-                callback.send(self_.insert_block_response(peer_ip, blocks, latest_consensus_version).await).ok();
++                let result = self_.insert_block_response(peer_ip, blocks, latest_consensus_version).await;
++                //TODO remove this once channels are gone
++                if let Err(err) = &result {
++                    warn!("Failed to insret block response: {err:?}");
++                }
++
++                callback.send(result).ok();
+             }
+         });
+ 
+@@ -488,22 +505,30 @@ impl<N: Network> Sync<N> {
+     /// If there are queued block responses, this might be higher than the latest block in the ledger.
+     async fn compute_sync_height(&self) -> u32 {
+         let ledger_height = self.ledger.latest_block_height();
+-        let mut responses = self.latest_block_responses.lock().await;
++        let mut pending_blocks = self.pending_blocks.lock().await;
+ 
+         // Remove any old responses.
+-        responses.retain(|height, _| *height > ledger_height);
++        while let Some(b) = pending_blocks.front()
++            && b.height() <= ledger_height
++        {
++            pending_blocks.pop_front();
++        }
+ 
+         // Ensure the returned value is always greater or equal than ledger height.
+-        responses.last_key_value().map(|(height, _)| *height).unwrap_or(0).max(ledger_height)
++        pending_blocks.back().map(|b| b.height()).unwrap_or(0).max(ledger_height)
+     }
+ 
+     /// BFT-version of [`snarkos_node_client::Client::try_advancing_block_synchronization`].
+     async fn try_advancing_block_synchronization(&self, ping: &Option<Arc<Ping<N>>>) {
+         // Process block responses and advance the ledger.
+-        let new_blocks = match self.try_advancing_block_synchronization_inner().await {
++        let new_blocks = match self
++            .try_advancing_block_synchronization_inner()
++            .await
++            .with_context(|| "Block synchronization failed")
++        {
+             Ok(new_blocks) => new_blocks,
+             Err(err) => {
+-                error!("Block synchronization failed - {err}");
++                error!("{}", &flatten_error(err));
+                 false
+             }
+         };
+@@ -526,7 +551,7 @@ impl<N: Network> Sync<N> {
+     /// This returns Ok(true) if we successfully advanced the ledger by at least one new block.
+     ///
+     /// A key difference to `BlockSync`'s versions is that it will only add blocks to the ledger once they have been confirmed by the network.
+-    /// If blocks are not confirmed yet, they will be kept in [`Self::latest_block_responses`].
++    /// If blocks are not confirmed yet, they will be kept in [`Self::pending_blocks`].
+     /// It will also pass certificates from synced blocks to the BFT module so that consensus can progress as expected
+     /// (see [`Self::sync_storage_with_block`] for more details).
+     ///
+@@ -577,10 +602,6 @@ impl<N: Network> Sync<N> {
+             // (unconfirmed) blocks that are already queued up.
+             let start_height = self.compute_sync_height().await;
+ 
+-            // For sanity, update the sync height before starting.
+-            // (if this is lower or equal to the current sync height, this is a noop)
+-            self.block_sync.set_sync_height(start_height);
+-
+             // The height is incremented as blocks are added.
+             let mut current_height = start_height;
+             trace!(
+@@ -618,10 +639,6 @@ impl<N: Network> Sync<N> {
+ 
+             trace!("Try advancing block responses without BFT (starting at block {current_height})");
+ 
+-            // For sanity, update the sync height before starting.
+-            // (if this is lower or equal to the current sync height, this is a noop)
+-            self.block_sync.set_sync_height(start_height);
+-
+             // Try to advance the ledger *to tip* without updating the BFT.
+             // TODO(kaimast): why to tip and not to tip-GC?
+             loop {
+@@ -651,9 +668,9 @@ impl<N: Network> Sync<N> {
+             let within_gc = (current_height + 1) > max_gc_height;
+             if within_gc {
+                 info!("Finished catching up with the network. Switching back to BFT sync.");
+-                if let Err(err) = self.sync_storage_with_ledger_at_bootup().await {
+-                    error!("BFT sync (with bootup routine) failed - {err}");
+-                }
++                self.sync_storage_with_ledger_at_bootup()
++                    .await
++                    .with_context(|| "BFT sync (with bootup routine) failed")?;
+             }
+ 
+             cleanup(start_height, current_height, None)
+@@ -668,7 +685,7 @@ impl<N: Network> Sync<N> {
+         let _lock = self.sync_lock.lock().await;
+ 
+         let self_ = self.clone();
+-        tokio::task::spawn_blocking(move || {
++        spawn_blocking!({
+             // Check the next block.
+             self_.ledger.check_next_block(&block)?;
+             // Attempt to advance to the next block.
+@@ -683,7 +700,88 @@ impl<N: Network> Sync<N> {
+ 
+             Ok(())
+         })
+-        .await?
++    }
++
++    /// Helper function for [`Self::sync_storage_with_block`].
++    /// It syncs the batch certificates with the BFT, if the block's authority is a sub-DAG.
++    ///
++    /// Note that the block authority is always a sub-DAG in production; beacon signatures are only used for testing,
++    /// and as placeholder (irrelevant) block authority in the genesis block.
++    async fn add_block_subdag_to_bft(&self, block: &Block<N>) -> Result<()> {
++        // Nothing to do if this is a beacon block
++        let Authority::Quorum(subdag) = block.authority() else {
++            return Ok(());
++        };
++
++        // Reconstruct the unconfirmed transactions.
++        let unconfirmed_transactions = cfg_iter!(block.transactions())
++            .filter_map(|tx| tx.to_unconfirmed_transaction().map(|unconfirmed| (unconfirmed.id(), unconfirmed)).ok())
++            .collect::<HashMap<_, _>>();
++
++        // Iterate over the certificates.
++        for certificates in subdag.values().cloned() {
++            cfg_into_iter!(certificates.clone()).for_each(|certificate| {
++                // Sync the batch certificate with the block.
++                self.storage.sync_certificate_with_block(block, certificate.clone(), &unconfirmed_transactions);
++            });
++
++            // Sync the BFT DAG with the certificates.
++            for certificate in certificates {
++                // If a BFT sender was provided, send the certificate to the BFT.
++                // For validators, BFT spawns a receiver task in `BFT::start_handlers`.
++                if let Some(bft_sender) = self.bft_sender.get() {
++                    let (callback_tx, callback_rx) = oneshot::channel();
++                    bft_sender
++                        .tx_sync_bft
++                        .send((certificate, callback_tx))
++                        .await
++                        .with_context(|| "Failed to sync certificate")?;
++                    callback_rx.await?.with_context(|| "Failed to sync certificate")?;
++                }
++            }
++        }
++        Ok(())
++    }
++
++    /// Helper function for [`Self::sync_storage_with_block`].
++    ///
++    /// It checks that successor of a given block contains enough votes to commit it.
++    /// This can only return `Ok(true)` if the certificates of the block's successor were added to the storage.
++    fn is_block_availability_threshold_reached(&self, block: &PendingBlock<N>) -> Result<bool> {
++        // Fetch the leader certificate and the relevant rounds.
++        let leader_certificate = match block.authority() {
++            Authority::Quorum(subdag) => subdag.leader_certificate().clone(),
++            _ => bail!("Received a block with an unexpected authority type."),
++        };
++        let commit_round = leader_certificate.round();
++        let certificate_round =
++            commit_round.checked_add(1).ok_or_else(|| anyhow!("Integer overflow on round number"))?;
++
++        // Get the committee lookback for the round just after the leader.
++        let certificate_committee_lookback = self.ledger.get_committee_lookback_for_round(certificate_round)?;
++        // Retrieve all of the certificates for the round just after the leader.
++        let certificates = self.storage.get_certificates_for_round(certificate_round);
++        // Construct a set over the authors, at the round just after the leader,
++        // who included the leader's certificate in their previous certificate IDs.
++        let authors = certificates
++            .iter()
++            .filter_map(|c| match c.previous_certificate_ids().contains(&leader_certificate.id()) {
++                true => Some(c.author()),
++                false => None,
++            })
++            .collect();
++
++        // Check if the leader is ready to be committed.
++        if certificate_committee_lookback.is_availability_threshold_reached(&authors) {
++            trace!(
++                "Block {hash} at height {height} has reached availability threshold",
++                hash = block.hash(),
++                height = block.height()
++            );
++            Ok(true)
++        } else {
++            Ok(false)
++        }
+     }
+ 
+     /// Advances the ledger by the given block and updates the storage accordingly.
+@@ -692,209 +790,158 @@ impl<N: Network> Sync<N> {
+     /// meets the voter availability threshold (i.e. > f voting stake)
+     /// or is reachable via a DAG path from a later leader certificate that does.
+     /// Since performing this check requires DAG certificates from later blocks,
+-    /// the block is stored in `Sync::latest_block_responses`,
++    /// the block is stored in `Sync::pending_blocks`,
+     /// and its addition to the ledger is deferred until the check passes.
+-    /// Several blocks may be stored in `Sync::latest_block_responses`
++    /// Several blocks may be stored in `Sync::pending_blocks`
+     /// before they can be all checked and added to the ledger.
+-    async fn sync_storage_with_block(&self, block: Block<N>) -> Result<()> {
++    ///
++    /// # Usage
++    /// This function assumes that blocks are passed in order, i.e.,
++    /// that the given block is a direct successor of the block that was last passed to this function.
++    async fn sync_storage_with_block(&self, new_block: Block<N>) -> Result<()> {
+         // Acquire the sync lock.
+         let _lock = self.sync_lock.lock().await;
++        let new_block_height = new_block.height();
+ 
+         // If this block has already been processed, return early.
+         // TODO(kaimast): Should we remove the response here?
+-        if self.ledger.contains_block_height(block.height()) {
+-            debug!("Ledger is already synced with block at height {}. Will not sync.", block.height());
++        if self.ledger.contains_block_height(new_block.height()) {
++            debug!("Ledger is already synced with block at height {new_block_height}. Will not sync.",);
+             return Ok(());
+         }
+ 
+-        // Acquire the latest block responses lock.
+-        let mut latest_block_responses = self.latest_block_responses.lock().await;
++        // Acquire the pending blocks lock.
++        let mut pending_blocks = self.pending_blocks.lock().await;
+ 
+-        if latest_block_responses.contains_key(&block.height()) {
+-            debug!("An unconfirmed block is queued already for height {}. Will not sync.", block.height());
+-            return Ok(());
+-        }
++        // Append the certificates to the storage.
++        self.add_block_subdag_to_bft(&new_block).await?;
+ 
+-        // If the block authority is a sub-DAG, then sync the batch certificates with the block.
+-        // Note that the block authority is always a sub-DAG in production;
+-        // beacon signatures are only used for testing,
+-        // and as placeholder (irrelevant) block authority in the genesis block.
+-        if let Authority::Quorum(subdag) = block.authority() {
+-            // Reconstruct the unconfirmed transactions.
+-            let unconfirmed_transactions = cfg_iter!(block.transactions())
+-                .filter_map(|tx| {
+-                    tx.to_unconfirmed_transaction().map(|unconfirmed| (unconfirmed.id(), unconfirmed)).ok()
+-                })
+-                .collect::<HashMap<_, _>>();
+-
+-            // Iterate over the certificates.
+-            for certificates in subdag.values().cloned() {
+-                cfg_into_iter!(certificates.clone()).for_each(|certificate| {
+-                    // Sync the batch certificate with the block.
+-                    self.storage.sync_certificate_with_block(&block, certificate.clone(), &unconfirmed_transactions);
+-                });
++        // Fetch the latest block height.
++        let ledger_block_height = self.ledger.latest_block_height();
+ 
+-                // Sync the BFT DAG with the certificates.
+-                for certificate in certificates {
+-                    // If a BFT sender was provided, send the certificate to the BFT.
+-                    // For validators, BFT spawns a receiver task in `BFT::start_handlers`.
+-                    if let Some(bft_sender) = self.bft_sender.get() {
+-                        // Await the callback to continue.
+-                        if let Err(err) = bft_sender.send_sync_bft(certificate).await {
+-                            bail!("Failed to sync certificate - {err}");
+-                        };
+-                    }
+-                }
++        // First, clear any older pending blocks.
++        // TODO(kaimast): ensure there are no dangling block requests
++        while let Some(pending_block) = pending_blocks.front() {
++            if pending_block.height() > ledger_block_height {
++                break;
+             }
++
++            pending_blocks.pop_front();
++        }
++
++        if let Some(tail) = pending_blocks.back() {
++            if tail.height() >= new_block.height() {
++                debug!(
++                    "A unconfirmed block is queued already for height {height}. \
++                    Will not sync.",
++                    height = new_block.height()
++                );
++                return Ok(());
++            }
++
++            ensure_equals!(tail.height() + 1, new_block.height(), "Got an out-of-order block");
+         }
+ 
+         // Fetch the latest block height.
+         let ledger_block_height = self.ledger.latest_block_height();
+ 
+-        // Insert the latest block response.
+-        latest_block_responses.insert(block.height(), block);
+-        // Clear the latest block responses of older blocks.
+-        latest_block_responses.retain(|height, _| *height > ledger_block_height);
++        // Clear any older pending blocks.
++        // TODO(kaimast): ensure there are no dangling block requests
++        while let Some(pending_block) = pending_blocks.front() {
++            if pending_block.height() > ledger_block_height {
++                break;
++            }
+ 
+-        // Get a list of contiguous blocks from the latest block responses.
+-        let contiguous_blocks: Vec<Block<N>> = (ledger_block_height.saturating_add(1)..)
+-            .take_while(|&k| latest_block_responses.contains_key(&k))
+-            .filter_map(|k| latest_block_responses.get(&k).cloned())
+-            .collect();
++            trace!(
++                "Pending block {hash} at height {height} became obsolete",
++                hash = pending_block.hash(),
++                height = pending_block.height()
++            );
++            pending_blocks.pop_front();
++        }
+ 
+-        // Check if each block response, from the contiguous sequence just constructed,
+-        // is ready to be added to the ledger.
+-        // Ensure that the block's leader certificate meets the availability threshold
+-        // based on the certificates in the DAG just after the block's round.
+-        // If the availability threshold is not met,
+-        // process the next block and check if it is linked to the current block,
+-        // in the sense that there is a path in the DAG
+-        // from the next block's leader certificate
+-        // to the current block's leader certificate.
+-        // Note: We do not advance to the most recent block response because we would be unable to
+-        // validate if the leader certificate in the block has been certified properly.
+-        for next_block in contiguous_blocks.into_iter() {
+-            // Retrieve the height of the next block.
+-            let next_block_height = next_block.height();
+-
+-            // Fetch the leader certificate and the relevant rounds.
+-            let leader_certificate = match next_block.authority() {
+-                Authority::Quorum(subdag) => subdag.leader_certificate().clone(),
+-                _ => bail!("Received a block with an unexpected authority type."),
+-            };
+-            let commit_round = leader_certificate.round();
+-            let certificate_round =
+-                commit_round.checked_add(1).ok_or_else(|| anyhow!("Integer overflow on round number"))?;
+-
+-            // Get the committee lookback for the round just after the leader.
+-            let certificate_committee_lookback = self.ledger.get_committee_lookback_for_round(certificate_round)?;
+-            // Retrieve all of the certificates for the round just after the leader.
+-            let certificates = self.storage.get_certificates_for_round(certificate_round);
+-            // Construct a set over the authors, at the round just after the leader,
+-            // who included the leader's certificate in their previous certificate IDs.
+-            let authors = certificates
+-                .iter()
+-                .filter_map(|c| match c.previous_certificate_ids().contains(&leader_certificate.id()) {
+-                    true => Some(c.author()),
+-                    false => None,
+-                })
+-                .collect();
+-
+-            debug!("Validating sync block {next_block_height} at round {commit_round}...");
+-            // Check if the leader is ready to be committed.
+-            if certificate_committee_lookback.is_availability_threshold_reached(&authors) {
+-                // Initialize the current certificate.
+-                let mut current_certificate = leader_certificate;
+-                // Check if there are any linked blocks that need to be added.
+-                let mut blocks_to_add = vec![next_block];
+-
+-                // Check if there are other blocks to process based on `is_linked`.
+-                for height in (self.ledger.latest_block_height().saturating_add(1)..next_block_height).rev() {
+-                    // Retrieve the previous block.
+-                    let Some(previous_block) = latest_block_responses.get(&height) else {
+-                        bail!("Block {height} is missing from the latest block responses.");
+-                    };
+-                    // Retrieve the previous block's leader certificate.
+-                    let previous_certificate = match previous_block.authority() {
+-                        Authority::Quorum(subdag) => subdag.leader_certificate().clone(),
+-                        _ => bail!("Received a block with an unexpected authority type."),
+-                    };
+-                    // Determine if there is a path between the previous certificate and the current certificate.
+-                    if self.is_linked(previous_certificate.clone(), current_certificate.clone())? {
+-                        debug!("Previous sync block {height} is linked to the current block {next_block_height}");
+-                        // Add the previous leader certificate to the list of certificates to commit.
+-                        blocks_to_add.insert(0, previous_block.clone());
+-                        // Update the current certificate to the previous leader certificate.
+-                        current_certificate = previous_certificate;
+-                    }
+-                }
++        // Check the block against the chain of pending blocks and append it on success.
++        let new_block = match self.ledger.check_block_subdag(new_block, pending_blocks.make_contiguous()) {
++            Ok(new_block) => new_block,
++            Err(err) => {
++                // TODO(kaimast): this shoud not return an error on the snarkVM side.
++                if err.to_string().contains("already in the ledger") {
++                    debug!("Ledger is already synced with block at height {new_block_height}. Will not sync.",);
+ 
+-                // Add the blocks to the ledger.
+-                for block in blocks_to_add {
+-                    // Check that the blocks are sequential and can be added to the ledger.
+-                    let block_height = block.height();
+-                    if block_height != self.ledger.latest_block_height().saturating_add(1) {
+-                        warn!("Skipping block {block_height} from the latest block responses - not sequential.");
+-                        continue;
+-                    }
+-                    #[cfg(feature = "telemetry")]
+-                    let block_authority = block.authority().clone();
+-
+-                    let self_ = self.clone();
+-                    tokio::task::spawn_blocking(move || {
+-                        // Check the next block.
+-                        self_.ledger.check_next_block(&block)?;
+-                        // Attempt to advance to the next block.
+-                        self_.ledger.advance_to_next_block(&block)?;
+-
+-                        // Sync the height with the block.
+-                        self_.storage.sync_height_with_block(block.height());
+-                        // Sync the round with the block.
+-                        self_.storage.sync_round_with_block(block.round());
+-
+-                        Ok::<(), anyhow::Error>(())
+-                    })
+-                    .await??;
+-                    // Remove the block height from the latest block responses.
+-                    latest_block_responses.remove(&block_height);
+-
+-                    // Update the validator telemetry.
+-                    #[cfg(feature = "telemetry")]
+-                    if let Authority::Quorum(subdag) = block_authority {
+-                        self_.gateway.validator_telemetry().insert_subdag(&subdag);
+-                    }
++                    return Ok(());
++                } else {
++                    return Err(err);
+                 }
+-            } else {
+-                debug!(
+-                    "Availability threshold was not reached for block {next_block_height} at round {commit_round}. Checking next block..."
+-                );
+             }
++        };
+ 
+-            // Don't remove the response from BlockSync yet as we might fall back to non-BFT sync.
++        trace!(
++            "Adding new pending block {hash} at height {height}",
++            hash = new_block.hash(),
++            height = new_block.height()
++        );
++        pending_blocks.push_back(new_block);
++
++        // Now, figure out if and which pending block we can commit.
++        // To do this effectively and because commits are transitive,
++        // we iterate in reverse so that we can stop at the first successful check.
++        //
++        // Note, that if the storage already contains certificates for the round after new block,
++        // the availability threshold for the new block could also be reached.
++        let mut commit_height = None;
++        for block in pending_blocks.iter().rev() {
++            // This check assumes that the pending blocks are properly linked together, based on the fact that,
++            // to generate the sequence of `PendingBlocks`, each block needs to successfully be processed by `Ledger::check_block_subdag`.
++            // As a result, the safety of this piece of code relies on the correctness `Ledger::check_block_subdag`,
++            // which is tested in `snarkvm/ledger/tests/pending_block.rs`.
++            if self
++                .is_block_availability_threshold_reached(block)
++                .with_context(|| "Availability threshold check failed")?
++            {
++                commit_height = Some(block.height());
++                break;
++            }
+         }
+ 
+-        Ok(())
+-    }
++        if let Some(commit_height) = commit_height {
++            let start_height = ledger_block_height + 1;
++            ensure!(commit_height >= start_height, "Invalid commit height");
++            let num_blocks = (commit_height - start_height + 1) as usize;
+ 
+-    /// Returns `true` if there is a path from the previous certificate to the current certificate.
+-    fn is_linked(
+-        &self,
+-        previous_certificate: BatchCertificate<N>,
+-        current_certificate: BatchCertificate<N>,
+-    ) -> Result<bool> {
+-        // Initialize the list containing the traversal.
+-        let mut traversal = vec![current_certificate.clone()];
+-        // Iterate over the rounds from the current certificate to the previous certificate.
+-        for round in (previous_certificate.round()..current_certificate.round()).rev() {
+-            // Retrieve all of the certificates for this past round.
+-            let certificates = self.storage.get_certificates_for_round(round);
+-            // Filter the certificates to only include those that are in the traversal.
+-            traversal = certificates
+-                .into_iter()
+-                .filter(|p| traversal.iter().any(|c| c.previous_certificate_ids().contains(&p.id())))
+-                .collect();
++            // Create a more detailed log message if we are committing more than one block at a time.
++            if num_blocks > 1 {
++                trace!(
++                    "Attempting to commit {chain_length} pending block(s) starting at height {start_height}.",
++                    chain_length = pending_blocks.len(),
++                );
++            }
++
++            for pending_block in pending_blocks.drain(0..num_blocks) {
++                let hash = pending_block.hash();
++                let height = pending_block.height();
++                let ledger = self.ledger.clone();
++                let storage = self.storage.clone();
++
++                spawn_blocking!({
++                    let block = ledger.check_block_content(pending_block).with_context(|| {
++                        format!("Failed to check contents of pending block {hash} at height {height}")
++                    })?;
++
++                    trace!("Adding pending block {hash} at height {height} to the ledger");
++                    ledger.advance_to_next_block(&block)?;
++                    // Sync the height with the block.
++                    storage.sync_height_with_block(block.height());
++                    // Sync the round with the block.
++                    storage.sync_round_with_block(block.round());
++
++                    Ok(())
++                })?
++            }
++        } else {
++            trace!("No pending block are ready to be committed ({} block(s) are pending)", pending_blocks.len());
+         }
+-        Ok(traversal.contains(&previous_certificate))
++
++        Ok(())
+     }
+ }
+ 
+@@ -949,7 +996,7 @@ impl<N: Network> Sync<N> {
+         if should_send_request {
+             // Send the certificate request to the peer.
+             if self.gateway.send(peer_ip, Event::CertificateRequest(certificate_id.into())).await.is_none() {
+-                bail!("Unable to fetch batch certificate {certificate_id} - failed to send request")
++                bail!("Unable to fetch batch certificate {certificate_id} (failed to send request)")
+             }
+         } else {
+             debug!(
+@@ -959,12 +1006,10 @@ impl<N: Network> Sync<N> {
+         }
+         // Wait for the certificate to be fetched.
+         // TODO (raychu86): Consider making the timeout dynamic based on network traffic and/or the number of validators.
+-        match tokio::time::timeout(Duration::from_millis(MAX_FETCH_TIMEOUT_IN_MS), callback_receiver).await {
+-            // If the certificate was fetched, return it.
+-            Ok(result) => Ok(result?),
+-            // If the certificate was not fetched, return an error.
+-            Err(e) => bail!("Unable to fetch certificate {} - (timeout) {e}", fmt_id(certificate_id)),
+-        }
++        tokio::time::timeout(Duration::from_millis(MAX_FETCH_TIMEOUT_IN_MS), callback_receiver)
++            .await
++            .with_context(|| format!("Unable to fetch batch certificate {} (timeout)", fmt_id(certificate_id)))?
++            .with_context(|| format!("Unable to fetch batch certificate {}", fmt_id(certificate_id)))
+     }
+ 
+     /// Handles the incoming certificate request.
+@@ -1043,12 +1088,24 @@ mod tests {
+     type CurrentLedger = Ledger<CurrentNetwork, ConsensusMemory<CurrentNetwork>>;
+     type CurrentConsensusStore = ConsensusStore<CurrentNetwork, ConsensusMemory<CurrentNetwork>>;
+ 
++    /// Tests that commits work as expected when some anchors are not committed immediately.
+     #[tokio::test]
+-    async fn test_commit_via_is_linked() -> anyhow::Result<()> {
++    #[tracing_test::traced_test]
++    async fn test_commit_chain() -> anyhow::Result<()> {
+         let rng = &mut TestRng::default();
+         // Initialize the round parameters.
+         let max_gc_rounds = BatchHeader::<CurrentNetwork>::MAX_GC_ROUNDS as u64;
+-        let commit_round = 2;
++
++        // The first round of the first block.
++        let first_round = 1;
++        // The total number of blocks we test
++        let num_blocks = 3;
++        // The number of certificate rounds needed.
++        // There is one additional round to provide availability for the inal block.
++        let num_rounds = first_round + num_blocks * 2 + 1;
++        // The first round that has at least N-f certificates referencing the anchor from the previous round.
++        // This is also the last round we use in the test.
++        let first_committed_round = num_rounds - 1;
+ 
+         // Initialize the store.
+         let store = CurrentConsensusStore::open(StorageMode::new_test(None)).unwrap();
+@@ -1091,77 +1148,70 @@ mod tests {
+                 HashMap::new();
+             let mut previous_certificates: IndexSet<BatchCertificate<CurrentNetwork>> = IndexSet::with_capacity(4);
+ 
+-            for round in 0..=commit_round + 8 {
++            for round in first_round..=first_committed_round {
+                 let mut current_certificates = IndexSet::new();
+                 let previous_certificate_ids: IndexSet<_> = if round == 0 || round == 1 {
+                     IndexSet::new()
+                 } else {
+                     previous_certificates.iter().map(|c| c.id()).collect()
+                 };
++
+                 let committee_id = committee.id();
++                let prev_leader = committee.get_leader(round - 1).unwrap();
++
++                // For the first two blocks non-leaders will not reference the leader certificate.
++                // This means, while there is an anchor, it is isn't committed
++                // until later.
++                for (i, private_key) in private_keys.iter().enumerate() {
++                    let leader_index = addresses.iter().position(|&address| address == prev_leader).unwrap();
++                    let is_certificate_round = round % 2 == 1;
++                    let is_leader = i == leader_index;
++
++                    let previous_certs = if round < first_committed_round && is_certificate_round && !is_leader {
++                        previous_certificate_ids
++                            .iter()
++                            .cloned()
++                            .enumerate()
++                            .filter(|(idx, _)| *idx != leader_index)
++                            .map(|(_, id)| id)
++                            .collect()
++                    } else {
++                        previous_certificate_ids.clone()
++                    };
+ 
+-                // Create a certificate for the leader.
+-                if round <= 5 {
+-                    let leader = committee.get_leader(round).unwrap();
+-                    let leader_index = addresses.iter().position(|&address| address == leader).unwrap();
+-                    let non_leader_index = addresses.iter().position(|&address| address != leader).unwrap();
+-                    for i in [leader_index, non_leader_index].into_iter() {
+-                        let batch_header = BatchHeader::new(
+-                            &private_keys[i],
+-                            round,
+-                            now(),
+-                            committee_id,
+-                            Default::default(),
+-                            previous_certificate_ids.clone(),
+-                            rng,
+-                        )
+-                        .unwrap();
+-                        // Sign the batch header.
+-                        let mut signatures = IndexSet::with_capacity(4);
+-                        for (j, private_key_2) in private_keys.iter().enumerate() {
+-                            if i != j {
+-                                signatures.insert(private_key_2.sign(&[batch_header.batch_id()], rng).unwrap());
+-                            }
+-                        }
+-                        current_certificates.insert(BatchCertificate::from(batch_header, signatures).unwrap());
+-                    }
+-                }
++                    let batch_header = BatchHeader::new(
++                        private_key,
++                        round,
++                        now(),
++                        committee_id,
++                        Default::default(),
++                        previous_certs,
++                        rng,
++                    )
++                    .unwrap();
+ 
+-                // Create a certificate for each validator.
+-                if round > 5 {
+-                    for (i, private_key_1) in private_keys.iter().enumerate() {
+-                        let batch_header = BatchHeader::new(
+-                            private_key_1,
+-                            round,
+-                            now(),
+-                            committee_id,
+-                            Default::default(),
+-                            previous_certificate_ids.clone(),
+-                            rng,
+-                        )
+-                        .unwrap();
+-                        // Sign the batch header.
+-                        let mut signatures = IndexSet::with_capacity(4);
+-                        for (j, private_key_2) in private_keys.iter().enumerate() {
+-                            if i != j {
+-                                signatures.insert(private_key_2.sign(&[batch_header.batch_id()], rng).unwrap());
+-                            }
++                    // Sign the batch header.
++                    let mut signatures = IndexSet::with_capacity(4);
++                    for (j, private_key_2) in private_keys.iter().enumerate() {
++                        if i != j {
++                            signatures.insert(private_key_2.sign(&[batch_header.batch_id()], rng).unwrap());
+                         }
+-                        current_certificates.insert(BatchCertificate::from(batch_header, signatures).unwrap());
+                     }
++                    current_certificates.insert(BatchCertificate::from(batch_header, signatures).unwrap());
+                 }
++
+                 // Update the map of certificates.
+                 round_to_certificates_map.insert(round, current_certificates.clone());
+-                previous_certificates = current_certificates.clone();
++                previous_certificates = current_certificates;
+             }
+             (round_to_certificates_map, committee)
+         };
+ 
+         // Initialize the storage.
+         let storage = Storage::new(core_ledger.clone(), Arc::new(BFTMemoryService::new()), max_gc_rounds);
+-        // Insert certificates into storage.
++        // Insert all certificates into storage.
+         let mut certificates: Vec<BatchCertificate<CurrentNetwork>> = Vec::new();
+-        for i in 1..=commit_round + 8 {
++        for i in first_round..=first_committed_round {
+             let c = (*round_to_certificates_map.get(&i).unwrap()).clone();
+             certificates.extend(c);
+         }
+@@ -1169,94 +1219,67 @@ mod tests {
+             storage.testing_only_insert_certificate_testing_only(certificate.clone());
+         }
+ 
+-        // Create block 1.
+-        let leader_round_1 = commit_round;
+-        let leader_1 = committee.get_leader(leader_round_1).unwrap();
+-        let leader_certificate = storage.get_certificate_for_round_with_author(commit_round, leader_1).unwrap();
+-        let block_1 = {
++        // Create the blocks
++        let mut previous_leader_cert = None;
++        let mut blocks = vec![];
++
++        for block_height in 1..=num_blocks {
++            let leader_round = block_height * 2;
++
++            let leader = committee.get_leader(leader_round).unwrap();
++            let leader_certificate = storage.get_certificate_for_round_with_author(leader_round, leader).unwrap();
++
+             let mut subdag_map: BTreeMap<u64, IndexSet<BatchCertificate<CurrentNetwork>>> = BTreeMap::new();
+             let mut leader_cert_map = IndexSet::new();
+             leader_cert_map.insert(leader_certificate.clone());
+-            let mut previous_cert_map = IndexSet::new();
+-            for cert in storage.get_certificates_for_round(commit_round - 1) {
+-                previous_cert_map.insert(cert);
++
++            let previous_cert_map = storage.get_certificates_for_round(leader_round - 1);
++
++            subdag_map.insert(leader_round, leader_cert_map.clone());
++            subdag_map.insert(leader_round - 1, previous_cert_map.clone());
++
++            if leader_round > 2 {
++                let previous_commit_cert_map: IndexSet<_> = storage
++                    .get_certificates_for_round(leader_round - 2)
++                    .into_iter()
++                    .filter(|cert| {
++                        if let Some(previous_leader_cert) = &previous_leader_cert {
++                            cert != previous_leader_cert
++                        } else {
++                            true
++                        }
++                    })
++                    .collect();
++                subdag_map.insert(leader_round - 2, previous_commit_cert_map);
+             }
+-            subdag_map.insert(commit_round, leader_cert_map.clone());
+-            subdag_map.insert(commit_round - 1, previous_cert_map.clone());
++
+             let subdag = Subdag::from(subdag_map.clone())?;
+-            let ledger = core_ledger.clone();
+-            spawn_blocking!(ledger.prepare_advance_to_next_quorum_block(subdag, Default::default()))?
+-        };
+-        // Insert block 1.
+-        let ledger = core_ledger.clone();
+-        let block = block_1.clone();
+-        spawn_blocking!(ledger.advance_to_next_block(&block))?;
++            previous_leader_cert = Some(leader_certificate);
+ 
+-        // Create block 2.
+-        let leader_round_2 = commit_round + 2;
+-        let leader_2 = committee.get_leader(leader_round_2).unwrap();
+-        let leader_certificate_2 = storage.get_certificate_for_round_with_author(leader_round_2, leader_2).unwrap();
+-        let block_2 = {
+-            let mut subdag_map_2: BTreeMap<u64, IndexSet<BatchCertificate<CurrentNetwork>>> = BTreeMap::new();
+-            let mut leader_cert_map_2 = IndexSet::new();
+-            leader_cert_map_2.insert(leader_certificate_2.clone());
+-            let mut previous_cert_map_2 = IndexSet::new();
+-            for cert in storage.get_certificates_for_round(leader_round_2 - 1) {
+-                previous_cert_map_2.insert(cert);
+-            }
+-            let mut prev_commit_cert_map_2 = IndexSet::new();
+-            for cert in storage.get_certificates_for_round(leader_round_2 - 2) {
+-                if cert != leader_certificate {
+-                    prev_commit_cert_map_2.insert(cert);
+-                }
+-            }
+-            subdag_map_2.insert(leader_round_2, leader_cert_map_2.clone());
+-            subdag_map_2.insert(leader_round_2 - 1, previous_cert_map_2.clone());
+-            subdag_map_2.insert(leader_round_2 - 2, prev_commit_cert_map_2.clone());
+-            let subdag_2 = Subdag::from(subdag_map_2.clone())?;
+-            let ledger = core_ledger.clone();
+-            spawn_blocking!(ledger.prepare_advance_to_next_quorum_block(subdag_2, Default::default()))?
+-        };
+-        // Insert block 2.
+-        let ledger = core_ledger.clone();
+-        let block = block_2.clone();
+-        spawn_blocking!(ledger.advance_to_next_block(&block))?;
++            let core_ledger = core_ledger.clone();
++            let block = spawn_blocking!({
++                let block = core_ledger.clone().prepare_advance_to_next_quorum_block(subdag, Default::default())?;
++                core_ledger.advance_to_next_block(&block)?;
++                Ok(block)
++            })?;
+ 
+-        // Create block 3
+-        let leader_round_3 = commit_round + 4;
+-        let leader_3 = committee.get_leader(leader_round_3).unwrap();
+-        let leader_certificate_3 = storage.get_certificate_for_round_with_author(leader_round_3, leader_3).unwrap();
+-        let block_3 = {
+-            let mut subdag_map_3: BTreeMap<u64, IndexSet<BatchCertificate<CurrentNetwork>>> = BTreeMap::new();
+-            let mut leader_cert_map_3 = IndexSet::new();
+-            leader_cert_map_3.insert(leader_certificate_3.clone());
+-            let mut previous_cert_map_3 = IndexSet::new();
+-            for cert in storage.get_certificates_for_round(leader_round_3 - 1) {
+-                previous_cert_map_3.insert(cert);
+-            }
+-            let mut prev_commit_cert_map_3 = IndexSet::new();
+-            for cert in storage.get_certificates_for_round(leader_round_3 - 2) {
+-                if cert != leader_certificate_2 {
+-                    prev_commit_cert_map_3.insert(cert);
+-                }
+-            }
+-            subdag_map_3.insert(leader_round_3, leader_cert_map_3.clone());
+-            subdag_map_3.insert(leader_round_3 - 1, previous_cert_map_3.clone());
+-            subdag_map_3.insert(leader_round_3 - 2, prev_commit_cert_map_3.clone());
+-            let subdag_3 = Subdag::from(subdag_map_3.clone())?;
+-            let ledger = core_ledger.clone();
+-            spawn_blocking!(ledger.prepare_advance_to_next_quorum_block(subdag_3, Default::default()))?
+-        };
+-        // Insert block 3.
+-        let ledger = core_ledger.clone();
+-        let block = block_3.clone();
+-        spawn_blocking!(ledger.advance_to_next_block(&block))?;
++            blocks.push(block);
++        }
+ 
+-        // Initialize the syncing ledger.
+-        let syncing_ledger = spawn_blocking!(CurrentLedger::load(genesis, StorageMode::Test(None))).unwrap();
+-        let syncing_ledger = Arc::new(CoreLedgerService::new(syncing_ledger, SimpleStoppable::new()));
++        // ### Test that sync works as expected ###
++        let storage_mode = StorageMode::new_test(None);
++
++        // Create a new ledger to test with, but use the existing storage
++        // so that the certificates exist.
++        let syncing_ledger = {
++            let storage_mode = storage_mode.clone();
++            Arc::new(CoreLedgerService::new(
++                spawn_blocking!(CurrentLedger::load(genesis, storage_mode)).unwrap(),
++                SimpleStoppable::new(),
++            ))
++        };
+ 
+-        // Initialize the gateway.
++        // Set up sync and its dependencies.
+         let gateway = Gateway::new(
+             account.clone(),
+             storage.clone(),
+@@ -1267,19 +1290,25 @@ mod tests {
+             StorageMode::new_test(None),
+             None,
+         )?;
+-        // Initialize the block synchronization logic.
+         let block_sync = Arc::new(BlockSync::new(syncing_ledger.clone()));
+-        // Initialize the sync module.
+-        let sync = Sync::new(gateway, storage, syncing_ledger.clone(), block_sync);
+-        // Try to sync block 1.
+-        sync.sync_storage_with_block(block_1).await?;
+-        assert_eq!(syncing_ledger.latest_block_height(), 1);
+-        // Try to sync block 2.
+-        sync.sync_storage_with_block(block_2).await?;
+-        assert_eq!(syncing_ledger.latest_block_height(), 2);
+-        // Try to sync block 3.
+-        sync.sync_storage_with_block(block_3).await?;
++        let sync = Sync::new(gateway.clone(), storage.clone(), syncing_ledger.clone(), block_sync);
++
++        let mut block_iter = blocks.into_iter();
++
++        // Insert the blocks into the new sync module
++        for _ in 0..num_blocks - 1 {
++            let block = block_iter.next().unwrap();
++            sync.sync_storage_with_block(block).await?;
++
++            // Availability threshold is not met, so we should not advance yet.
++            assert_eq!(syncing_ledger.latest_block_height(), 0);
++        }
++
++        // Only for the final block, the availability threshold is met,
++        // because certificates for the subsequent round are already in storage.
++        sync.sync_storage_with_block(block_iter.next().unwrap()).await?;
+         assert_eq!(syncing_ledger.latest_block_height(), 3);
++
+         // Ensure blocks 1 and 2 were added to the ledger.
+         assert!(syncing_ledger.contains_block_height(1));
+         assert!(syncing_ledger.contains_block_height(2));
+diff --git a/node/bft/src/worker.rs b/node/bft/src/worker.rs
+index 2ca99e35d..8aca95bd5 100644
+--- a/node/bft/src/worker.rs
++++ b/node/bft/src/worker.rs
+@@ -26,12 +26,13 @@ use snarkos_node_bft_ledger_service::LedgerService;
+ use snarkvm::{
+     console::prelude::*,
+     ledger::{
+-        block::Transaction,
++        Transaction,
+         narwhal::{BatchHeader, Data, Transmission, TransmissionID},
+         puzzle::{Solution, SolutionID},
+     },
+ };
+ 
++use anyhow::Context;
+ use colored::Colorize;
+ use indexmap::{IndexMap, IndexSet};
+ #[cfg(feature = "locktick")]
+@@ -494,6 +495,11 @@ impl<N: Network> Worker<N> {
+         // Insert the transmission ID into the pending queue.
+         self.pending.insert(transmission_id, peer_ip, Some((callback_sender, should_send_request)));
+ 
++        // Helper to print the transmission ID and checksum.
++        let print_transmission_id = |transmission_id: TransmissionID<N>| {
++            format!("{}.{}", fmt_id(transmission_id), fmt_id(transmission_id.checksum().unwrap_or_default()).dimmed())
++        };
++
+         // If the number of requests is less than or equal to the the redundancy factor, send the transmission request to the peer.
+         if should_send_request {
+             // Send the transmission request to the peer.
+@@ -502,18 +508,20 @@ impl<N: Network> Worker<N> {
+             }
+         } else {
+             debug!(
+-                "Skipped sending request for transmission {}.{} to '{peer_ip}' ({num_sent_requests} redundant requests)",
+-                fmt_id(transmission_id),
+-                fmt_id(transmission_id.checksum().unwrap_or_default()).dimmed()
++                "Skipped sending request for transmission {} to '{peer_ip}' ({num_sent_requests} redundant requests)",
++                print_transmission_id(transmission_id)
+             );
+         }
+         // Wait for the transmission to be fetched.
+-        match timeout(Duration::from_millis(MAX_FETCH_TIMEOUT_IN_MS), callback_receiver).await {
+-            // If the transmission was fetched, return it.
+-            Ok(result) => Ok((transmission_id, result?)),
+-            // If the transmission was not fetched, return an error.
+-            Err(e) => bail!("Unable to fetch transmission - (timeout) {e}"),
+-        }
++
++        let transmission = timeout(Duration::from_millis(MAX_FETCH_TIMEOUT_IN_MS), callback_receiver)
++            .await
++            .with_context(|| {
++                format!("Unable to fetch transmission {} (timeout)", print_transmission_id(transmission_id),)
++            })?
++            .with_context(|| format!("Unable to fetch transmission {}", print_transmission_id(transmission_id),))?;
++
++        Ok((transmission_id, transmission))
+     }
+ 
+     /// Handles the incoming transmission response.
+@@ -570,7 +578,8 @@ mod tests {
+     use snarkvm::{
+         console::{network::Network, types::Field},
+         ledger::{
+-            block::Block,
++            Block,
++            PendingBlock,
+             committee::Committee,
+             narwhal::{BatchCertificate, Subdag, Transmission, TransmissionID},
+             test_helpers::sample_execution_transaction_with_fee,
+@@ -636,6 +645,8 @@ mod tests {
+                 transaction_id: N::TransactionID,
+                 transaction: Transaction<N>,
+             ) -> Result<()>;
++            fn check_block_subdag(&self, _block: Block<N>, _prefix: &[PendingBlock<N>]) -> Result<PendingBlock<N>>;
++            fn check_block_content(&self, _block: PendingBlock<N>) -> Result<Block<N>>;
+             fn check_next_block(&self, block: &Block<N>) -> Result<()>;
+             fn prepare_advance_to_next_quorum_block(
+                 &self,
+diff --git a/node/bft/storage-service/src/persistent.rs b/node/bft/storage-service/src/persistent.rs
+index 448fa474c..be391745e 100644
+--- a/node/bft/storage-service/src/persistent.rs
++++ b/node/bft/storage-service/src/persistent.rs
+@@ -118,7 +118,8 @@ impl<N: Network> StorageService<N> for BFTPersistentStorage<N> {
+         }
+     }
+ 
+-    /// Returns the missing transmissions in storage from the given transmissions.
++    /// Takes a certificate and its transmissions, and returns the subset of transmissions that
++    /// did not yet exists in the storage.
+     fn find_missing_transmissions(
+         &self,
+         batch_header: &BatchHeader<N>,
+diff --git a/node/bft/storage-service/src/traits.rs b/node/bft/storage-service/src/traits.rs
+index 5cb39ffe7..e542812b5 100644
+--- a/node/bft/storage-service/src/traits.rs
++++ b/node/bft/storage-service/src/traits.rs
+@@ -32,7 +32,8 @@ pub trait StorageService<N: Network>: Debug + Send + Sync {
+     /// If the transmission ID does not exist in storage, `None` is returned.
+     fn get_transmission(&self, transmission_id: TransmissionID<N>) -> Option<Transmission<N>>;
+ 
+-    /// Returns the missing transmissions in storage from the given transmissions.
++    /// Takes a certificate and its transmissions, and returns the subset of transmissions that
++    /// did not yet exists in the storage.
+     fn find_missing_transmissions(
+         &self,
+         batch_header: &BatchHeader<N>,
+diff --git a/node/consensus/src/lib.rs b/node/consensus/src/lib.rs
+index a8d62ee9e..c72a112f8 100644
+--- a/node/consensus/src/lib.rs
++++ b/node/consensus/src/lib.rs
+@@ -355,13 +355,16 @@ impl<N: Network> Consensus<N> {
+                     fmt_id(solution_id)
+                 ),
+                 Err(err) => {
+-                    // If the node is synced and the occurs after the first 10 blocks of an epoch, log it as a warning, otherwise ignore.
++                    let err = err.context(format!(
++                        "Unable to add unconfirmed solution '{}' to the memory pool",
++                        fmt_id(solution_id)
++                    ));
++
++                    // If the node is synced and the occurs after the first 10 blocks of an epoch, log it as a warning, otherwise trace it.
+                     if self.bft.is_synced() && self.ledger.latest_block_height() % N::NUM_BLOCKS_PER_EPOCH > 10 {
+-                        let err = err.context(format!(
+-                            "Unable to add unconfirmed solution '{}' to the memory pool",
+-                            fmt_id(solution_id)
+-                        ));
+                         warn!("{}", flatten_error(err));
++                    } else {
++                        trace!("{}", flatten_error(err));
+                     }
+                 }
+             }
+@@ -502,12 +505,12 @@ impl<N: Network> Consensus<N> {
+                 // Sleep briefly.
+                 tokio::time::sleep(Duration::from_millis(MAX_BATCH_DELAY_IN_MS)).await;
+                 // Process the unconfirmed transactions in the memory pool.
+-                if let Err(e) = self_.process_unconfirmed_transactions().await {
+-                    warn!("Cannot process unconfirmed transactions - {e}");
++                if let Err(err) = self_.process_unconfirmed_transactions().await {
++                    warn!("{}", flatten_error(err.context("Cannot process unconfirmed transactions")));
+                 }
+                 // Process the unconfirmed solutions in the memory pool.
+-                if let Err(e) = self_.process_unconfirmed_solutions().await {
+-                    warn!("Cannot process unconfirmed solutions - {e}");
++                if let Err(err) = self_.process_unconfirmed_solutions().await {
++                    warn!("{}", flatten_error(err.context("Cannot process unconfirmed solutions")));
+                 }
+             }
+         });
+diff --git a/node/network/src/peering.rs b/node/network/src/peering.rs
+index cbe2c90c7..f8e0c449e 100644
+--- a/node/network/src/peering.rs
++++ b/node/network/src/peering.rs
+@@ -169,23 +169,33 @@ pub trait PeerPoolHandling<N: Network>: P2P {
+     }
+ 
+     /// Downgrades a connected peer to candidate status.
+-    fn downgrade_peer_to_candidate(&self, listener_addr: SocketAddr) {
+-        if let Some(peer) = self.peer_pool().write().get_mut(&listener_addr) {
+-            if let Peer::Connected(peer) = peer {
+-                // Exception: the BootstrapClient only has a single Resolver,
+-                // so it may only map a validator's Aleo address once, for its
+-                // Gateway-mode connection. This also means that the Router-mode
+-                // connection may not remove that mapping.
+-                let aleo_addr = if self.node_type() == NodeType::BootstrapClient
+-                    && peer.connection_mode == ConnectionMode::Router
+-                {
+-                    None
+-                } else {
+-                    Some(peer.aleo_addr)
+-                };
+-                self.resolver().write().remove_peer(peer.connected_addr, aleo_addr);
+-            }
++    ///
++    /// Returns true if the peer was fully connected.
++    fn downgrade_peer_to_candidate(&self, listener_addr: SocketAddr) -> bool {
++        let mut peer_pool = self.peer_pool().write();
++        let Some(peer) = peer_pool.get_mut(&listener_addr) else {
++            trace!("{} Downgrade peer to candidate failed - peer not found", Self::OWNER);
++            return false;
++        };
++
++        if let Peer::Connected(conn_peer) = peer {
++            // Exception: the BootstrapClient only has a single Resolver,
++            // so it may only map a validator's Aleo address once, for its
++            // Gateway-mode connection. This also means that the Router-mode
++            // connection may not remove that mapping.
++            let aleo_addr = if self.node_type() == NodeType::BootstrapClient
++                && conn_peer.connection_mode == ConnectionMode::Router
++            {
++                None
++            } else {
++                Some(conn_peer.aleo_addr)
++            };
++            self.resolver().write().remove_peer(conn_peer.connected_addr, aleo_addr);
++            peer.downgrade_to_candidate(listener_addr);
++            true
++        } else {
+             peer.downgrade_to_candidate(listener_addr);
++            false
+         }
+     }
+ 
+diff --git a/node/router/src/lib.rs b/node/router/src/lib.rs
+index a9d1f9d39..7f50f9cb5 100644
+--- a/node/router/src/lib.rs
++++ b/node/router/src/lib.rs
+@@ -146,7 +146,7 @@ impl<N: Network> Router<N> {
+     /// The minimum permitted interval between connection attempts for an IP; anything shorter is considered malicious.
+     #[cfg(not(feature = "test"))]
+     const CONNECTION_ATTEMPTS_SINCE_SECS: i64 = 10;
+-    /// The maximum amount of connection attempts within a 10 second threshold
++    /// The maximum amount of connection attempts within a 10 second threshold.
+     #[cfg(not(feature = "test"))]
+     const MAX_CONNECTION_ATTEMPTS: usize = 10;
+     /// The duration after which a connected peer is considered inactive or
+diff --git a/node/src/client/mod.rs b/node/src/client/mod.rs
+index 2ce274da8..faa54886b 100644
+--- a/node/src/client/mod.rs
++++ b/node/src/client/mod.rs
+@@ -339,6 +339,27 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+             return;
+         }
+ 
++        // First, try to advance the ledger with new responses.
++        let has_new_blocks = match self.sync.try_advancing_block_synchronization().await {
++            Ok(val) => val,
++            Err(err) => {
++                error!("{err}");
++                return;
++            }
++        };
++
++        if has_new_blocks {
++            match self.sync.get_block_locators() {
++                Ok(locators) => self.ping.update_block_locators(locators),
++                Err(err) => error!("Failed to get block locators: {err}"),
++            }
++
++            // If these were the last blocks to process, do not continue.
++            if !self.sync.can_block_sync() {
++                return;
++            }
++        }
++
+         // Prepare the block requests, if any.
+         // In the process, we update the state of `is_block_synced` for the sync module.
+         let (block_requests, sync_peers) = self.sync.prepare_block_requests();
+diff --git a/node/src/client/router.rs b/node/src/client/router.rs
+index 398f31eb9..85ff1899b 100644
+--- a/node/src/client/router.rs
++++ b/node/src/client/router.rs
+@@ -86,7 +86,9 @@ impl<N: Network, C: ConsensusStorage<N>> Disconnect for Client<N, C> {
+     async fn handle_disconnect(&self, peer_addr: SocketAddr) {
+         if let Some(peer_ip) = self.router.resolve_to_listener(peer_addr) {
+             self.sync.remove_peer(&peer_ip);
++
+             self.router.downgrade_peer_to_candidate(peer_ip);
++
+             // Clear cached entries applicable to the peer.
+             self.router.cache().clear_peer_entries(peer_ip);
+             #[cfg(feature = "metrics")]
+diff --git a/node/src/validator/router.rs b/node/src/validator/router.rs
+index eb4f1ee3b..55c8a0334 100644
+--- a/node/src/validator/router.rs
++++ b/node/src/validator/router.rs
+@@ -81,8 +81,14 @@ impl<N: Network, C: ConsensusStorage<N>> Disconnect for Validator<N, C> {
+     /// Any extra operations to be performed during a disconnect.
+     async fn handle_disconnect(&self, peer_addr: SocketAddr) {
+         if let Some(peer_ip) = self.router.resolve_to_listener(peer_addr) {
+-            self.sync.remove_peer(&peer_ip);
+-            self.router.downgrade_peer_to_candidate(peer_ip);
++            let was_connected = self.router.downgrade_peer_to_candidate(peer_ip);
++
++            // Only remove the peer from sync if the handshake was successful.
++            // This handles the cases where a validator unsuccessfully tries to connect to another validator using the router.
++            if was_connected {
++                self.sync.remove_peer(&peer_ip);
++            }
++
+             // Clear cached entries applicable to the peer.
+             self.router.cache().clear_peer_entries(peer_ip);
+             #[cfg(feature = "metrics")]
+diff --git a/node/sync/src/block_sync.rs b/node/sync/src/block_sync.rs
+index 61d1af034..1ecc755e2 100644
+--- a/node/sync/src/block_sync.rs
++++ b/node/sync/src/block_sync.rs
+@@ -929,6 +929,8 @@ impl<N: Network> BlockSync<N> {
+             entry.response = Some(block.clone());
+         }
+ 
++        trace!("Received a new and valid block response for height {height}");
++
+         // Notify the sync loop that something changed.
+         self.response_notify.notify_one();
+ 
+@@ -1132,7 +1134,7 @@ impl<N: Network> BlockSync<N> {
+     /// Returns `None` if there are no peers to sync from.
+     ///
+     /// # Locking
+-    /// This function will read-lock `common_ancstors`.
++    /// This function will read-lock `common_ancestors`.
+     fn find_sync_peers_inner(&self, current_height: u32) -> Option<(IndexMap<SocketAddr, BlockLocators<N>>, u32)> {
+         // Retrieve the latest ledger height.
+         let latest_ledger_height = self.ledger.latest_block_height();
+diff --git a/node/sync/src/block_sync/helpers.rs b/node/sync/src/block_sync/helpers.rs
+index 4ef3af872..6f004080a 100644
+--- a/node/sync/src/block_sync/helpers.rs
++++ b/node/sync/src/block_sync/helpers.rs
+@@ -17,38 +17,36 @@
+ ///
+ /// The function expects the input to already be sorted.
+ pub fn rangify_heights(heights: &[u32]) -> String {
+-    // This impl assumes that the heights are sorted and non-empty.
+     let mut iter = heights.iter().copied().peekable();
+-    let Some(mut curr_height) = iter.next() else {
+-        return String::from("[]");
+-    };
+-
+     let mut ret = String::from("[");
++    let mut first = true;
+ 
+     while let Some(next_height) = iter.next() {
+-        if next_height == curr_height + 1 {
+-            ret.push_str(&format!("{curr_height}-"));
+-            curr_height = next_height;
+-            while let Some(next_height) = iter.peek().copied() {
+-                if next_height == curr_height + 1 {
+-                    curr_height += 1;
+-                    let _ = iter.next();
+-                } else {
+-                    break;
+-                }
+-            }
+-            ret.push_str(&format!("{curr_height}, "));
+-            let Some(next_height) = iter.next() else {
++        let start = next_height;
++        let mut curr_height = start;
++
++        while let Some(next_height) = iter.peek().copied() {
++            if next_height == curr_height + 1 {
++                curr_height += 1;
++                let _ = iter.next();
++            } else {
+                 break;
+-            };
+-            curr_height = next_height;
++            }
++        }
++
++        if first {
++            first = false;
+         } else {
+-            ret.push_str(&format!("{curr_height}, "));
+-            curr_height = next_height;
++            ret.push_str(", ");
++        }
++
++        if curr_height == start {
++            ret.push_str(&format!("{curr_height}"));
++        } else {
++            ret.push_str(&format!("{start}-{curr_height}"));
+         }
+     }
+ 
+-    let mut ret = ret.trim_end_matches(", ").to_owned();
+     ret.push(']');
+     ret
+ }
+@@ -65,6 +63,14 @@ mod tests {
+         assert_eq!(rangified, "[]");
+     }
+ 
++    #[test]
++    fn test_rangify_heights_single_value() {
++        let heights = &[52425];
++
++        let rangified = rangify_heights(heights);
++        assert_eq!(rangified, "[52425]");
++    }
++
+     #[test]
+     fn test_rangify_large_continuous() {
+         let start = 16353;

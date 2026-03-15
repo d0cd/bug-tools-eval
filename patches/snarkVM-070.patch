@@ -1,0 +1,111 @@
+diff --git a/ledger/narwhal/batch-certificate/src/bytes.rs b/ledger/narwhal/batch-certificate/src/bytes.rs
+index 446a0d419..baa793c1f 100644
+--- a/ledger/narwhal/batch-certificate/src/bytes.rs
++++ b/ledger/narwhal/batch-certificate/src/bytes.rs
+@@ -32,7 +32,7 @@ impl<N: Network> FromBytes for BatchCertificate<N> {
+             // Read the number of signatures.
+             let num_signatures = u32::read_le(&mut reader)?;
+             // Ensure the number of signatures is within bounds.
+-            if num_signatures as usize > Self::MAX_SIGNATURES {
++            if num_signatures > Self::MAX_SIGNATURES as u32 {
+                 return Err(error(format!(
+                     "Number of signatures ({num_signatures}) exceeds the maximum ({})",
+                     Self::MAX_SIGNATURES
+@@ -56,7 +56,7 @@ impl<N: Network> FromBytes for BatchCertificate<N> {
+             // Read the number of signatures.
+             let num_signatures = u16::read_le(&mut reader)?;
+             // Ensure the number of signatures is within bounds.
+-            if num_signatures as usize > Self::MAX_SIGNATURES {
++            if num_signatures > Self::MAX_SIGNATURES {
+                 return Err(error(format!(
+                     "Number of signatures ({num_signatures}) exceeds the maximum ({})",
+                     Self::MAX_SIGNATURES
+diff --git a/ledger/narwhal/batch-certificate/src/lib.rs b/ledger/narwhal/batch-certificate/src/lib.rs
+index 3e9fede61..c053433e5 100644
+--- a/ledger/narwhal/batch-certificate/src/lib.rs
++++ b/ledger/narwhal/batch-certificate/src/lib.rs
+@@ -54,7 +54,7 @@ pub enum BatchCertificate<N: Network> {
+ 
+ impl<N: Network> BatchCertificate<N> {
+     /// The maximum number of signatures in a batch certificate.
+-    pub const MAX_SIGNATURES: usize = BatchHeader::<N>::MAX_CERTIFICATES;
++    pub const MAX_SIGNATURES: u16 = BatchHeader::<N>::MAX_CERTIFICATES;
+ }
+ 
+ impl<N: Network> BatchCertificate<N> {
+@@ -84,7 +84,7 @@ impl<N: Network> BatchCertificate<N> {
+             N::hash_bhp1024(&preimage.to_bits_le())
+         }
+         // Ensure that the number of signatures is within bounds.
+-        ensure!(signatures.len() <= Self::MAX_SIGNATURES, "Invalid number of signatures");
++        ensure!(signatures.len() <= Self::MAX_SIGNATURES as usize, "Invalid number of signatures");
+         // Compute the certificate ID.
+         if certificate_id != compute_certificate_id(batch_header.batch_id(), &signatures)? {
+             bail!("Invalid batch certificate ID")
+@@ -103,7 +103,7 @@ impl<N: Network> BatchCertificate<N> {
+     /// Initializes a new batch certificate.
+     pub fn from(batch_header: BatchHeader<N>, signatures: IndexSet<Signature<N>>) -> Result<Self> {
+         // Ensure that the number of signatures is within bounds.
+-        ensure!(signatures.len() <= Self::MAX_SIGNATURES, "Invalid number of signatures");
++        ensure!(signatures.len() <= Self::MAX_SIGNATURES as usize, "Invalid number of signatures");
+ 
+         // Verify the signatures are valid.
+         cfg_iter!(signatures).try_for_each(|signature| {
+diff --git a/ledger/narwhal/batch-header/src/lib.rs b/ledger/narwhal/batch-header/src/lib.rs
+index 8bfe2d867..237406a4e 100644
+--- a/ledger/narwhal/batch-header/src/lib.rs
++++ b/ledger/narwhal/batch-header/src/lib.rs
+@@ -94,13 +94,22 @@ impl<N: Network> BatchHeader<N> {
+         }
+ 
+         // Ensure that the number of transmissions is within bounds.
+-        ensure!(transmission_ids.len() <= Self::MAX_TRANSMISSIONS, "Invalid number of transmission ids");
++        ensure!(
++            transmission_ids.len() <= Self::MAX_TRANSMISSIONS_PER_BATCH,
++            "Invalid number of transmission ids ({})",
++            transmission_ids.len()
++        );
+         // Ensure that the number of previous certificate IDs is within bounds.
+-        ensure!(previous_certificate_ids.len() <= Self::MAX_CERTIFICATES, "Invalid number of previous certificate IDs");
++        ensure!(
++            previous_certificate_ids.len() <= Self::MAX_CERTIFICATES as usize,
++            "Invalid number of previous certificate IDs ({})",
++            previous_certificate_ids.len()
++        );
+         // Ensure the number of last election certificate IDs is within bounds.
+         ensure!(
+-            last_election_certificate_ids.len() <= Self::MAX_CERTIFICATES,
+-            "Invalid number of last election certificate IDs"
++            last_election_certificate_ids.len() <= Self::MAX_CERTIFICATES as usize,
++            "Invalid number of last election certificate IDs ({})",
++            last_election_certificate_ids.len()
+         );
+ 
+         // Retrieve the address.
+@@ -154,13 +163,22 @@ impl<N: Network> BatchHeader<N> {
+         }
+ 
+         // Ensure that the number of transmissions is within bounds.
+-        ensure!(transmission_ids.len() <= Self::MAX_TRANSMISSIONS, "Invalid number of transmission ids");
++        ensure!(
++            transmission_ids.len() <= Self::MAX_TRANSMISSIONS_PER_BATCH,
++            "Invalid number of transmission ids ({})",
++            transmission_ids.len()
++        );
+         // Ensure that the number of previous certificate IDs is within bounds.
+-        ensure!(previous_certificate_ids.len() <= Self::MAX_CERTIFICATES, "Invalid number of previous certificate IDs");
++        ensure!(
++            previous_certificate_ids.len() <= Self::MAX_CERTIFICATES as usize,
++            "Invalid number of previous certificate IDs ({})",
++            previous_certificate_ids.len()
++        );
+         // Ensure the number of last election certificate IDs is within bounds.
+         ensure!(
+-            last_election_certificate_ids.len() <= Self::MAX_CERTIFICATES,
+-            "Invalid number of last election certificate IDs"
++            last_election_certificate_ids.len() <= Self::MAX_CERTIFICATES as usize,
++            "Invalid number of last election certificate IDs ({})",
++            last_election_certificate_ids.len()
+         );
+ 
+         // Compute the batch ID.

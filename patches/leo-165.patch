@@ -1,0 +1,238 @@
+diff --git a/.github/workflows/leo.yml b/.github/workflows/leo.yml
+new file mode 100644
+index 0000000000..750e79d6d8
+--- /dev/null
++++ b/.github/workflows/leo.yml
+@@ -0,0 +1,86 @@
++name: Leo Programs
++on:
++  pull_request:
++  push:
++    branches:
++      - master
++env:
++  RUST_BACKTRACE: 1
++
++jobs:
++  new:
++    name: Hello Leo (from 'leo new')
++    runs-on: ubuntu-latest
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v1
++
++      - name: Load snarkOS
++        run: |
++          mkdir ~/.ssh
++          echo "${{ secrets.SNARKOS_DEPLOY_KEY }}" > ~/.ssh/id_rsa
++          chmod 600 ~/.ssh/id_rsa
++          eval $(ssh-agent -s)
++          ssh-add -k ~/.ssh/id_rsa
++
++      - name: Install Rust
++        uses: actions-rs/toolchain@v1
++        with:
++          profile: minimal
++          toolchain: nightly
++          override: true
++          components: rustfmt
++
++      - name: Install Leo
++        uses: actions-rs/cargo@v1
++        env:
++          CARGO_NET_GIT_FETCH_WITH_CLI: true
++        with:
++          command: install
++          args: --path .
++
++      - name: 'leo new'
++        run: |
++          cd ..
++          leo new hello_world
++          ls -la
++          cd hello_world && ls -la
++          leo run
++
++  init:
++    name: Hello Leo (from 'leo init')
++    runs-on: ubuntu-latest
++    steps:
++      - name: Checkout
++        uses: actions/checkout@v1
++
++      - name: Load snarkOS
++        run: |
++          mkdir ~/.ssh
++          echo "${{ secrets.SNARKOS_DEPLOY_KEY }}" > ~/.ssh/id_rsa
++          chmod 600 ~/.ssh/id_rsa
++          eval $(ssh-agent -s)
++          ssh-add -k ~/.ssh/id_rsa
++
++      - name: Install Rust
++        uses: actions-rs/toolchain@v1
++        with:
++          profile: minimal
++          toolchain: nightly
++          override: true
++          components: rustfmt
++
++      - name: Install Leo
++        uses: actions-rs/cargo@v1
++        env:
++          CARGO_NET_GIT_FETCH_WITH_CLI: true
++        with:
++          command: install
++          args: --path .
++
++      - name: 'leo init'
++        run: |
++          cd .. && mkdir hello_world && cd hello_world
++          leo init
++          ls -la
++          leo run
+diff --git a/ast/src/leo.pest b/ast/src/leo.pest
+index 5836b95602..b92ae1762e 100644
+--- a/ast/src/leo.pest
++++ b/ast/src/leo.pest
+@@ -345,8 +345,8 @@ input_keyword = { "input" }
+ 
+ // Declared in functions/input/input.rs
+ input = {
+-    input_keyword
+-    | function_input
++    function_input
++    | input_keyword
+ }
+ input_list = _{ (input ~ ("," ~ NEWLINE* ~ input)*)? }
+ 
+diff --git a/compiler/src/compiler.rs b/compiler/src/compiler.rs
+index 2f9f80f4f5..77388ae128 100644
+--- a/compiler/src/compiler.rs
++++ b/compiler/src/compiler.rs
+@@ -15,7 +15,7 @@ use leo_typed::{Input, LeoTypedAst, MainInput, Program};
+ use snarkos_errors::gadgets::SynthesisError;
+ use snarkos_models::{
+     curves::{Field, PrimeField},
+-    gadgets::r1cs::{ConstraintSynthesizer, ConstraintSystem, TestConstraintSystem},
++    gadgets::r1cs::{ConstraintSynthesizer, ConstraintSystem},
+ };
+ 
+ use sha2::{Digest, Sha256};
+@@ -150,8 +150,8 @@ impl<F: Field + PrimeField, G: GroupType<F>> Compiler<F, G> {
+     }
+ 
+     /// Synthesizes the circuit for test functions with program input.
+-    pub fn compile_test_constraints(self, cs: &mut TestConstraintSystem<F>) -> Result<(), CompilerError> {
+-        generate_test_constraints::<F, G>(cs, self.program, self.program_input, &self.imported_programs)
++    pub fn compile_test_constraints(self) -> Result<(), CompilerError> {
++        generate_test_constraints::<F, G>(self.program, self.program_input, &self.imported_programs)
+     }
+ 
+     /// Calls the internal generate_constraints method with arguments
+diff --git a/compiler/src/constraints/constraints.rs b/compiler/src/constraints/constraints.rs
+index fc74c6066e..ba4aaec894 100644
+--- a/compiler/src/constraints/constraints.rs
++++ b/compiler/src/constraints/constraints.rs
+@@ -42,7 +42,6 @@ pub fn generate_constraints<F: Field + PrimeField, G: GroupType<F>, CS: Constrai
+ }
+ 
+ pub fn generate_test_constraints<F: Field + PrimeField, G: GroupType<F>>(
+-    cs: &mut TestConstraintSystem<F>,
+     program: Program,
+     input: Input,
+     imported_programs: &ImportParser,
+@@ -57,6 +56,7 @@ pub fn generate_test_constraints<F: Field + PrimeField, G: GroupType<F>>(
+     log::info!("Running {} tests", tests.len());
+ 
+     for (test_name, test_function) in tests.into_iter() {
++        let cs = &mut TestConstraintSystem::<F>::new();
+         let full_test_name = format!("{}::{}", program_name.clone(), test_name.to_string());
+ 
+         let result = resolved_program.enforce_main_function(
+@@ -68,7 +68,7 @@ pub fn generate_test_constraints<F: Field + PrimeField, G: GroupType<F>>(
+ 
+         if result.is_ok() {
+             log::info!(
+-                "test {} passed. Constraint system satisfied: {}",
++                "test {} compiled successfully. Constraint system satisfied: {}",
+                 full_test_name,
+                 cs.is_satisfied()
+             );
+diff --git a/leo/commands/init.rs b/leo/commands/init.rs
+index ee6d8c4b8a..edd5081119 100644
+--- a/leo/commands/init.rs
++++ b/leo/commands/init.rs
+@@ -76,10 +76,17 @@ impl CLI for InitCommand {
+             // Verify the input file does not exist
+             let input_file = InputFile::new(&package_name);
+             if !input_file.exists_at(&path) {
+-                // Create the input file in the input directory
++                // Create the input file in the inputs directory
+                 input_file.write_to(&path)?;
+             }
+ 
++            // Verify the state file does not exist
++            let state_file = StateFile::new(&package_name);
++            if !state_file.exists_at(&path) {
++                // Create the state file in the inputs directory
++                state_file.write_to(&path)?;
++            }
++
+             // Verify the main file does not exist
+             if !MainFile::exists_at(&path) {
+                 // Create the main file in the source directory
+diff --git a/leo/commands/new.rs b/leo/commands/new.rs
+index 70373c0da3..8eef13209c 100644
+--- a/leo/commands/new.rs
++++ b/leo/commands/new.rs
+@@ -90,9 +90,12 @@ impl CLI for NewCommand {
+             // Create the input directory
+             InputsDirectory::create(&path)?;
+ 
+-            // Create the input file in the input directory
++            // Create the input file in the inputs directory
+             InputFile::new(&package_name).write_to(&path)?;
+ 
++            // Create the state file in the inputs directory
++            StateFile::new(&package_name).write_to(&path)?;
++
+             // Create the main file in the source directory
+             MainFile::new(&package_name).write_to(&path)?;
+         }
+diff --git a/leo/commands/test.rs b/leo/commands/test.rs
+index f1526cf8af..458edfb241 100644
+--- a/leo/commands/test.rs
++++ b/leo/commands/test.rs
+@@ -12,7 +12,6 @@ use leo_package::{
+ };
+ 
+ use snarkos_curves::edwards_bls12::Fq;
+-use snarkos_models::gadgets::r1cs::TestConstraintSystem;
+ 
+ use clap::ArgMatches;
+ use std::{convert::TryFrom, env::current_dir};
+@@ -81,9 +80,8 @@ impl CLI for TestCommand {
+ 
+         // Generate the program on the constraint system and verify correctness
+         {
+-            let mut cs = TestConstraintSystem::<Fq>::new();
+             let temporary_program = program.clone();
+-            let output = temporary_program.compile_test_constraints(&mut cs)?;
++            let output = temporary_program.compile_test_constraints()?;
+             log::debug!("Compiled constraints - {:#?}", output);
+         }
+ 
+diff --git a/package/src/inputs/input.rs b/package/src/inputs/input.rs
+index 524c12c5e8..ebd4d993e7 100644
+--- a/package/src/inputs/input.rs
++++ b/package/src/inputs/input.rs
+@@ -50,6 +50,9 @@ impl InputFile {
+ [main]
+ a: u32 = 1;
+ b: u32 = 2;
++
++[registers]
++r0: u32 = 0;
+ "#,
+             self.package_name
+         )

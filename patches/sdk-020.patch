@@ -1,0 +1,13 @@
+diff --git a/website/src/tabs/develop/execute/index.jsx b/website/src/tabs/develop/execute/index.jsx
+index 9ca65849..6750c42f 100644
+--- a/website/src/tabs/develop/execute/index.jsx
++++ b/website/src/tabs/develop/execute/index.jsx
+@@ -22,7 +22,7 @@ const layout = { labelCol: { span: 4 }, wrapperCol: { span: 18 } };
+ 
+ export const Execute = () => {
+     const [form] = Form.useForm();
+-    const aleoWASM = useAleoWASM();
++    const [aleoWASM] = useAleoWASM();
+ 
+     const demoSelect = async (value) => {
+         if (value === "hello") {

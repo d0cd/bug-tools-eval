@@ -1,0 +1,62 @@
+diff --git a/vm/package/deploy.rs b/vm/package/deploy.rs
+index bbe6894e8..30292b5cd 100644
+--- a/vm/package/deploy.rs
++++ b/vm/package/deploy.rs
+@@ -113,6 +113,7 @@ impl<'de, N: Network> Deserialize<'de> for DeployResponse<N> {
+ impl<N: Network> Package<N> {
+     pub fn deploy<A: crate::circuit::Aleo<Network = N, BaseField = N::Field>>(
+         &self,
++        process: &Process<N>,
+         endpoint: Option<String>,
+     ) -> Result<Deployment<N>> {
+         // Retrieve the main program.
+@@ -122,9 +123,6 @@ impl<N: Network> Package<N> {
+ 
+         dev_println!("⏳ Deploying '{}'...\n", program_id.to_string());
+ 
+-        // Get the process.
+-        let process = self.get_process()?;
+-
+         // Initialize the RNG.
+         let rng = &mut rand::thread_rng();
+         // Compute the deployment.
+@@ -158,8 +156,11 @@ mod tests {
+         // Samples a new package at a temporary directory.
+         let (directory, package) = crate::package::test_helpers::sample_token_package();
+ 
++        // Generate the process with the appropriate imports.
++        let process = package.get_process().unwrap();
++
+         // Deploy the package.
+-        let deployment = package.deploy::<CurrentAleo>(None).unwrap();
++        let deployment = package.deploy::<CurrentAleo>(&process, None).unwrap();
+ 
+         // Ensure the deployment edition matches.
+         assert_eq!(0, deployment.edition());
+@@ -177,8 +178,11 @@ mod tests {
+         // Samples a new package at a temporary directory.
+         let (directory, package) = crate::package::test_helpers::sample_wallet_package();
+ 
++        // Generate the process with the appropriate imports.
++        let process = package.get_process().unwrap();
++
+         // Deploy the package.
+-        let deployment = package.deploy::<CurrentAleo>(None).unwrap();
++        let deployment = package.deploy::<CurrentAleo>(&process, None).unwrap();
+ 
+         // Ensure the deployment edition matches.
+         assert_eq!(0, deployment.edition());
+diff --git a/vm/package/mod.rs b/vm/package/mod.rs
+index 8d0325328..5d296e319 100644
+--- a/vm/package/mod.rs
++++ b/vm/package/mod.rs
+@@ -165,7 +165,8 @@ impl<N: Network> Package<N> {
+                 //  2) the AVM bytecode of the imported program matches the AVM bytecode of the program *on-chain*
+                 //  3) consensus performs the exact same checks (in `verify_deployment`)
+                 // Open the Aleo program file.
+-                let import_program_file = AleoFile::open(&imports_directory, program_id, false)?;
++                let is_main = false;
++                let import_program_file = AleoFile::open(&imports_directory, program_id, is_main)?;
+                 // Get the program.
+                 Ok(import_program_file.program().clone())
+             })

@@ -1,0 +1,138 @@
+diff --git a/algorithms/src/snark/varuna/ahp/ahp.rs b/algorithms/src/snark/varuna/ahp/ahp.rs
+index 0b8886847..4cbeb5291 100644
+--- a/algorithms/src/snark/varuna/ahp/ahp.rs
++++ b/algorithms/src/snark/varuna/ahp/ahp.rs
+@@ -180,23 +180,20 @@ impl<F: PrimeField, SM: SNARKMode> AHPForR1CS<F, SM> {
+         let max_constraint_domain = state.max_constraint_domain;
+         let max_variable_domain = state.max_variable_domain;
+         let max_non_zero_domain = state.max_non_zero_domain;
+-        let public_inputs = state
+-            .circuit_specific_states
+-            .iter()
+-            .map(|(circuit_id, circuit_state)| {
+-                let input_domain = circuit_state.input_domain;
+-                let public_inputs = public_inputs[circuit_id]
+-                    .iter()
+-                    .map(|p| {
+-                        let public_input = prover::ConstraintSystem::format_public_input(p);
+-                        Self::formatted_public_input_is_admissible(&public_input)?;
+-                        Ok::<_, AHPError>(public_input)
+-                    })
+-                    .collect::<Result<Vec<_>, _>>()?;
+-                ensure!(public_inputs[0].len() == input_domain.size());
+-                Ok(public_inputs)
+-            })
+-            .collect::<Result<Vec<_>, _>>()?;
++        let mut formatted_public_inputs = Vec::with_capacity(state.circuit_specific_states.len());
++        for (circuit_id, circuit_state) in &state.circuit_specific_states {
++            let input_domain = circuit_state.input_domain;
++            let public_inputs_i = public_inputs[circuit_id]
++                .iter()
++                .map(|p| {
++                    let public_input = prover::ConstraintSystem::format_public_input(p);
++                    Self::formatted_public_input_is_admissible(&public_input)?;
++                    Ok::<_, AHPError>(public_input)
++                })
++                .collect::<Result<Vec<_>, _>>()?;
++            ensure!(public_inputs_i[0].len() == input_domain.size());
++            formatted_public_inputs.push(public_inputs_i);
++        }
+ 
+         let verifier::FirstMessage { batch_combiners } = state.first_round_message.as_ref().unwrap();
+         let verifier::SecondMessage { alpha, eta_b, eta_c } = state.second_round_message.unwrap();
+@@ -286,7 +283,7 @@ impl<F: PrimeField, SM: SNARKMode> AHPForR1CS<F, SM> {
+             .enumerate()
+             .map(|(i, (circuit_id, circuit_state))| {
+                 let lag_at_beta = circuit_state.input_domain.evaluate_all_lagrange_coefficients(beta);
+-                let x_at_beta = public_inputs[i]
++                let x_at_beta = formatted_public_inputs[i]
+                     .iter()
+                     .map(|x| x.iter().zip_eq(&lag_at_beta).map(|(x, l)| *x * l).sum::<F>())
+                     .collect_vec();
+diff --git a/algorithms/src/snark/varuna/data_structures/test_circuit.rs b/algorithms/src/snark/varuna/data_structures/test_circuit.rs
+index cdd93694a..6af4ae7f9 100644
+--- a/algorithms/src/snark/varuna/data_structures/test_circuit.rs
++++ b/algorithms/src/snark/varuna/data_structures/test_circuit.rs
+@@ -40,6 +40,11 @@ impl<F: Field> core::fmt::Debug for TestCircuit<F> {
+ 
+ impl<ConstraintF: Field> ConstraintSynthesizer<ConstraintF> for TestCircuit<ConstraintF> {
+     fn generate_constraints<CS: ConstraintSystem<ConstraintF>>(&self, cs: &mut CS) -> Result<(), SynthesisError> {
++        // Ensure the given `cs` is starting off clean.
++        assert_eq!(1, cs.num_public_variables());
++        assert_eq!(0, cs.num_private_variables());
++        assert_eq!(0, cs.num_constraints());
++
+         let a = cs.alloc(|| "a", || self.a.ok_or(SynthesisError::AssignmentMissing))?;
+         let b = cs.alloc(|| "b", || self.b.ok_or(SynthesisError::AssignmentMissing))?;
+ 
+diff --git a/algorithms/src/snark/varuna/varuna.rs b/algorithms/src/snark/varuna/varuna.rs
+index aec75efbf..ccd1da99a 100644
+--- a/algorithms/src/snark/varuna/varuna.rs
++++ b/algorithms/src/snark/varuna/varuna.rs
+@@ -657,7 +657,7 @@ where
+         let mut input_domains = BTreeMap::new();
+         let mut circuit_infos = BTreeMap::new();
+         let mut circuit_ids = Vec::with_capacity(keys_to_inputs.len());
+-        for (vk, public_inputs_i) in keys_to_inputs.iter() {
++        for (&vk, &public_inputs_i) in keys_to_inputs.iter() {
+             max_num_constraints = max_num_constraints.max(vk.circuit_info.num_constraints);
+             max_num_variables = max_num_variables.max(vk.circuit_info.num_variables);
+ 
+diff --git a/synthesizer/snark/src/lib.rs b/synthesizer/snark/src/lib.rs
+index 10aea5eb5..458d684ce 100644
+--- a/synthesizer/snark/src/lib.rs
++++ b/synthesizer/snark/src/lib.rs
+@@ -160,4 +160,53 @@ mod test {
+         println!("\nShould not verify (i.e. verifier messages should print below):");
+         assert!(!verifying_key.verify("test", &[one, one + one], &proof));
+     }
++
++    #[test]
++    fn test_varuna_verify_public_input_size() {
++        /// Creates a simple circuit: a * b.
++        fn create_assignment() -> circuit::Assignment<<CurrentNetwork as console::prelude::Environment>::Field> {
++            use circuit::{environment::Mode, types::Field, Inject};
++
++            // Ensure the circuit environment is clean.
++            Circuit::reset();
++
++            // Inject a field element.
++            let console_field = console::types::Field::<CurrentNetwork>::one();
++            let circuit_field_0 = Field::<Circuit>::new(Mode::Private, console_field);
++
++            // Inject another field element.
++            let console_field = console_field.double();
++            let circuit_field_1 = Field::<Circuit>::new(Mode::Private, console_field);
++
++            // Multiply the two field elements.
++            let _circuit_field_2 = circuit_field_0 * circuit_field_1;
++
++            // Eject the assignment.
++            Circuit::eject_assignment_and_reset()
++        }
++
++        let assignment = create_assignment();
++        assert_eq!(assignment.num_public(), 1);
++        assert_eq!(assignment.num_private(), 3);
++
++        let srs = UniversalSRS::<CurrentNetwork>::load().unwrap();
++        let (proving_key, verifying_key) = srs.to_circuit_key("test", &assignment).unwrap();
++        println!("Called circuit setup");
++
++        let proof = proving_key.prove("test", &assignment, &mut TestRng::default()).unwrap();
++        println!("Called prover");
++
++        // Should pass.
++        let one = <Circuit as Environment>::BaseField::one();
++        assert!(verifying_key.verify("test", &[one], &proof));
++
++        // Should fail.
++        assert!(!verifying_key.verify("test", &[one, one], &proof));
++        assert!(!verifying_key.verify("test", &[one, one + one], &proof));
++        assert!(!verifying_key.verify("test", &[one, one, one], &proof));
++        assert!(!verifying_key.verify("test", &[one, one, one + one], &proof));
++        assert!(!verifying_key.verify("test", &[one, one, one, one], &proof));
++
++        println!("Called verifier");
++    }
+ }

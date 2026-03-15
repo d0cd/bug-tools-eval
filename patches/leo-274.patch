@@ -1,0 +1,100 @@
+diff --git a/compiler/passes/src/common/symbol_table/mod.rs b/compiler/passes/src/common/symbol_table/mod.rs
+index a057f57cf6..2308bef5ed 100644
+--- a/compiler/passes/src/common/symbol_table/mod.rs
++++ b/compiler/passes/src/common/symbol_table/mod.rs
+@@ -95,6 +95,10 @@ impl LocalTable {
+         }
+     }
+ 
++    fn clear_but_consts(&mut self) {
++        self.inner.borrow_mut().variables.clear();
++    }
++
+     /// Recursively duplicates this table and all children.
+     /// `new_parent` is the NodeID of the parent in the new tree (None for root).
+     pub fn dup(
+@@ -140,13 +144,18 @@ impl LocalTable {
+ }
+ 
+ impl SymbolTable {
+-    /// Reset everything except leave global consts that have been evaluated.
++    /// Reset everything except leave consts that have been evaluated.
+     pub fn reset_but_consts(&mut self) {
+         self.functions.clear();
+         self.records.clear();
+         self.structs.clear();
+         self.globals.clear();
+-        self.all_locals.clear();
++
++        // clear all non-const locals
++        for local_table in self.all_locals.values_mut() {
++            local_table.clear_but_consts();
++        }
++
+         self.local = None;
+     }
+ 
+diff --git a/compiler/passes/src/const_prop_unroll_and_morphing.rs b/compiler/passes/src/const_prop_unroll_and_morphing.rs
+index cd54c8ad97..53bb4907d5 100644
+--- a/compiler/passes/src/const_prop_unroll_and_morphing.rs
++++ b/compiler/passes/src/const_prop_unroll_and_morphing.rs
+@@ -49,8 +49,7 @@ impl Pass for ConstPropUnrollAndMorphing {
+ 
+             // Clear the symbol table and create it again. This is important because after all the passes above run, the
+             // program may have changed significantly (new functions may have been added, some functions may have been
+-            // deleted, etc.) We do want to retain globally evaluated consts, so that const propagation can tell when
+-            // it has evaluated a new one.
++            // deleted, etc.) We do want to retain evaluated consts, so that const propagation can tell when it has evaluated a new one.
+             state.symbol_table.reset_but_consts();
+             SymbolTableCreation::do_pass((), state)?;
+ 
+diff --git a/compiler/passes/src/const_propagation/ast.rs b/compiler/passes/src/const_propagation/ast.rs
+index cc3881b0c7..9492e0af28 100644
+--- a/compiler/passes/src/const_propagation/ast.rs
++++ b/compiler/passes/src/const_propagation/ast.rs
+@@ -555,10 +555,7 @@ impl AstReconstructor for ConstPropagationVisitor<'_> {
+             if self.state.symbol_table.lookup_const(self.program, path).is_none() {
+                 // It wasn't already evaluated - insert it and record that we've made a change.
+                 self.state.symbol_table.insert_const(self.program, path, expr.clone());
+-                if self.state.symbol_table.global_scope() {
+-                    // We made a change in the global scope, so this was a real change.
+-                    self.changed = true;
+-                }
++                self.changed = true;
+             }
+         } else {
+             self.const_not_evaluated = Some(span);
+diff --git a/tests/expectations/compiler/bugs/b28923.out b/tests/expectations/compiler/bugs/b28923.out
+new file mode 100644
+index 0000000000..1b7351b788
+--- /dev/null
++++ b/tests/expectations/compiler/bugs/b28923.out
+@@ -0,0 +1,9 @@
++program b28923.aleo;
++
++function main:
++    input r0 as [u8; 4u32].private;
++    cast r0[0u32] r0[1u32] r0[2u32] r0[3u32] into r1 as [u8; 4u32];
++    output r1 as [u8; 4u32].private;
++
++constructor:
++    assert.eq edition 0u16;
+diff --git a/tests/tests/compiler/bugs/b28923.leo b/tests/tests/compiler/bugs/b28923.leo
+new file mode 100644
+index 0000000000..b7960411ff
+--- /dev/null
++++ b/tests/tests/compiler/bugs/b28923.leo
+@@ -0,0 +1,13 @@
++program b28923.aleo {
++    @noupgrade
++    async constructor() {}
++
++    transition main(message_raw: [u8; 4]) -> [u8; 4] {
++        const length: u32 = 4;
++        let message = [0u8; length];
++        for i: u32 in 0u32..length{
++            message[i] = message_raw[i];
++        }
++        return message;
++    }
++}

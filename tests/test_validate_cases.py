@@ -259,6 +259,73 @@ class TestValidateCasesPatchesDir:
         assert "PASS" in result.output
 
 
+class TestValidateCasesFindingFileCheck:
+    def test_finding_file_not_in_diff_warns(self, tmp_path: Path) -> None:
+        """Expected finding references a file not in the diff → warning printed."""
+        repo = make_repo(tmp_path / "repo")
+        base = get_sha(repo)
+        head = add_commit(repo, "fn main() { let x = 1; }\n")
+
+        cases_dir = tmp_path / "cases"
+        cases_dir.mkdir()
+        case = TestCase(
+            id="ff-001",
+            repo="foo/bar",
+            base_commit=base,
+            head_commit=head,
+            fix_commit=head,
+            category=Category.logic,
+            difficulty=Difficulty.easy,
+            severity=Severity.low,
+            language="rust",
+            pr_size=PRSize.tiny,
+            description="Test case",
+            expected_findings=[ExpectedFinding(file="nonexistent.rs", line=1, summary="phantom")],
+        )
+        save_case(case, cases_dir / "ff-001.yaml")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            validate_cases,
+            ["--repo-dir", str(repo), "--cases-dir", str(cases_dir)],
+        )
+        # Should warn but not hard-fail
+        assert "nonexistent.rs" in result.output or "not in diff" in result.output
+
+    def test_finding_file_in_diff_passes_cleanly(self, tmp_path: Path) -> None:
+        """Expected finding references a file that IS in the diff → no warning."""
+        repo = make_repo(tmp_path / "repo")
+        base = get_sha(repo)
+        head = add_commit(repo, "fn main() { let x = 1; }\n")
+
+        cases_dir = tmp_path / "cases"
+        cases_dir.mkdir()
+        case = TestCase(
+            id="ff-002",
+            repo="foo/bar",
+            base_commit=base,
+            head_commit=head,
+            fix_commit=head,
+            category=Category.logic,
+            difficulty=Difficulty.easy,
+            severity=Severity.low,
+            language="rust",
+            pr_size=PRSize.tiny,
+            description="Test case",
+            expected_findings=[ExpectedFinding(file="main.rs", line=1, summary="valid")],
+        )
+        save_case(case, cases_dir / "ff-002.yaml")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            validate_cases,
+            ["--repo-dir", str(repo), "--cases-dir", str(cases_dir)],
+        )
+        assert result.exit_code == 0
+        assert "PASS" in result.output
+        assert "not in diff" not in result.output
+
+
 class TestValidateCasesBadCommit:
     def test_bad_commit_fails(self, tmp_path: Path) -> None:
         repo = make_repo(tmp_path / "repo")

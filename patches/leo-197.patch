@@ -1,0 +1,12 @@
+diff --git a/leo/cli/commands/query/committee.rs b/leo/cli/commands/query/committee.rs
+index c10efb6f09..4128844295 100644
+--- a/leo/cli/commands/query/committee.rs
++++ b/leo/cli/commands/query/committee.rs
+@@ -35,6 +35,6 @@ impl Command for LeoCommittee {
+     }
+ 
+     fn apply(self, _context: Context, _: Self::Input) -> Result<Self::Output> {
+-        Ok("/committee/latest".to_string())
++        Ok("committee/latest".to_string())
+     }
+ }

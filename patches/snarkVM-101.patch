@@ -1,0 +1,702 @@
+diff --git a/circuit/algorithms/src/bhp/commit.rs b/circuit/algorithms/src/bhp/commit.rs
+index 7280eab0d..1bba19f3d 100644
+--- a/circuit/algorithms/src/bhp/commit.rs
++++ b/circuit/algorithms/src/bhp/commit.rs
+@@ -83,11 +83,11 @@ mod tests {
+ 
+     #[test]
+     fn test_commit_public() -> Result<()> {
+-        check_commit::<32, 48>(Mode::Public, 1044, 0, 10349, 10351)
++        check_commit::<32, 48>(Mode::Public, 1044, 0, 10419, 10491)
+     }
+ 
+     #[test]
+     fn test_commit_private() -> Result<()> {
+-        check_commit::<32, 48>(Mode::Private, 1044, 0, 10349, 10351)
++        check_commit::<32, 48>(Mode::Private, 1044, 0, 10419, 10491)
+     }
+ }
+diff --git a/circuit/algorithms/src/bhp/commit_uncompressed.rs b/circuit/algorithms/src/bhp/commit_uncompressed.rs
+index 982a5284f..c97513787 100644
+--- a/circuit/algorithms/src/bhp/commit_uncompressed.rs
++++ b/circuit/algorithms/src/bhp/commit_uncompressed.rs
+@@ -93,11 +93,11 @@ mod tests {
+ 
+     #[test]
+     fn test_commit_uncompressed_public() -> Result<()> {
+-        check_commit_uncompressed::<32, 48>(Mode::Public, 1044, 0, 10349, 10351)
++        check_commit_uncompressed::<32, 48>(Mode::Public, 1044, 0, 10419, 10491)
+     }
+ 
+     #[test]
+     fn test_commit_uncompressed_private() -> Result<()> {
+-        check_commit_uncompressed::<32, 48>(Mode::Private, 1044, 0, 10349, 10351)
++        check_commit_uncompressed::<32, 48>(Mode::Private, 1044, 0, 10419, 10491)
+     }
+ }
+diff --git a/circuit/algorithms/src/bhp/hash.rs b/circuit/algorithms/src/bhp/hash.rs
+index a3d9c35bf..2cbc6a76b 100644
+--- a/circuit/algorithms/src/bhp/hash.rs
++++ b/circuit/algorithms/src/bhp/hash.rs
+@@ -78,11 +78,11 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_public() -> Result<()> {
+-        check_hash::<32, 48>(Mode::Public, 542, 0, 8592, 8593)
++        check_hash::<32, 48>(Mode::Public, 542, 0, 8662, 8733)
+     }
+ 
+     #[test]
+     fn test_hash_private() -> Result<()> {
+-        check_hash::<32, 48>(Mode::Private, 542, 0, 8592, 8593)
++        check_hash::<32, 48>(Mode::Private, 542, 0, 8662, 8733)
+     }
+ }
+diff --git a/circuit/algorithms/src/bhp/hash_uncompressed.rs b/circuit/algorithms/src/bhp/hash_uncompressed.rs
+index 68e2c94c5..bd617a5f8 100644
+--- a/circuit/algorithms/src/bhp/hash_uncompressed.rs
++++ b/circuit/algorithms/src/bhp/hash_uncompressed.rs
+@@ -141,12 +141,12 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_uncompressed_public() -> Result<()> {
+-        check_hash_uncompressed::<32, 48>(Mode::Public, 542, 0, 8592, 8593)
++        check_hash_uncompressed::<32, 48>(Mode::Public, 542, 0, 8662, 8733)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_private() -> Result<()> {
+-        check_hash_uncompressed::<32, 48>(Mode::Private, 542, 0, 8592, 8593)
++        check_hash_uncompressed::<32, 48>(Mode::Private, 542, 0, 8662, 8733)
+     }
+ 
+     #[test]
+@@ -156,12 +156,12 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp256_public() -> Result<()> {
+-        check_hash_uncompressed!(BHP256, Public, 261, (409, 0, 449, 449))
++        check_hash_uncompressed!(BHP256, Public, 261, (409, 0, 453, 457))
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp256_private() -> Result<()> {
+-        check_hash_uncompressed!(BHP256, Private, 261, (409, 0, 449, 449))
++        check_hash_uncompressed!(BHP256, Private, 261, (409, 0, 453, 457))
+     }
+ 
+     #[test]
+@@ -171,12 +171,12 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp512_public() -> Result<()> {
+-        check_hash_uncompressed!(BHP512, Public, 522, (421, 0, 905, 905))
++        check_hash_uncompressed!(BHP512, Public, 522, (421, 0, 915, 925))
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp512_private() -> Result<()> {
+-        check_hash_uncompressed!(BHP512, Private, 522, (421, 0, 905, 905))
++        check_hash_uncompressed!(BHP512, Private, 522, (421, 0, 915, 925))
+     }
+ 
+     #[test]
+@@ -186,12 +186,12 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp768_public() -> Result<()> {
+-        check_hash_uncompressed!(BHP768, Public, 783, (459, 0, 1389, 1389))
++        check_hash_uncompressed!(BHP768, Public, 783, (459, 0, 1413, 1437))
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp768_private() -> Result<()> {
+-        check_hash_uncompressed!(BHP768, Private, 783, (459, 0, 1389, 1389))
++        check_hash_uncompressed!(BHP768, Private, 783, (459, 0, 1413, 1437))
+     }
+ 
+     #[test]
+@@ -203,24 +203,24 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp1024_public() -> Result<()> {
+-        check_hash_uncompressed!(BHP1024, Public, 1043, (429, 0, 1789, 1789))?;
+-        check_hash_uncompressed!(BHP1024, Public, 1044, (429, 0, 1789, 1789))?;
+-        check_hash_uncompressed!(BHP1024, Public, 1046, (438, 0, 2475, 2476))
++        check_hash_uncompressed!(BHP1024, Public, 1043, (429, 0, 1803, 1817))?;
++        check_hash_uncompressed!(BHP1024, Public, 1044, (429, 0, 1803, 1817))?;
++        check_hash_uncompressed!(BHP1024, Public, 1046, (438, 0, 2493, 2512))
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_bhp1024_private() -> Result<()> {
+-        check_hash_uncompressed!(BHP1024, Private, 1043, (429, 0, 1789, 1789))?;
+-        check_hash_uncompressed!(BHP1024, Private, 1044, (429, 0, 1789, 1789))?;
+-        check_hash_uncompressed!(BHP1024, Private, 1046, (438, 0, 2475, 2476))
++        check_hash_uncompressed!(BHP1024, Private, 1043, (429, 0, 1803, 1817))?;
++        check_hash_uncompressed!(BHP1024, Private, 1044, (429, 0, 1803, 1817))?;
++        check_hash_uncompressed!(BHP1024, Private, 1046, (438, 0, 2493, 2512))
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_cost_comparison() -> Result<()> {
+         // The cost to hash 512 bits for each BHP variant is:
+-        check_hash_uncompressed!(BHP256, Private, 512, (422, 0, 1557, 1558))?;
+-        check_hash_uncompressed!(BHP512, Private, 512, (421, 0, 890, 890))?;
+-        check_hash_uncompressed!(BHP768, Private, 512, (447, 0, 918, 918))?;
+-        check_hash_uncompressed!(BHP1024, Private, 512, (417, 0, 883, 883))
++        check_hash_uncompressed!(BHP256, Private, 512, (422, 0, 1567, 1578))?;
++        check_hash_uncompressed!(BHP512, Private, 512, (421, 0, 900, 910))?;
++        check_hash_uncompressed!(BHP768, Private, 512, (447, 0, 936, 954))?;
++        check_hash_uncompressed!(BHP1024, Private, 512, (417, 0, 891, 899))
+     }
+ }
+diff --git a/circuit/algorithms/src/bhp/hasher/hash_uncompressed.rs b/circuit/algorithms/src/bhp/hasher/hash_uncompressed.rs
+index e553ce3e4..cceb387fb 100644
+--- a/circuit/algorithms/src/bhp/hasher/hash_uncompressed.rs
++++ b/circuit/algorithms/src/bhp/hasher/hash_uncompressed.rs
+@@ -155,7 +155,8 @@ impl<E: Environment, const NUM_WINDOWS: u8, const WINDOW_SIZE: u8> HashUncompres
+                 match &sum {
+                     Some((sum_x, sum_y)) => {
+                         // Convert the accumulated sum into a point on the twisted Edwards curve.
+-                        let edwards_x = sum_x / sum_y; // 1 constraint
++                        // TODO: If we know that sum_y is nonzero, then we can replace with `sum_x * sum_y.inverse()`.
++                        let edwards_x = sum_x / sum_y; // 5 constraints;
+                         Group::from_x_coordinate(edwards_x) // 3 constraints
+                     }
+                     None => E::halt("Invalid iteration of BHP detected, a window was not evaluated"),
+@@ -222,11 +223,11 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_uncompressed_public() -> Result<()> {
+-        check_hash_uncompressed::<32, 48>(Mode::Public, 129, 0, 7898, 7898)
++        check_hash_uncompressed::<32, 48>(Mode::Public, 129, 0, 7962, 8026)
+     }
+ 
+     #[test]
+     fn test_hash_uncompressed_private() -> Result<()> {
+-        check_hash_uncompressed::<32, 48>(Mode::Private, 129, 0, 7898, 7898)
++        check_hash_uncompressed::<32, 48>(Mode::Private, 129, 0, 7962, 8026)
+     }
+ }
+diff --git a/circuit/algorithms/src/elligator2/encode.rs b/circuit/algorithms/src/elligator2/encode.rs
+index d0fb78b62..431ceceed 100644
+--- a/circuit/algorithms/src/elligator2/encode.rs
++++ b/circuit/algorithms/src/elligator2/encode.rs
+@@ -140,11 +140,11 @@ mod tests {
+ 
+     #[test]
+     fn test_encode_public() {
+-        check_encode(Mode::Public, 263, 0, 371, 380);
++        check_encode(Mode::Public, 263, 0, 377, 392);
+     }
+ 
+     #[test]
+     fn test_encode_private() {
+-        check_encode(Mode::Private, 263, 0, 371, 380);
++        check_encode(Mode::Private, 263, 0, 377, 392);
+     }
+ }
+diff --git a/circuit/algorithms/src/poseidon/hash_to_group.rs b/circuit/algorithms/src/poseidon/hash_to_group.rs
+index 7a5efb238..32e09263d 100644
+--- a/circuit/algorithms/src/poseidon/hash_to_group.rs
++++ b/circuit/algorithms/src/poseidon/hash_to_group.rs
+@@ -91,12 +91,12 @@ mod tests {
+ 
+     #[test]
+     fn test_poseidon2_hash_to_group_public() -> Result<()> {
+-        check_hash_to_group!(Poseidon2, Public, 2, (529, 0, 1018, 1036))
++        check_hash_to_group!(Poseidon2, Public, 2, (529, 0, 1030, 1060))
+     }
+ 
+     #[test]
+     fn test_poseidon2_hash_to_group_private() -> Result<()> {
+-        check_hash_to_group!(Poseidon2, Private, 2, (529, 0, 1018, 1036))
++        check_hash_to_group!(Poseidon2, Private, 2, (529, 0, 1030, 1060))
+     }
+ 
+     #[test]
+@@ -106,12 +106,12 @@ mod tests {
+ 
+     #[test]
+     fn test_poseidon4_hash_to_group_public() -> Result<()> {
+-        check_hash_to_group!(Poseidon4, Public, 2, (529, 0, 1088, 1106))
++        check_hash_to_group!(Poseidon4, Public, 2, (529, 0, 1100, 1130))
+     }
+ 
+     #[test]
+     fn test_poseidon4_hash_to_group_private() -> Result<()> {
+-        check_hash_to_group!(Poseidon4, Private, 2, (529, 0, 1088, 1106))
++        check_hash_to_group!(Poseidon4, Private, 2, (529, 0, 1100, 1130))
+     }
+ 
+     #[test]
+@@ -121,11 +121,11 @@ mod tests {
+ 
+     #[test]
+     fn test_poseidon8_hash_to_group_public() -> Result<()> {
+-        check_hash_to_group!(Poseidon8, Public, 2, (529, 0, 1228, 1246))
++        check_hash_to_group!(Poseidon8, Public, 2, (529, 0, 1240, 1270))
+     }
+ 
+     #[test]
+     fn test_poseidon8_hash_to_group_private() -> Result<()> {
+-        check_hash_to_group!(Poseidon8, Private, 2, (529, 0, 1228, 1246))
++        check_hash_to_group!(Poseidon8, Private, 2, (529, 0, 1240, 1270))
+     }
+ }
+diff --git a/circuit/collections/src/merkle_tree/helpers/leaf_hash.rs b/circuit/collections/src/merkle_tree/helpers/leaf_hash.rs
+index bce476167..f7dd325d3 100644
+--- a/circuit/collections/src/merkle_tree/helpers/leaf_hash.rs
++++ b/circuit/collections/src/merkle_tree/helpers/leaf_hash.rs
+@@ -101,12 +101,12 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_leaf_bhp1024_public() -> Result<()> {
+-        check_hash_leaf!(BHP1024, Public, 1024, (429, 0, 1758, 1758))
++        check_hash_leaf!(BHP1024, Public, 1024, (429, 0, 1772, 1786))
+     }
+ 
+     #[test]
+     fn test_hash_leaf_bhp1024_private() -> Result<()> {
+-        check_hash_leaf!(BHP1024, Private, 1024, (429, 0, 1758, 1758))
++        check_hash_leaf!(BHP1024, Private, 1024, (429, 0, 1772, 1786))
+     }
+ 
+     #[test]
+diff --git a/circuit/collections/src/merkle_tree/helpers/path_hash.rs b/circuit/collections/src/merkle_tree/helpers/path_hash.rs
+index 452382193..49e25d5e4 100644
+--- a/circuit/collections/src/merkle_tree/helpers/path_hash.rs
++++ b/circuit/collections/src/merkle_tree/helpers/path_hash.rs
+@@ -107,12 +107,12 @@ mod tests {
+ 
+     #[test]
+     fn test_hash_children_bhp512_public() -> Result<()> {
+-        check_hash_children!(BHP512, Public, (421, 0, 1385, 1387))
++        check_hash_children!(BHP512, Public, (421, 0, 1395, 1407))
+     }
+ 
+     #[test]
+     fn test_hash_children_bhp512_private() -> Result<()> {
+-        check_hash_children!(BHP512, Private, (421, 0, 1385, 1387))
++        check_hash_children!(BHP512, Private, (421, 0, 1395, 1407))
+     }
+ 
+     #[test]
+diff --git a/circuit/collections/src/merkle_tree/verify.rs b/circuit/collections/src/merkle_tree/verify.rs
+index 4009514e4..1b9dad264 100644
+--- a/circuit/collections/src/merkle_tree/verify.rs
++++ b/circuit/collections/src/merkle_tree/verify.rs
+@@ -155,12 +155,12 @@ mod tests {
+ 
+     #[test]
+     fn test_verify_bhp512_public() -> Result<()> {
+-        check_verify!(BHP1024, BHP512, Public, 32, 1024, (13901, 0, 46144, 46209))
++        check_verify!(BHP1024, BHP512, Public, 32, 1024, (13901, 0, 46478, 46877))
+     }
+ 
+     #[test]
+     fn test_verify_bhp512_private() -> Result<()> {
+-        check_verify!(BHP1024, BHP512, Private, 32, 1024, (13901, 0, 46144, 46209))
++        check_verify!(BHP1024, BHP512, Private, 32, 1024, (13901, 0, 46478, 46877))
+     }
+ 
+     #[test]
+diff --git a/circuit/program/src/request/verify.rs b/circuit/program/src/request/verify.rs
+index 8ad16f281..b565ce0a4 100644
+--- a/circuit/program/src/request/verify.rs
++++ b/circuit/program/src/request/verify.rs
+@@ -361,16 +361,17 @@ mod tests {
+     fn test_sign_and_verify_constant() -> Result<()> {
+         // Note: This is correct. At this (high) level of a program, we override the default mode in the `Record` case,
+         // based on the user-defined visibility in the record type. Thus, we have nonzero private and constraint values.
+-        check_verify(Mode::Constant, 41000, 0, 16100, 16100)
++        // These bounds are determined experimentally.
++        check_verify(Mode::Constant, 41000, 0, 16064, 16153)
+     }
+ 
+     #[test]
+     fn test_sign_and_verify_public() -> Result<()> {
+-        check_verify(Mode::Public, 34817, 0, 30393, 30439)
++        check_verify(Mode::Public, 34817, 0, 30447, 30547)
+     }
+ 
+     #[test]
+     fn test_sign_and_verify_private() -> Result<()> {
+-        check_verify(Mode::Private, 34817, 0, 30393, 30439)
++        check_verify(Mode::Private, 34817, 0, 30447, 30547)
+     }
+ }
+diff --git a/circuit/program/src/response/from_outputs.rs b/circuit/program/src/response/from_outputs.rs
+index 638fa6163..2197ee29d 100644
+--- a/circuit/program/src/response/from_outputs.rs
++++ b/circuit/program/src/response/from_outputs.rs
+@@ -216,11 +216,11 @@ mod tests {
+ 
+     #[test]
+     fn test_from_outputs_public() -> Result<()> {
+-        check_from_outputs(Mode::Public, 20880, 5, 16762, 16782)
++        check_from_outputs(Mode::Public, 20880, 5, 16822, 16902)
+     }
+ 
+     #[test]
+     fn test_from_outputs_private() -> Result<()> {
+-        check_from_outputs(Mode::Private, 20880, 5, 16762, 16782)
++        check_from_outputs(Mode::Private, 20880, 5, 16822, 16902)
+     }
+ }
+diff --git a/circuit/program/src/response/process_outputs_from_callback.rs b/circuit/program/src/response/process_outputs_from_callback.rs
+index 935d97a06..d29f5a085 100644
+--- a/circuit/program/src/response/process_outputs_from_callback.rs
++++ b/circuit/program/src/response/process_outputs_from_callback.rs
+@@ -226,19 +226,20 @@ mod tests {
+ 
+     // Note: These counts are correct. At this (high) level of a program, we override the default mode in many cases,
+     // based on the user-defined visibility in the types. Thus, we have nonzero public, private, and constraint values.
++    // These bounds are determined experimentally.
+ 
+     #[test]
+     fn test_from_callback_constant() -> Result<()> {
+-        check_from_callback(Mode::Constant, 19000, 4, 6000, 6000)
++        check_from_callback(Mode::Constant, 19000, 4, 6046, 6088)
+     }
+ 
+     #[test]
+     fn test_from_callback_public() -> Result<()> {
+-        check_from_callback(Mode::Public, 18828, 4, 8327, 8334)
++        check_from_callback(Mode::Public, 18828, 4, 8363, 8406)
+     }
+ 
+     #[test]
+     fn test_from_callback_private() -> Result<()> {
+-        check_from_callback(Mode::Private, 18828, 4, 8327, 8334)
++        check_from_callback(Mode::Private, 18828, 4, 8363, 8406)
+     }
+ }
+diff --git a/circuit/types/field/src/div.rs b/circuit/types/field/src/div.rs
+index 6b0fa86b3..70c29370f 100644
+--- a/circuit/types/field/src/div.rs
++++ b/circuit/types/field/src/div.rs
+@@ -58,23 +58,35 @@ impl<E: Environment> DivAssign<Self> for Field<E> {
+ 
+ impl<E: Environment> DivAssign<&Self> for Field<E> {
+     fn div_assign(&mut self, other: &Self) {
+-        // If `other` is a constant, we can perform the multiplication and inversion
+-        // without paying for any private variables or constraints.
+-        if other.is_constant() {
+-            *self *= other.inverse();
+-        }
+-        // Otherwise, we can perform division with 1 constraint by using a `quotient` witness,
+-        // and ensuring that `quotient * other == self`.
+-        else {
+-            // Construct the quotient as a witness.
+-            let quotient = witness!(|self, other| self / other);
+-
+-            // Ensure the quotient is correct by enforcing:
+-            // `quotient * other == self`.
+-            E::enforce(|| (&quotient, other, &*self));
+-
+-            // Assign the quotient to `self`.
+-            *self = quotient;
++        match other.is_constant() {
++            // If `other` is a constant and zero, halt since the inverse of zero is undefined.
++            true if other.eject_value().is_zero() => E::halt("Attempted to divide by zero."),
++            // If `other` is a constant and non-zero, we can perform the multiplication and inversion
++            // without paying for any private variables or constraints.
++            // TODO: Can the case where self is constant and other is not constant be optimized in the same way?
++            true => {
++                *self *= other.inverse();
++            }
++            // Otherwise, we can perform division with 1 constraint by using a `quotient` witness,
++            // and ensuring that `quotient * other == self`.
++            false => {
++                // Enforce that `other` is not zero.
++                E::assert(!other.is_zero());
++
++                // Construct the quotient as a witness.
++                let quotient = witness!(|self, other| {
++                    // Note: This band-aid was added to prevent a panic when `other` is zero.
++                    let other = if other.is_zero() { console::Field::one() } else { other };
++                    self / other
++                });
++
++                // Ensure the quotient is correct by enforcing:
++                // `quotient * other == self`.
++                E::enforce(|| (&quotient, other, &*self));
++
++                // Assign the quotient to `self`.
++                *self = quotient;
++            }
+         }
+     }
+ }
+@@ -85,8 +97,7 @@ impl<E: Environment> Metrics<dyn Div<Field<E>, Output = Field<E>>> for Field<E>
+     fn count(case: &Self::Case) -> Count {
+         match case {
+             (Mode::Constant, Mode::Constant) | (_, Mode::Constant) => Count::is(1, 0, 0, 0),
+-            (Mode::Constant, _) => Count::is(0, 0, 1, 1),
+-            (_, _) => Count::is(0, 0, 1, 1),
++            (_, _) => Count::is(0, 0, 3, 5),
+         }
+     }
+ }
+@@ -112,37 +123,80 @@ impl<E: Environment> OutputMode<dyn Div<Field<E>, Output = Field<E>>> for Field<
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+-    use snarkvm_circuit_environment::Circuit;
++    use snarkvm_circuit_environment::{assert_count_fails, Circuit};
+ 
+     const ITERATIONS: u64 = 1000;
+ 
+     fn check_div(
+         name: &str,
+-        expected: &console::Field<<Circuit as Environment>::Network>,
+-        a: &Field<Circuit>,
+-        b: &Field<Circuit>,
++        first: &console::Field<<Circuit as Environment>::Network>,
++        second: &console::Field<<Circuit as Environment>::Network>,
++        mode_a: Mode,
++        mode_b: Mode,
+     ) {
+-        Circuit::scope(name, || {
+-            let candidate = a / b;
+-            assert_eq!(*expected, candidate.eject_value(), "({} / {})", a.eject_value(), b.eject_value());
+-            assert_count!(Div(Field, Field) => Field, &(a.eject_mode(), b.eject_mode()));
+-            assert_output_mode!(Div(Field, Field) => Field, &(CircuitType::from(a), CircuitType::from(b)), candidate);
+-        });
++        let a = &Field::<Circuit>::new(mode_a, *first);
++        let b = &Field::<Circuit>::new(mode_b, *second);
++
++        match second.is_zero() {
++            true => match mode_b.is_constant() {
++                true => {
++                    let result = std::panic::catch_unwind(|| Field::div(a.clone(), b));
++                    assert!(result.is_err());
++                }
++                false => {
++                    Circuit::scope(name, || {
++                        let _ = a / b;
++                        assert_count_fails!(Div(Field, Field) => Field, &(a.eject_mode(), b.eject_mode()));
++                    });
++                }
++            },
++            false => {
++                let expected = *first / *second;
++                Circuit::scope(name, || {
++                    let candidate = a / b;
++                    assert_eq!(expected, candidate.eject_value(), "({} / {})", a.eject_value(), b.eject_value());
++                    assert_count!(Div(Field, Field) => Field, &(a.eject_mode(), b.eject_mode()));
++                    assert_output_mode!(Div(Field, Field) => Field, &(CircuitType::from(a), CircuitType::from(b)), candidate);
++                });
++            }
++        }
+     }
+ 
+     fn check_div_assign(
+         name: &str,
+-        expected: &console::Field<<Circuit as Environment>::Network>,
+-        a: &Field<Circuit>,
+-        b: &Field<Circuit>,
++        first: &console::Field<<Circuit as Environment>::Network>,
++        second: &console::Field<<Circuit as Environment>::Network>,
++        mode_a: Mode,
++        mode_b: Mode,
+     ) {
+-        Circuit::scope(name, || {
+-            let mut candidate = a.clone();
+-            candidate /= b;
+-            assert_eq!(*expected, candidate.eject_value(), "({} / {})", a.eject_value(), b.eject_value());
+-            assert_count!(Div(Field, Field) => Field, &(a.eject_mode(), b.eject_mode()));
+-            assert_output_mode!(Div(Field, Field) => Field, &(CircuitType::from(a), CircuitType::from(b)), candidate);
+-        });
++        let a = &Field::<Circuit>::new(mode_a, *first);
++        let b = &Field::<Circuit>::new(mode_b, *second);
++
++        match second.is_zero() {
++            true => match mode_b.is_constant() {
++                true => {
++                    let result = std::panic::catch_unwind(|| Field::div_assign(&mut a.clone(), b));
++                    assert!(result.is_err());
++                }
++                false => {
++                    Circuit::scope(name, || {
++                        let mut candidate = a.clone();
++                        candidate /= b;
++                        assert_count_fails!(Div(Field, Field) => Field, &(a.eject_mode(), b.eject_mode()));
++                    });
++                }
++            },
++            false => {
++                let expected = *first / *second;
++                Circuit::scope(name, || {
++                    let mut candidate = a.clone();
++                    candidate /= b;
++                    assert_eq!(expected, candidate.eject_value(), "({} /= {})", a.eject_value(), b.eject_value());
++                    assert_count!(Div(Field, Field) => Field, &(a.eject_mode(), b.eject_mode()));
++                    assert_output_mode!(Div(Field, Field) => Field, &(CircuitType::from(a), CircuitType::from(b)), candidate);
++                });
++            }
++        }
+     }
+ 
+     fn run_test(mode_a: Mode, mode_b: Mode) {
+@@ -150,21 +204,24 @@ mod tests {
+             let first = Uniform::rand(&mut test_rng());
+             let second = Uniform::rand(&mut test_rng());
+ 
+-            let expected = first / second;
+-            let a = Field::<Circuit>::new(mode_a, first);
+-            let b = Field::<Circuit>::new(mode_b, second);
+-
+             let name = format!("Div: a / b {}", i);
+-            check_div(&name, &expected, &a, &b);
++            check_div(&name, &first, &second, mode_a, mode_b);
+             let name = format!("DivAssign: a / b {}", i);
+-            check_div_assign(&name, &expected, &a, &b);
++            check_div_assign(&name, &first, &second, mode_a, mode_b);
+ 
+             // Check division by one.
+-            let one = Field::<Circuit>::new(mode_b, console::Field::<<Circuit as Environment>::Network>::one());
++            let one = console::Field::<<Circuit as Environment>::Network>::one();
+             let name = format!("Div By One {}", i);
+-            check_div(&name, &first, &a, &one);
++            check_div(&name, &first, &one, mode_a, mode_b);
+             let name = format!("DivAssign By One {}", i);
+-            check_div_assign(&name, &first, &a, &one);
++            check_div_assign(&name, &first, &one, mode_a, mode_b);
++
++            // Check division by zero.
++            let zero = console::Field::<<Circuit as Environment>::Network>::zero();
++            let name = format!("Div By Zero {}", i);
++            check_div(&name, &first, &zero, mode_a, mode_b);
++            let name = format!("DivAssign By Zero {}", i);
++            check_div_assign(&name, &first, &zero, mode_a, mode_b);
+         }
+     }
+ 
+@@ -225,12 +282,14 @@ mod tests {
+             std::panic::catch_unwind(|| Field::<Circuit>::new(Mode::Constant, one) / Field::new(Mode::Constant, zero));
+         assert!(result.is_err()); // Probe further for specific error type here, if desired
+ 
+-        let result =
+-            std::panic::catch_unwind(|| Field::<Circuit>::new(Mode::Public, one) / Field::new(Mode::Public, zero));
+-        assert!(result.is_err()); // Probe further for specific error type here, if desired
++        Circuit::scope("Public Div by Zero", || {
++            let _ = Field::<Circuit>::new(Mode::Public, one) / Field::new(Mode::Public, zero);
++            assert!(!Circuit::is_satisfied_in_scope());
++        });
+ 
+-        let result =
+-            std::panic::catch_unwind(|| Field::<Circuit>::new(Mode::Private, one) / Field::new(Mode::Private, zero));
+-        assert!(result.is_err()); // Probe further for specific error type here, if desired
++        Circuit::scope("Private Div by Zero", || {
++            let _ = Field::<Circuit>::new(Mode::Private, one) / Field::new(Mode::Private, zero);
++            assert!(!Circuit::is_satisfied_in_scope());
++        });
+     }
+ }
+diff --git a/circuit/types/integers/src/div_wrapped.rs b/circuit/types/integers/src/div_wrapped.rs
+index f149e0509..bbe3d142e 100644
+--- a/circuit/types/integers/src/div_wrapped.rs
++++ b/circuit/types/integers/src/div_wrapped.rs
+@@ -61,18 +61,12 @@ impl<E: Environment, I: IntegerType> DivWrapped<Self> for Integer<E, I> {
+ 
+ impl<E: Environment, I: IntegerType> Integer<E, I> {
+     /// Divides `self` by `other`, via witnesses, returning the quotient and remainder.
+-    /// Note that this method should only be used when 2 * I::BITS < E::BaseField::size_in_data_bits().
++    /// This method does not check that `other` is non-zero.
++    /// This method should only be used when 2 * I::BITS < E::BaseField::size_in_data_bits().
+     pub(super) fn unsigned_division_via_witness(&self, other: &Self) -> (Self, Self) {
+         // Eject the dividend and divisor, to compute the quotient as a witness.
+         let dividend_value = self.eject_value();
+-        // TODO (howardwu): This bandaid was added on June 19, 2022 to prevent a panic when the divisor is 0.
+-        // let divisor_value = match other.eject_value().is_zero() {
+-        //     true => match self.eject_value().is_zero() {
+-        //         true => console::Integer::one(),
+-        //         false => console::Integer::zero(),
+-        //     },
+-        //     false => other.eject_value(),
+-        // };
++        // Note: This band-aid was added to prevent a panic when the divisor is 0.
+         let divisor_value = match other.eject_value().is_zero() {
+             true => console::Integer::one(),
+             false => other.eject_value(),
+diff --git a/console/types/field/src/arithmetic.rs b/console/types/field/src/arithmetic.rs
+index e956e7160..ae6f9d233 100644
+--- a/console/types/field/src/arithmetic.rs
++++ b/console/types/field/src/arithmetic.rs
+@@ -140,7 +140,10 @@ impl<E: Environment> Div<Field<E>> for Field<E> {
+     /// Returns the `quotient` of `self` and `other`.
+     #[inline]
+     fn div(self, other: Field<E>) -> Self::Output {
+-        Field::new(self.field / other.field)
++        match other.is_zero() {
++            true => E::halt(format!("Field division by zero: {self} / {other}")),
++            false => Field::new(self.field / other.field),
++        }
+     }
+ }
+ 
+@@ -150,7 +153,10 @@ impl<E: Environment> Div<&Field<E>> for Field<E> {
+     /// Returns the `quotient` of `self` and `other`.
+     #[inline]
+     fn div(self, other: &Field<E>) -> Self::Output {
+-        Field::new(self.field / other.field)
++        match other.is_zero() {
++            true => E::halt(format!("Field division by zero: {self} / {other}")),
++            false => Field::new(self.field / other.field),
++        }
+     }
+ }
+ 
+@@ -158,7 +164,10 @@ impl<E: Environment> DivAssign<Field<E>> for Field<E> {
+     /// Divides `self` by `other`.
+     #[inline]
+     fn div_assign(&mut self, other: Field<E>) {
+-        self.field /= other.field;
++        match other.is_zero() {
++            true => E::halt(format!("Field division by zero: {self} / {other}")),
++            false => self.field /= other.field,
++        }
+     }
+ }
+ 
+@@ -166,7 +175,10 @@ impl<E: Environment> DivAssign<&Field<E>> for Field<E> {
+     /// Divides `self` by `other`.
+     #[inline]
+     fn div_assign(&mut self, other: &Field<E>) {
+-        self.field /= other.field;
++        match other.is_zero() {
++            true => E::halt(format!("Field division by zero: {self} / {other}")),
++            false => self.field /= other.field,
++        }
+     }
+ }
+ 
+diff --git a/vm/compiler/src/program/instruction/operation/macros.rs b/vm/compiler/src/program/instruction/operation/macros.rs
+index b88bdb718..61146873e 100644
+--- a/vm/compiler/src/program/instruction/operation/macros.rs
++++ b/vm/compiler/src/program/instruction/operation/macros.rs
+@@ -760,7 +760,7 @@ mod tests {
+                                 shift_exceeds_bitwidth |= ((*b as u32) >= $input_a::<CurrentNetwork>::size_in_bits() as u32);
+                             };
+                             ("ensure divide by zero halts") => {
+-                                should_succeed &= (*b) != 0;
++                                should_succeed &= (*b) != *$input_b::<CurrentNetwork>::zero();
+                                 // This indicator is later used in the for-loops below.
+                                 is_division_operator |= true;
+                             };
+diff --git a/vm/compiler/src/program/instruction/operation/mod.rs b/vm/compiler/src/program/instruction/operation/mod.rs
+index 78c8a554e..ef82d6b6a 100644
+--- a/vm/compiler/src/program/instruction/operation/mod.rs
++++ b/vm/compiler/src/program/instruction/operation/mod.rs
+@@ -139,7 +139,7 @@ pub type Div<N> = BinaryLiteral<N, DivOperation<N>>;
+ 
+ crate::operation!(
+     pub struct DivOperation<core::ops::Div, core::ops::Div, div, "div"> {
+-        (Field, Field) => Field,
++        (Field, Field) => Field ("ensure divide by zero halts"),
+         (I8, I8) => I8 ("ensure overflows halt", "ensure divide by zero halts"),
+         (I16, I16) => I16 ("ensure overflows halt", "ensure divide by zero halts"),
+         (I32, I32) => I32 ("ensure overflows halt", "ensure divide by zero halts"),

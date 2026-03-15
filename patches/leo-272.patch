@@ -1,0 +1,1348 @@
+diff --git a/compiler/passes/src/destructuring/ast.rs b/compiler/passes/src/destructuring/ast.rs
+index eaee936859..1c2e013262 100644
+--- a/compiler/passes/src/destructuring/ast.rs
++++ b/compiler/passes/src/destructuring/ast.rs
+@@ -24,6 +24,64 @@ impl AstReconstructor for DestructuringVisitor<'_> {
+     type AdditionalInput = ();
+     type AdditionalOutput = Vec<Statement>;
+ 
++    /// Reconstructs a binary expression, expanding equality and inequality over
++    /// tuples into elementwise comparisons. When both sides are tuples and the
++    /// operator is `==` or `!=`, it generates per-element comparisons and folds
++    /// them with AND/OR; otherwise the expression is rebuilt normally.
++    ///
++    /// Example: `(a, b) == (c, d)` → `(a == c) && (b == d)`
++    /// Example: `(a, b, c) != (x, y, z)` → `(a != x) || (b != y) || (c != z)`
++    fn reconstruct_binary(
++        &mut self,
++        input: BinaryExpression,
++        _additional: &Self::AdditionalInput,
++    ) -> (Expression, Self::AdditionalOutput) {
++        let (left, mut statements) = self.reconstruct_expression_tuple(input.left);
++        let (right, statements2) = self.reconstruct_expression_tuple(input.right);
++        statements.extend(statements2);
++
++        use BinaryOperation::*;
++
++        // Tuple equality / inequality expansion
++        if let (Expression::Tuple(tuple_left), Expression::Tuple(tuple_right)) = (&left, &right)
++            && matches!(input.op, Eq | Neq)
++        {
++            assert_eq!(tuple_left.elements.len(), tuple_right.elements.len());
++
++            // Directly build elementwise (l OP r)
++            let pieces: Vec<Expression> = tuple_left
++                .elements
++                .iter()
++                .zip(&tuple_right.elements)
++                .map(|(l, r)| {
++                    let expr: Expression = BinaryExpression {
++                        op: input.op,
++                        left: l.clone(),
++                        right: r.clone(),
++                        span: Default::default(),
++                        id: self.state.node_builder.next_id(),
++                    }
++                    .into();
++
++                    self.state.type_table.insert(expr.id(), Type::Boolean);
++                    expr
++                })
++                .collect();
++
++            // Fold appropriately
++            let op = match input.op {
++                Eq => BinaryOperation::And,
++                Neq => BinaryOperation::Or,
++                _ => unreachable!(),
++            };
++
++            return (self.fold_with_op(op, pieces.into_iter()), statements);
++        }
++
++        // Fallback
++        (BinaryExpression { op: input.op, left, right, ..input }.into(), Default::default())
++    }
++
+     /// Replaces a tuple access expression with the appropriate expression.
+     fn reconstruct_tuple_access(
+         &mut self,
+@@ -66,9 +124,12 @@ impl AstReconstructor for DestructuringVisitor<'_> {
+         mut input: TernaryExpression,
+         _additional: &(),
+     ) -> (Expression, Self::AdditionalOutput) {
+-        let (if_true, mut statements) = self.reconstruct_expression_tuple(std::mem::take(&mut input.if_true));
+-        let (if_false, statements2) = self.reconstruct_expression_tuple(std::mem::take(&mut input.if_false));
++        let (condition, mut statements) =
++            self.reconstruct_expression(std::mem::take(&mut input.condition), &Default::default());
++        let (if_true, statements2) = self.reconstruct_expression_tuple(std::mem::take(&mut input.if_true));
+         statements.extend(statements2);
++        let (if_false, statements3) = self.reconstruct_expression_tuple(std::mem::take(&mut input.if_false));
++        statements.extend(statements3);
+ 
+         match (if_true, if_false) {
+             (Expression::Tuple(tuple_true), Expression::Tuple(tuple_false)) => {
+@@ -77,20 +138,17 @@ impl AstReconstructor for DestructuringVisitor<'_> {
+                     panic!("Should have tuple type");
+                 };
+ 
+-                // We'll be reusing `input.condition`, so assign it to a variable.
+-                let cond = if let Expression::Path(..) = input.condition {
+-                    input.condition
++                // We'll be reusing `condition`, so assign it to a variable.
++                let cond = if let Expression::Path(..) = condition {
++                    condition
+                 } else {
+                     let place = Identifier::new(
+                         self.state.assigner.unique_symbol("cond", "$$"),
+                         self.state.node_builder.next_id(),
+                     );
+ 
+-                    let definition = self.state.assigner.simple_definition(
+-                        place,
+-                        input.condition,
+-                        self.state.node_builder.next_id(),
+-                    );
++                    let definition =
++                        self.state.assigner.simple_definition(place, condition, self.state.node_builder.next_id());
+ 
+                     statements.push(definition);
+ 
+@@ -144,12 +202,59 @@ impl AstReconstructor for DestructuringVisitor<'_> {
+             }
+             (if_true, if_false) => {
+                 // This isn't a tuple. Just rebuild it and otherwise leave it alone.
+-                (TernaryExpression { if_true, if_false, ..input }.into(), statements)
++                (TernaryExpression { condition, if_true, if_false, ..input }.into(), statements)
+             }
+         }
+     }
+ 
+     /* Statements */
++    /// `assert_eq` and `assert_neq` comparing tuples should be expanded to as many asserts as
++    /// the length of each tuple.
++    fn reconstruct_assert(&mut self, input: AssertStatement) -> (Statement, Self::AdditionalOutput) {
++        match input.variant {
++            AssertVariant::Assert(expr) => {
++                // Simple assert, just reconstruct the expression.
++                let (expr, _) = self.reconstruct_expression(expr, &Default::default());
++                (AssertStatement { variant: AssertVariant::Assert(expr), ..input }.into(), Default::default())
++            }
++            AssertVariant::AssertEq(ref left, ref right) | AssertVariant::AssertNeq(ref left, ref right) => {
++                let (left, mut statements) = self.reconstruct_expression_tuple(left.clone());
++                let (right, statements2) = self.reconstruct_expression_tuple(right.clone());
++                statements.extend(statements2);
++
++                match (&left, &right) {
++                    (Expression::Tuple(tuple_left), Expression::Tuple(tuple_right)) => {
++                        // Ensure the tuple lengths match
++                        assert_eq!(tuple_left.elements.len(), tuple_right.elements.len());
++
++                        for (l, r) in tuple_left.elements.iter().zip(&tuple_right.elements) {
++                            let assert_variant = match input.variant {
++                                AssertVariant::AssertEq(_, _) => AssertVariant::AssertEq(l.clone(), r.clone()),
++                                AssertVariant::AssertNeq(_, _) => AssertVariant::AssertNeq(l.clone(), r.clone()),
++                                _ => unreachable!(),
++                            };
++
++                            let stmt = AssertStatement { variant: assert_variant, ..input.clone() }.into();
++                            statements.push(stmt);
++                        }
++
++                        // We don't need the original statement, just the ones we've created.
++                        (Statement::dummy(), statements)
++                    }
++                    _ => {
++                        // Not tuples, just keep the original assert
++                        let variant = match input.variant {
++                            AssertVariant::AssertEq(_, _) => AssertVariant::AssertEq(left, right),
++                            AssertVariant::AssertNeq(_, _) => AssertVariant::AssertNeq(left, right),
++                            _ => unreachable!(),
++                        };
++                        (AssertStatement { variant, ..input }.into(), Default::default())
++                    }
++                }
++            }
++        }
++    }
++
+     /// Modify assignments to tuples to become assignments to the corresponding variables.
+     ///
+     /// There are two cases we handle:
+diff --git a/compiler/passes/src/destructuring/visitor.rs b/compiler/passes/src/destructuring/visitor.rs
+index b56176c176..1f9c6dc309 100644
+--- a/compiler/passes/src/destructuring/visitor.rs
++++ b/compiler/passes/src/destructuring/visitor.rs
+@@ -18,6 +18,8 @@ use crate::CompilerState;
+ 
+ use leo_ast::{
+     AstReconstructor,
++    BinaryExpression,
++    BinaryOperation,
+     DefinitionPlace,
+     DefinitionStatement,
+     Expression,
+@@ -104,6 +106,34 @@ impl DestructuringVisitor<'_> {
+         }
+     }
+ 
++    /// Folds an iterator of expressions into a left-associated chain using `op`.
++    ///
++    /// Given expressions `[e1, e2, e3]`, this produces `((e1 op e2) op e3)`.
++    /// Each intermediate node is assigned a fresh ID and recorded as `Boolean`
++    /// in the type table.
++    ///
++    /// Panics if the iterator is empty.
++    pub fn fold_with_op<I>(&mut self, op: BinaryOperation, pieces: I) -> Expression
++    where
++        I: Iterator<Item = Expression>,
++    {
++        pieces
++            .reduce(|left, right| {
++                let expr: Expression = BinaryExpression {
++                    op,
++                    left,
++                    right,
++                    span: Default::default(),
++                    id: self.state.node_builder.next_id(),
++                }
++                .into();
++
++                self.state.type_table.insert(expr.id(), Type::Boolean);
++                expr
++            })
++            .expect("fold_with_op called with empty iterator")
++    }
++
+     // Given the `expression` of tuple type, make a definition assigning variable to its members.
+     //
+     // That is, `let (mem1, mem2, mem3...) = expression;`
+diff --git a/compiler/passes/src/option_lowering/ast.rs b/compiler/passes/src/option_lowering/ast.rs
+index 4e9a97becb..5980af0c67 100644
+--- a/compiler/passes/src/option_lowering/ast.rs
++++ b/compiler/passes/src/option_lowering/ast.rs
+@@ -161,6 +161,11 @@ impl leo_ast::AstReconstructor for OptionLoweringVisitor<'_> {
+                     span: Span::default(),
+                     id: self.state.node_builder.next_id(),
+                 };
++                let Some(Type::Optional(OptionalType { inner })) = self.state.type_table.get(&optional_expr.id())
++                else {
++                    panic!("guaranteed by type checking");
++                };
++                self.state.type_table.insert(val_access.id(), *inner);
+ 
+                 let is_some_access = MemberAccess {
+                     inner: reconstructed_optional_expr.clone(),
+@@ -168,6 +173,7 @@ impl leo_ast::AstReconstructor for OptionLoweringVisitor<'_> {
+                     span: Span::default(),
+                     id: self.state.node_builder.next_id(),
+                 };
++                self.state.type_table.insert(is_some_access.id(), Type::Boolean);
+ 
+                 // Create assertion: ensure `is_some` is `true`.
+                 let assert_stmt = AssertStatement {
+@@ -206,6 +212,7 @@ impl leo_ast::AstReconstructor for OptionLoweringVisitor<'_> {
+                     span: Span::default(),
+                     id: self.state.node_builder.next_id(),
+                 };
++                self.state.type_table.insert(val_access.id(), *expected_inner_type.clone());
+ 
+                 let is_some_access = MemberAccess {
+                     inner: reconstructed_optional_expr,
+@@ -213,6 +220,7 @@ impl leo_ast::AstReconstructor for OptionLoweringVisitor<'_> {
+                     span: Span::default(),
+                     id: self.state.node_builder.next_id(),
+                 };
++                self.state.type_table.insert(is_some_access.id(), Type::Boolean);
+ 
+                 // s.is_some ? s.val : fallback
+                 let ternary_expr = TernaryExpression {
+@@ -222,6 +230,7 @@ impl leo_ast::AstReconstructor for OptionLoweringVisitor<'_> {
+                     span: Span::default(),
+                     id: self.state.node_builder.next_id(),
+                 };
++                self.state.type_table.insert(ternary_expr.id(), *expected_inner_type);
+ 
+                 stmts1.extend(stmts2);
+                 (ternary_expr.into(), stmts1)
+@@ -504,25 +513,28 @@ impl leo_ast::AstReconstructor for OptionLoweringVisitor<'_> {
+         mut input: TupleExpression,
+         additional: &Option<Type>,
+     ) -> (Expression, Self::AdditionalOutput) {
+-        let mut all_stmts = Vec::new();
+-        let mut new_elements = Vec::with_capacity(input.elements.len());
+-
+-        // Extract tuple element types if additional type info is Some(Type::Tuple).
++        // Determine the expected tuple element types
+         let expected_types = additional
+-            .as_ref()
+-            .and_then(|ty| {
+-                let mut ty = ty.clone();
+-
+-                // Unwrap Optional if any.
++            .clone()
++            .or_else(|| self.state.type_table.get(&input.id))
++            .and_then(|mut ty| {
++                // Unwrap Optional if any
+                 if let Type::Optional(inner) = ty {
+                     ty = *inner.inner;
+                 }
+-                // Expect Tuple type.
+-                if let Type::Tuple(tuple_ty) = ty { Some(tuple_ty.elements.clone()) } else { None }
++
++                // Expect Tuple type
++                match ty {
++                    Type::Tuple(tuple_ty) => Some(tuple_ty.elements.clone()),
++                    _ => None,
++                }
+             })
+             .expect("guaranteed by type checking");
+ 
+-        // Zip elements with expected types and reconstruct with expected type.
++        let mut all_stmts = Vec::new();
++        let mut new_elements = Vec::with_capacity(input.elements.len());
++
++        // Zip elements with expected types and reconstruct with expected type
+         for (element, expected_ty) in input.elements.into_iter().zip(expected_types) {
+             let (expr, mut stmts) = self.reconstruct_expression(element, &Some(expected_ty));
+             all_stmts.append(&mut stmts);
+diff --git a/compiler/passes/src/test_passes.rs b/compiler/passes/src/test_passes.rs
+index 9241bcdc9b..32604974e5 100644
+--- a/compiler/passes/src/test_passes.rs
++++ b/compiler/passes/src/test_passes.rs
+@@ -81,7 +81,7 @@ This structure ensures that **adding a new compiler pass test is minimal**:
+ */
+ 
+ use crate::*;
+-use leo_ast::{Ast, NetworkName, NodeBuilder};
++use leo_ast::NetworkName;
+ use leo_errors::{BufferEmitter, Handler};
+ use leo_parser::parse_ast;
+ use leo_span::{create_session_if_not_set_then, source_map::FileName, with_session_globals};
+@@ -110,21 +110,11 @@ macro_rules! compiler_passes {
+     };
+ }
+ 
+-/// Parse a Leo source program into an AST, returning errors via the handler.
+-fn parse_program(source: &str, handler: &Handler) -> Result<Ast, ()> {
+-    let node_builder = NodeBuilder::default();
+-    let filename = FileName::Custom("test".into());
+-
+-    // Add the source to the session's source map
+-    let source_file = with_session_globals(|s| s.source_map.new_source(source, filename));
+-
+-    handler.extend_if_error(parse_ast(handler.clone(), &node_builder, &source_file, &[], NetworkName::TestnetV0))
+-}
+-
+ /// Macro to generate a single runner function for a compiler pass.
+ ///
+ /// Each runner:
+ /// - Sets up a BufferEmitter and Handler for error/warning reporting.
++/// - Parse the test into an AST.
+ /// - Runs the first three fixed passes: PathResolution, SymbolTableCreation, TypeChecking.
+ /// - Runs the specified compiler pass.
+ /// - Returns the resulting AST or formatted errors/warnings.
+@@ -135,9 +125,16 @@ macro_rules! make_runner {
+             let handler = Handler::new(buf.clone());
+ 
+             create_session_if_not_set_then(|_| {
+-                // Parse program into AST
+-                let mut state = match parse_program(source, &handler) {
+-                    Ok(ast) => CompilerState { ast, handler: handler.clone(), ..Default::default() },
++                let mut state = CompilerState { handler: handler.clone(), ..Default::default() };
++
++                state.ast = match handler.extend_if_error(parse_ast(
++                    handler.clone(),
++                    &state.node_builder,
++                    &with_session_globals(|s| s.source_map.new_source(source, FileName::Custom("test".into()))),
++                    &[],
++                    NetworkName::TestnetV0,
++                )) {
++                    Ok(ast) => ast,
+                     Err(()) => return format!("{}{}", buf.extract_errs(), buf.extract_warnings()),
+                 };
+ 
+diff --git a/compiler/passes/src/type_checking/ast.rs b/compiler/passes/src/type_checking/ast.rs
+index 1a134ca15e..ab39d9836a 100644
+--- a/compiler/passes/src/type_checking/ast.rs
++++ b/compiler/passes/src/type_checking/ast.rs
+@@ -769,7 +769,7 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+                 let result_t = assert_same_type(self, &t1, &t2);
+                 self.maybe_assert_type(&result_t, destination, input.span());
+ 
+-                self.wrap_if_optional(result_t, destination)
++                result_t
+             }
+             BinaryOperation::Add => {
+                 let operand_expected = self.unwrap_optional_type(destination);
+@@ -799,7 +799,7 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+ 
+                 self.maybe_assert_type(&result_t, destination, input.span());
+ 
+-                self.wrap_if_optional(result_t, destination)
++                result_t
+             }
+             BinaryOperation::Sub => {
+                 let operand_expected = self.unwrap_optional_type(destination);
+@@ -819,7 +819,7 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+ 
+                 self.maybe_assert_type(&result_t, destination, input.span());
+ 
+-                self.wrap_if_optional(result_t, destination)
++                result_t
+             }
+             BinaryOperation::Mul => {
+                 let unwrapped_dest = self.unwrap_optional_type(destination);
+@@ -860,7 +860,7 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+ 
+                 self.maybe_assert_type(&result_t, destination, input.span());
+ 
+-                self.wrap_if_optional(result_t, destination)
++                result_t
+             }
+             BinaryOperation::Div => {
+                 let operand_expected = self.unwrap_optional_type(destination);
+@@ -880,7 +880,7 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+ 
+                 self.maybe_assert_type(&result_t, destination, input.span());
+ 
+-                self.wrap_if_optional(result_t, destination)
++                result_t
+             }
+             BinaryOperation::Rem | BinaryOperation::RemWrapped => {
+                 let operand_expected = self.unwrap_optional_type(destination);
+@@ -900,7 +900,7 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+ 
+                 self.maybe_assert_type(&result_t, destination, input.span());
+ 
+-                self.wrap_if_optional(result_t, destination)
++                result_t
+             }
+             BinaryOperation::Mod => {
+                 let operand_expected = self.unwrap_optional_type(destination);
+@@ -920,7 +920,7 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+ 
+                 self.maybe_assert_type(&result_t, destination, input.span());
+ 
+-                self.wrap_if_optional(result_t, destination)
++                result_t
+             }
+             BinaryOperation::Pow => {
+                 let operand_expected = self.unwrap_optional_type(destination);
+@@ -967,7 +967,7 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+ 
+                 self.maybe_assert_type(&ty, destination, input.span());
+ 
+-                self.wrap_if_optional(ty, destination)
++                ty
+             }
+             BinaryOperation::Eq | BinaryOperation::Neq => {
+                 // Handle type inference for `None` as a special case.
+@@ -1045,7 +1045,7 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+ 
+                 self.maybe_assert_type(&result_t, destination, input.span());
+ 
+-                self.wrap_if_optional(result_t, destination)
++                result_t
+             }
+             BinaryOperation::Shl
+             | BinaryOperation::ShlWrapped
+@@ -1072,7 +1072,7 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+                     self.emit_err(TypeCheckerError::shift_type_magnitude(input.op, t2, input.right.span()));
+                 }
+ 
+-                self.wrap_if_optional(t1, destination)
++                t1
+             }
+         }
+     }
+@@ -1542,7 +1542,7 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+                     match &**inner {
+                         Type::Integer(_) | Type::Field | Type::Group | Type::Scalar => {
+                             self.check_numeric_literal(input, inner);
+-                            Type::Optional(OptionalType { inner: Box::new(*inner.clone()) })
++                            *inner.clone()
+                         }
+                         _ => {
+                             self.emit_err(TypeCheckerError::unexpected_unsuffixed_numeral(
+@@ -1841,7 +1841,7 @@ impl AstVisitor for TypeCheckingVisitor<'_> {
+ 
+         self.maybe_assert_type(&ty, destination, input.span());
+ 
+-        self.wrap_if_optional(ty, destination)
++        ty
+     }
+ 
+     fn visit_unit(&mut self, _input: &UnitExpression, _additional: &Self::AdditionalInput) -> Self::Output {
+diff --git a/compiler/passes/src/type_checking/visitor.rs b/compiler/passes/src/type_checking/visitor.rs
+index 7264a65178..82f4164148 100644
+--- a/compiler/passes/src/type_checking/visitor.rs
++++ b/compiler/passes/src/type_checking/visitor.rs
+@@ -129,23 +129,6 @@ impl TypeCheckingVisitor<'_> {
+         }
+     }
+ 
+-    /// Wraps a type in Optional if the destination type is Optional.
+-    /// If destination is `T?` and actual is `T`, returns `T?`. Otherwise returns actual as-is.
+-    pub fn wrap_if_optional(&self, actual: Type, destination: &Option<Type>) -> Type {
+-        match (actual, destination) {
+-            // if destination is Optional<T> and actual is T (not already Optional), wrap it
+-            (actual_type, Some(Type::Optional(opt_type))) if !matches!(actual_type, Type::Optional(_)) => {
+-                // only wrap if the inner type matches
+-                if actual_type.can_coerce_to(&opt_type.inner) {
+-                    Type::Optional(OptionalType { inner: Box::new(actual_type) })
+-                } else {
+-                    actual_type
+-                }
+-            }
+-            (actual_type, _) => actual_type,
+-        }
+-    }
+-
+     pub fn assert_int_type(&self, type_: &Type, span: Span) {
+         if !matches!(type_, Type::Err | Type::Integer(_)) {
+             self.emit_err(TypeCheckerError::type_should_be2(type_, "an integer", span));
+diff --git a/tests/expectations/compiler/option/b28961.out b/tests/expectations/compiler/option/b28961.out
+new file mode 100644
+index 0000000000..0d320f95f0
+--- /dev/null
++++ b/tests/expectations/compiler/option/b28961.out
+@@ -0,0 +1,178 @@
++program opt_bug.aleo;
++
++struct S:
++    x as u32;
++
++struct Optional__3FgA2LC7NnF:
++    is_some as boolean;
++    val as S;
++
++struct OS:
++    inner as Optional__3FgA2LC7NnF;
++
++struct Optional__EsDmm5O6sv6:
++    is_some as boolean;
++    val as u32;
++
++struct Optional__AS933TMAJfN:
++    is_some as boolean;
++    val as [Optional__EsDmm5O6sv6; 2u32];
++
++struct Wrap:
++    arr as Optional__AS933TMAJfN;
++    val as Optional__EsDmm5O6sv6;
++
++function assign_optional_from_unwrap:
++    cast true 5u32 into r0 as Optional__EsDmm5O6sv6;
++    assert.eq r0.is_some true;
++    cast true r0.val into r1 as Optional__EsDmm5O6sv6;
++    assert.eq r0.is_some true;
++    add r0.val 7u32 into r2;
++    cast true r2 into r3 as Optional__EsDmm5O6sv6;
++    ternary r0.is_some r0.val 0u32 into r4;
++    cast true r4 into r5 as Optional__EsDmm5O6sv6;
++    assert.eq r1.is_some true;
++    assert.eq r3.is_some true;
++    assert.eq r5.is_some true;
++    add r1.val r3.val into r6;
++    add r6 r5.val into r7;
++    output r7 as u32.private;
++
++function unwrap_inside_expression:
++    cast true 9u32 into r0 as Optional__EsDmm5O6sv6;
++    assert.eq r0.is_some true;
++    mul r0.val 2u32 into r1;
++    add r1 3u32 into r2;
++    output r2 as u32.private;
++
++function nested_expression_unwraps:
++    cast true 4u32 into r0 as Optional__EsDmm5O6sv6;
++    cast true 6u32 into r1 as Optional__EsDmm5O6sv6;
++    assert.eq r0.is_some true;
++    assert.eq r1.is_some true;
++    assert.eq r0.is_some true;
++    mul r1.val r0.val into r2;
++    add r0.val r2 into r3;
++    output r3 as u32.private;
++
++function unwrap_in_arrays:
++    cast true 1u32 into r0 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r1 as Optional__EsDmm5O6sv6;
++    cast true 3u32 into r2 as Optional__EsDmm5O6sv6;
++    cast r0 r1 r2 into r3 as [Optional__EsDmm5O6sv6; 3u32];
++    assert.eq r3[0u32].is_some true;
++    assert.eq r3[2u32].is_some true;
++    ternary r3[1u32].is_some r3[1u32].val 10u32 into r4;
++    add r3[0u32].val r4 into r5;
++    add r5 r3[2u32].val into r6;
++    output r6 as u32.private;
++
++function optional_array_handling:
++    cast true 7u32 into r0 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r1 as Optional__EsDmm5O6sv6;
++    cast r0 r1 into r2 as [Optional__EsDmm5O6sv6; 2u32];
++    cast true r2 into r3 as Optional__AS933TMAJfN;
++    assert.eq r3.is_some true;
++    assert.eq r3.val[0u32].is_some true;
++    output r3.val[0u32].val as u32.private;
++
++function optional_struct_field_expr:
++    cast 11u32 into r0 as S;
++    cast true r0 into r1 as Optional__3FgA2LC7NnF;
++    cast r1 into r2 as OS;
++    assert.eq r2.inner.is_some true;
++    add r2.inner.val.x 5u32 into r3;
++    output r3 as u32.private;
++
++function optional_struct_unwrap_assign:
++    cast 30u32 into r0 as S;
++    cast true r0 into r1 as Optional__3FgA2LC7NnF;
++    assert.eq r1.is_some true;
++    add r1.val.x 12u32 into r2;
++    cast true r2 into r3 as Optional__EsDmm5O6sv6;
++    assert.eq r3.is_some true;
++    output r3.val as u32.private;
++
++function nested_struct_array_mix:
++    cast true 1u32 into r0 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r1 as Optional__EsDmm5O6sv6;
++    cast r0 r1 into r2 as [Optional__EsDmm5O6sv6; 2u32];
++    cast true r2 into r3 as Optional__AS933TMAJfN;
++    cast false 0u32 into r4 as Optional__EsDmm5O6sv6;
++    cast r3 r4 into r5 as Wrap;
++    assert.eq r5.arr.is_some true;
++    ternary r5.arr.val[0u32].is_some r5.arr.val[0u32].val 0u32 into r6;
++    ternary r5.arr.val[1u32].is_some r5.arr.val[1u32].val 20u32 into r7;
++    add r6 r7 into r8;
++    output r8 as u32.private;
++
++function tuple_optional_fields:
++    cast true 4u32 into r0 as Optional__EsDmm5O6sv6;
++    assert.eq r0.is_some true;
++    add r0.val 9u32 into r1;
++    output r1 as u32.private;
++
++function optionals_in_function_context:
++    cast true 6u32 into r0 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r1 as Optional__EsDmm5O6sv6;
++    assert.eq r0.is_some true;
++    add r0.val 2u32 into r2;
++    ternary r1.is_some r1.val 4u32 into r3;
++    mul r2 r3 into r4;
++    output r4 as u32.private;
++
++function stress_compound_unwrap:
++    cast true 2u32 into r0 as Optional__EsDmm5O6sv6;
++    cast true 3u32 into r1 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r2 as Optional__EsDmm5O6sv6;
++    assert.eq r0.is_some true;
++    assert.eq r1.is_some true;
++    assert.eq r0.is_some true;
++    assert.eq r1.is_some true;
++    assert.eq r0.is_some true;
++    assert.eq r1.is_some true;
++    add r0.val r1.val into r3;
++    mul r0.val r1.val into r4;
++    add r3 r4 into r5;
++    ternary r2.is_some r2.val 7u32 into r6;
++    add r5 r6 into r7;
++    add r0.val r1.val into r8;
++    add r7 r8 into r9;
++    output r9 as u32.private;
++
++function ternary_optional_cases:
++    cast true 10u32 into r0 as Optional__EsDmm5O6sv6;
++    cast false 0u32 into r1 as Optional__EsDmm5O6sv6;
++    assert.eq r0.is_some true;
++    ternary r1.is_some r1.val 99u32 into r2;
++    ternary true r0.val r2 into r3;
++    assert.eq r0.is_some true;
++    add r0.val 5u32 into r4;
++    cast true r4 into r5 as Optional__EsDmm5O6sv6;
++    ternary r1.is_some r1.val 7u32 into r6;
++    cast true r6 into r7 as Optional__EsDmm5O6sv6;
++    ternary true r5.is_some r7.is_some into r8;
++    ternary true r5.val r7.val into r9;
++    cast r8 r9 into r10 as Optional__EsDmm5O6sv6;
++    assert.eq r10.is_some true;
++    mul r10.val 2u32 into r11;
++    ternary true r11 3u32 into r12;
++    assert.eq r1.is_some true;
++    assert.eq r0.is_some true;
++    cast false 0u32 into r13 as Optional__EsDmm5O6sv6;
++    is.neq r1 r13 into r14;
++    add r0.val 1u32 into r15;
++    ternary r14 r1.val r15 into r16;
++    ternary true r16 0u32 into r17;
++    cast true r17 into r18 as Optional__EsDmm5O6sv6;
++    cast true 123u32 into r19 as Optional__EsDmm5O6sv6;
++    ternary true r18.is_some r19.is_some into r20;
++    ternary true r18.val r19.val into r21;
++    cast r20 r21 into r22 as Optional__EsDmm5O6sv6;
++    assert.eq r10.is_some true;
++    assert.eq r22.is_some true;
++    add r3 r10.val into r23;
++    add r23 r12 into r24;
++    add r24 r17 into r25;
++    add r25 r22.val into r26;
++    output r26 as u32.private;
+diff --git a/tests/expectations/compiler/tuple/tuple_comparison.out b/tests/expectations/compiler/tuple/tuple_comparison.out
+new file mode 100644
+index 0000000000..b067871dfc
+--- /dev/null
++++ b/tests/expectations/compiler/tuple/tuple_comparison.out
+@@ -0,0 +1,128 @@
++program tuple_eq_flat_stress.aleo;
++
++struct S:
++    a as u32;
++    b as u32;
++
++function test_all:
++    assert.eq 1u32 1u32;
++    assert.eq 2u32 2u32;
++    assert.neq 1u32 1u32;
++    assert.neq 2u32 3u32;
++    assert.eq 5u32 5u32;
++    assert.eq 6u32 6u32;
++    assert.eq 7u32 7u32;
++    assert.neq 5u32 5u32;
++    assert.neq 6u32 9u32;
++    assert.neq 7u32 7u32;
++    is.eq 1u32 1u32 into r0;
++    is.eq 2u32 2u32 into r1;
++    and r0 r1 into r2;
++    assert.eq r2 true;
++    is.eq 1u32 1u32 into r3;
++    is.eq 2u32 3u32 into r4;
++    and r3 r4 into r5;
++    is.eq r5 false into r6;
++    assert.eq r6 true;
++    is.neq 1u32 1u32 into r7;
++    is.neq 2u32 2u32 into r8;
++    or r7 r8 into r9;
++    is.eq r9 false into r10;
++    assert.eq r10 true;
++    is.neq 1u32 1u32 into r11;
++    is.neq 2u32 3u32 into r12;
++    or r11 r12 into r13;
++    is.eq r13 true into r14;
++    assert.eq r14 true;
++    assert.eq 10u32 10u32;
++    assert.eq 20u32 20u32;
++    assert.neq 10u32 10u32;
++    assert.neq 20u32 30u32;
++    is.eq 10u32 10u32 into r15;
++    is.eq 20u32 20u32 into r16;
++    and r15 r16 into r17;
++    is.eq 10u32 10u32 into r18;
++    is.eq 20u32 30u32 into r19;
++    and r18 r19 into r20;
++    is.eq r17 true into r21;
++    assert.eq r21 true;
++    is.eq r20 false into r22;
++    assert.eq r22 true;
++    assert.eq 1u32 1u32;
++    assert.eq 2u32 2u32;
++    assert.eq 3u32 3u32;
++    assert.neq 1u32 1u32;
++    assert.neq 2u32 4u32;
++    assert.neq 3u32 3u32;
++    is.eq 1u32 1u32 into r23;
++    is.eq 2u32 4u32 into r24;
++    and r23 r24 into r25;
++    is.eq 3u32 3u32 into r26;
++    and r25 r26 into r27;
++    is.eq r27 false into r28;
++    assert.eq r28 true;
++    not true into r29;
++    or true r29 into r30;
++    assert.eq r30 true;
++    not r29 into r31;
++    or false r31 into r32;
++    assert.eq r32 true;
++    assert.eq r30 true;
++    assert.eq r32 true;
++    cast 9u32 8u32 into r33 as S;
++    cast 9u32 7u32 into r34 as S;
++    assert.eq r33.a r33.a;
++    assert.eq r33.b r33.b;
++    assert.neq r33.a r34.a;
++    assert.neq r33.b r34.b;
++    assert.eq 1u32 1u32;
++    assert.eq 2u32 2u32;
++    assert.eq 3u32 3u32;
++    assert.eq 4u32 4u32;
++    assert.neq 1u32 1u32;
++    assert.neq 2u32 2u32;
++    assert.neq 3u32 0u32;
++    assert.neq 4u32 4u32;
++    is.eq 2u32 2u32 into r35;
++    and r23 r35 into r36;
++    is.eq 3u32 0u32 into r37;
++    and r36 r37 into r38;
++    is.eq 4u32 4u32 into r39;
++    and r38 r39 into r40;
++    is.eq r40 false into r41;
++    assert.eq r41 true;
++    assert.eq true true;
++    assert.eq true true;
++    is.eq 42u32 42u32 into r42;
++    assert.eq r42 true;
++    is.eq 99u32 99u32 into r43;
++    assert.eq r43 true;
++    is.eq 5u32 5u32 into r44;
++    assert.eq r44 true;
++    is.eq 6u32 6u32 into r45;
++    assert.eq r45 true;
++    is.eq 42u32 42u32 into r46;
++    and r46 r43 into r47;
++    assert.eq r47 true;
++    assert.neq 42u32 42u32;
++    assert.neq 99u32 42u32;
++    is.eq 7u32 7u32 into r48;
++    is.eq 8u32 8u32 into r49;
++    and r48 r49 into r50;
++    ternary r50 1u32 3u32 into r51;
++    ternary r50 2u32 4u32 into r52;
++    assert.eq r51 1u32;
++    assert.eq r52 2u32;
++    is.eq 8u32 9u32 into r53;
++    and r48 r53 into r54;
++    ternary r54 10u32 30u32 into r55;
++    ternary r54 20u32 40u32 into r56;
++    assert.eq r55 30u32;
++    assert.eq r56 40u32;
++    assert.eq 5u32 5u32;
++    assert.eq 6u32 6u32;
++    is.eq 11u32 11u32 into r57;
++    ternary r57 11u32 0u32 into r58;
++    ternary r57 22u32 0u32 into r59;
++    assert.eq r58 11u32;
++    assert.eq r59 22u32;
+diff --git a/tests/expectations/passes/destructuring/tuple_destructure.out b/tests/expectations/passes/destructuring/tuple_destructure.out
+index 36c04b5404..e9b0de76d4 100644
+--- a/tests/expectations/passes/destructuring/tuple_destructure.out
++++ b/tests/expectations/passes/destructuring/tuple_destructure.out
+@@ -1,7 +1,67 @@
+-program test.aleo {
+-    transition main(x: u32, y: u32) -> u32 {
+-        let a = x;
+-        let b = y;
+-        return a + b;
++program tuple_pass_tests.aleo {
++    transition test_members(x: u32, y: u32) -> (u32, u32) {
++        let t#tuple0$0: u32 = x;
++        let t#tuple1$1: u32 = y;
++        assert_eq(::t#tuple0$0, x);
++        assert_eq(::t#tuple1$1, y);
++        return (::t#tuple0$0, ::t#tuple1$1);
++    }
++    transition test_eq(a: u32, b: u32) {
++        let t1#tuple0$2: u32 = a;
++        let t1#tuple1$3: u32 = b;
++        let t2#tuple0$4: u32 = a;
++        let t2#tuple1$5: u32 = b;
++        assert((::t1#tuple0$2 == ::t2#tuple0$4) && (::t1#tuple1$3 == ::t2#tuple1$5));
++        assert_eq(::t1#tuple0$2, ::t2#tuple0$4);
++        assert_eq(::t1#tuple1$3, ::t2#tuple1$5);
++        let flag = (::t1#tuple0$2 == ::t2#tuple0$4) && (::t1#tuple1$3 == ::t2#tuple1$5);
++        assert(flag);
++    }
++    transition test_neq(a: u32, b: u32) {
++        let t1#tuple0$6: u32 = a;
++        let t1#tuple1$7: u32 = b;
++        let t2#tuple0$8: u32 = a + 1u32;
++        let t2#tuple1$9: u32 = b;
++        assert((::t1#tuple0$6 != ::t2#tuple0$8) || (::t1#tuple1$7 != ::t2#tuple1$9));
++        assert_neq(::t1#tuple0$6, ::t2#tuple0$8);
++        assert_neq(::t1#tuple1$7, ::t2#tuple1$9);
++        let flag = (::t1#tuple0$6 != ::t2#tuple0$8) || (::t1#tuple1$7 != ::t2#tuple1$9);
++        assert(flag);
++    }
++    transition test_destructure(a: u32, b: u32) -> u32 {
++        let x = a;
++        let y = b;
++        assert_eq(x, a);
++        assert_eq(y, b);
++        return x + y;
++    }
++    transition test_mix(a: u32, b: u32) {
++        let t#tuple0$10: u32 = a;
++        let t#tuple1$11: u32 = b;
++        assert((::t#tuple0$10 == ::t#tuple0$10) && (::t#tuple1$11 == ::t#tuple1$11));
++        assert_neq(::t#tuple0$10 + 1u32, ::t#tuple0$10);
++        assert_neq(::t#tuple1$11, ::t#tuple1$11);
++        let ok = (::t#tuple0$10 == ::t#tuple0$10) && (::t#tuple1$11 == ::t#tuple1$11);
++        assert(ok);
++    }
++    transition test_ternary(a: u32, b: u32) -> u32 {
++        let t1#tuple0$12: u32 = a;
++        let t1#tuple1$13: u32 = b;
++        let t2#tuple0$14: u32 = a + 1u32;
++        let t2#tuple1$15: u32 = b;
++        let cond$$16 = (::t1#tuple0$12 == ::t2#tuple0$14) && (::t1#tuple1$13 == ::t2#tuple1$15);
++        let ternary_0$$17 = ::cond$$16 ? ::t1#tuple0$12 : ::t2#tuple0$14;
++        let ternary_1$$18 = ::cond$$16 ? ::t1#tuple1$13 : ::t2#tuple1$15;
++        let r0#tuple0$19: u32 = ::ternary_0$$17;
++        let r0#tuple1$20: u32 = ::ternary_1$$18;
++        let r1 = (::t1#tuple0$12 == ::t1#tuple0$12) && (::t1#tuple1$13 == ::t1#tuple1$13) ? 10u32 : 99u32;
++        let r2 = (::t1#tuple0$12 == ::t2#tuple0$14) && (::t1#tuple1$13 == ::t2#tuple1$15) ? 77u32 : 11u32;
++        assert_eq(r1, 10u32);
++        assert_eq(r2, 11u32);
++        let r3 = (a != a) || (b != b) ? 1u32 : 2u32;
++        let r4 = (a != a + 1u32) || (b != b) ? 3u32 : 4u32;
++        assert_eq(r3, 2u32);
++        assert_eq(r4, 3u32);
++        return ::r0#tuple0$19 + ::r0#tuple1$20 + r1 + r2 + r3 + r4;
+     }
+ }
+diff --git a/tests/expectations/passes/option_lowering/b28961.out b/tests/expectations/passes/option_lowering/b28961.out
+new file mode 100644
+index 0000000000..d8a37f8c7c
+--- /dev/null
++++ b/tests/expectations/passes/option_lowering/b28961.out
+@@ -0,0 +1,18 @@
++program test.aleo {
++    struct "u32?" {
++        is_some: bool,
++        val: u32,
++    }
++    transition assign_optional_from_unwrap() -> u32 {
++        let a: ::"u32?" = ::"u32?" { is_some: true, val: 5u32 };
++        assert(a.is_some);
++        let b: ::"u32?" = ::"u32?" { is_some: true, val: a.val };
++        assert(a.is_some);
++        let c: ::"u32?" = ::"u32?" { is_some: true, val: a.val + 7u32 };
++        let d: ::"u32?" = ::"u32?" { is_some: true, val: a.is_some ? a.val : 0 };
++        assert(b.is_some);
++        assert(c.is_some);
++        assert(d.is_some);
++        return b.val + c.val + d.val;
++    }
++}
+diff --git a/tests/tests/compiler/option/b28961.leo b/tests/tests/compiler/option/b28961.leo
+new file mode 100644
+index 0000000000..cc1c54a592
+--- /dev/null
++++ b/tests/tests/compiler/option/b28961.leo
+@@ -0,0 +1,148 @@
++program opt_bug.aleo {
++
++    // --- Base Structs ---
++    struct S { x: u32 }
++    struct OS { inner: S? }
++    struct Wrap { arr: [u32?; 2]?, val: u32? }
++
++    // --- 1. Basic unwrap assigns implicitly to optional targets ---
++    transition assign_optional_from_unwrap() -> u32 {
++        let a: u32? = 5u32;
++
++        // Case 1: T? = unwrap(T?)
++        let b: u32? = a.unwrap();   // should implicitly wrap to u32?
++
++        // Case 2: T? = unwrap(T?) + T
++        let c: u32? = a.unwrap() + 7u32;
++
++        // Case 3: T? = unwrap_or(T?, <unsuffixed>) + T
++        let d: u32? = a.unwrap_or(0);
++
++        return b.unwrap() + c.unwrap() + d.unwrap(); // 5 + 12 = 17
++    }
++
++    // --- 2. Unwrap inside arithmetic expressions (core regression) ---
++    transition unwrap_inside_expression() -> u32 {
++        let a: u32? = 9u32;
++        let b = a.unwrap() * 2u32 + 3u32;
++        return b; // 9*2 + 3 = 21
++    }
++
++    // --- 3. Deep nested expressions with multiple unwraps ---
++    transition nested_expression_unwraps() -> u32 {
++        let x: u32? = 4u32;
++        let y: u32? = 6u32;
++        let sum = x.unwrap() + (y.unwrap() * x.unwrap());
++        return sum; // 4 + (6*4) = 28
++    }
++
++    // --- 4. Unwrap in arrays ---
++    transition unwrap_in_arrays() -> u32 {
++        let arr: [u32?; 3] = [1u32, none, 3u32];
++
++        // unwrap_or in a composite expr
++        let r = arr[0].unwrap()
++              + arr[1].unwrap_or(10)
++              + arr[2].unwrap();
++
++        return r; // 1 + 10 + 3 = 14
++    }
++
++    // --- 5. Optional arrays themselves ---
++    transition optional_array_handling() -> u32 {
++        let arr: [u32?; 2]? = [7u32, none];
++        let first = arr.unwrap()[0].unwrap();
++        return first; // 7
++    }
++
++    // --- 6. Optional structs and fields inside expressions ---
++    transition optional_struct_field_expr() -> u32 {
++        let os: OS = OS { inner: S { x: 11u32 } };
++        let result = os.inner.unwrap().x + 5u32;
++        return result; // 16
++    }
++
++    // --- 7. Optional of a struct in arithmetic expression ---
++    transition optional_struct_unwrap_assign() -> u32 {
++        let s: S? = S { x: 30u32 };
++
++        // Implicit wrapping back to optional
++        let v: u32? = s.unwrap().x + 12u32;
++        return v.unwrap(); // 42
++    }
++
++    // --- 8. Nested optional structs and arrays together ---
++    transition nested_struct_array_mix() -> u32 {
++        let w = Wrap { arr: [1u32, none], val: none };
++        let arr_unwrapped = w.arr.unwrap();
++        let r = arr_unwrapped[0].unwrap_or(0)
++              + arr_unwrapped[1].unwrap_or(20u32);
++        return r; // 1 + 20 = 21
++    }
++
++    // --- 9. Optional tuple fields ---
++    transition tuple_optional_fields() -> u32 {
++        let t: (u32?, u32) = (4u32, 9u32);
++        let r = t.0.unwrap() + t.1;
++        return r; // 4 + 9 = 13
++    }
++
++    // --- 10. Optional used inside function-like calls ---
++    transition optionals_in_function_context() -> u32 {
++        let a: u32? = 6u32;
++        let b: u32? = none;
++
++        // call-like layered expression
++        let r = (a.unwrap() + 2u32) * (b.unwrap_or(4));
++        return r; // (6+2) * 4 = 32
++    }
++
++    // --- 11. Stress: compound expression with 5+ unwraps ---
++    transition stress_compound_unwrap() -> u32 {
++        let a: u32? = 2u32;
++        let b: u32? = 3u32;
++        let c: u32? = none;
++
++        let r = a.unwrap()
++              + b.unwrap()
++              + (a.unwrap() * b.unwrap())
++              + c.unwrap_or(7u32)
++              + (a.unwrap() + b.unwrap());
++
++        // 2 + 3 + (2*3) + 7 + (2 + 3) = 2+3+6+7+5 = 23
++        return r;
++    }
++
++    // --- 12. Ternary + Optionals ---
++    transition ternary_optional_cases() -> u32 {
++        let a: u32? = 10u32;
++        let b: u32? = none;
++        let cond = 1u32 < 5u32;   // true
++
++        // Case 1: unwrap inside ternary branches
++        let r1 = cond ? a.unwrap() : b.unwrap_or(99);
++        // r1 = 10
++
++        // Case 2: ternary returning an optional
++        let r2: u32? = cond ? a.unwrap() + 5u32 : b.unwrap_or(7u32);
++        // r2 = 15
++
++        // Case 3: ternary consuming optional on one side only
++        let r3 = cond ? r2.unwrap() * 2u32 : 3u32;
++        // r3 = 30
++
++        // Case 4: nested ternaries mixing optional/non-optional
++        let r4 = cond
++            ? (b != none ? b.unwrap() : a.unwrap() + 1u32)
++            : 0u32;
++        // b is none => r4 = 11
++
++        // Case 5: ternary producing an optional
++        let r5: u32? = cond ? r4 : 123;
++        // r5 = 11
++
++        return r1 + r2.unwrap() + r3 + r4 + r5.unwrap();
++        // 10 + 15 + 30 + 11 + 11 = 77
++    }
++
++}
+diff --git a/tests/tests/compiler/tuple/tuple_comparison.leo b/tests/tests/compiler/tuple/tuple_comparison.leo
+new file mode 100644
+index 0000000000..b328203347
+--- /dev/null
++++ b/tests/tests/compiler/tuple/tuple_comparison.leo
+@@ -0,0 +1,141 @@
++program tuple_eq_flat_stress.aleo {
++    struct S {
++        a: u32,
++        b: u32,
++    }
++
++    inline make_pair(x: u32, y: u32) -> (u32, u32) {
++        return (x, y);
++    }
++
++    inline make_triple(x: u32, y: u32, z: u32) -> (u32, u32, u32) {
++        return (x, y, z);
++    }
++
++    transition test_all() {
++
++        // --- Base tuples
++        let t1 = (1u32, 2u32);
++        let t2 = (1u32, 3u32);
++
++        // --- 1. assert_eq / assert_neq on 2-tuples
++        assert_eq(t1, t1);
++        assert_neq(t1, t2);
++
++        // --- 2. assert_eq / assert_neq on 3-tuples
++        let a1 = (5u32, 6u32, 7u32);
++        let a2 = (5u32, 9u32, 7u32);
++
++        assert_eq(a1, a1);
++        assert_neq(a1, a2);
++
++        // --- 3. binary == on 2-tuples
++        let eq1 = t1 == t1;
++        assert(eq1);
++
++        let eq2 = t1 == t2;
++        assert(eq2 == false);
++
++        // --- 4. binary != on 2-tuples
++        let ne1 = t1 != t1;
++        assert(ne1 == false);
++
++        let ne2 = t1 != t2;
++        assert(ne2 == true);
++
++        // --- 5. tuple-returning transition: 2-tuple
++        let p1 = make_pair(10u32, 20u32);
++        let p2 = make_pair(10u32, 30u32);
++
++        assert_eq(p1, p1);
++        assert_neq(p1, p2);
++
++        let c1 = p1 == p1;
++        let c2 = p1 == p2;
++
++        assert(c1 == true);
++        assert(c2 == false);
++
++        // --- 6. transition returning a flat 3-tuple
++        let tr1 = make_triple(1u32, 2u32, 3u32);
++        let tr2 = make_triple(1u32, 4u32, 3u32);
++
++        assert_eq(tr1, tr1);
++        assert_neq(tr1, tr2);
++
++        let cmp3 = tr1 == tr2;
++        assert(cmp3 == false);
++
++        // --- 7. tuple comparison in conditionals
++        if ((1u32, 2u32) == (1u32, 2u32)) {
++            assert(true);
++        } else {
++            assert(false);
++        }
++
++        if ((1u32, 2u32) != (1u32, 3u32)) {
++            assert(true);
++        } else {
++            assert(false);
++        }
++
++        // --- 8. tuple built from struct fields
++        let s1 = S { a: 9u32, b: 8u32 };
++        let s2 = S { a: 9u32, b: 7u32 };
++
++        assert_eq((s1.a, s1.b), (s1.a, s1.b));
++        assert_neq((s1.a, s1.b), (s2.a, s2.b));
++
++        // --- 9. long tuple (4 elements)
++        let long1 = (1u32, 2u32, 3u32, 4u32);
++        let long2 = (1u32, 2u32, 0u32, 4u32);
++
++        assert_eq(long1, long1);
++        assert_neq(long1, long2);
++
++        let long_cmp = long1 == long2;
++        assert(long_cmp == false);
++
++        // --- 10. Direct tuple member accesses on tuple expressions
++        assert((1u32, 2u32).0 == 1u32);
++        assert((1u32, 2u32).1 == 2u32);
++
++        let x = 42u32;
++        let y = 99u32;
++
++        assert((x, y).0 == x);
++        assert((x, y).1 == y);
++
++        // Larger tuple member access
++        let q = (3u32, 4u32, 5u32, 6u32);
++        assert(q.2 == 5u32);
++        assert(q.3 == 6u32);
++
++        // Member access combined with tuple comparison
++        assert(((x, y).0, (x, y).1) == (x, y));
++        assert_neq(((x, y).0, (x, y).1), (x, x));   // mismatched tuple
++
++        // --- 11. Ternary selecting between tuples based on tuple comparison
++        let tA = (7u32, 8u32);
++        let tB = (7u32, 9u32);
++
++        // Condition: tA == tA  → true
++        let sel1 = (tA == tA) ? (1u32, 2u32) : (3u32, 4u32);
++        assert_eq(sel1, (1u32, 2u32));
++
++        // Condition: tA == tB  → false
++        let sel2 = (tA == tB) ? (10u32, 20u32) : (30u32, 40u32);
++        assert_eq(sel2, (30u32, 40u32));
++
++        // Condition: comparing tuple expressions directly
++        let sel3 = ((1u32, 2u32) != (1u32, 3u32)) ? (5u32, 6u32) : (7u32, 8u32);
++        assert_eq(sel3, (5u32, 6u32));
++
++        // Mixed member access + ternary + tuple result
++        let a = 11u32;
++        let b = 22u32;
++        let sel4 = ((a, b).0 == a) ? (a, b) : (0u32, 0u32);
++        assert_eq(sel4, (a, b));
++
++    }
++}
+diff --git a/tests/tests/passes/destructuring/tuple_destructure.leo b/tests/tests/passes/destructuring/tuple_destructure.leo
+index 8526b4194e..3d1d2689a7 100644
+--- a/tests/tests/passes/destructuring/tuple_destructure.leo
++++ b/tests/tests/passes/destructuring/tuple_destructure.leo
+@@ -1,6 +1,93 @@
+-program test.aleo {
+-    transition main(x: u32, y: u32) -> u32 {
+-        let (a, b): (u32, u32) = (x, y);
+-        return a + b;
++program tuple_pass_tests.aleo {
++
++    // --------------------------------------------
++    // 1. Tuple construction + member access
++    // --------------------------------------------
++    transition test_members(x: u32, y: u32) -> (u32, u32) {
++        let t = (x, y);
++
++        assert_eq(t.0, x);
++        assert_eq(t.1, y);
++
++        return (t.0, t.1);
++    }
++
++    // --------------------------------------------
++    // 2. Tuple equality
++    // --------------------------------------------
++    transition test_eq(a: u32, b: u32) {
++        let t1 = (a, b);
++        let t2 = (a, b);
++
++        assert(t1 == t2);
++        assert_eq(t1, t2);
++
++        let flag = t1 == t2;
++        assert(flag);
++    }
++
++    // --------------------------------------------
++    // 3. Tuple inequality
++    // --------------------------------------------
++    transition test_neq(a: u32, b: u32) {
++        let t1 = (a, b);
++        let t2 = (a + 1u32, b);
++
++        assert(t1 != t2);
++        assert_neq(t1, t2);
++
++        let flag = t1 != t2;
++        assert(flag);
++    }
++
++    // --------------------------------------------
++    // 4. Tuple destructuring (pattern binding)
++    // --------------------------------------------
++    transition test_destructure(a: u32, b: u32) -> u32 {
++        let (x, y): (u32, u32) = (a, b);
++
++        assert_eq(x, a);
++        assert_eq(y, b);
++
++        return x + y;
++    }
++
++    // --------------------------------------------
++    // 5. Mixing tuple projections and eq/neq
++    // --------------------------------------------
++    transition test_mix(a: u32, b: u32) {
++        let t = (a, b);
++
++        assert((t.0, t.1) == t);
++        assert_neq((t.0 + 1u32, t.1), t);
++
++        let ok = (t.0, t.1) == t;
++        assert(ok);
++    }
++
++    // --------------------------------------------
++    // 6. Ternary operator using tuple comparisons
++    // --------------------------------------------
++    transition test_ternary(a: u32, b: u32) -> u32 {
++        let t1 = (a, b);
++        let t2 = (a + 1u32, b);
++
++        // ternary selects different constants based on tuple equality
++        let r0 = (t1 == t2) ? t1 : t2;  
++        let r1 = (t1 == t1) ? 10u32 : 99u32;
++        let r2 = (t1 == t2) ? 77u32 : 11u32;
++
++        assert_eq(r1, 10u32);
++        assert_eq(r2, 11u32);
++
++        // ternary with tuple *expressions* directly
++        let r3 = ((a, b) != (a, b)) ? 1u32 : 2u32;
++        let r4 = ((a, b) != (a + 1u32, b)) ? 3u32 : 4u32;
++
++        assert_eq(r3, 2u32); // false case
++        assert_eq(r4, 3u32); // true case
++
++        return r0.0 + r0.1 + r1 + r2 + r3 + r4;
+     }
+ }
++
+diff --git a/tests/tests/passes/option_lowering/b28961.leo b/tests/tests/passes/option_lowering/b28961.leo
+new file mode 100644
+index 0000000000..9330e2450a
+--- /dev/null
++++ b/tests/tests/passes/option_lowering/b28961.leo
+@@ -0,0 +1,16 @@
++program test.aleo {
++    transition assign_optional_from_unwrap() -> u32 {
++        let a: u32? = 5u32;
++
++        // Case 1: T? = unwrap(T?)
++        let b: u32? = a.unwrap();   // should implicitly wrap to u32?
++
++        // Case 2: T? = unwrap(T?) + T
++        let c: u32? = a.unwrap() + 7u32;
++
++        // Case 3: T? = unwrap_or(T?, <unsuffixed>) + T
++        let d: u32? = a.unwrap_or(0);
++
++        return b.unwrap() + c.unwrap() + d.unwrap();
++    }
++}

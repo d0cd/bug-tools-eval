@@ -1,0 +1,15 @@
+diff --git a/interpreter/src/cursor.rs b/interpreter/src/cursor.rs
+index 6be81dca8f..0d4d8189bc 100644
+--- a/interpreter/src/cursor.rs
++++ b/interpreter/src/cursor.rs
+@@ -1315,7 +1315,9 @@ impl Cursor {
+                 };
+ 
+                 if let Some(asyncs) = maybe_future.as_ref().and_then(|fut| fut.as_future()) {
+-                    self.futures.extend(asyncs.iter().cloned());
++                    if user_initiated {
++                        self.futures.extend(asyncs.iter().cloned());
++                    }
+                 }
+ 
+                 Ok(StepResult { finished, value })

@@ -1,0 +1,580 @@
+diff --git a/consensus/src/miner.rs b/consensus/src/miner.rs
+index 6aba6dd9d..0f9b1a7a9 100644
+--- a/consensus/src/miner.rs
++++ b/consensus/src/miner.rs
+@@ -197,7 +197,14 @@ impl Miner {
+         self.consensus
+             .receive_block(parameters, storage, &mut memory_pool, &block)?;
+ 
+-        storage.store_records(&coinbase_records)?;
++        // Store the non-dummy coinbase records.
++        let mut records_to_store = vec![];
++        for record in &coinbase_records {
++            if !record.is_dummy() {
++                records_to_store.push(record.clone());
++            }
++        }
++        storage.store_records(&records_to_store)?;
+ 
+         Ok((block.serialize()?, coinbase_records))
+     }
+diff --git a/network/src/context/peer_book.rs b/network/src/context/peer_book.rs
+index 192e37206..49afa436d 100644
+--- a/network/src/context/peer_book.rs
++++ b/network/src/context/peer_book.rs
+@@ -97,6 +97,11 @@ impl PeerBook {
+         self.disconnected.remove(&address);
+     }
+ 
++    /// Remove_gossiped peer
++    pub fn remove_gossiped(&mut self, address: SocketAddr) -> bool {
++        self.gossiped.remove(&address).is_some()
++    }
++
+     /// Returns the number of connected peers.
+     pub fn connected_total(&self) -> u16 {
+         self.connected.length()
+diff --git a/network/src/message/channel.rs b/network/src/message/channel.rs
+index 75768d1ff..288360930 100644
+--- a/network/src/message/channel.rs
++++ b/network/src/message/channel.rs
+@@ -105,8 +105,9 @@ impl Channel {
+         let serialized = message.serialize()?;
+         let header = MessageHeader::new(M::name(), serialized.len() as u32);
+ 
+-        self.writer.lock().await.write_all(&header.serialize()?).await?;
+-        self.writer.lock().await.write_all(&serialized).await?;
++        let mut writer = self.writer.lock().await;
++        writer.write_all(&header.serialize()?).await?;
++        writer.write_all(&serialized).await?;
+ 
+         Ok(())
+     }
+diff --git a/network/src/server/connection_handler.rs b/network/src/server/connection_handler.rs
+index e3ceb12b4..925bf5251 100644
+--- a/network/src/server/connection_handler.rs
++++ b/network/src/server/connection_handler.rs
+@@ -46,180 +46,186 @@ impl Server {
+             let mut interval_ticker: u8 = 0;
+ 
+             loop {
+-                // There are a lot of potentially expensive and blocking operations here.
+-                // Let's wait for connection_frequency seconds before starting each loop.
+-                delay_for(Duration::from_millis(connection_frequency)).await;
+-
+-                let peer_book = &mut context.peer_book.write().await;
+-                let connections = context.connections.read().await;
+-                let pings = &mut context.pings.write().await;
+-
+-                // Remove the local_address from the peer book
+-                // if the node somehow discovered itself as a peer.
+-                let local_address = *context.local_address.read().await;
+-                peer_book.forget_peer(local_address);
+-
+-                // We have less peers than our minimum peer requirement. Look for more peers.
+-                if peer_book.connected_total() < context.min_peers {
+-                    // Ask our connected peers.
+-                    for (address, _last_seen) in peer_book.get_connected() {
+-                        match connections.get(&address) {
+-                            Some(channel) => {
+-                                // Disconnect from the peer if the get peers message was not sent properly
+-                                if let Err(_) = channel.write(&GetPeers).await {
++                {
++                    // There are a lot of potentially expensive and blocking operations here.
++                    // Let's wait for connection_frequency seconds before starting each loop.
++                    delay_for(Duration::from_millis(connection_frequency)).await;
++
++                    let peer_book = &mut context.peer_book.write().await;
++                    let connections = context.connections.read().await;
++                    let pings = &mut context.pings.write().await;
++
++                    // Remove the local_address from the peer book
++                    // if the node somehow discovered itself as a peer.
++                    let local_address = *context.local_address.read().await;
++                    peer_book.forget_peer(local_address);
++
++                    // We have less peers than our minimum peer requirement. Look for more peers.
++                    if peer_book.connected_total() < context.min_peers {
++                        // Ask our connected peers.
++                        for (address, _last_seen) in peer_book.get_connected() {
++                            match connections.get(&address) {
++                                Some(channel) => {
++                                    // Disconnect from the peer if the get peers message was not sent properly
++                                    if let Err(_) = channel.write(&GetPeers).await {
++                                        peer_book.disconnect_peer(address);
++                                    }
++                                }
++                                // Disconnect from the peer if there is no active connection channel
++                                None => {
+                                     peer_book.disconnect_peer(address);
+                                 }
+                             }
+-                            // Disconnect from the peer if there is no active connection channel
+-                            None => {
+-                                peer_book.disconnect_peer(address);
+-                            }
+                         }
+-                    }
+ 
+-                    // Try and connect to our gossiped peers.
+-                    for (address, _last_seen) in peer_book.get_gossiped() {
+-                        if address != *context.local_address.read().await && !peer_book.connected_contains(&address) {
+-                            if let Err(_) = context
+-                                .handshakes
+-                                .write()
+-                                .await
+-                                .send_request(
+-                                    1u64, // TODO (raychu86) Establish a formal node version
+-                                    storage.get_latest_block_height(),
+-                                    *context.local_address.read().await,
+-                                    address,
+-                                )
+-                                .await
+-                            {
+-                                debug!("Could not connect to gossiped peer {}", address);
+-                                peer_book.forget_peer(address);
++                        // Try and connect to our gossiped peers.
++                        for (address, _last_seen) in peer_book.get_gossiped() {
++                            if address != local_address && !peer_book.connected_contains(&address) {
++                                // Create a non-blocking handshake request
++                                {
++                                    let new_context = context.clone();
++                                    let latest_block_height = storage.get_latest_block_height();
++
++                                    task::spawn(async move {
++                                        if let Err(_) = new_context
++                                            .handshakes
++                                            .write()
++                                            .await
++                                            .send_request(
++                                                1u64, // TODO (raychu86) Establish a formal node version
++                                                latest_block_height,
++                                                local_address,
++                                                address,
++                                            )
++                                            .await
++                                        {
++                                            debug!("Could not connect to gossiped peer {}", address);
++                                        }
++                                    });
++                                }
+                             }
++
++                            peer_book.remove_gossiped(address);
+                         }
+                     }
+-                }
+ 
+-                // Send a ping protocol request to each of our connected peers to maintain the connection.
+-                for (address, last_seen) in peer_book.get_connected() {
+-                    let time_since_last_seen = (Utc::now() - last_seen).num_milliseconds();
+-                    if address != *context.local_address.read().await
+-                        && time_since_last_seen.is_positive()
+-                        && time_since_last_seen as u64 > (connection_frequency * 3)
+-                    {
+-                        match connections.get(&address) {
+-                            Some(channel) => {
+-                                // Disconnect from the peer if the ping message was not sent properly
+-                                if let Err(_) = pings.send_ping(channel).await {
+-                                    warn!("Ping message failed to send to {}", address);
++                    // Send a ping protocol request to each of our connected peers to maintain the connection.
++                    for (address, last_seen) in peer_book.get_connected() {
++                        let time_since_last_seen = (Utc::now() - last_seen).num_milliseconds();
++                        if address != local_address
++                            && time_since_last_seen.is_positive()
++                            && time_since_last_seen as u64 > (connection_frequency * 3)
++                        {
++                            match connections.get(&address) {
++                                Some(channel) => {
++                                    // Disconnect from the peer if the ping message was not sent properly
++                                    if let Err(_) = pings.send_ping(channel).await {
++                                        warn!("Ping message failed to send to {}", address);
++                                        peer_book.disconnect_peer(address);
++                                    }
++                                }
++                                // Disconnect from the peer if there is no active connection channel
++                                None => {
+                                     peer_book.disconnect_peer(address);
+                                 }
+                             }
+-                            // Disconnect from the peer if there is no active connection channel
+-                            None => {
+-                                peer_book.disconnect_peer(address);
+-                            }
+                         }
+                     }
+-                }
+ 
+-                // Purge peers that haven't responded in five frequency loops.
+-                let response_timeout = ChronoDuration::milliseconds((connection_frequency * 5) as i64);
++                    // Purge peers that haven't responded in five frequency loops.
++                    let response_timeout = ChronoDuration::milliseconds((connection_frequency * 5) as i64);
+ 
+-                for (address, last_seen) in peer_book.get_connected() {
+-                    if Utc::now() - last_seen.clone() > response_timeout {
+-                        peer_book.disconnect_peer(address);
++                    for (address, last_seen) in peer_book.get_connected() {
++                        if Utc::now() - last_seen.clone() > response_timeout {
++                            peer_book.disconnect_peer(address);
++                        }
+                     }
+-                }
+ 
+-                // If we have disconnected from our sync node,
+-                // then set our sync state to idle and find a new sync node.
+-                if let Ok(mut sync_handler) = sync_handler_lock.try_lock() {
+-                    if peer_book.disconnected_contains(&sync_handler.sync_node) {
+-                        if let Some(peer) = peer_book.get_connected().iter().max_by(|a, b| a.1.cmp(&b.1)) {
+-                            sync_handler.sync_state = SyncState::Idle;
+-                            sync_handler.sync_node = peer.0.clone();
+-                        };
++                    // If we have disconnected from our sync node,
++                    // then set our sync state to idle and find a new sync node.
++                    {
++                        if let Ok(mut sync_handler) = sync_handler_lock.try_lock() {
++                            if peer_book.disconnected_contains(&sync_handler.sync_node) {
++                                if let Some(peer) = peer_book.get_connected().iter().max_by(|a, b| a.1.cmp(&b.1)) {
++                                    sync_handler.sync_state = SyncState::Idle;
++                                    sync_handler.sync_node = peer.0.clone();
++                                };
++                            }
++                        }
+                     }
+-                    drop(sync_handler);
+-                }
+ 
+-                // Store connected peers in database.
+-                peer_book
+-                    .store(&storage)
+-                    .unwrap_or_else(|error| debug!("Failed to store connected peers in database {}", error));
++                    // Store connected peers in database.
++                    peer_book
++                        .store(&storage)
++                        .unwrap_or_else(|error| debug!("Failed to store connected peers in database {}", error));
+ 
+-                // Every two frequency loops, send a version message to all peers for periodic syncs.
+-                if interval_ticker % 2 == 1 {
+-                    if peer_book.connected_total() > 0 {
+-                        debug!("Sending out periodic version message to peers");
+-                    }
++                    // Every two frequency loops, send a version message to all peers for periodic syncs.
++                    if interval_ticker % 2 == 1 {
++                        if peer_book.connected_total() > 0 {
++                            debug!("Sending out periodic version message to peers");
++                        }
+ 
+-                    for (address, _last_seen) in peer_book.get_connected() {
+-                        match connections.get(&address) {
+-                            Some(channel) => {
+-                                // Send a version message to peers.
+-                                // If they are behind, they will attempt to sync.
+-                                if let Some(handshake) = context.handshakes.read().await.get(&address) {
+-                                    let nonce = handshake.nonce;
+-                                    let version = 1u64; // TODO (raychu86) Establish a formal node version
+-                                    let message = Version::from(
+-                                        version,
+-                                        storage.get_latest_block_height(),
+-                                        address,
+-                                        *context.local_address.read().await,
+-                                        nonce,
+-                                    );
+-                                    if let Err(_) = channel.write(&message).await {
+-                                        peer_book.disconnect_peer(address);
++                        for (address, _last_seen) in peer_book.get_connected() {
++                            match connections.get(&address) {
++                                Some(channel) => {
++                                    // Send a version message to peers.
++                                    // If they are behind, they will attempt to sync.
++                                    if let Some(handshake) = context.handshakes.read().await.get(&address) {
++                                        let nonce = handshake.nonce;
++                                        let version = 1u64; // TODO (raychu86) Establish a formal node version
++                                        let message = Version::from(
++                                            version,
++                                            storage.get_latest_block_height(),
++                                            address,
++                                            local_address,
++                                            nonce,
++                                        );
++                                        if let Err(_) = channel.write(&message).await {
++                                            peer_book.disconnect_peer(address);
++                                        }
+                                     }
+                                 }
+-                            }
+-                            // Disconnect from the peer if there is no active connection channel
+-                            None => {
+-                                peer_book.disconnect_peer(address);
++                                // Disconnect from the peer if there is no active connection channel
++                                None => {
++                                    peer_book.disconnect_peer(address);
++                                }
+                             }
+                         }
+                     }
+-                }
+ 
+-                // Update our memory pool after memory_pool_interval frequency loops.
+-                if interval_ticker >= context.memory_pool_interval {
+-                    if let Ok(sync_handler) = sync_handler_lock.try_lock() {
+-                        // Ask our sync node for more transactions.
+-                        if *context.local_address.read().await != sync_handler.sync_node {
+-                            if let Some(channel) = connections.get(&sync_handler.sync_node) {
+-                                if let Err(_) = channel.write(&GetMemoryPool).await {
+-                                    peer_book.disconnect_peer(sync_handler.sync_node);
++                    // Update our memory pool after memory_pool_interval frequency loops.
++                    if interval_ticker >= context.memory_pool_interval {
++                        if let Ok(sync_handler) = sync_handler_lock.try_lock() {
++                            // Ask our sync node for more transactions.
++                            if local_address != sync_handler.sync_node {
++                                if let Some(channel) = connections.get(&sync_handler.sync_node) {
++                                    if let Err(_) = channel.write(&GetMemoryPool).await {
++                                        peer_book.disconnect_peer(sync_handler.sync_node);
++                                    }
+                                 }
+                             }
+                         }
+-                        drop(sync_handler);
+-                    }
+ 
+-                    // Update our memory pool
++                        // Update our memory pool
+ 
+-                    let mut memory_pool = match memory_pool_lock.try_lock() {
+-                        Ok(memory_pool) => memory_pool,
+-                        _ => continue,
+-                    };
++                        let mut memory_pool = match memory_pool_lock.try_lock() {
++                            Ok(memory_pool) => memory_pool,
++                            _ => continue,
++                        };
+ 
+-                    memory_pool.cleanse(&storage).unwrap_or_else(|error| {
+-                        debug!("Failed to cleanse memory pool transactions in database {}", error)
+-                    });
++                        memory_pool.cleanse(&storage).unwrap_or_else(|error| {
++                            debug!("Failed to cleanse memory pool transactions in database {}", error)
++                        });
+ 
+-                    memory_pool.store(&storage).unwrap_or_else(|error| {
+-                        debug!("Failed to store memory pool transaction in database {}", error)
+-                    });
++                        memory_pool.store(&storage).unwrap_or_else(|error| {
++                            debug!("Failed to store memory pool transaction in database {}", error)
++                        });
+ 
+-                    interval_ticker = 0;
+-                } else {
+-                    interval_ticker += 1;
++                        interval_ticker = 0;
++                    } else {
++                        interval_ticker += 1;
++                    }
+                 }
+-
+-                // Drop the locks
+-                drop(peer_book);
+-                drop(connections);
+-                drop(pings);
+             }
+         });
+     }
+diff --git a/network/src/server/message_handler.rs b/network/src/server/message_handler.rs
+index f06177e53..b9a614b64 100644
+--- a/network/src/server/message_handler.rs
++++ b/network/src/server/message_handler.rs
+@@ -171,9 +171,10 @@ impl Server {
+                 }
+             } else if name == MessageName::from("disconnect") {
+                 info!("Disconnected from peer: {:?}", channel.address);
+-                let mut peer_book = self.context.peer_book.write().await;
+-                peer_book.disconnect_peer(channel.address);
+-                drop(peer_book);
++                {
++                    let mut peer_book = self.context.peer_book.write().await;
++                    peer_book.disconnect_peer(channel.address);
++                }
+             } else {
+                 debug!("Message name not recognized {:?}", name.to_string());
+             }
+@@ -202,25 +203,26 @@ impl Server {
+ 
+         // Verify the block and insert it into the storage.
+         if !self.storage.block_hash_exists(&block.header.get_hash()) {
+-            let mut memory_pool = self.memory_pool_lock.lock().await;
+-            let inserted = self
+-                .consensus
+-                .receive_block(&self.parameters, &self.storage, &mut memory_pool, &block)
+-                .is_ok();
+-            drop(memory_pool);
+-
+-            if inserted && propagate {
+-                // This is a new block, send it to our peers.
+-
+-                propagate_block(self.context.clone(), message.data, channel.address).await?;
+-            } else if !propagate {
+-                if let Ok(mut sync_handler) = self.sync_handler_lock.try_lock() {
+-                    sync_handler.clear_pending(Arc::clone(&self.storage));
+-
+-                    if sync_handler.sync_state != SyncState::Idle {
+-                        // We are currently syncing with a node, ask for the next block.
+-                        if let Some(channel) = self.context.connections.read().await.get(&sync_handler.sync_node) {
+-                            sync_handler.increment(channel, Arc::clone(&self.storage)).await?;
++            {
++                let mut memory_pool = self.memory_pool_lock.lock().await;
++                let inserted = self
++                    .consensus
++                    .receive_block(&self.parameters, &self.storage, &mut memory_pool, &block)
++                    .is_ok();
++
++                if inserted && propagate {
++                    // This is a new block, send it to our peers.
++
++                    propagate_block(self.context.clone(), message.data, channel.address).await?;
++                } else if !propagate {
++                    if let Ok(mut sync_handler) = self.sync_handler_lock.try_lock() {
++                        sync_handler.clear_pending(Arc::clone(&self.storage));
++
++                        if sync_handler.sync_state != SyncState::Idle {
++                            // We are currently syncing with a node, ask for the next block.
++                            if let Some(channel) = self.context.connections.read().await.get(&sync_handler.sync_node) {
++                                sync_handler.increment(channel, Arc::clone(&self.storage)).await?;
++                            }
+                         }
+                     }
+                 }
+@@ -254,7 +256,6 @@ impl Server {
+                 transactions.push(transaction_bytes);
+             }
+         }
+-        drop(memory_pool);
+ 
+         if !transactions.is_empty() {
+             channel.write(&MemoryPool::new(transactions)).await?;
+@@ -479,12 +480,13 @@ impl Server {
+ 
+             // If our peer has a longer chain, send a sync message
+             if message.height > self.storage.get_latest_block_height() {
++                debug!("Received a version message with a greater height {}", message.height);
+                 // Update the sync node if the sync_handler is Idle or there are no requested block headers
+                 if let Ok(mut sync_handler) = self.sync_handler_lock.try_lock() {
+                     if !sync_handler.is_syncing()
+-                        && (sync_handler.block_headers.len() == 0 && sync_handler.pending_blocks.is_empty())
++                        || (sync_handler.block_headers.len() == 0 && sync_handler.pending_blocks.is_empty())
+                     {
+-                        debug!("Received a version message with a greater height. Attempting to sync.");
++                        debug!("Attempting to sync with peer {}", peer_address);
+                         sync_handler.sync_node = peer_address;
+ 
+                         if let Ok(block_locator_hashes) = self.storage.get_block_locator_hashes() {
+diff --git a/network/src/server/mod.rs b/network/src/server/mod.rs
+index 5c00b0cae..29673e34b 100644
+--- a/network/src/server/mod.rs
++++ b/network/src/server/mod.rs
+@@ -75,13 +75,26 @@ pub async fn process_transaction_internal(
+             if inserted.is_some() {
+                 debug!("Transaction added to memory pool. Propagating transaction to peers");
+ 
+-                for (socket, _) in &context.peer_book.read().await.get_connected() {
+-                    if *socket != transaction_sender && *socket != *context.local_address.read().await {
+-                        if let Some(channel) = context.connections.read().await.get(socket) {
+-                            channel.write(&Transaction::new(transaction_bytes.clone())).await?;
++                let peer_book = context.peer_book.read().await;
++                let local_address = *context.local_address.read().await;
++                let connections = context.connections.read().await;
++                let mut num_peers = 0;
++
++                for (socket, _) in &peer_book.get_connected() {
++                    if *socket != transaction_sender && *socket != local_address {
++                        if let Some(channel) = connections.get(socket) {
++                            match channel.write(&Transaction::new(transaction_bytes.clone())).await {
++                                Ok(_) => num_peers += 1,
++                                Err(error) => warn!(
++                                    "Failed to propagate transaction to peer {}. (error message: {})",
++                                    channel.address, error
++                                ),
++                            }
+                         }
+                     }
+                 }
++
++                debug!("Transaction propagated to {} peers", num_peers);
+             }
+         }
+     }
+@@ -93,12 +106,26 @@ pub async fn process_transaction_internal(
+ pub async fn propagate_block(context: Arc<Context>, data: Vec<u8>, block_miner: SocketAddr) -> Result<(), SendError> {
+     debug!("Propagating a block to peers");
+ 
+-    for (socket, _) in &context.peer_book.read().await.get_connected() {
+-        if *socket != block_miner && *socket != *context.local_address.read().await {
+-            if let Some(channel) = context.connections.read().await.get(socket) {
+-                channel.write(&Block::new(data.clone())).await?;
++    let peer_book = context.peer_book.read().await;
++    let local_address = *context.local_address.read().await;
++    let connections = context.connections.read().await;
++    let mut num_peers = 0;
++
++    for (socket, _) in &peer_book.get_connected() {
++        if *socket != block_miner && *socket != local_address {
++            if let Some(channel) = connections.get(socket) {
++                match channel.write(&Block::new(data.clone())).await {
++                    Ok(_) => num_peers += 1,
++                    Err(error) => warn!(
++                        "Failed to propagate block to peer {}. (error message: {})",
++                        channel.address, error
++                    ),
++                }
+             }
+         }
+     }
++
++    debug!("Block propagated to {} peers", num_peers);
++
+     Ok(())
+ }
+diff --git a/network/src/server/server.rs b/network/src/server/server.rs
+index c711c8646..45f776c75 100644
+--- a/network/src/server/server.rs
++++ b/network/src/server/server.rs
+@@ -291,16 +291,21 @@ impl Server {
+                         .await
+                     {
+                         // Bootstrap discovery of local node IP via VERACK responses
+-                        let mut local_address = context.local_address.write().await;
+-                        if *local_address != receiver_address {
+-                            *local_address = receiver_address;
+-                            info!("Discovered local address: {:?}", *local_address);
+-                            context.peer_book.write().await.forget_peer(receiver_address);
++                        {
++                            let mut local_address = context.local_address.write().await;
++                            if *local_address != receiver_address {
++                                *local_address = receiver_address;
++                                info!("Discovered local address: {:?}", *local_address);
++                                let mut peer_book = context.peer_book.write().await;
++                                peer_book.forget_peer(receiver_address);
++                            }
+                         }
+ 
+-                        drop(local_address);
+-
+-                        context.connections.write().await.store_channel(&handshake.channel);
++                        // Store the channel established with the handshake
++                        {
++                            let mut connections = context.connections.write().await;
++                            connections.store_channel(&handshake.channel);
++                        }
+ 
+                         if let Some(version) = version_message {
+                             // If our peer has a longer chain, send a sync message
+diff --git a/storage/src/objects/records.rs b/storage/src/objects/records.rs
+index 7a756d688..dbe075d9b 100644
+--- a/storage/src/objects/records.rs
++++ b/storage/src/objects/records.rs
+@@ -55,7 +55,6 @@ impl<T: Transaction, P: LoadableMerkleParameters> Ledger<T, P> {
+ 
+     /// Get a transaction bytes given the transaction id.
+     pub fn store_record<R: Record>(&self, record: &R) -> Result<(), StorageError> {
+-        // TODO (raychu86) No need to store dummy records
+         let mut database_transaction = DatabaseTransaction::new();
+ 
+         database_transaction.push(Op::Insert {

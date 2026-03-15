@@ -1,0 +1,68 @@
+diff --git a/compiler/parser/src/parser/expression.rs b/compiler/parser/src/parser/expression.rs
+index 4012131319..67c2e71e07 100644
+--- a/compiler/parser/src/parser/expression.rs
++++ b/compiler/parser/src/parser/expression.rs
+@@ -268,7 +268,7 @@ impl<N: Network> ParserContext<'_, N> {
+         // If the last operation is a negation and the inner expression is a literal, then construct a negative literal.
+         if let Some((UnaryOperation::Negate, _)) = ops.last() {
+             match inner {
+-                Expression::Literal(Literal::Integer(integer_type, string, span, id)) => {
++                Expression::Literal(Literal::Integer(integer_type, string, span, id)) if !string.starts_with('-') => {
+                     // Remove the negation from the operations.
+                     // Note that this unwrap is safe because there is at least one operation in `ops`.
+                     let (_, op_span) = ops.pop().unwrap();
+@@ -276,20 +276,20 @@ impl<N: Network> ParserContext<'_, N> {
+                     inner =
+                         Expression::Literal(Literal::Integer(integer_type, format!("-{string}"), op_span + span, id));
+                 }
+-                Expression::Literal(Literal::Field(string, span, id)) => {
++                Expression::Literal(Literal::Field(string, span, id)) if !string.starts_with('-') => {
+                     // Remove the negation from the operations.
+                     // Note that
+                     let (_, op_span) = ops.pop().unwrap();
+                     // Construct a negative field literal.
+                     inner = Expression::Literal(Literal::Field(format!("-{string}"), op_span + span, id));
+                 }
+-                Expression::Literal(Literal::Group(string, span, id)) => {
++                Expression::Literal(Literal::Group(string, span, id)) if !string.starts_with('-') => {
+                     // Remove the negation from the operations.
+                     let (_, op_span) = ops.pop().unwrap();
+                     // Construct a negative group literal.
+                     inner = Expression::Literal(Literal::Group(format!("-{string}"), op_span + span, id));
+                 }
+-                Expression::Literal(Literal::Scalar(string, span, id)) => {
++                Expression::Literal(Literal::Scalar(string, span, id)) if !string.starts_with('-') => {
+                     // Remove the negation from the operations.
+                     let (_, op_span) = ops.pop().unwrap();
+                     // Construct a negative scalar literal.
+diff --git a/tests/expectations/compiler/field/double_negation.out b/tests/expectations/compiler/field/double_negation.out
+new file mode 100644
+index 0000000000..b1df886575
+--- /dev/null
++++ b/tests/expectations/compiler/field/double_negation.out
+@@ -0,0 +1,8 @@
++namespace = "Compile"
++expectation = "Pass"
++outputs = [[{ compile = [{ initial_ast = "e7bcf3eb47bb60ca381acc31ce6e9241c4dc4012f15e6067ec0d112485f44250", unrolled_ast = "d1f265ef48af254cf931a5517c918ed2b3ddd2fddaff0f2e70b1bf53f60a7427", ssa_ast = "74a1e841eaf86568417fb9a66803b466b87fbcf43823813ef7f980299e46e402", flattened_ast = "1f4dac3dfe833f42289c00340b8b5473df8ffdd7a2c9eae4d7ca4115f4efcbf4", destructured_ast = "75d1b9d954aa0cbf2bad7e25fddcd011c713393fd35d41bb7c8dd319ecb8c5cf", inlined_ast = "75d1b9d954aa0cbf2bad7e25fddcd011c713393fd35d41bb7c8dd319ecb8c5cf", dce_ast = "cad4418236706c64f0310170308d1fbc4c95775c7cee1ba002451c04a3f5e2a9", bytecode = """
++program test.aleo;
++
++function main:
++    output 1field as field.private;
++""", errors = "", warnings = "" }] }]]
+diff --git a/tests/tests/compiler/field/double_negation.leo b/tests/tests/compiler/field/double_negation.leo
+new file mode 100644
+index 0000000000..3a1fd8d6ac
+--- /dev/null
++++ b/tests/tests/compiler/field/double_negation.leo
+@@ -0,0 +1,11 @@
++/*
++namespace = "Compile"
++expectation = "Pass"
++*/
++
++program test.aleo {
++    transition main() -> field {
++        let a: field = -(-1field);
++        return 1field * -(-1field);
++    }
++}

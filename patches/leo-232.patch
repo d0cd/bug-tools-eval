@@ -1,0 +1,1200 @@
+diff --git a/compiler/parser/src/parser/expression.rs b/compiler/parser/src/parser/expression.rs
+index aec8ac86cf..5892ef6fa6 100644
+--- a/compiler/parser/src/parser/expression.rs
++++ b/compiler/parser/src/parser/expression.rs
+@@ -152,12 +152,14 @@ impl ParserContext<'_> {
+     /// Returns an [`Expression`] AST node if the next tokens represent a
+     /// binary relational expression: less than, less than or equals, greater than, greater than or equals.
+     ///
+-    /// Otherwise, tries to parse the next token using [`parse_shift_expression`].
++    /// Otherwise, tries to parse the next token using [`parse_additive_expression`].
+     pub fn parse_ordering_expression(&mut self) -> Result<Expression> {
+-        self.parse_bin_expr(
+-            &[Token::Lt, Token::LtEq, Token::Gt, Token::GtEq],
+-            Self::parse_additive_expression,
+-        )
++        let mut expr = self.parse_additive_expression()?;
++        if let Some(op) = self.eat_bin_op(&[Token::Lt, Token::LtEq, Token::Gt, Token::GtEq]) {
++            let right = self.parse_additive_expression()?;
++            expr = Self::bin_expr(expr, right, op);
++        }
++        Ok(expr)
+     }
+ 
+     /// Returns an [`Expression`] AST node if the next tokens represent a
+diff --git a/tests/expectations/parser/parser/expression/binary/gt.leo.out b/tests/expectations/parser/parser/expression/binary/gt.leo.out
+index 44a4dbe21d..110f04c78e 100644
+--- a/tests/expectations/parser/parser/expression/binary/gt.leo.out
++++ b/tests/expectations/parser/parser/expression/binary/gt.leo.out
+@@ -68,61 +68,6 @@ outputs:
+         col_stop: 8
+         path: ""
+         content: 2u8>3u8
+-  - Binary:
+-      left:
+-        Binary:
+-          left:
+-            Value:
+-              Integer:
+-                - U8
+-                - "1"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 1
+-                    col_stop: 4
+-                    path: ""
+-                    content: 1u8 > 2u8 > 3u8
+-          right:
+-            Value:
+-              Integer:
+-                - U8
+-                - "2"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 7
+-                    col_stop: 10
+-                    path: ""
+-                    content: 1u8 > 2u8 > 3u8
+-          op: Gt
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 1
+-            col_stop: 10
+-            path: ""
+-            content: 1u8 > 2u8 > 3u8
+-      right:
+-        Value:
+-          Integer:
+-            - U8
+-            - "3"
+-            - span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 13
+-                col_stop: 16
+-                path: ""
+-                content: 1u8 > 2u8 > 3u8
+-      op: Gt
+-      span:
+-        line_start: 1
+-        line_stop: 1
+-        col_start: 1
+-        col_stop: 16
+-        path: ""
+-        content: 1u8 > 2u8 > 3u8
+   - Binary:
+       left:
+         Binary:
+@@ -200,179 +145,3 @@ outputs:
+         col_stop: 22
+         path: ""
+         content: 1u8 + 2u8 > 3u8 + 4u8
+-  - Binary:
+-      left:
+-        Binary:
+-          left:
+-            Value:
+-              Integer:
+-                - U8
+-                - "1"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 1
+-                    col_stop: 4
+-                    path: ""
+-                    content: 1u8 > 2u8 > 3u8
+-          right:
+-            Value:
+-              Integer:
+-                - U8
+-                - "2"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 7
+-                    col_stop: 10
+-                    path: ""
+-                    content: 1u8 > 2u8 > 3u8
+-          op: Gt
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 1
+-            col_stop: 10
+-            path: ""
+-            content: 1u8 > 2u8 > 3u8
+-      right:
+-        Value:
+-          Integer:
+-            - U8
+-            - "3"
+-            - span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 13
+-                col_stop: 16
+-                path: ""
+-                content: 1u8 > 2u8 > 3u8
+-      op: Gt
+-      span:
+-        line_start: 1
+-        line_stop: 1
+-        col_start: 1
+-        col_stop: 16
+-        path: ""
+-        content: 1u8 > 2u8 > 3u8
+-  - Binary:
+-      left:
+-        Binary:
+-          left:
+-            Binary:
+-              left:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "1"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 1
+-                        col_stop: 4
+-                        path: ""
+-                        content: 1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+-              right:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "2"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 7
+-                        col_stop: 10
+-                        path: ""
+-                        content: 1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+-              op: Add
+-              span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 1
+-                col_stop: 10
+-                path: ""
+-                content: 1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+-          right:
+-            Binary:
+-              left:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "3"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 13
+-                        col_stop: 16
+-                        path: ""
+-                        content: 1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+-              right:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "4"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 19
+-                        col_stop: 22
+-                        path: ""
+-                        content: 1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+-              op: Add
+-              span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 13
+-                col_stop: 22
+-                path: ""
+-                content: 1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+-          op: Gt
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 1
+-            col_stop: 22
+-            path: ""
+-            content: 1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+-      right:
+-        Binary:
+-          left:
+-            Value:
+-              Integer:
+-                - U8
+-                - "5"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 25
+-                    col_stop: 28
+-                    path: ""
+-                    content: 1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+-          right:
+-            Value:
+-              Integer:
+-                - U8
+-                - "6"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 31
+-                    col_stop: 34
+-                    path: ""
+-                    content: 1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+-          op: Add
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 25
+-            col_stop: 34
+-            path: ""
+-            content: 1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+-      op: Gt
+-      span:
+-        line_start: 1
+-        line_stop: 1
+-        col_start: 1
+-        col_stop: 34
+-        path: ""
+-        content: 1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+diff --git a/tests/expectations/parser/parser/expression/binary/gt_fail.leo.out b/tests/expectations/parser/parser/expression/binary/gt_fail.leo.out
+new file mode 100644
+index 0000000000..87fca2dd48
+--- /dev/null
++++ b/tests/expectations/parser/parser/expression/binary/gt_fail.leo.out
+@@ -0,0 +1,7 @@
++---
++namespace: ParseExpression
++expectation: Fail
++outputs:
++  - "did not consume all input: '>' @ 1:11-12\n'3' @ 1:13-14\n'u8' @ 1:14-16\n"
++  - "did not consume all input: '>' @ 1:11-12\n'3' @ 1:13-14\n'u8' @ 1:14-16\n"
++  - "did not consume all input: '>' @ 1:23-24\n'5' @ 1:25-26\n'u8' @ 1:26-28\n'+' @ 1:29-30\n'6' @ 1:31-32\n'u8' @ 1:32-34\n"
+diff --git a/tests/expectations/parser/parser/expression/binary/gte.leo.out b/tests/expectations/parser/parser/expression/binary/gte.leo.out
+index 0a17fc505c..788f4f850c 100644
+--- a/tests/expectations/parser/parser/expression/binary/gte.leo.out
++++ b/tests/expectations/parser/parser/expression/binary/gte.leo.out
+@@ -68,61 +68,6 @@ outputs:
+         col_stop: 11
+         path: ""
+         content: 2u8 >= 3u8
+-  - Binary:
+-      left:
+-        Binary:
+-          left:
+-            Value:
+-              Integer:
+-                - U8
+-                - "1"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 1
+-                    col_stop: 4
+-                    path: ""
+-                    content: 1u8 >= 2u8 >= 3u8
+-          right:
+-            Value:
+-              Integer:
+-                - U8
+-                - "2"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 8
+-                    col_stop: 11
+-                    path: ""
+-                    content: 1u8 >= 2u8 >= 3u8
+-          op: Ge
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 1
+-            col_stop: 11
+-            path: ""
+-            content: 1u8 >= 2u8 >= 3u8
+-      right:
+-        Value:
+-          Integer:
+-            - U8
+-            - "3"
+-            - span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 15
+-                col_stop: 18
+-                path: ""
+-                content: 1u8 >= 2u8 >= 3u8
+-      op: Ge
+-      span:
+-        line_start: 1
+-        line_stop: 1
+-        col_start: 1
+-        col_stop: 18
+-        path: ""
+-        content: 1u8 >= 2u8 >= 3u8
+   - Binary:
+       left:
+         Binary:
+@@ -200,179 +145,3 @@ outputs:
+         col_stop: 23
+         path: ""
+         content: 1u8 + 2u8 >= 3u8 + 4u8
+-  - Binary:
+-      left:
+-        Binary:
+-          left:
+-            Value:
+-              Integer:
+-                - U8
+-                - "1"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 1
+-                    col_stop: 4
+-                    path: ""
+-                    content: 1u8 >= 2u8 >= 3u8
+-          right:
+-            Value:
+-              Integer:
+-                - U8
+-                - "2"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 8
+-                    col_stop: 11
+-                    path: ""
+-                    content: 1u8 >= 2u8 >= 3u8
+-          op: Ge
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 1
+-            col_stop: 11
+-            path: ""
+-            content: 1u8 >= 2u8 >= 3u8
+-      right:
+-        Value:
+-          Integer:
+-            - U8
+-            - "3"
+-            - span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 15
+-                col_stop: 18
+-                path: ""
+-                content: 1u8 >= 2u8 >= 3u8
+-      op: Ge
+-      span:
+-        line_start: 1
+-        line_stop: 1
+-        col_start: 1
+-        col_stop: 18
+-        path: ""
+-        content: 1u8 >= 2u8 >= 3u8
+-  - Binary:
+-      left:
+-        Binary:
+-          left:
+-            Binary:
+-              left:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "1"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 1
+-                        col_stop: 4
+-                        path: ""
+-                        content: 1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+-              right:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "2"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 7
+-                        col_stop: 10
+-                        path: ""
+-                        content: 1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+-              op: Add
+-              span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 1
+-                col_stop: 10
+-                path: ""
+-                content: 1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+-          right:
+-            Binary:
+-              left:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "3"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 14
+-                        col_stop: 17
+-                        path: ""
+-                        content: 1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+-              right:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "4"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 20
+-                        col_stop: 23
+-                        path: ""
+-                        content: 1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+-              op: Add
+-              span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 14
+-                col_stop: 23
+-                path: ""
+-                content: 1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+-          op: Ge
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 1
+-            col_stop: 23
+-            path: ""
+-            content: 1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+-      right:
+-        Binary:
+-          left:
+-            Value:
+-              Integer:
+-                - U8
+-                - "5"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 27
+-                    col_stop: 30
+-                    path: ""
+-                    content: 1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+-          right:
+-            Value:
+-              Integer:
+-                - U8
+-                - "6"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 33
+-                    col_stop: 36
+-                    path: ""
+-                    content: 1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+-          op: Add
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 27
+-            col_stop: 36
+-            path: ""
+-            content: 1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+-      op: Ge
+-      span:
+-        line_start: 1
+-        line_stop: 1
+-        col_start: 1
+-        col_stop: 36
+-        path: ""
+-        content: 1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+diff --git a/tests/expectations/parser/parser/expression/binary/gte_fail.leo.out b/tests/expectations/parser/parser/expression/binary/gte_fail.leo.out
+new file mode 100644
+index 0000000000..cb0658f61b
+--- /dev/null
++++ b/tests/expectations/parser/parser/expression/binary/gte_fail.leo.out
+@@ -0,0 +1,7 @@
++---
++namespace: ParseExpression
++expectation: Fail
++outputs:
++  - "did not consume all input: '>=' @ 1:12-14\n'3' @ 1:15-16\n'u8' @ 1:16-18\n"
++  - "did not consume all input: '>=' @ 1:12-14\n'3' @ 1:15-16\n'u8' @ 1:16-18\n"
++  - "did not consume all input: '>=' @ 1:24-26\n'5' @ 1:27-28\n'u8' @ 1:28-30\n'+' @ 1:31-32\n'6' @ 1:33-34\n'u8' @ 1:34-36\n"
+diff --git a/tests/expectations/parser/parser/expression/binary/lt.leo.out b/tests/expectations/parser/parser/expression/binary/lt.leo.out
+index dd8c2f95cf..93a304f1ba 100644
+--- a/tests/expectations/parser/parser/expression/binary/lt.leo.out
++++ b/tests/expectations/parser/parser/expression/binary/lt.leo.out
+@@ -68,61 +68,6 @@ outputs:
+         col_stop: 8
+         path: ""
+         content: 2u8<3u8
+-  - Binary:
+-      left:
+-        Binary:
+-          left:
+-            Value:
+-              Integer:
+-                - U8
+-                - "1"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 1
+-                    col_stop: 4
+-                    path: ""
+-                    content: 1u8 < 2u8 < 3u8
+-          right:
+-            Value:
+-              Integer:
+-                - U8
+-                - "2"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 7
+-                    col_stop: 10
+-                    path: ""
+-                    content: 1u8 < 2u8 < 3u8
+-          op: Lt
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 1
+-            col_stop: 10
+-            path: ""
+-            content: 1u8 < 2u8 < 3u8
+-      right:
+-        Value:
+-          Integer:
+-            - U8
+-            - "3"
+-            - span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 13
+-                col_stop: 16
+-                path: ""
+-                content: 1u8 < 2u8 < 3u8
+-      op: Lt
+-      span:
+-        line_start: 1
+-        line_stop: 1
+-        col_start: 1
+-        col_stop: 16
+-        path: ""
+-        content: 1u8 < 2u8 < 3u8
+   - Binary:
+       left:
+         Binary:
+@@ -200,179 +145,3 @@ outputs:
+         col_stop: 22
+         path: ""
+         content: 1u8 + 2u8 < 3u8 + 4u8
+-  - Binary:
+-      left:
+-        Binary:
+-          left:
+-            Value:
+-              Integer:
+-                - U8
+-                - "1"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 1
+-                    col_stop: 4
+-                    path: ""
+-                    content: 1u8 < 2u8 < 3u8
+-          right:
+-            Value:
+-              Integer:
+-                - U8
+-                - "2"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 7
+-                    col_stop: 10
+-                    path: ""
+-                    content: 1u8 < 2u8 < 3u8
+-          op: Lt
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 1
+-            col_stop: 10
+-            path: ""
+-            content: 1u8 < 2u8 < 3u8
+-      right:
+-        Value:
+-          Integer:
+-            - U8
+-            - "3"
+-            - span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 13
+-                col_stop: 16
+-                path: ""
+-                content: 1u8 < 2u8 < 3u8
+-      op: Lt
+-      span:
+-        line_start: 1
+-        line_stop: 1
+-        col_start: 1
+-        col_stop: 16
+-        path: ""
+-        content: 1u8 < 2u8 < 3u8
+-  - Binary:
+-      left:
+-        Binary:
+-          left:
+-            Binary:
+-              left:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "1"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 1
+-                        col_stop: 4
+-                        path: ""
+-                        content: 1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+-              right:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "2"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 7
+-                        col_stop: 10
+-                        path: ""
+-                        content: 1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+-              op: Add
+-              span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 1
+-                col_stop: 10
+-                path: ""
+-                content: 1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+-          right:
+-            Binary:
+-              left:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "3"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 13
+-                        col_stop: 16
+-                        path: ""
+-                        content: 1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+-              right:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "4"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 19
+-                        col_stop: 22
+-                        path: ""
+-                        content: 1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+-              op: Add
+-              span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 13
+-                col_stop: 22
+-                path: ""
+-                content: 1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+-          op: Lt
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 1
+-            col_stop: 22
+-            path: ""
+-            content: 1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+-      right:
+-        Binary:
+-          left:
+-            Value:
+-              Integer:
+-                - U8
+-                - "5"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 25
+-                    col_stop: 28
+-                    path: ""
+-                    content: 1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+-          right:
+-            Value:
+-              Integer:
+-                - U8
+-                - "6"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 31
+-                    col_stop: 34
+-                    path: ""
+-                    content: 1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+-          op: Add
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 25
+-            col_stop: 34
+-            path: ""
+-            content: 1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+-      op: Lt
+-      span:
+-        line_start: 1
+-        line_stop: 1
+-        col_start: 1
+-        col_stop: 34
+-        path: ""
+-        content: 1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+diff --git a/tests/expectations/parser/parser/expression/binary/lt_fail.leo.out b/tests/expectations/parser/parser/expression/binary/lt_fail.leo.out
+new file mode 100644
+index 0000000000..76f35f9d39
+--- /dev/null
++++ b/tests/expectations/parser/parser/expression/binary/lt_fail.leo.out
+@@ -0,0 +1,7 @@
++---
++namespace: ParseExpression
++expectation: Fail
++outputs:
++  - "did not consume all input: '<' @ 1:11-12\n'3' @ 1:13-14\n'u8' @ 1:14-16\n"
++  - "did not consume all input: '<' @ 1:11-12\n'3' @ 1:13-14\n'u8' @ 1:14-16\n"
++  - "did not consume all input: '<' @ 1:23-24\n'5' @ 1:25-26\n'u8' @ 1:26-28\n'+' @ 1:29-30\n'6' @ 1:31-32\n'u8' @ 1:32-34\n"
+diff --git a/tests/expectations/parser/parser/expression/binary/lte.leo.out b/tests/expectations/parser/parser/expression/binary/lte.leo.out
+index d02be6e749..d5734a50fc 100644
+--- a/tests/expectations/parser/parser/expression/binary/lte.leo.out
++++ b/tests/expectations/parser/parser/expression/binary/lte.leo.out
+@@ -68,61 +68,6 @@ outputs:
+         col_stop: 11
+         path: ""
+         content: 2u8 <= 3u8
+-  - Binary:
+-      left:
+-        Binary:
+-          left:
+-            Value:
+-              Integer:
+-                - U8
+-                - "1"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 1
+-                    col_stop: 4
+-                    path: ""
+-                    content: 1u8 <= 2u8 <= 3u8
+-          right:
+-            Value:
+-              Integer:
+-                - U8
+-                - "2"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 8
+-                    col_stop: 11
+-                    path: ""
+-                    content: 1u8 <= 2u8 <= 3u8
+-          op: Le
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 1
+-            col_stop: 11
+-            path: ""
+-            content: 1u8 <= 2u8 <= 3u8
+-      right:
+-        Value:
+-          Integer:
+-            - U8
+-            - "3"
+-            - span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 15
+-                col_stop: 18
+-                path: ""
+-                content: 1u8 <= 2u8 <= 3u8
+-      op: Le
+-      span:
+-        line_start: 1
+-        line_stop: 1
+-        col_start: 1
+-        col_stop: 18
+-        path: ""
+-        content: 1u8 <= 2u8 <= 3u8
+   - Binary:
+       left:
+         Binary:
+@@ -200,179 +145,3 @@ outputs:
+         col_stop: 23
+         path: ""
+         content: 1u8 + 2u8 <= 3u8 + 4u8
+-  - Binary:
+-      left:
+-        Binary:
+-          left:
+-            Value:
+-              Integer:
+-                - U8
+-                - "1"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 1
+-                    col_stop: 4
+-                    path: ""
+-                    content: 1u8 <= 2u8 <= 3u8
+-          right:
+-            Value:
+-              Integer:
+-                - U8
+-                - "2"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 8
+-                    col_stop: 11
+-                    path: ""
+-                    content: 1u8 <= 2u8 <= 3u8
+-          op: Le
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 1
+-            col_stop: 11
+-            path: ""
+-            content: 1u8 <= 2u8 <= 3u8
+-      right:
+-        Value:
+-          Integer:
+-            - U8
+-            - "3"
+-            - span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 15
+-                col_stop: 18
+-                path: ""
+-                content: 1u8 <= 2u8 <= 3u8
+-      op: Le
+-      span:
+-        line_start: 1
+-        line_stop: 1
+-        col_start: 1
+-        col_stop: 18
+-        path: ""
+-        content: 1u8 <= 2u8 <= 3u8
+-  - Binary:
+-      left:
+-        Binary:
+-          left:
+-            Binary:
+-              left:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "1"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 1
+-                        col_stop: 4
+-                        path: ""
+-                        content: 1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+-              right:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "2"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 7
+-                        col_stop: 10
+-                        path: ""
+-                        content: 1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+-              op: Add
+-              span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 1
+-                col_stop: 10
+-                path: ""
+-                content: 1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+-          right:
+-            Binary:
+-              left:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "3"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 14
+-                        col_stop: 17
+-                        path: ""
+-                        content: 1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+-              right:
+-                Value:
+-                  Integer:
+-                    - U8
+-                    - "4"
+-                    - span:
+-                        line_start: 1
+-                        line_stop: 1
+-                        col_start: 20
+-                        col_stop: 23
+-                        path: ""
+-                        content: 1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+-              op: Add
+-              span:
+-                line_start: 1
+-                line_stop: 1
+-                col_start: 14
+-                col_stop: 23
+-                path: ""
+-                content: 1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+-          op: Le
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 1
+-            col_stop: 23
+-            path: ""
+-            content: 1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+-      right:
+-        Binary:
+-          left:
+-            Value:
+-              Integer:
+-                - U8
+-                - "5"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 27
+-                    col_stop: 30
+-                    path: ""
+-                    content: 1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+-          right:
+-            Value:
+-              Integer:
+-                - U8
+-                - "6"
+-                - span:
+-                    line_start: 1
+-                    line_stop: 1
+-                    col_start: 33
+-                    col_stop: 36
+-                    path: ""
+-                    content: 1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+-          op: Add
+-          span:
+-            line_start: 1
+-            line_stop: 1
+-            col_start: 27
+-            col_stop: 36
+-            path: ""
+-            content: 1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+-      op: Le
+-      span:
+-        line_start: 1
+-        line_stop: 1
+-        col_start: 1
+-        col_stop: 36
+-        path: ""
+-        content: 1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+diff --git a/tests/expectations/parser/parser/expression/binary/lte_fail.leo.out b/tests/expectations/parser/parser/expression/binary/lte_fail.leo.out
+new file mode 100644
+index 0000000000..2f754fbf41
+--- /dev/null
++++ b/tests/expectations/parser/parser/expression/binary/lte_fail.leo.out
+@@ -0,0 +1,7 @@
++---
++namespace: ParseExpression
++expectation: Fail
++outputs:
++  - "did not consume all input: '<=' @ 1:12-14\n'3' @ 1:15-16\n'u8' @ 1:16-18\n"
++  - "did not consume all input: '<=' @ 1:12-14\n'3' @ 1:15-16\n'u8' @ 1:16-18\n"
++  - "did not consume all input: '<=' @ 1:24-26\n'5' @ 1:27-28\n'u8' @ 1:28-30\n'+' @ 1:31-32\n'6' @ 1:33-34\n'u8' @ 1:34-36\n"
+diff --git a/tests/parser/expression/binary/gt.leo b/tests/parser/expression/binary/gt.leo
+index 236ec78bc0..3776372755 100644
+--- a/tests/parser/expression/binary/gt.leo
++++ b/tests/parser/expression/binary/gt.leo
+@@ -7,10 +7,4 @@ expectation: Pass
+ 
+ 2u8>3u8
+ 
+-1u8 > 2u8 > 3u8
+-
+-1u8 + 2u8 > 3u8 + 4u8
+-
+-1u8 > 2u8 > 3u8
+-
+-1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+\ No newline at end of file
++1u8 + 2u8 > 3u8 + 4u8
+\ No newline at end of file
+diff --git a/tests/parser/expression/binary/gt_fail.leo b/tests/parser/expression/binary/gt_fail.leo
+new file mode 100644
+index 0000000000..f391c2854b
+--- /dev/null
++++ b/tests/parser/expression/binary/gt_fail.leo
+@@ -0,0 +1,10 @@
++/*
++namespace: ParseExpression
++expectation: Fail
++*/
++
++1u8 > 2u8 > 3u8
++
++1u8 > 2u8 > 3u8
++
++1u8 + 2u8 > 3u8 + 4u8 > 5u8 + 6u8
+\ No newline at end of file
+diff --git a/tests/parser/expression/binary/gte.leo b/tests/parser/expression/binary/gte.leo
+index 15b52c1ffc..dae7325d1f 100644
+--- a/tests/parser/expression/binary/gte.leo
++++ b/tests/parser/expression/binary/gte.leo
+@@ -7,10 +7,4 @@ expectation: Pass
+ 
+ 2u8 >= 3u8
+ 
+-1u8 >= 2u8 >= 3u8
+-
+-1u8 + 2u8 >= 3u8 + 4u8
+-
+-1u8 >= 2u8 >= 3u8
+-
+-1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+\ No newline at end of file
++1u8 + 2u8 >= 3u8 + 4u8
+\ No newline at end of file
+diff --git a/tests/parser/expression/binary/gte_fail.leo b/tests/parser/expression/binary/gte_fail.leo
+new file mode 100644
+index 0000000000..b27d281a15
+--- /dev/null
++++ b/tests/parser/expression/binary/gte_fail.leo
+@@ -0,0 +1,10 @@
++/*
++namespace: ParseExpression
++expectation: Fail
++*/
++
++1u8 >= 2u8 >= 3u8
++
++1u8 >= 2u8 >= 3u8
++
++1u8 + 2u8 >= 3u8 + 4u8 >= 5u8 + 6u8
+\ No newline at end of file
+diff --git a/tests/parser/expression/binary/lt.leo b/tests/parser/expression/binary/lt.leo
+index 5d9419af6d..eff6f96acc 100644
+--- a/tests/parser/expression/binary/lt.leo
++++ b/tests/parser/expression/binary/lt.leo
+@@ -7,10 +7,4 @@ expectation: Pass
+ 
+ 2u8<3u8
+ 
+-1u8 < 2u8 < 3u8
+-
+-1u8 + 2u8 < 3u8 + 4u8
+-
+-1u8 < 2u8 < 3u8
+-
+-1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+\ No newline at end of file
++1u8 + 2u8 < 3u8 + 4u8
+\ No newline at end of file
+diff --git a/tests/parser/expression/binary/lt_fail.leo b/tests/parser/expression/binary/lt_fail.leo
+new file mode 100644
+index 0000000000..c39f00e524
+--- /dev/null
++++ b/tests/parser/expression/binary/lt_fail.leo
+@@ -0,0 +1,10 @@
++/*
++namespace: ParseExpression
++expectation: Fail
++*/
++
++1u8 < 2u8 < 3u8
++
++1u8 < 2u8 < 3u8
++
++1u8 + 2u8 < 3u8 + 4u8 < 5u8 + 6u8
+\ No newline at end of file
+diff --git a/tests/parser/expression/binary/lte.leo b/tests/parser/expression/binary/lte.leo
+index 1a427903f3..6f044c5829 100644
+--- a/tests/parser/expression/binary/lte.leo
++++ b/tests/parser/expression/binary/lte.leo
+@@ -7,10 +7,4 @@ expectation: Pass
+ 
+ 2u8 <= 3u8
+ 
+-1u8 <= 2u8 <= 3u8
+-
+-1u8 + 2u8 <= 3u8 + 4u8
+-
+-1u8 <= 2u8 <= 3u8
+-
+-1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+\ No newline at end of file
++1u8 + 2u8 <= 3u8 + 4u8
+\ No newline at end of file
+diff --git a/tests/parser/expression/binary/lte_fail.leo b/tests/parser/expression/binary/lte_fail.leo
+new file mode 100644
+index 0000000000..a03036cd12
+--- /dev/null
++++ b/tests/parser/expression/binary/lte_fail.leo
+@@ -0,0 +1,10 @@
++/*
++namespace: ParseExpression
++expectation: Fail
++*/
++
++1u8 <= 2u8 <= 3u8
++
++1u8 <= 2u8 <= 3u8
++
++1u8 + 2u8 <= 3u8 + 4u8 <= 5u8 + 6u8
+\ No newline at end of file

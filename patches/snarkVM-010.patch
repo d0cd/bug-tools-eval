@@ -1,0 +1,248 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index 2f4f887ef..9bc3dbc45 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -175,7 +175,7 @@ dev_skip_checks = [
+ save_r1cs_hashes = [ "snarkvm-circuit/save_r1cs_hashes" ]
+ test_exports = [ "snarkvm-algorithms/test_exports" ]
+ test_targets = [ "snarkvm-console/test_targets" ]
+-test_consensus_heights = [ "snarkvm-console/test_consensus_heights", "snarkvm-synthesizer/test_consensus_heights" ]
++test_consensus_heights = [ "snarkvm-console/test_consensus_heights" ]
+ 
+ [workspace.dependencies.snarkvm-algorithms]
+ path = "algorithms"
+diff --git a/ledger/query/src/query/rest.rs b/ledger/query/src/query/rest.rs
+index ef5cb781f..4c417d7ac 100644
+--- a/ledger/query/src/query/rest.rs
++++ b/ledger/query/src/query/rest.rs
+@@ -33,19 +33,12 @@ use std::str::FromStr;
+ #[derive(Clone)]
+ pub struct RestQuery<N: Network> {
+     base_url: http::Uri,
+-    /// `true` if the api version is already contained in the base URL.
+-    has_api_version: bool,
+     _marker: std::marker::PhantomData<N>,
+ }
+ 
+ impl<N: Network> From<http::Uri> for RestQuery<N> {
+     fn from(base_url: http::Uri) -> Self {
+-        // Avoid trailing slash when checking the version
+-        let path = base_url.path().strip_suffix('/').unwrap_or(base_url.path());
+-
+-        let has_api_version = path.ends_with(Self::API_V1) || path.ends_with(Self::API_V2);
+-
+-        Self { base_url, has_api_version, _marker: Default::default() }
++        Self { base_url, _marker: Default::default() }
+     }
+ }
+ 
+@@ -161,10 +154,6 @@ impl<N: Network> QueryTrait<N> for RestQuery<N> {
+ }
+ 
+ impl<N: Network> RestQuery<N> {
+-    const API_V1: &str = "v1";
+-    const API_V2: &str = "v2";
+-
+-    /// Returns the transaction for the given transaction ID.
+     pub fn get_transaction(&self, transaction_id: &N::TransactionID) -> Result<Transaction<N>> {
+         self.get_request(&format!("transaction/{transaction_id}"))
+     }
+@@ -195,15 +184,12 @@ impl<N: Network> RestQuery<N> {
+         // This function is only called internally but check for additional sanity.
+         ensure!(!route.starts_with('/'), "path cannot start with a slash");
+ 
+-        // Add the API version if it is not already contained in the base URL.
+-        let api_version = if self.has_api_version { "" } else { "v2/" };
+-
+         // Work around a bug in the `http` crate where empty paths will be set to '/' but other paths are not appended with a slash.
+         // See [this issue](https://github.com/hyperium/http/issues/507).
+         let path = if self.base_url.path().ends_with('/') {
+-            format!("{base_url}{api_version}{network}/{route}", base_url = self.base_url, network = N::SHORT_NAME)
++            format!("{base_url}{network}/{route}", base_url = self.base_url, network = N::SHORT_NAME)
+         } else {
+-            format!("{base_url}/{api_version}{network}/{route}", base_url = self.base_url, network = N::SHORT_NAME)
++            format!("{base_url}/{network}/{route}", base_url = self.base_url, network = N::SHORT_NAME)
+         };
+ 
+         Ok(path)
+@@ -226,16 +212,17 @@ impl<N: Network> RestQuery<N> {
+         if response.status().is_success() {
+             response.body_mut().read_json().with_context(|| format!("Failed to parse JSON response from {endpoint}"))
+         } else {
+-            let content_type = response
++            // v2 will return the error in JSON format.
++            let is_v2 = response
+                 .headers()
+-                .get("Content-Type")
+-                .ok_or_else(|| anyhow!("Endpoint return error without ContentType"))?
+-                .to_str()
+-                .with_context(|| "Endpoint returned invalid ContentType")?;
++                .get(http::header::CONTENT_TYPE)
++                .and_then(|ct| ct.to_str().ok())
++                .map(|ct| ct.contains("json"))
++                .unwrap_or(false);
+ 
+             // Convert returned error into an `anyhow::Error`.
+             // Depending on the API version, the error is either encoded as a string or as a JSON.
+-            if content_type.contains("json") {
++            if is_v2 {
+                 let error: RestError = response
+                     .body_mut()
+                     .read_json()
+@@ -263,12 +250,26 @@ impl<N: Network> RestQuery<N> {
+         if response.status().is_success() {
+             response.json().await.with_context(|| format!("Failed to parse JSON response from {endpoint}"))
+         } else {
+-            // Convert returned error into an `anyhow::Error`.
+-            let error: RestError = response
+-                .json()
+-                .await
+-                .with_context(|| format!("Failed to parse JSON error response from {endpoint}"))?;
+-            Err(error.parse().context(format!("Failed to fetch from {endpoint}")))
++            // v2 will return the error in JSON format.
++            let is_v2 = response
++                .headers()
++                .get(http::header::CONTENT_TYPE)
++                .and_then(|ct| ct.to_str().ok())
++                .map(|ct| ct.contains("json"))
++                .unwrap_or(false);
++
++            if is_v2 {
++                // Convert returned error into an `anyhow::Error`.
++                let error: RestError = response
++                    .json()
++                    .await
++                    .with_context(|| format!("Failed to parse JSON error response from {endpoint}"))?;
++                Err(error.parse().context(format!("Failed to fetch from {endpoint}")))
++            } else {
++                let error =
++                    response.text().await.with_context(|| format!("Failed to read error message {endpoint}"))?;
++                Err(anyhow!(error).context(format!("Failed to fetch from {endpoint}")))
++            }
+         }
+     }
+ }
+@@ -300,13 +301,13 @@ mod tests {
+         let Query::REST(rest) = query else { panic!() };
+         assert_eq!(rest.base_url.path_and_query().unwrap().to_string(), "/");
+         assert_eq!(rest.base_url.to_string(), withslash);
+-        assert_eq!(rest.build_endpoint(route)?, format!("{noslash}/v2/testnet/{route}"));
++        assert_eq!(rest.build_endpoint(route)?, format!("{noslash}/testnet/{route}"));
+ 
+         let query = withslash.parse::<CurrentQuery>().unwrap();
+         let Query::REST(rest) = query else { panic!() };
+         assert_eq!(rest.base_url.path_and_query().unwrap().to_string(), "/");
+         assert_eq!(rest.base_url.to_string(), withslash);
+-        assert_eq!(rest.build_endpoint(route)?, format!("{noslash}/v2/testnet/{route}"));
++        assert_eq!(rest.build_endpoint(route)?, format!("{noslash}/testnet/{route}"));
+ 
+         Ok(())
+     }
+@@ -323,34 +324,19 @@ mod tests {
+ 
+     #[test]
+     fn test_rest_url_parse_with_suffix() -> Result<()> {
+-        let base = "http://localhost:3030/a/prefix";
++        let base = "http://localhost:3030/a/prefix/v2";
+         let route = "a/route";
+-        let query = base.parse::<CurrentQuery>().unwrap();
+-        let Query::REST(rest_query) = &query else { panic!() };
+-        assert!(!rest_query.has_api_version);
+ 
+         // Test without trailing slash.
++        let query = base.parse::<CurrentQuery>().unwrap();
+         let Query::REST(rest) = query else { panic!() };
+-        assert_eq!(rest.build_endpoint(route)?, format!("{base}/v2/testnet/{route}"));
++        assert_eq!(rest.build_endpoint(route)?, format!("{base}/testnet/{route}"));
+ 
+         // Set again with trailing slash.
+         let query = format!("{base}/").parse::<CurrentQuery>().unwrap();
+         let Query::REST(rest) = query else { panic!() };
+-        assert_eq!(rest.build_endpoint(route)?, format!("{base}/v2/testnet/{route}"));
++        assert_eq!(rest.build_endpoint(route)?, format!("{base}/testnet/{route}"));
+ 
+         Ok(())
+     }
+-
+-    #[test]
+-    fn test_rest_url_parse_with_api_version() {
+-        let base = "http://localhost:3030/a/prefix/v1";
+-        let query = base.parse::<CurrentQuery>().unwrap();
+-        let Query::REST(rest_query) = &query else { panic!() };
+-        assert!(rest_query.has_api_version);
+-
+-        let base = "http://localhost:3030/a/prefix/v2/";
+-        let query = base.parse::<CurrentQuery>().unwrap();
+-        let Query::REST(rest_query) = &query else { panic!() };
+-        assert!(rest_query.has_api_version);
+-    }
+ }
+diff --git a/synthesizer/Cargo.toml b/synthesizer/Cargo.toml
+index ce156ba46..1f05f241f 100644
+--- a/synthesizer/Cargo.toml
++++ b/synthesizer/Cargo.toml
+@@ -60,7 +60,6 @@ wasm = [
+ ]
+ dev-print = [ "snarkvm-utilities/dev-print" ]
+ dev_skip_checks = [ "snarkvm-synthesizer-process/dev_skip_checks" ]
+-test_consensus_heights = [ "snarkvm-synthesizer-process/test_consensus_heights" ]
+ 
+ [[bench]]
+ name = "kary_merkle_tree"
+diff --git a/synthesizer/process/Cargo.toml b/synthesizer/process/Cargo.toml
+index 2ba141357..1530cda61 100644
+--- a/synthesizer/process/Cargo.toml
++++ b/synthesizer/process/Cargo.toml
+@@ -47,7 +47,6 @@ test = [ "snarkvm-console/test" ]
+ timer = [ "aleo-std/timer" ]
+ dev-print = [ "snarkvm-utilities/dev-print" ]
+ dev_skip_checks = [ ]
+-test_consensus_heights = [ ]
+ 
+ [[bench]]
+ name = "stack_operations"
+diff --git a/synthesizer/process/src/stack/deploy.rs b/synthesizer/process/src/stack/deploy.rs
+index 160a040e8..5834318ab 100644
+--- a/synthesizer/process/src/stack/deploy.rs
++++ b/synthesizer/process/src/stack/deploy.rs
+@@ -64,18 +64,10 @@ impl<N: Network> Stack<N> {
+     ) -> Result<()> {
+         let timer = timer!("Stack::verify_deployment");
+ 
+-        // NOTE: As developer, you will likely still want to confirm that your
+-        // deployment is within R1CS constraint and variable limits using
+-        // targeted and parallelized synthesis.
+-        if cfg!(all(feature = "dev_skip_checks", feature = "test_consensus_heights")) {
+-            return Ok(());
+-        }
+-
+         // Sanity Checks //
+ 
+         // Ensure the deployment is ordered.
+         deployment.check_is_ordered()?;
+-
+         // Ensure the program in the stack and deployment matches.
+         ensure!(&self.program == deployment.program(), "The stack program does not match the deployment program");
+         // If the deployment contains a checksum, ensure it matches the one computed by the stack.
+diff --git a/synthesizer/process/src/trace/mod.rs b/synthesizer/process/src/trace/mod.rs
+index 6840684d2..8f0e59924 100644
+--- a/synthesizer/process/src/trace/mod.rs
++++ b/synthesizer/process/src/trace/mod.rs
+@@ -237,7 +237,7 @@ impl<N: Network> Trace<N> {
+         verifier_inputs: Vec<(VerifyingKey<N>, Vec<Vec<N::Field>>)>,
+         execution: &Execution<N>,
+     ) -> Result<()> {
+-        if cfg!(all(feature = "dev_skip_checks", feature = "test_consensus_heights")) {
++        if cfg!(feature = "dev_skip_checks") {
+             return Ok(());
+         }
+         // Retrieve the global state root.
+@@ -271,7 +271,7 @@ impl<N: Network> Trace<N> {
+         verifier_inputs: (VerifyingKey<N>, Vec<Vec<N::Field>>),
+         fee: &Fee<N>,
+     ) -> Result<()> {
+-        if cfg!(all(feature = "dev_skip_checks", feature = "test_consensus_heights")) {
++        if cfg!(feature = "dev_skip_checks") {
+             return Ok(());
+         }
+         // Retrieve the global state root.

@@ -1,0 +1,2358 @@
+diff --git a/.integration/tests/dpc_testnet1.rs b/.integration/tests/dpc_testnet1.rs
+index 0de4ae43a..7fecf9881 100644
+--- a/.integration/tests/dpc_testnet1.rs
++++ b/.integration/tests/dpc_testnet1.rs
+@@ -275,7 +275,7 @@ fn test_testnet1_dpc_execute_constraints() {
+     println!("=========================================================");
+     let num_constraints = inner_circuit_cs.num_constraints();
+     println!("Inner circuit num constraints: {:?}", num_constraints);
+-    assert_eq!(321107, num_constraints);
++    assert_eq!(314577, num_constraints);
+     println!("=========================================================");
+ 
+     assert!(inner_circuit_cs.is_satisfied());
+@@ -336,7 +336,7 @@ fn test_testnet1_dpc_execute_constraints() {
+     println!("=========================================================");
+     let num_constraints = outer_circuit_cs.num_constraints();
+     println!("Outer circuit num constraints: {:?}", num_constraints);
+-    assert_eq!(523836, num_constraints);
++    assert_eq!(515990, num_constraints);
+     println!("=========================================================");
+ 
+     assert!(outer_circuit_cs.is_satisfied());
+diff --git a/.integration/tests/dpc_testnet2.rs b/.integration/tests/dpc_testnet2.rs
+index 4c0e4209b..944c274c2 100644
+--- a/.integration/tests/dpc_testnet2.rs
++++ b/.integration/tests/dpc_testnet2.rs
+@@ -280,7 +280,7 @@ fn test_testnet2_dpc_execute_constraints() {
+     println!("=========================================================");
+     let num_constraints = inner_circuit_cs.num_constraints();
+     println!("Inner circuit num constraints: {:?}", num_constraints);
+-    assert_eq!(321107, num_constraints);
++    assert_eq!(314577, num_constraints);
+     println!("=========================================================");
+ 
+     assert!(inner_circuit_cs.is_satisfied());
+@@ -341,7 +341,7 @@ fn test_testnet2_dpc_execute_constraints() {
+     println!("=========================================================");
+     let num_constraints = outer_circuit_cs.num_constraints();
+     println!("Outer circuit num constraints: {:?}", num_constraints);
+-    assert_eq!(885164, num_constraints);
++    assert_eq!(877318, num_constraints);
+     println!("=========================================================");
+ 
+     assert!(outer_circuit_cs.is_satisfied());
+diff --git a/algorithms/benches/signature/schnorr_compressed.rs b/algorithms/benches/signature/schnorr_compressed.rs
+new file mode 100644
+index 000000000..5f619f1c6
+--- /dev/null
++++ b/algorithms/benches/signature/schnorr_compressed.rs
+@@ -0,0 +1,113 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++#[macro_use]
++extern crate criterion;
++
++use snarkvm_algorithms::{signature::schnorr_compressed::SchnorrCompressed as SchnorrSignature, traits::SignatureScheme};
++use snarkvm_curves::edwards_bls12::EdwardsParameters;
++
++use criterion::Criterion;
++use rand::{self, thread_rng, Rng};
++
++type Schnorr = SchnorrSignature<EdwardsParameters>;
++
++fn schnorr_signature_setup(c: &mut Criterion) {
++    c.bench_function("Schnorr Signature Setup", move |b| {
++        b.iter(|| Schnorr::setup("schnorr_signature_setup"))
++    });
++}
++
++fn schnorr_signature_generate_private_key(c: &mut Criterion) {
++    let rng = &mut thread_rng();
++    let parameters = Schnorr::setup("schnorr_signature_generate_private_key");
++
++    c.bench_function("Schnorr Signature Generate Private Key", move |b| {
++        b.iter(|| Schnorr::generate_private_key(&parameters, rng).unwrap())
++    });
++}
++
++fn schnorr_signature_generate_public_key(c: &mut Criterion) {
++    let rng = &mut thread_rng();
++    let parameters = Schnorr::setup("schnorr_signature_generate_public_key");
++    let private_key = Schnorr::generate_private_key(&parameters, rng).unwrap();
++
++    c.bench_function("Schnorr Signature Generate Public Key", move |b| {
++        b.iter(|| Schnorr::generate_public_key(&parameters, &private_key).unwrap())
++    });
++}
++
++fn schnorr_signature_sign(c: &mut Criterion) {
++    let rng = &mut thread_rng();
++    let parameters = Schnorr::setup("schnorr_signature_sign");
++    let private_key = Schnorr::generate_private_key(&parameters, rng).unwrap();
++    let message = [100u8; 128];
++
++    c.bench_function("Schnorr Signature Sign", move |b| {
++        b.iter(|| Schnorr::sign(&parameters, &private_key, &message, rng).unwrap())
++    });
++}
++
++fn schnorr_signature_verify(c: &mut Criterion) {
++    let rng = &mut thread_rng();
++    let parameters = Schnorr::setup("schnorr_signature_verify");
++    let private_key = Schnorr::generate_private_key(&parameters, rng).unwrap();
++    let public_key = Schnorr::generate_public_key(&parameters, &private_key).unwrap();
++    let message = [100u8; 128];
++    let signature = Schnorr::sign(&parameters, &private_key, &message, rng).unwrap();
++
++    c.bench_function("Schnorr Signature Verify", move |b| {
++        b.iter(|| Schnorr::verify(&parameters, &public_key, &message, &signature).unwrap())
++    });
++}
++
++fn schnorr_signature_randomize_public_key(c: &mut Criterion) {
++    let rng = &mut thread_rng();
++    let parameters = Schnorr::setup("schnorr_signature_randomize_public_key");
++    let private_key = Schnorr::generate_private_key(&parameters, rng).unwrap();
++    let public_key = Schnorr::generate_public_key(&parameters, &private_key).unwrap();
++    let randomizer: [u8; 32] = rng.gen();
++
++    c.bench_function("Schnorr Signature Randomize Public Key", move |b| {
++        b.iter(|| Schnorr::randomize_public_key(&parameters, &public_key, &randomizer).unwrap())
++    });
++}
++
++fn schnorr_signature_randomize_signature(c: &mut Criterion) {
++    let rng = &mut thread_rng();
++    let parameters = Schnorr::setup("schnorr_signature_randomize_signature");
++    let private_key = Schnorr::generate_private_key(&parameters, rng).unwrap();
++    let message = [100u8; 128];
++
++    let randomizer: [u8; 32] = rng.gen();
++    let randomized_private_key = Schnorr::randomize_private_key(&parameters, &private_key, &randomizer).unwrap();
++
++    c.bench_function("Schnorr Signature Randomize Signature", move |b| {
++        b.iter(|| Schnorr::sign_randomized(&parameters, &randomized_private_key, &message, rng).unwrap())
++    });
++}
++criterion_group! {
++    name = schnorr_signature;
++    config = Criterion::default().sample_size(20);
++    targets = schnorr_signature_setup,
++                schnorr_signature_generate_private_key,
++                schnorr_signature_generate_public_key,
++                schnorr_signature_sign,
++                schnorr_signature_verify,
++                schnorr_signature_randomize_public_key,
++                schnorr_signature_randomize_signature
++}
++criterion_main!(schnorr_signature);
+diff --git a/algorithms/src/signature/mod.rs b/algorithms/src/signature/mod.rs
+index 06966c1f5..05c6fe811 100644
+--- a/algorithms/src/signature/mod.rs
++++ b/algorithms/src/signature/mod.rs
+@@ -17,8 +17,8 @@
+ pub mod schnorr;
+ pub use schnorr::*;
+ 
+-// pub mod schnorr_parameters;
+-// pub use schnorr_parameters::*;
++pub mod schnorr_compressed;
++pub use schnorr_compressed::*;
+ 
+ #[cfg(test)]
+ mod tests;
+diff --git a/algorithms/src/signature/schnorr_compressed.rs b/algorithms/src/signature/schnorr_compressed.rs
+new file mode 100644
+index 000000000..2b4df27a5
+--- /dev/null
++++ b/algorithms/src/signature/schnorr_compressed.rs
+@@ -0,0 +1,376 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use crate::{
++    crypto_hash::{PoseidonCryptoHash, PoseidonDefaultParametersField},
++    hash_to_curve::hash_to_curve,
++    CryptoHash,
++    SignatureError,
++    SignatureScheme,
++};
++use snarkvm_curves::{
++    templates::twisted_edwards_extended::{Affine as TEAffine, Projective as TEProjective},
++    AffineCurve,
++    Group,
++    ProjectiveCurve,
++    TwistedEdwardsParameters,
++};
++use snarkvm_fields::{ConstraintFieldError, Field, FieldParameters, PrimeField, ToConstraintField, Zero};
++use snarkvm_utilities::{
++    bytes::{from_bytes_le_to_bits_le, FromBytes, ToBytes},
++    io::{Read, Result as IoResult, Write},
++    ops::Mul,
++    rand::UniformRand,
++    serialize::*,
++    to_bytes_le,
++    FromBits,
++    ToBits,
++};
++
++use itertools::Itertools;
++use rand::{CryptoRng, Rng};
++
++#[derive(Derivative)]
++#[derivative(
++    Copy(bound = "TE: TwistedEdwardsParameters"),
++    Clone(bound = "TE: TwistedEdwardsParameters"),
++    PartialEq(bound = "TE: TwistedEdwardsParameters"),
++    Eq(bound = "TE: TwistedEdwardsParameters"),
++    Debug(bound = "TE: TwistedEdwardsParameters"),
++    Default(bound = "TE: TwistedEdwardsParameters")
++)]
++pub struct SchnorrCompressedSignature<TE: TwistedEdwardsParameters> {
++    pub prover_response: TE::ScalarField,
++    pub verifier_challenge: TE::ScalarField,
++}
++
++impl<TE: TwistedEdwardsParameters> ToBytes for SchnorrCompressedSignature<TE> {
++    #[inline]
++    fn write_le<W: Write>(&self, mut writer: W) -> IoResult<()> {
++        self.prover_response.write_le(&mut writer)?;
++        self.verifier_challenge.write_le(&mut writer)
++    }
++}
++
++impl<TE: TwistedEdwardsParameters> FromBytes for SchnorrCompressedSignature<TE> {
++    #[inline]
++    fn read_le<R: Read>(mut reader: R) -> IoResult<Self> {
++        let prover_response = TE::ScalarField::read_le(&mut reader)?;
++        let verifier_challenge = TE::ScalarField::read_le(&mut reader)?;
++        Ok(Self {
++            prover_response,
++            verifier_challenge,
++        })
++    }
++}
++
++#[derive(Derivative)]
++#[derivative(
++    Copy(bound = "TE: TwistedEdwardsParameters"),
++    Clone(bound = "TE: TwistedEdwardsParameters"),
++    PartialEq(bound = "TE: TwistedEdwardsParameters"),
++    Eq(bound = "TE: TwistedEdwardsParameters"),
++    Debug(bound = "TE: TwistedEdwardsParameters"),
++    Hash(bound = "TE: TwistedEdwardsParameters"),
++    Default(bound = "TE: TwistedEdwardsParameters")
++)]
++pub struct SchnorrCompressedPublicKey<TE: TwistedEdwardsParameters>(pub TEAffine<TE>);
++
++impl<TE: TwistedEdwardsParameters> ToBytes for SchnorrCompressedPublicKey<TE> {
++    #[inline]
++    fn write_le<W: Write>(&self, mut writer: W) -> IoResult<()> {
++        let x_coordinate = self.0.to_x_coordinate();
++        x_coordinate.write_le(&mut writer)
++    }
++}
++
++impl<TE: TwistedEdwardsParameters> FromBytes for SchnorrCompressedPublicKey<TE> {
++    #[inline]
++    fn read_le<R: Read>(mut reader: R) -> IoResult<Self> {
++        let x_coordinate = TE::BaseField::read_le(&mut reader)?;
++
++        if let Some(element) = TEAffine::<TE>::from_x_coordinate(x_coordinate, true) {
++            if element.is_in_correct_subgroup_assuming_on_curve() {
++                return Ok(Self(element));
++            }
++        }
++
++        if let Some(element) = TEAffine::<TE>::from_x_coordinate(x_coordinate, false) {
++            if element.is_in_correct_subgroup_assuming_on_curve() {
++                return Ok(Self(element));
++            }
++        }
++
++        Err(SignatureError::Message("Failed to read the signature public key".into()).into())
++    }
++}
++
++impl<F: Field, TE: TwistedEdwardsParameters> ToConstraintField<F> for SchnorrCompressedPublicKey<TE>
++where
++    TE::BaseField: ToConstraintField<F>,
++{
++    #[inline]
++    fn to_field_elements(&self) -> Result<Vec<F>, ConstraintFieldError> {
++        self.0.to_x_coordinate().to_field_elements()
++    }
++}
++
++#[derive(Derivative)]
++#[derivative(
++    Clone(bound = "TE: TwistedEdwardsParameters"),
++    Debug(bound = "TE: TwistedEdwardsParameters"),
++    PartialEq(bound = "TE: TwistedEdwardsParameters"),
++    Eq(bound = "TE: TwistedEdwardsParameters")
++)]
++pub struct SchnorrCompressed<TE: TwistedEdwardsParameters> {
++    pub generator_powers: Vec<TEProjective<TE>>,
++}
++
++impl<TE: TwistedEdwardsParameters> SignatureScheme for SchnorrCompressed<TE>
++where
++    TE::BaseField: PoseidonDefaultParametersField,
++{
++    type Parameters = Vec<TEProjective<TE>>;
++    type PrivateKey = TE::ScalarField;
++    type PublicKey = SchnorrCompressedPublicKey<TE>;
++    type RandomizedPrivateKey = TE::ScalarField;
++    type Randomizer = [u8; 32];
++    type Signature = SchnorrCompressedSignature<TE>;
++
++    fn setup(message: &str) -> Self {
++        assert!(
++            <TE::ScalarField as PrimeField>::Parameters::CAPACITY < <TE::BaseField as PrimeField>::Parameters::CAPACITY
++        );
++
++        let setup_time = start_timer!(|| "SchnorrSignature::setup");
++        // Round to the closest multiple of 64 to factor bit and byte encoding differences.
++        let private_key_size_in_bits = Self::PrivateKey::size_in_bits();
++        assert!(private_key_size_in_bits < usize::MAX - 63);
++        let num_powers = (private_key_size_in_bits + 63) & !63usize;
++
++        let mut generator_powers = Vec::with_capacity(num_powers);
++        let (base, _, _) = hash_to_curve::<TEAffine<TE>>(message);
++        let mut generator = base.into_projective();
++        for _ in 0..num_powers {
++            generator_powers.push(generator);
++            generator.double_in_place();
++        }
++        end_timer!(setup_time);
++
++        Self { generator_powers }
++    }
++
++    fn parameters(&self) -> &Self::Parameters {
++        &self.generator_powers
++    }
++
++    fn generate_private_key<R: Rng + CryptoRng>(&self, rng: &mut R) -> Result<Self::PrivateKey, SignatureError> {
++        let keygen_time = start_timer!(|| "SchnorrSignature::generate_private_key");
++        let private_key = TE::ScalarField::rand(rng);
++        end_timer!(keygen_time);
++        Ok(private_key)
++    }
++
++    fn generate_public_key(&self, private_key: &Self::PrivateKey) -> Result<Self::PublicKey, SignatureError> {
++        let keygen_time = start_timer!(|| "SchnorrSignature::generate_public_key");
++
++        let mut public_key = TEProjective::<TE>::zero();
++        for (bit, base_power) in from_bytes_le_to_bits_le(&to_bytes_le![private_key]?).zip_eq(&self.generator_powers) {
++            if bit {
++                public_key += base_power;
++            }
++        }
++        end_timer!(keygen_time);
++
++        Ok(SchnorrCompressedPublicKey(public_key.into_affine()))
++    }
++
++    fn randomize_private_key(
++        &self,
++        private_key: &Self::PrivateKey,
++        randomizer: &Self::Randomizer,
++    ) -> Result<Self::RandomizedPrivateKey, SignatureError> {
++        let timer = start_timer!(|| "SchnorrSignature::randomize_private_key");
++        let randomized_private_key = *private_key + TE::ScalarField::from_le_bytes_mod_order(randomizer);
++        end_timer!(timer);
++        Ok(randomized_private_key)
++    }
++
++    fn randomize_public_key(
++        &self,
++        public_key: &Self::PublicKey,
++        randomizer: &Self::Randomizer,
++    ) -> Result<Self::PublicKey, SignatureError> {
++        let timer = start_timer!(|| "SchnorrSignature::randomize_public_key");
++        let group_randomizer = self.generate_public_key(&TE::ScalarField::from_le_bytes_mod_order(randomizer))?;
++        let randomized_public_key = public_key.0 + group_randomizer.0;
++        end_timer!(timer);
++        Ok(SchnorrCompressedPublicKey::<TE>(randomized_public_key))
++    }
++
++    fn sign<R: Rng + CryptoRng>(
++        &self,
++        private_key: &Self::PrivateKey,
++        message: &[u8],
++        rng: &mut R,
++    ) -> Result<Self::Signature, SignatureError> {
++        let sign_time = start_timer!(|| "SchnorrSignature::sign");
++        // (k, e);
++
++        // Sample a random scalar `k` from the prime scalar field.
++        let random_scalar: TE::ScalarField = TE::ScalarField::rand(rng);
++        // Commit to the random scalar via r := k · g.
++        // This is the prover's first msg in the Sigma protocol.
++        let mut prover_commitment = TEProjective::<TE>::zero();
++        for (bit, base_power) in from_bytes_le_to_bits_le(&to_bytes_le![random_scalar]?).zip_eq(&self.generator_powers)
++        {
++            if bit {
++                prover_commitment += base_power;
++            }
++        }
++
++        // Derive the public key.
++        let public_key = self.generate_public_key(private_key)?;
++
++        // Hash everything to get verifier challenge.
++        let mut hash_input = Vec::<TE::BaseField>::new();
++        hash_input.extend_from_slice(&prover_commitment.into_affine().x.to_field_elements().unwrap());
++        hash_input.extend_from_slice(&public_key.0.x.to_field_elements().unwrap());
++        hash_input.push(TE::BaseField::from(message.len() as u128));
++        hash_input.extend_from_slice(&message.to_field_elements().unwrap());
++
++        let raw_hash = PoseidonCryptoHash::<TE::BaseField, 4, false>::evaluate(&hash_input).unwrap();
++
++        // Bit decompose the raw_hash
++        let mut raw_hash_bits = raw_hash.to_repr().to_bits_le();
++        raw_hash_bits.resize(<TE::ScalarField as PrimeField>::Parameters::CAPACITY as usize, false);
++        raw_hash_bits.reverse();
++
++        // Compute the supposed verifier response: e := H(r || pubkey || msg);
++        let verifier_challenge = <TE::ScalarField as PrimeField>::from_repr(
++            <TE::ScalarField as PrimeField>::BigInteger::from_bits_be(&raw_hash_bits),
++        )
++        .unwrap();
++
++        // k - xe;
++        let prover_response = random_scalar - (verifier_challenge * private_key);
++        let signature = SchnorrCompressedSignature {
++            prover_response,
++            verifier_challenge,
++        };
++
++        end_timer!(sign_time);
++        Ok(signature)
++    }
++
++    fn sign_randomized<R: Rng + CryptoRng>(
++        &self,
++        randomized_private_key: &Self::RandomizedPrivateKey,
++        message: &[u8],
++        rng: &mut R,
++    ) -> Result<Self::Signature, SignatureError> {
++        let timer = start_timer!(|| "SchnorrSignature::sign_randomized");
++        let randomized_signature = self.sign(randomized_private_key, message, rng)?;
++        end_timer!(timer);
++        Ok(randomized_signature)
++    }
++
++    fn verify(
++        &self,
++        public_key: &Self::PublicKey,
++        message: &[u8],
++        signature: &Self::Signature,
++    ) -> Result<bool, SignatureError> {
++        let verify_time = start_timer!(|| "SchnorrSignature::verify");
++
++        let SchnorrCompressedSignature {
++            prover_response,
++            verifier_challenge,
++        } = signature;
++
++        let mut claimed_prover_commitment = TEProjective::<TE>::zero();
++        for (bit, base_power) in
++            from_bytes_le_to_bits_le(&to_bytes_le![prover_response]?).zip_eq(&self.generator_powers)
++        {
++            if bit {
++                claimed_prover_commitment += base_power;
++            }
++        }
++
++        let public_key_times_verifier_challenge = public_key.0.into_projective().mul(*verifier_challenge);
++        claimed_prover_commitment += public_key_times_verifier_challenge;
++
++        // Hash everything to get verifier challenge.
++        let mut hash_input = Vec::<TE::BaseField>::new();
++        hash_input.extend_from_slice(&claimed_prover_commitment.into_affine().x.to_field_elements().unwrap());
++        hash_input.extend_from_slice(&public_key.0.x.to_field_elements().unwrap());
++        hash_input.push(TE::BaseField::from(message.len() as u128));
++        hash_input.extend_from_slice(&message.to_field_elements().unwrap());
++
++        let raw_hash = PoseidonCryptoHash::<TE::BaseField, 4, false>::evaluate(&hash_input).unwrap();
++
++        // Bit decompose the raw_hash
++        let mut raw_hash_bits = raw_hash.to_repr().to_bits_le();
++        raw_hash_bits.resize(<TE::ScalarField as PrimeField>::Parameters::CAPACITY as usize, false);
++        raw_hash_bits.reverse();
++
++        // Compute the supposed verifier response: e := H(r || pubkey || msg);
++        let obtained_verifier_challenge = <TE::ScalarField as PrimeField>::from_repr(
++            <TE::ScalarField as PrimeField>::BigInteger::from_bits_be(&raw_hash_bits),
++        )
++        .unwrap();
++
++        end_timer!(verify_time);
++        Ok(verifier_challenge == &obtained_verifier_challenge)
++    }
++}
++
++impl<TE: TwistedEdwardsParameters> From<Vec<TEProjective<TE>>> for SchnorrCompressed<TE> {
++    fn from(generator_powers: Vec<TEProjective<TE>>) -> Self {
++        Self { generator_powers }
++    }
++}
++
++impl<TE: TwistedEdwardsParameters> ToBytes for SchnorrCompressed<TE> {
++    fn write_le<W: Write>(&self, mut writer: W) -> IoResult<()> {
++        (self.generator_powers.len() as u32).write_le(&mut writer)?;
++        for g in &self.generator_powers {
++            g.into_affine().write_le(&mut writer)?;
++        }
++        Ok(())
++    }
++}
++
++impl<TE: TwistedEdwardsParameters> FromBytes for SchnorrCompressed<TE> {
++    #[inline]
++    fn read_le<R: Read>(mut reader: R) -> IoResult<Self> {
++        let generator_powers_length: u32 = FromBytes::read_le(&mut reader)?;
++        let mut generator_powers = Vec::with_capacity(generator_powers_length as usize);
++        for _ in 0..generator_powers_length {
++            let g: TEAffine<TE> = FromBytes::read_le(&mut reader)?;
++            generator_powers.push(g.into_projective());
++        }
++
++        Ok(Self { generator_powers })
++    }
++}
++
++impl<F: Field, TE: TwistedEdwardsParameters + ToConstraintField<F>> ToConstraintField<F> for SchnorrCompressed<TE> {
++    #[inline]
++    fn to_field_elements(&self) -> Result<Vec<F>, ConstraintFieldError> {
++        Ok(Vec::new())
++    }
++}
+diff --git a/algorithms/src/signature/tests.rs b/algorithms/src/signature/tests.rs
+index 8b6326e1d..1ca04afb4 100644
+--- a/algorithms/src/signature/tests.rs
++++ b/algorithms/src/signature/tests.rs
+@@ -14,12 +14,10 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{signature::Schnorr, SignatureScheme};
+-use snarkvm_curves::{edwards_bls12::EdwardsProjective as EdwardsBls12, edwards_bw6::EdwardsProjective as EdwardsBW6};
+-use snarkvm_utilities::FromBytes;
+-
+-use rand::{Rng, SeedableRng};
++use crate::SignatureScheme;
++use rand::SeedableRng;
+ use rand_chacha::ChaChaRng;
++use snarkvm_utilities::FromBytes;
+ 
+ fn sign_and_verify<S: SignatureScheme>(message: &[u8]) {
+     let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
+@@ -74,34 +72,92 @@ fn signature_scheme_serialization<S: SignatureScheme>() {
+     assert_eq!(signature_scheme, recovered_signature_scheme);
+ }
+ 
+-#[test]
+-fn test_schnorr_signature_on_edwards_bls12_377() {
+-    type TestSignature = Schnorr<EdwardsBls12>;
+-
+-    let message = "Hi, I am a Schnorr signature!";
+-    sign_and_verify::<TestSignature>(message.as_bytes());
+-    failed_verification::<TestSignature>(message.as_bytes(), b"Bad message");
+-
+-    let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
+-    let randomizer: [u8; 32] = rng.gen();
+-    randomize_and_verify::<TestSignature>(message.as_bytes(), randomizer);
+-}
+-
+-#[test]
+-fn test_schnorr_signature_on_edwards_bw6() {
+-    type TestSignature = Schnorr<EdwardsBW6>;
+-
+-    let message = "Hi, I am a Schnorr signature!";
+-    sign_and_verify::<TestSignature>(message.as_bytes());
+-    failed_verification::<TestSignature>(message.as_bytes(), b"Bad message");
+-
+-    let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
+-    let randomizer: [u8; 32] = rng.gen();
+-    randomize_and_verify::<TestSignature>(message.as_bytes(), randomizer);
++mod schnorr {
++    use crate::signature::{
++        tests::{failed_verification, randomize_and_verify, sign_and_verify, signature_scheme_serialization},
++        Schnorr,
++    };
++    use rand::{Rng, SeedableRng};
++    use rand_chacha::ChaChaRng;
++    use snarkvm_curves::{
++        edwards_bls12::EdwardsProjective as EdwardsBls12,
++        edwards_bw6::EdwardsProjective as EdwardsBW6,
++    };
++
++    #[test]
++    fn test_schnorr_signature_on_edwards_bls12_377() {
++        type TestSignature = Schnorr<EdwardsBls12>;
++
++        let message = "Hi, I am a Schnorr signature!";
++        sign_and_verify::<TestSignature>(message.as_bytes());
++        failed_verification::<TestSignature>(message.as_bytes(), b"Bad message");
++
++        let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
++        let randomizer: [u8; 32] = rng.gen();
++        randomize_and_verify::<TestSignature>(message.as_bytes(), randomizer);
++    }
++
++    #[test]
++    fn test_schnorr_signature_on_edwards_bw6() {
++        type TestSignature = Schnorr<EdwardsBW6>;
++
++        let message = "Hi, I am a Schnorr signature!";
++        sign_and_verify::<TestSignature>(message.as_bytes());
++        failed_verification::<TestSignature>(message.as_bytes(), b"Bad message");
++
++        let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
++        let randomizer: [u8; 32] = rng.gen();
++        randomize_and_verify::<TestSignature>(message.as_bytes(), randomizer);
++    }
++
++    #[test]
++    fn schnorr_signature_scheme_serialization() {
++        signature_scheme_serialization::<Schnorr<EdwardsBls12>>();
++        signature_scheme_serialization::<Schnorr<EdwardsBW6>>();
++    }
+ }
+ 
+-#[test]
+-fn schnorr_signature_scheme_serialization() {
+-    signature_scheme_serialization::<Schnorr<EdwardsBls12>>();
+-    signature_scheme_serialization::<Schnorr<EdwardsBW6>>();
++mod schnorr_compressed {
++    use crate::signature::{
++        tests::{failed_verification, randomize_and_verify, sign_and_verify, signature_scheme_serialization},
++        SchnorrCompressed,
++    };
++    use rand::{Rng, SeedableRng};
++    use rand_chacha::ChaChaRng;
++    use snarkvm_curves::{
++        edwards_bls12::EdwardsParameters as EdwardsBls12,
++        edwards_bw6::EdwardsParameters as EdwardsBW6,
++    };
++
++    #[test]
++    fn test_schnorr_signature_on_edwards_bls12_377() {
++        type TestSignature = SchnorrCompressed<EdwardsBls12>;
++
++        let message = "Hi, I am a Schnorr signature!";
++        sign_and_verify::<TestSignature>(message.as_bytes());
++        failed_verification::<TestSignature>(message.as_bytes(), b"Bad message");
++
++        let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
++        let randomizer: [u8; 32] = rng.gen();
++        randomize_and_verify::<TestSignature>(message.as_bytes(), randomizer);
++    }
++
++    #[test]
++    fn test_schnorr_signature_on_edwards_bw6() {
++        type TestSignature = SchnorrCompressed<EdwardsBW6>;
++
++        let message = "Hi, I am a Schnorr signature!";
++        sign_and_verify::<TestSignature>(message.as_bytes());
++        failed_verification::<TestSignature>(message.as_bytes(), b"Bad message");
++
++        let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
++        let randomizer: [u8; 32] = rng.gen();
++        randomize_and_verify::<TestSignature>(message.as_bytes(), randomizer);
++    }
++
++    #[test]
++    fn schnorr_signature_scheme_serialization() {
++        signature_scheme_serialization::<SchnorrCompressed<EdwardsBls12>>();
++        signature_scheme_serialization::<SchnorrCompressed<EdwardsBW6>>();
++    }
+ }
+diff --git a/algorithms/src/traits/signature.rs b/algorithms/src/traits/signature.rs
+index d97e47aca..f41df5d03 100644
+--- a/algorithms/src/traits/signature.rs
++++ b/algorithms/src/traits/signature.rs
+@@ -15,11 +15,7 @@
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use crate::errors::SignatureError;
+-use snarkvm_utilities::{
+-    serialize::{CanonicalDeserialize, CanonicalSerialize},
+-    FromBytes,
+-    ToBytes,
+-};
++use snarkvm_utilities::{FromBytes, ToBytes};
+ 
+ use rand::{CryptoRng, Rng};
+ use std::{fmt::Debug, hash::Hash};
+@@ -28,17 +24,7 @@ pub trait SignatureScheme:
+     Sized + ToBytes + FromBytes + Debug + Clone + Eq + Send + Sync + From<<Self as SignatureScheme>::Parameters>
+ {
+     type Parameters: Clone + Debug + Eq;
+-    type PublicKey: Clone
+-        + Debug
+-        + Default
+-        + ToBytes
+-        + FromBytes
+-        + Hash
+-        + Eq
+-        + Send
+-        + Sync
+-        + CanonicalSerialize
+-        + CanonicalDeserialize;
++    type PublicKey: Clone + Debug + Default + ToBytes + FromBytes + Hash + Eq + Send + Sync;
+     type PrivateKey: Clone + Debug + Default + ToBytes + FromBytes + PartialEq + Eq;
+     type RandomizedPrivateKey: Clone + Debug + Default + ToBytes + FromBytes + PartialEq + Eq + Into<Self::PrivateKey>;
+     type Randomizer: Clone + Debug + Default + ToBytes + FromBytes + PartialEq + Eq;
+diff --git a/dpc/src/account/tests.rs b/dpc/src/account/tests.rs
+index 00309e25c..d03ee2cad 100644
+--- a/dpc/src/account/tests.rs
++++ b/dpc/src/account/tests.rs
+@@ -23,9 +23,9 @@ mod testnet1 {
+     use rand_chacha::ChaChaRng;
+     use std::{convert::TryInto, str::FromStr};
+ 
+-    const ALEO_TESTNET1_PRIVATE_KEY: &str = "APrivateKey1tyBgFoCXAq8RfZT3W2mzVV9XzJb2hVFL2LrHLToEC37tXrz";
+-    const ALEO_TESTNET1_VIEW_KEY: &str = "AViewKey1gFRs4gG66wFW1FypYRfwy6pDqix6rtquQ8uJ15RgHCC8";
+-    const ALEO_TESTNET1_ADDRESS: &str = "aleo1shhq355tyaptcej65tkrweej5wth7wqg5hcqg3hf8as5s9rtrypqs8vy3u";
++    const ALEO_TESTNET1_PRIVATE_KEY: &str = "APrivateKey1y9jeNQybT9Mxk1AssbFmSXcFu9dG7sWkfYEsBUZrMin816z";
++    const ALEO_TESTNET1_VIEW_KEY: &str = "AViewKey1hNsfjkmrfiYWqMKtpKUW9LfGw93Pzz82UmmMn7pHHqZc";
++    const ALEO_TESTNET1_ADDRESS: &str = "aleo10kkut299n0fsmwu9z20hjmcdym4nv5s8adgtqaev3n3yqjlasqyqq6rk4d";
+ 
+     const ITERATIONS: usize = 1000;
+ 
+@@ -176,9 +176,9 @@ mod testnet2 {
+     use rand_chacha::ChaChaRng;
+     use std::{convert::TryInto, str::FromStr};
+ 
+-    const ALEO_TESTNET2_PRIVATE_KEY: &str = "APrivateKey1tyBgFoCXAq8RfZT3W2mzVV9XzJb2hVFL2LrHLToEC37tXrz";
+-    const ALEO_TESTNET2_VIEW_KEY: &str = "AViewKey1gFRs4gG66wFW1FypYRfwy6pDqix6rtquQ8uJ15RgHCC8";
+-    const ALEO_TESTNET2_ADDRESS: &str = "aleo1shhq355tyaptcej65tkrweej5wth7wqg5hcqg3hf8as5s9rtrypqs8vy3u";
++    const ALEO_TESTNET2_PRIVATE_KEY: &str = "APrivateKey1y9jeNQybT9Mxk1AssbFmSXcFu9dG7sWkfYEsBUZrMin816z";
++    const ALEO_TESTNET2_VIEW_KEY: &str = "AViewKey1hNsfjkmrfiYWqMKtpKUW9LfGw93Pzz82UmmMn7pHHqZc";
++    const ALEO_TESTNET2_ADDRESS: &str = "aleo10kkut299n0fsmwu9z20hjmcdym4nv5s8adgtqaev3n3yqjlasqyqq6rk4d";
+ 
+     const ITERATIONS: usize = 1000;
+ 
+diff --git a/dpc/src/circuits/inner_circuit.rs b/dpc/src/circuits/inner_circuit.rs
+index e10c95328..7adb17fc0 100644
+--- a/dpc/src/circuits/inner_circuit.rs
++++ b/dpc/src/circuits/inner_circuit.rs
+@@ -26,6 +26,7 @@ use snarkvm_gadgets::{
+         eq::{ConditionalEqGadget, EqGadget},
+         integers::{add::Add, integer::Integer, sub::Sub},
+     },
++    ToConstraintFieldGadget,
+ };
+ use snarkvm_r1cs::{errors::SynthesisError, ConstraintSynthesizer, ConstraintSystem};
+ use snarkvm_utilities::ToBytes;
+@@ -151,6 +152,11 @@ pub fn execute_inner_circuit<C: Parameters, CS: ConstraintSystem<C::InnerScalarF
+     // Declares a constant for an empty payload in a record.
+     let empty_payload = UInt8::constant_vec(&Payload::default().to_bytes_le()?);
+ 
++    let zero_value_field_elements =
++        zero_value.to_constraint_field(&mut cs.ns(|| "convert zero value to field elements"))?;
++    let empty_payload_field_elements =
++        empty_payload.to_constraint_field(&mut cs.ns(|| "convert empty payload to field elements"))?;
++
+     let digest_gadget = <C::RecordCommitmentTreeCRHGadget as CRHGadget<_, _>>::OutputGadget::alloc_input(
+         &mut cs.ns(|| "Declare ledger digest"),
+         || Ok(public.ledger_digest),
+@@ -411,17 +417,25 @@ pub fn execute_inner_circuit<C: Parameters, CS: ConstraintSystem<C::InnerScalarF
+             let commitment_cs = &mut cs.ns(|| "Check that record is well-formed");
+ 
+             // Perform noop safety checks.
+-            given_value.conditional_enforce_equal(
+-                &mut commitment_cs.ns(|| format!("If the input record {} is a noop, enforce it has a value of 0", i)),
+-                &zero_value,
+-                &given_is_dummy,
+-            )?;
+-            given_payload.conditional_enforce_equal(
+-                &mut commitment_cs
+-                    .ns(|| format!("If the input record {} is a noop, enforce it has an empty payload", i)),
+-                &empty_payload,
+-                &given_is_dummy,
+-            )?;
++            {
++                let given_value_field_elements = given_value
++                    .to_constraint_field(&mut commitment_cs.ns(|| "convert given value to field elements"))?;
++                let given_payload_field_elements = given_payload
++                    .to_constraint_field(&mut commitment_cs.ns(|| "convert given payload to field elements"))?;
++
++                given_value_field_elements.conditional_enforce_equal(
++                    &mut commitment_cs
++                        .ns(|| format!("If the input record {} is a noop, enforce it has a value of 0", i)),
++                    &zero_value_field_elements,
++                    &given_is_dummy,
++                )?;
++                given_payload_field_elements.conditional_enforce_equal(
++                    &mut commitment_cs
++                        .ns(|| format!("If the input record {} is a noop, enforce it has an empty payload", i)),
++                    &empty_payload_field_elements,
++                    &given_is_dummy,
++                )?;
++            }
+ 
+             // Compute the record commitment and check that it matches the declared commitment.
+             let record_owner_bytes = given_owner.to_bytes(&mut commitment_cs.ns(|| "Convert record_owner to bytes"))?;
+@@ -581,17 +595,25 @@ pub fn execute_inner_circuit<C: Parameters, CS: ConstraintSystem<C::InnerScalarF
+             let commitment_cs = &mut cs.ns(|| "Check that record is well-formed");
+ 
+             // Perform noop safety checks.
+-            given_value.conditional_enforce_equal(
+-                &mut commitment_cs.ns(|| format!("If the output record {} is a noop, enforce it has a value of 0", j)),
+-                &zero_value,
+-                &given_is_dummy,
+-            )?;
+-            given_payload.conditional_enforce_equal(
+-                &mut commitment_cs
+-                    .ns(|| format!("If the output record {} is a noop, enforce it has an empty payload", j)),
+-                &empty_payload,
+-                &given_is_dummy,
+-            )?;
++            {
++                let given_value_field_elements = given_value
++                    .to_constraint_field(&mut commitment_cs.ns(|| "convert given value to field elements"))?;
++                let given_payload_field_elements = given_payload
++                    .to_constraint_field(&mut commitment_cs.ns(|| "convert given payload to field elements"))?;
++
++                given_value_field_elements.conditional_enforce_equal(
++                    &mut commitment_cs
++                        .ns(|| format!("If the output record {} is a noop, enforce it has a value of 0", j)),
++                    &zero_value_field_elements,
++                    &given_is_dummy,
++                )?;
++                given_payload_field_elements.conditional_enforce_equal(
++                    &mut commitment_cs
++                        .ns(|| format!("If the output record {} is a noop, enforce it has an empty payload", j)),
++                    &empty_payload_field_elements,
++                    &given_is_dummy,
++                )?;
++            }
+ 
+             // Compute the record commitment and check that it matches the declared commitment.
+             let given_owner_bytes = given_owner.to_bytes(&mut commitment_cs.ns(|| "Convert record_owner to bytes"))?;
+diff --git a/dpc/src/parameters/testnet1.rs b/dpc/src/parameters/testnet1.rs
+index 6ca527fdf..392787f27 100644
+--- a/dpc/src/parameters/testnet1.rs
++++ b/dpc/src/parameters/testnet1.rs
+@@ -31,7 +31,7 @@ use snarkvm_algorithms::{
+     encryption::ECIESPoseidonEncryption,
+     prelude::*,
+     prf::Blake2s,
+-    signature::Schnorr,
++    signature::SchnorrCompressed,
+     snark::groth16::Groth16,
+ };
+ use snarkvm_curves::{
+@@ -47,7 +47,7 @@ use snarkvm_gadgets::{
+         crh::BHPCompressedCRHGadget,
+         encryption::ECIESPoseidonEncryptionGadget,
+         prf::Blake2sGadget,
+-        signature::SchnorrGadget,
++        signature::SchnorrCompressedGadget,
+         snark::Groth16VerifierGadget,
+     },
+     curves::{bls12_377::PairingGadget, edwards_bls12::EdwardsBls12Gadget},
+@@ -122,8 +122,8 @@ impl Parameters for Testnet1Parameters {
+     type AccountEncryptionScheme = ECIESPoseidonEncryption<EdwardsParameters>;
+     type AccountEncryptionGadget = ECIESPoseidonEncryptionGadget<EdwardsParameters, Self::InnerScalarField>;
+ 
+-    type AccountSignatureScheme = Schnorr<EdwardsBls12>;
+-    type AccountSignatureGadget = SchnorrGadget<EdwardsBls12, Self::InnerScalarField, EdwardsBls12Gadget>;
++    type AccountSignatureScheme = SchnorrCompressed<EdwardsParameters>;
++    type AccountSignatureGadget = SchnorrCompressedGadget<EdwardsParameters, Self::InnerScalarField>;
+     type AccountSignaturePublicKey = <Self::AccountSignatureScheme as SignatureScheme>::PublicKey;
+     type AccountSignature = <Self::AccountSignatureScheme as SignatureScheme>::Signature;
+ 
+diff --git a/dpc/src/parameters/testnet2.rs b/dpc/src/parameters/testnet2.rs
+index 1438bd178..7638c3196 100644
+--- a/dpc/src/parameters/testnet2.rs
++++ b/dpc/src/parameters/testnet2.rs
+@@ -31,7 +31,7 @@ use snarkvm_algorithms::{
+     encryption::ECIESPoseidonEncryption,
+     prelude::*,
+     prf::Blake2s,
+-    signature::Schnorr,
++    signature::SchnorrCompressed,
+     snark::groth16::Groth16,
+ };
+ use snarkvm_curves::{
+@@ -47,7 +47,7 @@ use snarkvm_gadgets::{
+         crh::BHPCompressedCRHGadget,
+         encryption::ECIESPoseidonEncryptionGadget,
+         prf::Blake2sGadget,
+-        signature::SchnorrGadget,
++        signature::SchnorrCompressedGadget,
+         snark::Groth16VerifierGadget,
+     },
+     curves::{bls12_377::PairingGadget, edwards_bls12::EdwardsBls12Gadget},
+@@ -142,8 +142,8 @@ impl Parameters for Testnet2Parameters {
+     type AccountEncryptionScheme = ECIESPoseidonEncryption<EdwardsParameters>;
+     type AccountEncryptionGadget = ECIESPoseidonEncryptionGadget<EdwardsParameters, Self::InnerScalarField>;
+ 
+-    type AccountSignatureScheme = Schnorr<EdwardsBls12>;
+-    type AccountSignatureGadget = SchnorrGadget<EdwardsBls12, Self::InnerScalarField, EdwardsBls12Gadget>;
++    type AccountSignatureScheme = SchnorrCompressed<EdwardsParameters>;
++    type AccountSignatureGadget = SchnorrCompressedGadget<EdwardsParameters, Self::InnerScalarField>;
+     type AccountSignaturePublicKey = <Self::AccountSignatureScheme as SignatureScheme>::PublicKey;
+     type AccountSignature = <Self::AccountSignatureScheme as SignatureScheme>::Signature;
+ 
+diff --git a/dpc/src/traits/parameters.rs b/dpc/src/traits/parameters.rs
+index acd64f5a3..a4e7f6dd4 100644
+--- a/dpc/src/traits/parameters.rs
++++ b/dpc/src/traits/parameters.rs
+@@ -25,8 +25,6 @@ use snarkvm_gadgets::{
+ use snarkvm_utilities::{
+     fmt::{Debug, Display},
+     hash::Hash,
+-    CanonicalDeserialize,
+-    CanonicalSerialize,
+     FromBytes,
+     ToBytes,
+     ToMinimalBits,
+@@ -109,10 +107,7 @@ pub trait Parameters: 'static + Sized + Send + Sync {
+         + PartialEq
+         + Eq
+         + Send
+-        + Sync
+-        + CanonicalSerialize
+-        + CanonicalDeserialize
+-        + PartialEq;
++        + Sync;
+     type AccountSignature: Clone + Debug + Default + ToBytes + FromBytes + Send + Sync + PartialEq + Eq;
+ 
+     /// CRH for the encrypted record. Invoked only over `Self::InnerScalarField`.
+diff --git a/gadgets/src/algorithms/signature/mod.rs b/gadgets/src/algorithms/signature/mod.rs
+index 4ca73e2ed..ae3658ca8 100644
+--- a/gadgets/src/algorithms/signature/mod.rs
++++ b/gadgets/src/algorithms/signature/mod.rs
+@@ -17,5 +17,8 @@
+ pub mod schnorr;
+ pub use schnorr::*;
+ 
++pub mod schnorr_compressed;
++pub use schnorr_compressed::*;
++
+ #[cfg(test)]
+ pub mod tests;
+diff --git a/gadgets/src/algorithms/signature/schnorr.rs b/gadgets/src/algorithms/signature/schnorr.rs
+index e5c48648f..8f9c8fe10 100644
+--- a/gadgets/src/algorithms/signature/schnorr.rs
++++ b/gadgets/src/algorithms/signature/schnorr.rs
+@@ -352,17 +352,13 @@ where
+             .prover_response
+             .to_bytes(cs.ns(|| "prover_response_to_bytes"))?;
+ 
+-        let prover_response_bits = prover_response_bytes
+-            .iter()
+-            .flat_map(|byte| byte.to_bits_le())
+-            .collect::<Vec<_>>();
++        let prover_response_bits = prover_response_bytes.iter().flat_map(|byte| byte.to_bits_le());
+         let verifier_challenge_bits = signature
+             .verifier_challenge
+             .to_bits_le(cs.ns(|| "verifier_challenge_to_bits"))?;
+ 
+         let mut claimed_prover_commitment = GG::zero(cs.ns(|| "zero_claimed_prover_commitment"))?;
+         for (i, (bit, base_power)) in prover_response_bits
+-            .iter()
+             .zip_eq(&self.signature.generator_powers)
+             .enumerate()
+         {
+@@ -418,6 +414,6 @@ where
+             .verifier_challenge
+             .is_eq(cs.ns(|| "check verifier challenge"), &hash)?;
+ 
+-        return Ok(result);
++        Ok(result)
+     }
+ }
+diff --git a/gadgets/src/algorithms/signature/schnorr_compressed.rs b/gadgets/src/algorithms/signature/schnorr_compressed.rs
+new file mode 100644
+index 000000000..5d0d46a53
+--- /dev/null
++++ b/gadgets/src/algorithms/signature/schnorr_compressed.rs
+@@ -0,0 +1,478 @@
++// Copyright (C) 2019-2021 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// The snarkVM library is free software: you can redistribute it and/or modify
++// it under the terms of the GNU General Public License as published by
++// the Free Software Foundation, either version 3 of the License, or
++// (at your option) any later version.
++
++// The snarkVM library is distributed in the hope that it will be useful,
++// but WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
++// GNU General Public License for more details.
++
++// You should have received a copy of the GNU General Public License
++// along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
++
++use crate::{
++    bits::{Boolean, ToBytesGadget},
++    integers::uint::UInt8,
++    traits::{
++        algorithms::SignatureGadget,
++        alloc::AllocGadget,
++        curves::GroupGadget,
++        eq::{ConditionalEqGadget, EqGadget},
++        integers::Integer,
++        select::CondSelectGadget,
++    },
++    CryptoHashGadget,
++    FpGadget,
++    ToBitsLEGadget,
++    ToConstraintFieldGadget,
++};
++use snarkvm_algorithms::{
++    crypto_hash::PoseidonDefaultParametersField,
++    signature::{SchnorrCompressed, SchnorrCompressedPublicKey, SchnorrCompressedSignature},
++};
++use snarkvm_curves::{templates::twisted_edwards_extended::Affine as TEAffine, TwistedEdwardsParameters};
++use snarkvm_fields::{FieldParameters, PrimeField};
++use snarkvm_r1cs::{errors::SynthesisError, ConstraintSystem};
++use snarkvm_utilities::{to_bytes_le, FromBytes, ToBytes};
++
++use crate::algorithms::crypto_hash::PoseidonCryptoHashGadget;
++use itertools::Itertools;
++use std::{borrow::Borrow, marker::PhantomData};
++
++type TEAffineGadget<TE, F> = crate::curves::templates::twisted_edwards::AffineGadget<TE, F, FpGadget<F>>;
++
++#[derive(Derivative)]
++#[derivative(
++    Clone(bound = "TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField"),
++    PartialEq(bound = "TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField"),
++    Eq(bound = "TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField"),
++    Debug(bound = "TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField")
++)]
++pub struct SchnorrCompressedPublicKeyGadget<TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField>(
++    TEAffineGadget<TE, F>,
++);
++
++impl<TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField> AllocGadget<SchnorrCompressedPublicKey<TE>, F>
++    for SchnorrCompressedPublicKeyGadget<TE, F>
++{
++    fn alloc_constant<
++        Fn: FnOnce() -> Result<T, SynthesisError>,
++        T: Borrow<SchnorrCompressedPublicKey<TE>>,
++        CS: ConstraintSystem<F>,
++    >(
++        cs: CS,
++        value_gen: Fn,
++    ) -> Result<Self, SynthesisError> {
++        Ok(Self {
++            0: TEAffineGadget::<TE, F>::alloc_constant(cs, || Ok(value_gen()?.borrow().0.clone()))?,
++        })
++    }
++
++    fn alloc<
++        Fn: FnOnce() -> Result<T, SynthesisError>,
++        T: Borrow<SchnorrCompressedPublicKey<TE>>,
++        CS: ConstraintSystem<F>,
++    >(
++        cs: CS,
++        value_gen: Fn,
++    ) -> Result<Self, SynthesisError> {
++        Ok(Self {
++            0: TEAffineGadget::<TE, F>::alloc_checked(cs, || Ok(value_gen()?.borrow().0.clone()))?,
++        })
++    }
++
++    fn alloc_input<
++        Fn: FnOnce() -> Result<T, SynthesisError>,
++        T: Borrow<SchnorrCompressedPublicKey<TE>>,
++        CS: ConstraintSystem<F>,
++    >(
++        mut cs: CS,
++        value_gen: Fn,
++    ) -> Result<Self, SynthesisError> {
++        let point = if let Ok(pk) = value_gen() {
++            pk.borrow().0.clone()
++        } else {
++            TEAffine::<TE>::default()
++        };
++
++        let x_coordinate_gadget =
++            FpGadget::<TE::BaseField>::alloc_input(cs.ns(|| "input x coordinate"), || Ok(point.x))?;
++        let allocated_gadget =
++            TEAffineGadget::<TE, F>::alloc_checked(cs.ns(|| "input the allocated point"), || Ok(point.clone()))?;
++
++        allocated_gadget
++            .x
++            .enforce_equal(cs.ns(|| "check x consistency"), &x_coordinate_gadget)?;
++
++        Ok(Self { 0: allocated_gadget })
++    }
++}
++
++impl<TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField> ConditionalEqGadget<F>
++    for SchnorrCompressedPublicKeyGadget<TE, F>
++{
++    #[inline]
++    fn conditional_enforce_equal<CS: ConstraintSystem<F>>(
++        &self,
++        mut cs: CS,
++        other: &Self,
++        condition: &Boolean,
++    ) -> Result<(), SynthesisError> {
++        self.0
++            .conditional_enforce_equal(&mut cs.ns(|| "conditional_enforce_equal"), &other.0, condition)?;
++        Ok(())
++    }
++
++    fn cost() -> usize {
++        <TEAffineGadget<TE, F> as ConditionalEqGadget<F>>::cost()
++    }
++}
++
++impl<TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField> EqGadget<F>
++    for SchnorrCompressedPublicKeyGadget<TE, F>
++{
++}
++
++impl<TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField> ToBytesGadget<F>
++    for SchnorrCompressedPublicKeyGadget<TE, F>
++{
++    fn to_bytes<CS: ConstraintSystem<F>>(&self, cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
++        self.0.x.to_bytes(cs)
++    }
++
++    fn to_bytes_strict<CS: ConstraintSystem<F>>(&self, cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
++        self.0.x.to_bytes_strict(cs)
++    }
++}
++
++#[derive(Derivative)]
++#[derivative(
++    Clone(bound = "TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField"),
++    PartialEq(bound = "TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField"),
++    Eq(bound = "TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField"),
++    Debug(bound = "TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField")
++)]
++pub struct SchnorrCompressedSignatureGadget<TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField> {
++    pub(crate) prover_response: FpGadget<F>,
++    pub(crate) verifier_challenge: FpGadget<F>,
++    pub(crate) _group: PhantomData<TE>,
++}
++
++impl<TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField> AllocGadget<SchnorrCompressedSignature<TE>, F>
++    for SchnorrCompressedSignatureGadget<TE, F>
++{
++    fn alloc<
++        Fn: FnOnce() -> Result<T, SynthesisError>,
++        T: Borrow<SchnorrCompressedSignature<TE>>,
++        CS: ConstraintSystem<F>,
++    >(
++        mut cs: CS,
++        value_gen: Fn,
++    ) -> Result<Self, SynthesisError> {
++        let value = value_gen()?;
++        let schnorr_output = value.borrow().clone();
++
++        // TODO (raychu86): Check that this conversion is valid.
++        //      This will work for EdwardsBls Fr and Bls12_377 Fr because they are both represented with Fp256.
++
++        // Cast <G as Group>::ScalarField as F.
++        let prover_response: F = FromBytes::read_le(&to_bytes_le![schnorr_output.prover_response]?[..])?;
++        let verifier_challenge: F = FromBytes::read_le(&to_bytes_le![schnorr_output.verifier_challenge]?[..])?;
++
++        let prover_response = FpGadget::<F>::alloc(cs.ns(|| "alloc_prover_response"), || Ok(&prover_response))?;
++        let verifier_challenge =
++            FpGadget::<F>::alloc(cs.ns(|| "alloc_verifier_challenge"), || Ok(&verifier_challenge))?;
++
++        Ok(Self {
++            prover_response,
++            verifier_challenge,
++            _group: PhantomData,
++        })
++    }
++
++    fn alloc_constant<
++        Fn: FnOnce() -> Result<T, SynthesisError>,
++        T: Borrow<SchnorrCompressedSignature<TE>>,
++        CS: ConstraintSystem<F>,
++    >(
++        mut cs: CS,
++        value_gen: Fn,
++    ) -> Result<Self, SynthesisError> {
++        let value = value_gen()?;
++        let schnorr_output = value.borrow().clone();
++
++        // Cast <G as Group>::ScalarField as F.
++        let prover_response: F = FromBytes::read_le(&to_bytes_le![schnorr_output.prover_response]?[..])?;
++        let verifier_challenge: F = FromBytes::read_le(&to_bytes_le![schnorr_output.verifier_challenge]?[..])?;
++
++        let prover_response =
++            FpGadget::<F>::alloc_constant(cs.ns(|| "alloc_prover_response"), || Ok(&prover_response))?;
++        let verifier_challenge =
++            FpGadget::<F>::alloc_constant(cs.ns(|| "alloc_verifier_challenge"), || Ok(&verifier_challenge))?;
++
++        Ok(Self {
++            prover_response,
++            verifier_challenge,
++            _group: PhantomData,
++        })
++    }
++
++    fn alloc_input<
++        Fn: FnOnce() -> Result<T, SynthesisError>,
++        T: Borrow<SchnorrCompressedSignature<TE>>,
++        CS: ConstraintSystem<F>,
++    >(
++        mut cs: CS,
++        value_gen: Fn,
++    ) -> Result<Self, SynthesisError> {
++        let value = value_gen()?;
++        let schnorr_output = value.borrow().clone();
++
++        // Cast <G as Group>::ScalarField as F.
++        let prover_response: F = FromBytes::read_le(&to_bytes_le![schnorr_output.prover_response]?[..])?;
++        let verifier_challenge: F = FromBytes::read_le(&to_bytes_le![schnorr_output.verifier_challenge]?[..])?;
++
++        let prover_response =
++            FpGadget::<F>::alloc_input(cs.ns(|| "alloc_input_prover_response"), || Ok(&prover_response))?;
++        let verifier_challenge =
++            FpGadget::<F>::alloc_input(cs.ns(|| "alloc_input_verifier_challenge"), || Ok(&verifier_challenge))?;
++
++        Ok(Self {
++            prover_response,
++            verifier_challenge,
++            _group: PhantomData,
++        })
++    }
++}
++
++impl<TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField> ConditionalEqGadget<F>
++    for SchnorrCompressedSignatureGadget<TE, F>
++{
++    #[inline]
++    fn conditional_enforce_equal<CS: ConstraintSystem<F>>(
++        &self,
++        mut cs: CS,
++        other: &Self,
++        condition: &Boolean,
++    ) -> Result<(), SynthesisError> {
++        self.prover_response.conditional_enforce_equal(
++            &mut cs.ns(|| "prover_response_conditional_enforce_equal"),
++            &other.prover_response,
++            condition,
++        )?;
++        self.verifier_challenge.conditional_enforce_equal(
++            &mut cs.ns(|| "verifier_challenge_conditional_enforce_equal"),
++            &other.verifier_challenge,
++            condition,
++        )?;
++        Ok(())
++    }
++
++    fn cost() -> usize {
++        <FpGadget<F> as ConditionalEqGadget<F>>::cost() * 2
++    }
++}
++
++impl<TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField> EqGadget<F>
++    for SchnorrCompressedSignatureGadget<TE, F>
++{
++}
++
++impl<TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField> ToBytesGadget<F>
++    for SchnorrCompressedSignatureGadget<TE, F>
++{
++    fn to_bytes<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
++        let mut result = Vec::new();
++
++        result.extend(
++            self.prover_response
++                .to_bytes(&mut cs.ns(|| "prover_response_to_bytes"))?,
++        );
++        result.extend(
++            self.verifier_challenge
++                .to_bytes(&mut cs.ns(|| "verifier_challenge_to_bytes"))?,
++        );
++
++        Ok(result)
++    }
++
++    fn to_bytes_strict<CS: ConstraintSystem<F>>(&self, mut cs: CS) -> Result<Vec<UInt8>, SynthesisError> {
++        let mut result = Vec::new();
++
++        result.extend(
++            self.prover_response
++                .to_bytes_strict(&mut cs.ns(|| "prover_response_to_bytes_strict"))?,
++        );
++        result.extend(
++            self.verifier_challenge
++                .to_bytes_strict(&mut cs.ns(|| "verifier_challenge_to_bytes_strict"))?,
++        );
++
++        Ok(result)
++    }
++}
++
++pub struct SchnorrCompressedGadget<
++    TE: TwistedEdwardsParameters<BaseField = F>,
++    F: PrimeField + PoseidonDefaultParametersField,
++> {
++    pub(crate) signature: SchnorrCompressed<TE>,
++    pub(crate) _engine: PhantomData<F>,
++}
++
++impl<TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField + PoseidonDefaultParametersField>
++    AllocGadget<SchnorrCompressed<TE>, F> for SchnorrCompressedGadget<TE, F>
++{
++    fn alloc_constant<
++        Fn: FnOnce() -> Result<T, SynthesisError>,
++        T: Borrow<SchnorrCompressed<TE>>,
++        CS: ConstraintSystem<F>,
++    >(
++        _cs: CS,
++        value_gen: Fn,
++    ) -> Result<Self, SynthesisError> {
++        Ok(Self {
++            signature: (*value_gen()?.borrow()).clone(),
++            _engine: PhantomData,
++        })
++    }
++
++    fn alloc<Fn: FnOnce() -> Result<T, SynthesisError>, T: Borrow<SchnorrCompressed<TE>>, CS: ConstraintSystem<F>>(
++        _cs: CS,
++        _value_gen: Fn,
++    ) -> Result<Self, SynthesisError> {
++        unimplemented!()
++    }
++
++    fn alloc_input<
++        Fn: FnOnce() -> Result<T, SynthesisError>,
++        T: Borrow<SchnorrCompressed<TE>>,
++        CS: ConstraintSystem<F>,
++    >(
++        _cs: CS,
++        _value_gen: Fn,
++    ) -> Result<Self, SynthesisError> {
++        unimplemented!()
++    }
++}
++
++impl<TE: TwistedEdwardsParameters<BaseField = F>, F: PrimeField + PoseidonDefaultParametersField>
++    SignatureGadget<SchnorrCompressed<TE>, F> for SchnorrCompressedGadget<TE, F>
++{
++    type PublicKeyGadget = SchnorrCompressedPublicKeyGadget<TE, F>;
++    type SignatureGadget = SchnorrCompressedSignatureGadget<TE, F>;
++
++    fn randomize_public_key<CS: ConstraintSystem<F>>(
++        &self,
++        mut cs: CS,
++        public_key: &Self::PublicKeyGadget,
++        randomizer: &[UInt8],
++    ) -> Result<Self::PublicKeyGadget, SynthesisError> {
++        let affine_zero: TEAffineGadget<TE, F> =
++            <TEAffineGadget<TE, F> as GroupGadget<TEAffine<TE>, F>>::zero(cs.ns(|| "affine zero")).unwrap();
++
++        let randomness = randomizer.iter().flat_map(|b| b.to_bits_le()).collect::<Vec<_>>();
++
++        let mut randomized_public_key = affine_zero;
++        randomized_public_key.scalar_multiplication(
++            cs.ns(|| "check_randomization_gadget"),
++            randomness.iter().zip_eq(&self.signature.generator_powers),
++        )?;
++        randomized_public_key = <TEAffineGadget<TE, F> as GroupGadget<TEAffine<TE>, F>>::add(
++            &randomized_public_key,
++            cs.ns(|| "pk + rG"),
++            &public_key.0,
++        )?;
++
++        Ok(SchnorrCompressedPublicKeyGadget {
++            0: randomized_public_key,
++        })
++    }
++
++    fn verify<CS: ConstraintSystem<F>>(
++        &self,
++        mut cs: CS,
++        public_key: &Self::PublicKeyGadget,
++        message: &[UInt8],
++        signature: &Self::SignatureGadget,
++    ) -> Result<Boolean, SynthesisError> {
++        let affine_zero: TEAffineGadget<TE, F> =
++            <TEAffineGadget<TE, F> as GroupGadget<TEAffine<TE>, F>>::zero(cs.ns(|| "affine zero")).unwrap();
++
++        let prover_response_bytes = signature
++            .prover_response
++            .to_bytes(cs.ns(|| "prover_response_to_bytes"))?;
++
++        let prover_response_bits = prover_response_bytes.iter().flat_map(|byte| byte.to_bits_le());
++        let verifier_challenge_bits = signature
++            .verifier_challenge
++            .to_bits_le(cs.ns(|| "verifier_challenge_to_bits"))?;
++
++        let mut claimed_prover_commitment = affine_zero.clone();
++        for (i, (bit, base_power)) in prover_response_bits
++            .zip_eq(&self.signature.generator_powers)
++            .enumerate()
++        {
++            let added =
++                claimed_prover_commitment.add_constant(cs.ns(|| format!("add_base_power_{}", i)), base_power)?;
++
++            claimed_prover_commitment = TEAffineGadget::<TE, F>::conditionally_select(
++                cs.ns(|| format!("cond_select_{}", i)),
++                &bit,
++                &added,
++                &claimed_prover_commitment,
++            )?;
++        }
++
++        let public_key_times_verifier_challenge = <TEAffineGadget<TE, F> as GroupGadget<TEAffine<TE>, F>>::mul_bits(
++            &public_key.0,
++            cs.ns(|| "record_view_key"),
++            &affine_zero,
++            verifier_challenge_bits.into_iter(),
++        )?;
++
++        claimed_prover_commitment = <TEAffineGadget<TE, F> as GroupGadget<TEAffine<TE>, F>>::add(
++            &claimed_prover_commitment,
++            cs.ns(|| "claimed_prover_commitment_plus_public_key_times_verifier_challenge"),
++            &public_key_times_verifier_challenge,
++        )?;
++
++        // Construct the hash
++        let mut hash_input = Vec::new();
++        hash_input.extend_from_slice(
++            &claimed_prover_commitment
++                .x
++                .to_constraint_field(cs.ns(|| "convert claimed_prover_commitment into field elements"))?,
++        );
++        hash_input.extend_from_slice(
++            &public_key
++                .0
++                .x
++                .to_constraint_field(cs.ns(|| "convert public key into field elements"))?,
++        );
++        hash_input.push(FpGadget::<F>::Constant(F::from(message.len() as u128)));
++        hash_input.extend_from_slice(&message.to_constraint_field(cs.ns(|| "convert message into field elements"))?);
++
++        // Compute the hash on the base field
++        let raw_hash =
++            PoseidonCryptoHashGadget::<F, 4, false>::check_evaluation_gadget(cs.ns(|| "poseidon"), &hash_input)?;
++
++        // Bit decompose the raw_hash
++        let mut raw_hash_bits = raw_hash.to_bits_le(cs.ns(|| "convert the hash into bits"))?;
++        raw_hash_bits.resize(
++            <TE::ScalarField as PrimeField>::Parameters::CAPACITY as usize,
++            Boolean::Constant(false),
++        );
++
++        let hash = Boolean::le_bits_to_fp_var(cs.ns(|| "obtain the truncated hash"), &raw_hash_bits)?;
++        let result = signature
++            .verifier_challenge
++            .is_eq(cs.ns(|| "check verifier challenge"), &hash)?;
++
++        Ok(result)
++    }
++}
+diff --git a/gadgets/src/algorithms/signature/tests.rs b/gadgets/src/algorithms/signature/tests.rs
+index ad6abae56..b19da55e2 100644
+--- a/gadgets/src/algorithms/signature/tests.rs
++++ b/gadgets/src/algorithms/signature/tests.rs
+@@ -14,195 +14,398 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{
+-    algorithms::signature::{SchnorrGadget, SchnorrPublicKeyGadget},
+-    curves::edwards_bls12::EdwardsBls12Gadget,
+-    integers::uint::UInt8,
+-    traits::{algorithms::SignatureGadget, alloc::AllocGadget, eq::EqGadget},
+-    Boolean,
+-};
+-use snarkvm_algorithms::{signature::Schnorr, traits::SignatureScheme};
+-use snarkvm_curves::{bls12_377::Fr, edwards_bls12::EdwardsProjective};
+-use snarkvm_r1cs::{ConstraintSystem, TestConstraintSystem};
+-use snarkvm_utilities::ToBytes;
+-
+-use rand::{thread_rng, Rng, SeedableRng};
+-use rand_chacha::ChaChaRng;
+-
+-type SchnorrScheme = Schnorr<EdwardsProjective>;
+-type TestSignature = Schnorr<EdwardsProjective>;
+-type TestSignatureGadget = SchnorrGadget<EdwardsProjective, Fr, EdwardsBls12Gadget>;
+-
+-#[test]
+-fn test_schnorr_signature_randomize_public_key_gadget() {
+-    // Setup environment
+-    let mut cs = TestConstraintSystem::<Fr>::new();
+-    let rng = &mut thread_rng();
+-
+-    // Native Schnorr message
+-    let message: [u8; 32] = rng.gen();
+-
+-    // Native Schnorr signing
+-    let schnorr = SchnorrScheme::setup("test_schnorr_signature_randomize_public_key_gadget");
+-    let private_key = schnorr.generate_private_key(rng).unwrap();
+-    let public_key = schnorr.generate_public_key(&private_key).unwrap();
+-    let signature = schnorr.sign(&private_key, &message, rng).unwrap();
+-    assert!(schnorr.verify(&public_key, &message, &signature).unwrap());
+-
+-    // Native Schnorr randomization
+-    let randomizer: [u8; 32] = rng.gen();
+-    let randomized_private_key = schnorr.randomize_private_key(&private_key, &randomizer).unwrap();
+-    let randomized_public_key = schnorr.randomize_public_key(&public_key, &randomizer).unwrap();
+-    let randomized_signature = schnorr.sign_randomized(&randomized_private_key, &message, rng).unwrap();
+-    assert!(signature != randomized_signature);
+-    assert!(
+-        schnorr
+-            .verify(&randomized_public_key, &message, &randomized_signature)
+-            .unwrap()
+-    );
+-
+-    // Circuit Schnorr randomized public key (candidate)
+-    let schnorr_gadget = TestSignatureGadget::alloc_constant(&mut cs.ns(|| "schnorr_gadget"), || Ok(schnorr)).unwrap();
+-    let candidate_public_key = SchnorrPublicKeyGadget::<EdwardsProjective, Fr, EdwardsBls12Gadget>::alloc(
+-        &mut cs.ns(|| "candidate_public_key"),
+-        || Ok(&public_key),
+-    )
+-    .unwrap();
+-    let candidate_randomizer = UInt8::alloc_vec(
+-        &mut cs.ns(|| "candidate_randomizer"),
+-        &randomizer.to_bytes_le().unwrap(),
+-    )
+-    .unwrap();
+-    let candidate_randomized_public_key = schnorr_gadget
+-        .randomize_public_key(
+-            &mut cs.ns(|| "candidate_randomized_public_key"),
+-            &candidate_public_key,
+-            &candidate_randomizer,
++mod schnorr {
++    use crate::{
++        algorithms::signature::{SchnorrGadget, SchnorrPublicKeyGadget},
++        curves::edwards_bls12::EdwardsBls12Gadget,
++        integers::uint::UInt8,
++        traits::{algorithms::SignatureGadget, alloc::AllocGadget, eq::EqGadget},
++        Boolean,
++    };
++    use snarkvm_algorithms::{signature::Schnorr, traits::SignatureScheme};
++    use snarkvm_curves::{bls12_377::Fr, edwards_bls12::EdwardsProjective};
++    use snarkvm_r1cs::{ConstraintSystem, TestConstraintSystem};
++    use snarkvm_utilities::ToBytes;
++
++    use rand::{thread_rng, Rng, SeedableRng};
++    use rand_chacha::ChaChaRng;
++
++    type SchnorrScheme = Schnorr<EdwardsProjective>;
++    type TestSignature = Schnorr<EdwardsProjective>;
++    type TestSignatureGadget = SchnorrGadget<EdwardsProjective, Fr, EdwardsBls12Gadget>;
++
++    #[test]
++    fn test_schnorr_signature_randomize_public_key_gadget() {
++        // Setup environment
++        let mut cs = TestConstraintSystem::<Fr>::new();
++        let rng = &mut thread_rng();
++
++        // Native Schnorr message
++        let message: [u8; 32] = rng.gen();
++
++        // Native Schnorr signing
++        let schnorr = SchnorrScheme::setup("test_schnorr_signature_randomize_public_key_gadget");
++        let private_key = schnorr.generate_private_key(rng).unwrap();
++        let public_key = schnorr.generate_public_key(&private_key).unwrap();
++        let signature = schnorr.sign(&private_key, &message, rng).unwrap();
++        assert!(schnorr.verify(&public_key, &message, &signature).unwrap());
++
++        // Native Schnorr randomization
++        let randomizer: [u8; 32] = rng.gen();
++        let randomized_private_key = schnorr.randomize_private_key(&private_key, &randomizer).unwrap();
++        let randomized_public_key = schnorr.randomize_public_key(&public_key, &randomizer).unwrap();
++        let randomized_signature = schnorr.sign_randomized(&randomized_private_key, &message, rng).unwrap();
++        assert!(signature != randomized_signature);
++        assert!(
++            schnorr
++                .verify(&randomized_public_key, &message, &randomized_signature)
++                .unwrap()
++        );
++
++        // Circuit Schnorr randomized public key (candidate)
++        let schnorr_gadget =
++            TestSignatureGadget::alloc_constant(&mut cs.ns(|| "schnorr_gadget"), || Ok(schnorr)).unwrap();
++        let candidate_public_key = SchnorrPublicKeyGadget::<EdwardsProjective, Fr, EdwardsBls12Gadget>::alloc(
++            &mut cs.ns(|| "candidate_public_key"),
++            || Ok(&public_key),
+         )
+         .unwrap();
++        let candidate_randomizer = UInt8::alloc_vec(
++            &mut cs.ns(|| "candidate_randomizer"),
++            &randomizer.to_bytes_le().unwrap(),
++        )
++        .unwrap();
++        let candidate_randomized_public_key = schnorr_gadget
++            .randomize_public_key(
++                &mut cs.ns(|| "candidate_randomized_public_key"),
++                &candidate_public_key,
++                &candidate_randomizer,
++            )
++            .unwrap();
++
++        // Circuit Schnorr randomized public key (given)
++        let given_randomized_public_key =
++            SchnorrPublicKeyGadget::<EdwardsProjective, Fr, EdwardsBls12Gadget>::alloc_input(
++                &mut cs.ns(|| "given_randomized_public_key"),
++                || Ok(randomized_public_key),
++            )
++            .unwrap();
++
++        candidate_randomized_public_key
++            .enforce_equal(&mut cs.ns(|| "enforce_equal"), &given_randomized_public_key)
++            .unwrap();
++
++        if !cs.is_satisfied() {
++            println!("which is unsatisfied: {:?}", cs.which_is_unsatisfied().unwrap());
++        }
++        assert!(cs.is_satisfied());
++    }
++
++    #[test]
++    fn schnorr_signature_verification_test() {
++        let message = "Hi, I am a Schnorr signature!".as_bytes();
++        let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
++
++        let schnorr = TestSignature::setup("schnorr_signature_verification_test");
++        let private_key = schnorr.generate_private_key(rng).unwrap();
++        let public_key = schnorr.generate_public_key(&private_key).unwrap();
++        let signature = schnorr.sign(&private_key, &message, rng).unwrap();
++        assert!(schnorr.verify(&public_key, &message, &signature).unwrap());
++
++        let mut cs = TestConstraintSystem::<Fr>::new();
+ 
+-    // Circuit Schnorr randomized public key (given)
+-    let given_randomized_public_key = SchnorrPublicKeyGadget::<EdwardsProjective, Fr, EdwardsBls12Gadget>::alloc_input(
+-        &mut cs.ns(|| "given_randomized_public_key"),
+-        || Ok(randomized_public_key),
+-    )
+-    .unwrap();
++        let schnorr_gadget =
++            TestSignatureGadget::alloc_constant(&mut cs.ns(|| "schnorr_gadget"), || Ok(schnorr)).unwrap();
+ 
+-    candidate_randomized_public_key
+-        .enforce_equal(&mut cs.ns(|| "enforce_equal"), &given_randomized_public_key)
++        assert_eq!(cs.num_constraints(), 0);
++
++        let public_key_gadget = <TestSignatureGadget as SignatureGadget<SchnorrScheme, Fr>>::PublicKeyGadget::alloc(
++            cs.ns(|| "alloc_public_key"),
++            || Ok(public_key),
++        )
+         .unwrap();
+ 
+-    if !cs.is_satisfied() {
+-        println!("which is unsatisfied: {:?}", cs.which_is_unsatisfied().unwrap());
+-    }
+-    assert!(cs.is_satisfied());
+-}
++        assert_eq!(cs.num_constraints(), 13);
+ 
+-#[test]
+-fn schnorr_signature_verification_test() {
+-    let message = "Hi, I am a Schnorr signature!".as_bytes();
+-    let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
++        let message_gadget = UInt8::alloc_vec(cs.ns(|| "alloc_message"), message).unwrap();
+ 
+-    let schnorr = TestSignature::setup("schnorr_signature_verification_test");
+-    let private_key = schnorr.generate_private_key(rng).unwrap();
+-    let public_key = schnorr.generate_public_key(&private_key).unwrap();
+-    let signature = schnorr.sign(&private_key, &message, rng).unwrap();
+-    assert!(schnorr.verify(&public_key, &message, &signature).unwrap());
++        assert_eq!(cs.num_constraints(), 245);
+ 
+-    let mut cs = TestConstraintSystem::<Fr>::new();
++        let signature_gadget = <TestSignatureGadget as SignatureGadget<SchnorrScheme, Fr>>::SignatureGadget::alloc(
++            cs.ns(|| "alloc_signature"),
++            || Ok(signature),
++        )
++        .unwrap();
+ 
+-    let schnorr_gadget = TestSignatureGadget::alloc_constant(&mut cs.ns(|| "schnorr_gadget"), || Ok(schnorr)).unwrap();
++        assert_eq!(cs.num_constraints(), 245);
+ 
+-    assert_eq!(cs.num_constraints(), 0);
++        let verification = schnorr_gadget
++            .verify(
++                cs.ns(|| "verify"),
++                &public_key_gadget,
++                &message_gadget,
++                &signature_gadget,
++            )
++            .unwrap();
+ 
+-    let public_key_gadget = <TestSignatureGadget as SignatureGadget<SchnorrScheme, Fr>>::PublicKeyGadget::alloc(
+-        cs.ns(|| "alloc_public_key"),
+-        || Ok(public_key),
+-    )
+-    .unwrap();
++        assert_eq!(cs.num_constraints(), 6582);
+ 
+-    assert_eq!(cs.num_constraints(), 13);
++        verification
++            .enforce_equal(cs.ns(|| "check_verification"), &Boolean::constant(true))
++            .unwrap();
+ 
+-    let message_gadget = UInt8::alloc_vec(cs.ns(|| "alloc_message"), message).unwrap();
++        if !cs.is_satisfied() {
++            println!("which is unsatisfied: {:?}", cs.which_is_unsatisfied().unwrap());
++        }
++        assert!(cs.is_satisfied());
++    }
++
++    #[test]
++    fn failed_schnorr_signature_verification_test() {
++        let message = "Hi, I am a Schnorr signature!".as_bytes();
++        let bad_message = "Bad Message".as_bytes();
++        let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
++
++        let schnorr = TestSignature::setup("failed_schnorr_signature_verification_test");
++        let private_key = schnorr.generate_private_key(rng).unwrap();
++        let public_key = schnorr.generate_public_key(&private_key).unwrap();
++        let signature = schnorr.sign(&private_key, &message, rng).unwrap();
+ 
+-    assert_eq!(cs.num_constraints(), 245);
++        assert!(schnorr.verify(&public_key, &message, &signature).unwrap());
++        assert!(!schnorr.verify(&public_key, &bad_message, &signature).unwrap());
+ 
+-    let signature_gadget = <TestSignatureGadget as SignatureGadget<SchnorrScheme, Fr>>::SignatureGadget::alloc(
+-        cs.ns(|| "alloc_signature"),
+-        || Ok(signature),
+-    )
+-    .unwrap();
++        let mut cs = TestConstraintSystem::<Fr>::new();
+ 
+-    assert_eq!(cs.num_constraints(), 245);
++        let schnorr_gadget =
++            TestSignatureGadget::alloc_constant(&mut cs.ns(|| "schnorr_gadget"), || Ok(schnorr)).unwrap();
+ 
+-    let verification = schnorr_gadget
+-        .verify(
+-            cs.ns(|| "verify"),
+-            &public_key_gadget,
+-            &message_gadget,
+-            &signature_gadget,
++        let public_key_gadget = <TestSignatureGadget as SignatureGadget<SchnorrScheme, Fr>>::PublicKeyGadget::alloc(
++            cs.ns(|| "alloc_public_key"),
++            || Ok(public_key),
+         )
+         .unwrap();
+ 
+-    assert_eq!(cs.num_constraints(), 6582);
++        let bad_message_gadget = UInt8::alloc_vec(cs.ns(|| "alloc_message"), bad_message).unwrap();
+ 
+-    verification
+-        .enforce_equal(cs.ns(|| "check_verification"), &Boolean::constant(true))
++        let signature_gadget = <TestSignatureGadget as SignatureGadget<SchnorrScheme, Fr>>::SignatureGadget::alloc(
++            cs.ns(|| "alloc_signature"),
++            || Ok(signature),
++        )
+         .unwrap();
+ 
+-    if !cs.is_satisfied() {
+-        println!("which is unsatisfied: {:?}", cs.which_is_unsatisfied().unwrap());
++        let verification = schnorr_gadget
++            .verify(
++                cs.ns(|| "verify"),
++                &public_key_gadget,
++                &bad_message_gadget,
++                &signature_gadget,
++            )
++            .unwrap();
++
++        verification
++            .enforce_equal(cs.ns(|| "check_verification"), &Boolean::constant(false))
++            .unwrap();
++
++        if !cs.is_satisfied() {
++            println!("which is unsatisfied: {:?}", cs.which_is_unsatisfied().unwrap());
++        }
++        assert!(cs.is_satisfied());
+     }
+-    assert!(cs.is_satisfied());
+ }
+ 
+-#[test]
+-fn failed_schnorr_signature_verification_test() {
+-    let message = "Hi, I am a Schnorr signature!".as_bytes();
+-    let bad_message = "Bad Message".as_bytes();
+-    let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
++mod schnorr_compressed {
++    use crate::{
++        algorithms::signature::{SchnorrCompressedGadget, SchnorrCompressedPublicKeyGadget},
++        integers::uint::UInt8,
++        traits::{algorithms::SignatureGadget, alloc::AllocGadget, eq::EqGadget},
++        Boolean,
++    };
++    use snarkvm_algorithms::{signature::SchnorrCompressed, traits::SignatureScheme};
++    use snarkvm_curves::{bls12_377::Fr, edwards_bls12::EdwardsParameters};
++    use snarkvm_r1cs::{ConstraintSystem, TestConstraintSystem};
++    use snarkvm_utilities::ToBytes;
++
++    use rand::{thread_rng, Rng, SeedableRng};
++    use rand_chacha::ChaChaRng;
++
++    type SchnorrScheme = SchnorrCompressed<EdwardsParameters>;
++    type TestSignature = SchnorrCompressed<EdwardsParameters>;
++    type TestSignatureGadget = SchnorrCompressedGadget<EdwardsParameters, Fr>;
++
++    #[test]
++    fn test_schnorr_signature_randomize_public_key_gadget() {
++        // Setup environment
++        let mut cs = TestConstraintSystem::<Fr>::new();
++        let rng = &mut thread_rng();
++
++        // Native Schnorr message
++        let message: [u8; 32] = rng.gen();
++
++        // Native Schnorr signing
++        let schnorr = SchnorrScheme::setup("test_schnorr_signature_randomize_public_key_gadget");
++        let private_key = schnorr.generate_private_key(rng).unwrap();
++        let public_key = schnorr.generate_public_key(&private_key).unwrap();
++        let signature = schnorr.sign(&private_key, &message, rng).unwrap();
++        assert!(schnorr.verify(&public_key, &message, &signature).unwrap());
++
++        // Native Schnorr randomization
++        let randomizer: [u8; 32] = rng.gen();
++        let randomized_private_key = schnorr.randomize_private_key(&private_key, &randomizer).unwrap();
++        let randomized_public_key = schnorr.randomize_public_key(&public_key, &randomizer).unwrap();
++        let randomized_signature = schnorr.sign_randomized(&randomized_private_key, &message, rng).unwrap();
++        assert!(signature != randomized_signature);
++        assert!(
++            schnorr
++                .verify(&randomized_public_key, &message, &randomized_signature)
++                .unwrap()
++        );
++
++        // Circuit Schnorr randomized public key (candidate)
++        let schnorr_gadget =
++            TestSignatureGadget::alloc_constant(&mut cs.ns(|| "schnorr_gadget"), || Ok(schnorr)).unwrap();
++        let candidate_public_key = SchnorrCompressedPublicKeyGadget::<EdwardsParameters, Fr>::alloc(
++            &mut cs.ns(|| "candidate_public_key"),
++            || Ok(&public_key),
++        )
++        .unwrap();
++        let candidate_randomizer = UInt8::alloc_vec(
++            &mut cs.ns(|| "candidate_randomizer"),
++            &randomizer.to_bytes_le().unwrap(),
++        )
++        .unwrap();
++        let candidate_randomized_public_key = schnorr_gadget
++            .randomize_public_key(
++                &mut cs.ns(|| "candidate_randomized_public_key"),
++                &candidate_public_key,
++                &candidate_randomizer,
++            )
++            .unwrap();
++
++        // Circuit Schnorr randomized public key (given)
++        let given_randomized_public_key = SchnorrCompressedPublicKeyGadget::<EdwardsParameters, Fr>::alloc_input(
++            &mut cs.ns(|| "given_randomized_public_key"),
++            || Ok(randomized_public_key),
++        )
++        .unwrap();
+ 
+-    let schnorr = TestSignature::setup("failed_schnorr_signature_verification_test");
+-    let private_key = schnorr.generate_private_key(rng).unwrap();
+-    let public_key = schnorr.generate_public_key(&private_key).unwrap();
+-    let signature = schnorr.sign(&private_key, &message, rng).unwrap();
++        candidate_randomized_public_key
++            .enforce_equal(&mut cs.ns(|| "enforce_equal"), &given_randomized_public_key)
++            .unwrap();
+ 
+-    assert!(schnorr.verify(&public_key, &message, &signature).unwrap());
+-    assert!(!schnorr.verify(&public_key, &bad_message, &signature).unwrap());
++        if !cs.is_satisfied() {
++            println!("which is unsatisfied: {:?}", cs.which_is_unsatisfied().unwrap());
++        }
++        assert!(cs.is_satisfied());
++    }
+ 
+-    let mut cs = TestConstraintSystem::<Fr>::new();
++    #[test]
++    fn schnorr_signature_verification_test() {
++        let message = "Hi, I am a Schnorr signature!".as_bytes();
++        let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
+ 
+-    let schnorr_gadget = TestSignatureGadget::alloc_constant(&mut cs.ns(|| "schnorr_gadget"), || Ok(schnorr)).unwrap();
++        let schnorr = TestSignature::setup("schnorr_signature_verification_test");
++        let private_key = schnorr.generate_private_key(rng).unwrap();
++        let public_key = schnorr.generate_public_key(&private_key).unwrap();
++        let signature = schnorr.sign(&private_key, &message, rng).unwrap();
++        assert!(schnorr.verify(&public_key, &message, &signature).unwrap());
+ 
+-    let public_key_gadget = <TestSignatureGadget as SignatureGadget<SchnorrScheme, Fr>>::PublicKeyGadget::alloc(
+-        cs.ns(|| "alloc_public_key"),
+-        || Ok(public_key),
+-    )
+-    .unwrap();
++        let mut cs = TestConstraintSystem::<Fr>::new();
+ 
+-    let bad_message_gadget = UInt8::alloc_vec(cs.ns(|| "alloc_message"), bad_message).unwrap();
++        let schnorr_gadget =
++            TestSignatureGadget::alloc_constant(&mut cs.ns(|| "schnorr_gadget"), || Ok(schnorr)).unwrap();
+ 
+-    let signature_gadget = <TestSignatureGadget as SignatureGadget<SchnorrScheme, Fr>>::SignatureGadget::alloc(
+-        cs.ns(|| "alloc_signature"),
+-        || Ok(signature),
+-    )
+-    .unwrap();
++        assert_eq!(cs.num_constraints(), 0);
+ 
+-    let verification = schnorr_gadget
+-        .verify(
+-            cs.ns(|| "verify"),
+-            &public_key_gadget,
+-            &bad_message_gadget,
+-            &signature_gadget,
++        let public_key_gadget = <TestSignatureGadget as SignatureGadget<SchnorrScheme, Fr>>::PublicKeyGadget::alloc(
++            cs.ns(|| "alloc_public_key"),
++            || Ok(public_key),
+         )
+         .unwrap();
+ 
+-    verification
+-        .enforce_equal(cs.ns(|| "check_verification"), &Boolean::constant(false))
++        assert_eq!(cs.num_constraints(), 13);
++
++        let message_gadget = UInt8::alloc_vec(cs.ns(|| "alloc_message"), message).unwrap();
++
++        assert_eq!(cs.num_constraints(), 245);
++
++        let signature_gadget = <TestSignatureGadget as SignatureGadget<SchnorrScheme, Fr>>::SignatureGadget::alloc(
++            cs.ns(|| "alloc_signature"),
++            || Ok(signature),
++        )
++        .unwrap();
++
++        assert_eq!(cs.num_constraints(), 245);
++
++        let verification = schnorr_gadget
++            .verify(
++                cs.ns(|| "verify"),
++                &public_key_gadget,
++                &message_gadget,
++                &signature_gadget,
++            )
++            .unwrap();
++
++        assert_eq!(cs.num_constraints(), 6085);
++
++        verification
++            .enforce_equal(cs.ns(|| "check_verification"), &Boolean::constant(true))
++            .unwrap();
++
++        if !cs.is_satisfied() {
++            println!("which is unsatisfied: {:?}", cs.which_is_unsatisfied().unwrap());
++        }
++        assert!(cs.is_satisfied());
++    }
++
++    #[test]
++    fn failed_schnorr_signature_verification_test() {
++        let message = "Hi, I am a Schnorr signature!".as_bytes();
++        let bad_message = "Bad Message".as_bytes();
++        let rng = &mut ChaChaRng::seed_from_u64(1231275789u64);
++
++        let schnorr = TestSignature::setup("failed_schnorr_signature_verification_test");
++        let private_key = schnorr.generate_private_key(rng).unwrap();
++        let public_key = schnorr.generate_public_key(&private_key).unwrap();
++        let signature = schnorr.sign(&private_key, &message, rng).unwrap();
++
++        assert!(schnorr.verify(&public_key, &message, &signature).unwrap());
++        assert!(!schnorr.verify(&public_key, &bad_message, &signature).unwrap());
++
++        let mut cs = TestConstraintSystem::<Fr>::new();
++
++        let schnorr_gadget =
++            TestSignatureGadget::alloc_constant(&mut cs.ns(|| "schnorr_gadget"), || Ok(schnorr)).unwrap();
++
++        let public_key_gadget = <TestSignatureGadget as SignatureGadget<SchnorrScheme, Fr>>::PublicKeyGadget::alloc(
++            cs.ns(|| "alloc_public_key"),
++            || Ok(public_key),
++        )
++        .unwrap();
++
++        let bad_message_gadget = UInt8::alloc_vec(cs.ns(|| "alloc_message"), bad_message).unwrap();
++
++        let signature_gadget = <TestSignatureGadget as SignatureGadget<SchnorrScheme, Fr>>::SignatureGadget::alloc(
++            cs.ns(|| "alloc_signature"),
++            || Ok(signature),
++        )
+         .unwrap();
+ 
+-    if !cs.is_satisfied() {
+-        println!("which is unsatisfied: {:?}", cs.which_is_unsatisfied().unwrap());
++        let verification = schnorr_gadget
++            .verify(
++                cs.ns(|| "verify"),
++                &public_key_gadget,
++                &bad_message_gadget,
++                &signature_gadget,
++            )
++            .unwrap();
++
++        verification
++            .enforce_equal(cs.ns(|| "check_verification"), &Boolean::constant(false))
++            .unwrap();
++
++        if !cs.is_satisfied() {
++            println!("which is unsatisfied: {:?}", cs.which_is_unsatisfied().unwrap());
++        }
++        assert!(cs.is_satisfied());
+     }
+-    assert!(cs.is_satisfied());
+ }
+diff --git a/parameters/src/testnet1/genesis/block.rs b/parameters/src/testnet1/genesis/block.rs
+index b0de02aee..d9fffa449 100644
+--- a/parameters/src/testnet1/genesis/block.rs
++++ b/parameters/src/testnet1/genesis/block.rs
+@@ -24,7 +24,7 @@ pub struct GenesisBlock;
+ 
+ impl Genesis for GenesisBlock {
+     const CHECKSUM: &'static str = "";
+-    const SIZE: u64 = 2230;
++    const SIZE: u64 = 2166;
+ 
+     fn load_bytes() -> Vec<u8> {
+         let block_header_bytes = GenesisBlockHeader::load_bytes();
+diff --git a/parameters/src/testnet1/genesis/block_header.genesis b/parameters/src/testnet1/genesis/block_header.genesis
+index c461c15c0..89f470212 100644
+Binary files a/parameters/src/testnet1/genesis/block_header.genesis and b/parameters/src/testnet1/genesis/block_header.genesis differ
+diff --git a/parameters/src/testnet1/genesis/transaction_1.genesis b/parameters/src/testnet1/genesis/transaction_1.genesis
+index d396795e8..9f266acf5 100644
+Binary files a/parameters/src/testnet1/genesis/transaction_1.genesis and b/parameters/src/testnet1/genesis/transaction_1.genesis differ
+diff --git a/parameters/src/testnet1/genesis/transaction_1.rs b/parameters/src/testnet1/genesis/transaction_1.rs
+index 4bd562af9..7bce20ead 100644
+--- a/parameters/src/testnet1/genesis/transaction_1.rs
++++ b/parameters/src/testnet1/genesis/transaction_1.rs
+@@ -20,7 +20,7 @@ pub struct Transaction1;
+ 
+ impl Genesis for Transaction1 {
+     const CHECKSUM: &'static str = "";
+-    const SIZE: u64 = 1342;
++    const SIZE: u64 = 1278;
+ 
+     fn load_bytes() -> Vec<u8> {
+         let buffer = include_bytes!("transaction_1.genesis");
+diff --git a/parameters/src/testnet1/inner_snark_pk.checksum b/parameters/src/testnet1/inner_snark_pk.checksum
+index baab00af5..ea63b1c4f 100644
+--- a/parameters/src/testnet1/inner_snark_pk.checksum
++++ b/parameters/src/testnet1/inner_snark_pk.checksum
+@@ -1 +1 @@
+-cd962a3a6ea2b96b0225b10c024c18c2ef1274547cda9bf8c944008edbf7d7d9
+\ No newline at end of file
++d5b0ce34d21103e6590f898971767a9284b6cf2c190c11178d336f1ba64ba6be
+\ No newline at end of file
+diff --git a/parameters/src/testnet1/inner_snark_vk.checksum b/parameters/src/testnet1/inner_snark_vk.checksum
+index f66ab467c..1a0382812 100644
+--- a/parameters/src/testnet1/inner_snark_vk.checksum
++++ b/parameters/src/testnet1/inner_snark_vk.checksum
+@@ -1 +1 @@
+-0cff908ea591667d14c56d795ecaed7ae3e139777496fb19dee016e3eae10d9c
+\ No newline at end of file
++3f0570f9d803d19cb2ff6a2dc0f7410f9ca21ecd569e52f5790d67ba8ca2dacb
+\ No newline at end of file
+diff --git a/parameters/src/testnet1/inner_snark_vk.params b/parameters/src/testnet1/inner_snark_vk.params
+index 3871bcf01..0b173a304 100644
+Binary files a/parameters/src/testnet1/inner_snark_vk.params and b/parameters/src/testnet1/inner_snark_vk.params differ
+diff --git a/parameters/src/testnet1/mod.rs b/parameters/src/testnet1/mod.rs
+index 325a4ed6c..e734149d4 100644
+--- a/parameters/src/testnet1/mod.rs
++++ b/parameters/src/testnet1/mod.rs
+@@ -51,14 +51,14 @@ impl_params_remote!(
+     "https://s3-us-west-1.amazonaws.com/aleo.parameters",
+     "./",
+     "inner_snark_pk",
+-    204610465
++    205653969
+ );
+ impl_params_local!(
+     InnerSNARKVKParameters,
+     inner_snark_vk_test,
+     "./",
+     "inner_snark_vk",
+-    2426
++    2232
+ );
+ 
+ // Outer SNARK
+@@ -68,12 +68,12 @@ impl_params_remote!(
+     "https://s3-us-west-1.amazonaws.com/aleo.parameters",
+     "./",
+     "outer_snark_pk",
+-    505522029
++    499466461
+ );
+ impl_params_local!(
+     OuterSNARKVKParameters,
+     outer_snark_vk_test,
+     "./",
+     "outer_snark_vk",
+-    3864
++    3478
+ );
+diff --git a/parameters/src/testnet1/noop_program_snark_pk.checksum b/parameters/src/testnet1/noop_program_snark_pk.checksum
+index f9be86c73..82291bd9e 100644
+--- a/parameters/src/testnet1/noop_program_snark_pk.checksum
++++ b/parameters/src/testnet1/noop_program_snark_pk.checksum
+@@ -1 +1 @@
+-6825884ac158c71c54ebfc6b5cb8d090bb8dcfb4387ec8b14a36f695c2d83bb8
+\ No newline at end of file
++b2b9b51ae881ffe885a53938f28b6207bee64e4eebc6d165352fa78197819604
+\ No newline at end of file
+diff --git a/parameters/src/testnet1/noop_program_snark_pk.params b/parameters/src/testnet1/noop_program_snark_pk.params
+index b6cca8c22..5a8ae0386 100644
+Binary files a/parameters/src/testnet1/noop_program_snark_pk.params and b/parameters/src/testnet1/noop_program_snark_pk.params differ
+diff --git a/parameters/src/testnet1/noop_program_snark_vk.checksum b/parameters/src/testnet1/noop_program_snark_vk.checksum
+index 66382ec50..700502a4f 100644
+--- a/parameters/src/testnet1/noop_program_snark_vk.checksum
++++ b/parameters/src/testnet1/noop_program_snark_vk.checksum
+@@ -1 +1 @@
+-0283d199928524a23b5e008a030a0c8464fe32ae807bd03f37eecdba38b61c5a
+\ No newline at end of file
++6c9eadf671c50ad69337d5e3bbc6d5ddee32bc3b0603dc4f26067c38a2ded40d
+\ No newline at end of file
+diff --git a/parameters/src/testnet1/noop_program_snark_vk.params b/parameters/src/testnet1/noop_program_snark_vk.params
+index 75f0752e8..31e0b6f1b 100644
+Binary files a/parameters/src/testnet1/noop_program_snark_vk.params and b/parameters/src/testnet1/noop_program_snark_vk.params differ
+diff --git a/parameters/src/testnet1/outer_snark_pk.checksum b/parameters/src/testnet1/outer_snark_pk.checksum
+index 4a51edb8e..b5a60dc47 100644
+--- a/parameters/src/testnet1/outer_snark_pk.checksum
++++ b/parameters/src/testnet1/outer_snark_pk.checksum
+@@ -1 +1 @@
+-1b930203a610c5a0475ce437953be3da119615e3b01c8c8c868b24cb0e2d6044
+\ No newline at end of file
++76755f26871a8f0d1f2d22a474d4638c2929a58262943240f0bbdfdad404c5b9
+\ No newline at end of file
+diff --git a/parameters/src/testnet1/outer_snark_vk.checksum b/parameters/src/testnet1/outer_snark_vk.checksum
+index b508a1b6b..7839bf0d4 100644
+--- a/parameters/src/testnet1/outer_snark_vk.checksum
++++ b/parameters/src/testnet1/outer_snark_vk.checksum
+@@ -1 +1 @@
+-e4d2cd264635f9e951f1a017fcb4307356c53d119dbde9a97aaa1a04cce25248
+\ No newline at end of file
++0a3bf59aa27f6008dd4b0fa891b4fdb1267abade8ce84fdce0d0cdecc0821143
+\ No newline at end of file
+diff --git a/parameters/src/testnet1/outer_snark_vk.params b/parameters/src/testnet1/outer_snark_vk.params
+index 9272bf5a8..97b70a0d6 100644
+Binary files a/parameters/src/testnet1/outer_snark_vk.params and b/parameters/src/testnet1/outer_snark_vk.params differ
+diff --git a/parameters/src/testnet1/posw_snark_pk.checksum b/parameters/src/testnet1/posw_snark_pk.checksum
+index 6c68d31ac..34da9a934 100644
+--- a/parameters/src/testnet1/posw_snark_pk.checksum
++++ b/parameters/src/testnet1/posw_snark_pk.checksum
+@@ -1 +1 @@
+-87cbd8bdaef7e09ae297199575e54676acf21eba21eac28f5aed60bd842f1fd5
+\ No newline at end of file
++cc1ed33d0dd7725710cb5ef036119b5500a2f4ff058a5407c839bf8fd3ebf88f
+\ No newline at end of file
+diff --git a/parameters/src/testnet1/posw_snark_vk.checksum b/parameters/src/testnet1/posw_snark_vk.checksum
+index 332a9ed78..1769855ca 100644
+--- a/parameters/src/testnet1/posw_snark_vk.checksum
++++ b/parameters/src/testnet1/posw_snark_vk.checksum
+@@ -1 +1 @@
+-5cfe8acf75a818d8d822883ce10dbb8d6efabacd9baa85fbd971fc669feffc25
+\ No newline at end of file
++156282d7f24218c3020b2ee5fe66ff0685e3901b61fd8209c1ac18155330a7eb
+\ No newline at end of file
+diff --git a/parameters/src/testnet1/posw_snark_vk.params b/parameters/src/testnet1/posw_snark_vk.params
+index 93c109e74..b416d1794 100644
+Binary files a/parameters/src/testnet1/posw_snark_vk.params and b/parameters/src/testnet1/posw_snark_vk.params differ
+diff --git a/parameters/src/testnet2/genesis/block.rs b/parameters/src/testnet2/genesis/block.rs
+index 6dbe87c7f..35f051feb 100644
+--- a/parameters/src/testnet2/genesis/block.rs
++++ b/parameters/src/testnet2/genesis/block.rs
+@@ -24,7 +24,7 @@ pub struct GenesisBlock;
+ 
+ impl Genesis for GenesisBlock {
+     const CHECKSUM: &'static str = "";
+-    const SIZE: u64 = 2230;
++    const SIZE: u64 = 2166;
+ 
+     fn load_bytes() -> Vec<u8> {
+         let block_header_bytes = GenesisBlockHeader::load_bytes();
+diff --git a/parameters/src/testnet2/genesis/block_header.genesis b/parameters/src/testnet2/genesis/block_header.genesis
+index 234ac3034..946301337 100644
+Binary files a/parameters/src/testnet2/genesis/block_header.genesis and b/parameters/src/testnet2/genesis/block_header.genesis differ
+diff --git a/parameters/src/testnet2/genesis/transaction_1.genesis b/parameters/src/testnet2/genesis/transaction_1.genesis
+index ebd5f416c..68cf54a54 100644
+Binary files a/parameters/src/testnet2/genesis/transaction_1.genesis and b/parameters/src/testnet2/genesis/transaction_1.genesis differ
+diff --git a/parameters/src/testnet2/genesis/transaction_1.rs b/parameters/src/testnet2/genesis/transaction_1.rs
+index 4bd562af9..7bce20ead 100644
+--- a/parameters/src/testnet2/genesis/transaction_1.rs
++++ b/parameters/src/testnet2/genesis/transaction_1.rs
+@@ -20,7 +20,7 @@ pub struct Transaction1;
+ 
+ impl Genesis for Transaction1 {
+     const CHECKSUM: &'static str = "";
+-    const SIZE: u64 = 1342;
++    const SIZE: u64 = 1278;
+ 
+     fn load_bytes() -> Vec<u8> {
+         let buffer = include_bytes!("transaction_1.genesis");
+diff --git a/parameters/src/testnet2/inner_snark_pk.checksum b/parameters/src/testnet2/inner_snark_pk.checksum
+index 4ba542cdd..ae385653e 100644
+--- a/parameters/src/testnet2/inner_snark_pk.checksum
++++ b/parameters/src/testnet2/inner_snark_pk.checksum
+@@ -1 +1 @@
+-e71dd903bc8a72f83da4f3b193d909241e6f43f3ba737ac061892bd1aa133f0c
+\ No newline at end of file
++841894b3e99fb42f3c61ec763ffe441216f76e67ab53521b32adc8288257bd8d
+\ No newline at end of file
+diff --git a/parameters/src/testnet2/inner_snark_vk.checksum b/parameters/src/testnet2/inner_snark_vk.checksum
+index a124647de..4f2f0a6a8 100644
+--- a/parameters/src/testnet2/inner_snark_vk.checksum
++++ b/parameters/src/testnet2/inner_snark_vk.checksum
+@@ -1 +1 @@
+-655af104adc06eaf7749ec3b52a3359be0efeed7f3c8a4b342707081b26469ef
+\ No newline at end of file
++0668182befcb716055a7b0afbc01ca0b5f6902fdc3746000265461590a165bdc
+\ No newline at end of file
+diff --git a/parameters/src/testnet2/inner_snark_vk.params b/parameters/src/testnet2/inner_snark_vk.params
+index 6833a876e..8fee2ab6d 100644
+Binary files a/parameters/src/testnet2/inner_snark_vk.params and b/parameters/src/testnet2/inner_snark_vk.params differ
+diff --git a/parameters/src/testnet2/mod.rs b/parameters/src/testnet2/mod.rs
+index 9305dc40c..74051a577 100644
+--- a/parameters/src/testnet2/mod.rs
++++ b/parameters/src/testnet2/mod.rs
+@@ -51,14 +51,14 @@ impl_params_remote!(
+     "https://s3-us-west-1.amazonaws.com/aleo.parameters",
+     "./",
+     "inner_snark_pk",
+-    204610465
++    205653969
+ );
+ impl_params_local!(
+     InnerSNARKVKParameters,
+     inner_snark_vk_test,
+     "./",
+     "inner_snark_vk",
+-    2426
++    2232
+ );
+ 
+ // Outer SNARK
+@@ -68,14 +68,14 @@ impl_params_remote!(
+     "https://s3-us-west-1.amazonaws.com/aleo.parameters",
+     "./",
+     "outer_snark_pk",
+-    978783505
++    972727937
+ );
+ impl_params_local!(
+     OuterSNARKVKParameters,
+     outer_snark_vk_test,
+     "./",
+     "outer_snark_vk",
+-    3864
++    3478
+ );
+ 
+ impl_params_remote!(
+diff --git a/parameters/src/testnet2/noop_program_snark_pk.checksum b/parameters/src/testnet2/noop_program_snark_pk.checksum
+index 0555d43ef..071b9c767 100644
+--- a/parameters/src/testnet2/noop_program_snark_pk.checksum
++++ b/parameters/src/testnet2/noop_program_snark_pk.checksum
+@@ -1 +1 @@
+-8223009c2938bcbd73b8b64c6c8a89dd891fe86547ef1515bcfc58711ecc9547
+\ No newline at end of file
++31ec34b6e7e9e9cb2bd982bee6aab274a4649111cc520bff13990ad9d11c45dd
+\ No newline at end of file
+diff --git a/parameters/src/testnet2/noop_program_snark_pk.params b/parameters/src/testnet2/noop_program_snark_pk.params
+index 0833653d9..e1eedaac8 100644
+Binary files a/parameters/src/testnet2/noop_program_snark_pk.params and b/parameters/src/testnet2/noop_program_snark_pk.params differ
+diff --git a/parameters/src/testnet2/noop_program_snark_vk.checksum b/parameters/src/testnet2/noop_program_snark_vk.checksum
+index e64a3e0c4..30c1a15ae 100644
+--- a/parameters/src/testnet2/noop_program_snark_vk.checksum
++++ b/parameters/src/testnet2/noop_program_snark_vk.checksum
+@@ -1 +1 @@
+-bb67493ef28aac2e1afd0f9f83e21c54cc571bef6ec5d389000c8e34b350cc3e
+\ No newline at end of file
++b842374bd0f7bc700e1eba2682b1a7b56da5f53395a7a9b7293c2a62e677ffb4
+\ No newline at end of file
+diff --git a/parameters/src/testnet2/noop_program_snark_vk.params b/parameters/src/testnet2/noop_program_snark_vk.params
+index 8140efad4..56d4f3026 100644
+Binary files a/parameters/src/testnet2/noop_program_snark_vk.params and b/parameters/src/testnet2/noop_program_snark_vk.params differ
+diff --git a/parameters/src/testnet2/outer_snark_pk.checksum b/parameters/src/testnet2/outer_snark_pk.checksum
+index b1b392ee1..f72c0ad4b 100644
+--- a/parameters/src/testnet2/outer_snark_pk.checksum
++++ b/parameters/src/testnet2/outer_snark_pk.checksum
+@@ -1 +1 @@
+-da277621cc911a4b9b1aedeb740675505d55cc7446756b2097bf0f5b7f4c99f3
+\ No newline at end of file
++6134af3a6cf114ef640e18c6775955e498c43972c25ec2fc982fb8087d62f896
+\ No newline at end of file
+diff --git a/parameters/src/testnet2/outer_snark_vk.checksum b/parameters/src/testnet2/outer_snark_vk.checksum
+index e3f392c7e..9802df2f4 100644
+--- a/parameters/src/testnet2/outer_snark_vk.checksum
++++ b/parameters/src/testnet2/outer_snark_vk.checksum
+@@ -1 +1 @@
+-6a6a2f67b8f6b49f4f87956102b71056d01d98c9f5b6828820bc0d9e90061a21
+\ No newline at end of file
++e16cd564bf19bfc38c3a26245b07dede43cc4902c6718a3310afa98c93623978
+\ No newline at end of file
+diff --git a/parameters/src/testnet2/outer_snark_vk.params b/parameters/src/testnet2/outer_snark_vk.params
+index 6f87ce38b..a9ab8f3dd 100644
+Binary files a/parameters/src/testnet2/outer_snark_vk.params and b/parameters/src/testnet2/outer_snark_vk.params differ
+diff --git a/parameters/src/testnet2/posw_snark_pk.checksum b/parameters/src/testnet2/posw_snark_pk.checksum
+index 68c2deda7..824c58782 100644
+--- a/parameters/src/testnet2/posw_snark_pk.checksum
++++ b/parameters/src/testnet2/posw_snark_pk.checksum
+@@ -1 +1 @@
+-f26ed96e71a8e1d8ac0226111203d3f9320756a28dacdd16d72f418bbef52db0
+\ No newline at end of file
++6cd505b0e3ae4eab656450699d4a931eb16f1c5e02cff1b9b73719abf0cb3e19
+\ No newline at end of file
+diff --git a/parameters/src/testnet2/posw_snark_vk.checksum b/parameters/src/testnet2/posw_snark_vk.checksum
+index 876ffd9cc..250128fc9 100644
+--- a/parameters/src/testnet2/posw_snark_vk.checksum
++++ b/parameters/src/testnet2/posw_snark_vk.checksum
+@@ -1 +1 @@
+-3746ea0393a229d34e29cca18c6e3caae5536f0997b8bda32c7ae8bb943c1e24
+\ No newline at end of file
++d4424ec83bb5e19aa76a7cda85c8d989a444e4f72a16f1f1c7fcc2fc33b46a0a
+\ No newline at end of file
+diff --git a/parameters/src/testnet2/posw_snark_vk.params b/parameters/src/testnet2/posw_snark_vk.params
+index 1df04917c..1bea3af5e 100644
+Binary files a/parameters/src/testnet2/posw_snark_vk.params and b/parameters/src/testnet2/posw_snark_vk.params differ
+diff --git a/parameters/src/testnet2/universal_srs.checksum b/parameters/src/testnet2/universal_srs.checksum
+index f0b3b1ff2..300f080ed 100644
+--- a/parameters/src/testnet2/universal_srs.checksum
++++ b/parameters/src/testnet2/universal_srs.checksum
+@@ -1 +1 @@
+-5136c092773c963fcba90e2dbad7332ae262caaee309962d4989a0fd8d323c9b
+\ No newline at end of file
++f392e75edbd41be962320d353bd4a3853234ce9ebe2d96eadea10b4c14fbca6b
+\ No newline at end of file

@@ -1,0 +1,564 @@
+diff --git a/Cargo.lock b/Cargo.lock
+index 6cb5ae2d8..f91e9879a 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -3386,6 +3386,7 @@ dependencies = [
+  "aleo-std",
+  "bincode",
+  "colored",
++ "criterion",
+  "indexmap 2.1.0",
+  "once_cell",
+  "parking_lot",
+diff --git a/console/network/src/lib.rs b/console/network/src/lib.rs
+index aa03a7cdf..6598e4284 100644
+--- a/console/network/src/lib.rs
++++ b/console/network/src/lib.rs
+@@ -160,6 +160,11 @@ pub trait Network:
+     /// The maximum number of outputs per transition.
+     const MAX_OUTPUTS: usize = 16;
+ 
++    /// The maximum program depth.
++    const MAX_PROGRAM_DEPTH: usize = 64;
++    /// The maximum number of imports.
++    const MAX_IMPORTS: usize = 64;
++
+     /// The state root type.
+     type StateRoot: Bech32ID<Field<Self>>;
+     /// The block hash type.
+diff --git a/ledger/block/src/transaction/merkle.rs b/ledger/block/src/transaction/merkle.rs
+index f84ea87ca..eca22c3b6 100644
+--- a/ledger/block/src/transaction/merkle.rs
++++ b/ledger/block/src/transaction/merkle.rs
+@@ -16,7 +16,7 @@ use super::*;
+ 
+ impl<N: Network> Transaction<N> {
+     /// The maximum number of transitions allowed in a transaction.
+-    const MAX_TRANSITIONS: usize = usize::pow(2, TRANSACTION_DEPTH as u32);
++    pub const MAX_TRANSITIONS: usize = usize::pow(2, TRANSACTION_DEPTH as u32);
+ 
+     /// Returns the transaction root, by computing the root for a Merkle tree of the transition IDs.
+     pub fn to_root(&self) -> Result<Field<N>> {
+diff --git a/synthesizer/process/Cargo.toml b/synthesizer/process/Cargo.toml
+index 86336cae5..294a43b9b 100644
+--- a/synthesizer/process/Cargo.toml
++++ b/synthesizer/process/Cargo.toml
+@@ -45,6 +45,11 @@ wasm = [
+ ]
+ timer = [ "aleo-std/timer" ]
+ 
++[[bench]]
++name = "stack_operations"
++path = "benches/stack_operations.rs"
++harness = false
++
+ [dependencies.console]
+ package = "snarkvm-console"
+ path = "../../console"
+@@ -119,6 +124,9 @@ features = [ "preserve_order" ]
+ [dev-dependencies.bincode]
+ version = "1.3"
+ 
++[dev-dependencies.criterion]
++version = "0.5"
++
+ [dev-dependencies.ledger-committee]
+ package = "snarkvm-ledger-committee"
+ path = "../../ledger/committee"
+diff --git a/synthesizer/process/benches/stack_operations.rs b/synthesizer/process/benches/stack_operations.rs
+new file mode 100644
+index 000000000..f1241d5cf
+--- /dev/null
++++ b/synthesizer/process/benches/stack_operations.rs
+@@ -0,0 +1,178 @@
++// Copyright (C) 2019-2023 Aleo Systems Inc.
++// This file is part of the snarkVM library.
++
++// Licensed under the Apache License, Version 2.0 (the "License");
++// you may not use this file except in compliance with the License.
++// You may obtain a copy of the License at:
++// http://www.apache.org/licenses/LICENSE-2.0
++
++// Unless required by applicable law or agreed to in writing, software
++// distributed under the License is distributed on an "AS IS" BASIS,
++// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++// See the License for the specific language governing permissions and
++// limitations under the License.
++
++#[macro_use]
++extern crate criterion;
++
++use console::{
++    network::MainnetV0,
++    program::{Identifier, ProgramID},
++    types::Field,
++};
++use snarkvm_synthesizer_process::{Process, Stack};
++use synthesizer_program::{Program, StackProgram};
++
++use circuit::prelude::bail;
++use console::{network::Network, prelude::SizeInDataBits};
++use criterion::{BatchSize, Criterion};
++use rand::{distributions::Alphanumeric, Rng};
++use std::str::FromStr;
++use utilities::TestRng;
++
++type CurrentNetwork = MainnetV0;
++
++fn bench_stack_new(c: &mut Criterion) {
++    // The depths to benchmark.
++    const DEPTHS: [usize; 6] = [1, 2, 4, 8, 16, 31];
++
++    // Initialize an RNG.
++    let mut rng = TestRng::default();
++
++    // Initialize a process.
++    let mut process = Process::load().unwrap();
++
++    // Benchmark the base case.
++    c.bench_function("Depth 0 | Stack::new", |b| {
++        b.iter_batched_ref(
++            || {
++                // Sample a random identifier.
++                let identifier = sample_identifier_as_string::<CurrentNetwork>(&mut rng).unwrap();
++                // Construct the program.
++                Program::from_str(&format!("program {identifier}.aleo; function foo:")).unwrap()
++            },
++            |program| Stack::<CurrentNetwork>::new(&process, program),
++            BatchSize::PerIteration,
++        )
++    });
++
++    // Add the 0th program to the process.
++    add_program_at_depth(&mut process, 0);
++
++    // Track the depth.
++    let mut depth = 1;
++
++    for i in DEPTHS {
++        // Add programs up to the current depth.
++        while depth < i {
++            // Add the program to the process.
++            add_program_at_depth(&mut process, depth);
++            // Increment the depth.
++            depth += 1;
++        }
++
++        // Benchmark at each depth.
++        c.bench_function(&format!("Depth {i} | Stack::new"), |b| {
++            b.iter_batched_ref(
++                || {
++                    // Sample a random identifier.
++                    let identifier = sample_identifier_as_string::<CurrentNetwork>(&mut rng).unwrap();
++                    // Construct the program.
++                    Program::from_str(&format!(
++                        "program {identifier}.aleo; function foo: call test_{i}.aleo/foo;",
++                        identifier = identifier,
++                        i = i - 1
++                    ))
++                    .unwrap()
++                },
++                |program| Stack::<CurrentNetwork>::new(&process, program),
++                BatchSize::PerIteration,
++            )
++        });
++    }
++}
++
++fn bench_stack_get_number_of_calls(c: &mut Criterion) {
++    // The depths to benchmark.
++    const DEPTHS: [usize; 6] = [1, 2, 4, 8, 16, 30];
++
++    // Initialize a process.
++    let mut process = Process::load().unwrap();
++
++    // Add the 0th program to the process.
++    add_program_at_depth(&mut process, 0);
++
++    // Benchmark the `get_number_of_calls` method for the base case.
++    c.bench_function("Depth 0 | Stack::get_number_of_calls", |b| {
++        b.iter(|| {
++            // Get the `Stack` for the 0th program.
++            let stack = process.get_stack(ProgramID::from_str("test_0.aleo").unwrap()).unwrap();
++            // Benchmark the `get_number_of_calls` method.
++            stack.get_number_of_calls(&Identifier::from_str("foo").unwrap())
++        })
++    });
++
++    // Track the depth.
++    let mut depth = 1;
++
++    for i in DEPTHS {
++        // Add programs up to the current depth.
++        while depth <= i {
++            // Add the program to the process.
++            add_program_at_depth(&mut process, depth);
++            // Increment the depth.
++            depth += 1;
++        }
++
++        // Get the `Stack` for the current test program.
++        let stack = process.get_stack(ProgramID::from_str(&format!("test_{}.aleo", i)).unwrap()).unwrap();
++
++        // Benchmark the `get_number_of_calls` method.
++        c.bench_function(&format!("Depth {i} | Stack::get_number_of_calls"), |b| {
++            b.iter(|| stack.get_number_of_calls(&Identifier::from_str("foo").unwrap()))
++        });
++    }
++}
++
++// Adds a program with a given call depth to the process.
++fn add_program_at_depth(process: &mut Process<CurrentNetwork>, depth: usize) {
++    // Construct the program.
++    let program = if depth == 0 {
++        Program::from_str(r"program test_0.aleo; function foo:").unwrap()
++    } else {
++        Program::from_str(&format!(
++            "import test_{import}.aleo; program test_{current}.aleo; function foo: call test_{import}.aleo/foo;",
++            import = depth - 1,
++            current = depth
++        ))
++        .unwrap()
++    };
++
++    // Add the program to the process.
++    process.add_program(&program).unwrap();
++}
++
++// Samples a random identifier as a string.
++fn sample_identifier_as_string<N: Network>(rng: &mut TestRng) -> console::prelude::Result<String> {
++    // Sample a random fixed-length alphanumeric string, that always starts with an alphabetic character.
++    let string = "a".to_string()
++        + &rng
++            .sample_iter(&Alphanumeric)
++            .take(Field::<N>::size_in_data_bits() / (8 * 2))
++            .map(char::from)
++            .collect::<String>();
++    // Ensure identifier fits within the data capacity of the base field.
++    let max_bytes = Field::<N>::size_in_data_bits() / 8; // Note: This intentionally rounds down.
++    match string.len() <= max_bytes {
++        // Return the identifier.
++        true => Ok(string.to_lowercase()),
++        false => bail!("Identifier exceeds the maximum capacity allowed"),
++    }
++}
++
++criterion_group! {
++    name = stack_operations;
++    config = Criterion::default().sample_size(10);
++    targets = bench_stack_new, bench_stack_get_number_of_calls
++}
++criterion_main!(stack_operations);
+diff --git a/synthesizer/process/src/stack/helpers/initialize.rs b/synthesizer/process/src/stack/helpers/initialize.rs
+index 46b6bd246..98e008ba3 100644
+--- a/synthesizer/process/src/stack/helpers/initialize.rs
++++ b/synthesizer/process/src/stack/helpers/initialize.rs
+@@ -27,9 +27,11 @@ impl<N: Network> Stack<N> {
+             universal_srs: process.universal_srs().clone(),
+             proving_keys: Default::default(),
+             verifying_keys: Default::default(),
++            number_of_calls: Default::default(),
++            program_depth: 0,
+         };
+ 
+-        // Add all of the imports into the stack.
++        // Add all the imports into the stack.
+         for import in program.imports().keys() {
+             // Ensure the program imports all exist in the process already.
+             if !process.contains_program(import) {
+@@ -39,17 +41,49 @@ impl<N: Network> Stack<N> {
+             let external_stack = process.get_stack(import)?;
+             // Add the external stack to the stack.
+             stack.insert_external_stack(external_stack.clone())?;
++            // Update the program depth, checking that it does not exceed the maximum call depth.
++            stack.program_depth = std::cmp::max(stack.program_depth, external_stack.program_depth() + 1);
++            ensure!(
++                stack.program_depth <= N::MAX_PROGRAM_DEPTH,
++                "Program depth exceeds the maximum allowed call depth"
++            );
+         }
+         // Add the program closures to the stack.
+         for closure in program.closures().values() {
+             // Add the closure to the stack.
+             stack.insert_closure(closure)?;
+         }
++
+         // Add the program functions to the stack.
+         for function in program.functions().values() {
+             // Add the function to the stack.
+             stack.insert_function(function)?;
++            // Determine the number of calls for the function.
++            let mut num_calls = 1;
++            for instruction in function.instructions() {
++                if let Instruction::Call(call) = instruction {
++                    // Determine if this is a function call.
++                    if call.is_function_call(&stack)? {
++                        // Increment by the number of calls.
++                        num_calls += match call.operator() {
++                            CallOperator::Locator(locator) => stack
++                                .get_external_stack(locator.program_id())?
++                                .get_number_of_calls(locator.resource())?,
++                            CallOperator::Resource(resource) => stack.get_number_of_calls(resource)?,
++                        };
++                    }
++                }
++            }
++            // Check that the number of calls does not exceed the maximum.
++            // Note that one transition is reserved for the fee.
++            ensure!(
++                num_calls < ledger_block::Transaction::<N>::MAX_TRANSITIONS,
++                "Number of calls exceeds the maximum allowed number of transitions"
++            );
++            // Add the number of calls to the stack.
++            stack.number_of_calls.insert(*function.name(), num_calls);
+         }
++
+         // Return the stack.
+         Ok(stack)
+     }
+@@ -109,7 +143,6 @@ impl<N: Network> Stack<N> {
+             // Add the finalize name and finalize types to the stack.
+             self.finalize_types.insert(*name, finalize_types);
+         }
+-
+         // Return success.
+         Ok(())
+     }
+diff --git a/synthesizer/process/src/stack/mod.rs b/synthesizer/process/src/stack/mod.rs
+index 8f23e126d..6e10f4946 100644
+--- a/synthesizer/process/src/stack/mod.rs
++++ b/synthesizer/process/src/stack/mod.rs
+@@ -185,6 +185,10 @@ pub struct Stack<N: Network> {
+     proving_keys: Arc<RwLock<IndexMap<Identifier<N>, ProvingKey<N>>>>,
+     /// The mapping of function name to verifying key.
+     verifying_keys: Arc<RwLock<IndexMap<Identifier<N>, VerifyingKey<N>>>>,
++    /// The mapping of function names to the number of calls.
++    number_of_calls: IndexMap<Identifier<N>, usize>,
++    /// The program depth.
++    program_depth: usize,
+ }
+ 
+ impl<N: Network> Stack<N> {
+@@ -226,6 +230,12 @@ impl<N: Network> StackProgram<N> for Stack<N> {
+         self.program.id()
+     }
+ 
++    /// Returns the program depth.
++    #[inline]
++    fn program_depth(&self) -> usize {
++        self.program_depth
++    }
++
+     /// Returns `true` if the stack contains the external record.
+     #[inline]
+     fn contains_external_record(&self, locator: &Locator<N>) -> bool {
+@@ -279,23 +289,10 @@ impl<N: Network> StackProgram<N> for Stack<N> {
+     /// Returns the expected number of calls for the given function name.
+     #[inline]
+     fn get_number_of_calls(&self, function_name: &Identifier<N>) -> Result<usize> {
+-        // Determine the number of calls for this function (including the function itself).
+-        let mut num_calls = 1;
+-        for instruction in self.get_function(function_name)?.instructions() {
+-            if let Instruction::Call(call) = instruction {
+-                // Determine if this is a function call.
+-                if call.is_function_call(self)? {
+-                    // Increment by the number of calls.
+-                    num_calls += match call.operator() {
+-                        CallOperator::Locator(locator) => {
+-                            self.get_external_stack(locator.program_id())?.get_number_of_calls(locator.resource())?
+-                        }
+-                        CallOperator::Resource(resource) => self.get_number_of_calls(resource)?,
+-                    };
+-                }
+-            }
+-        }
+-        Ok(num_calls)
++        self.number_of_calls
++            .get(function_name)
++            .copied()
++            .ok_or_else(|| anyhow!("Function '{function_name}' does not exist"))
+     }
+ 
+     /// Returns a value for the given value type.
+diff --git a/synthesizer/process/src/tests/test_execute.rs b/synthesizer/process/src/tests/test_execute.rs
+index 61b80a33f..8ba8de479 100644
+--- a/synthesizer/process/src/tests/test_execute.rs
++++ b/synthesizer/process/src/tests/test_execute.rs
+@@ -25,7 +25,7 @@ use console::{
+     program::{Identifier, Literal, Plaintext, ProgramID, Record, Value},
+     types::{Field, U64},
+ };
+-use ledger_block::Fee;
++use ledger_block::{Fee, Transaction};
+ use ledger_query::Query;
+ use ledger_store::{
+     helpers::memory::{BlockMemory, FinalizeMemory},
+@@ -34,7 +34,7 @@ use ledger_store::{
+     FinalizeStorage,
+     FinalizeStore,
+ };
+-use synthesizer_program::{FinalizeGlobalState, FinalizeStoreTrait, Program};
++use synthesizer_program::{FinalizeGlobalState, FinalizeStoreTrait, Program, StackProgram};
+ use synthesizer_snark::UniversalSRS;
+ 
+ use indexmap::IndexMap;
+@@ -2483,3 +2483,131 @@ function {function_name}:
+     assert_ne!(execution_1.peek().unwrap().id(), execution_2.peek().unwrap().id());
+     assert_ne!(execution_1.to_execution_id().unwrap(), execution_2.to_execution_id().unwrap());
+ }
++
++#[test]
++fn test_long_import_chain() {
++    // Initialize a new program.
++    let program = Program::<CurrentNetwork>::from_str(
++        r"
++    program test0.aleo;
++    function c:",
++    )
++    .unwrap();
++
++    // Construct the process.
++    let mut process = crate::test_helpers::sample_process(&program);
++
++    // Add `MAX_PROGRAM_DEPTH` programs to the process.
++    for i in 1..=CurrentNetwork::MAX_PROGRAM_DEPTH {
++        println!("Adding program {i}");
++        // Initialize a new program.
++        let program = Program::from_str(&format!(
++            "
++        import test{}.aleo;
++        program test{}.aleo;
++        function c:",
++            i - 1,
++            i
++        ))
++        .unwrap();
++        // Add the program to the process.
++        process.add_program(&program).unwrap();
++    }
++
++    // Add the `MAX_PROGRAM_DEPTH + 1` program to the process, which should fail.
++    let program = Program::from_str(&format!(
++        "
++        import test{}.aleo;
++        program test{}.aleo;
++        function c:",
++        CurrentNetwork::MAX_PROGRAM_DEPTH,
++        CurrentNetwork::MAX_PROGRAM_DEPTH + 1
++    ))
++    .unwrap();
++    let result = process.add_program(&program);
++    assert!(result.is_err());
++}
++
++#[test]
++fn test_long_import_chain_with_calls() {
++    // Initialize a new program.
++    let program = Program::<CurrentNetwork>::from_str(
++        r"
++    program test0.aleo;
++    function c:",
++    )
++    .unwrap();
++
++    // Construct the process.
++    let mut process = crate::test_helpers::sample_process(&program);
++
++    // Check that the number of calls, up to `Transaction::MAX_TRANSITIONS - 1`, is correct.
++    for i in 1..(Transaction::<CurrentNetwork>::MAX_TRANSITIONS - 1) {
++        println!("Adding program {}", i);
++        // Initialize a new program.
++        let program = Program::from_str(&format!(
++            "
++        import test{}.aleo;
++        program test{}.aleo;
++        function c:
++            call test{}.aleo/c;",
++            i - 1,
++            i,
++            i - 1
++        ))
++        .unwrap();
++        // Add the program to the process.
++        process.add_program(&program).unwrap();
++        // Check that the number of calls is correct.
++        let stack = process.get_stack(program.id()).unwrap();
++        let number_of_calls = stack.get_number_of_calls(program.functions().into_iter().next().unwrap().0).unwrap();
++        assert_eq!(number_of_calls, i + 1);
++    }
++
++    // Check that `Transaction::MAX_TRANSITIONS - 1`-th call fails.
++    let program = Program::from_str(&format!(
++        "
++        import test{}.aleo;
++        program test{}.aleo;
++        function c:
++            call test{}.aleo/c;",
++        Transaction::<CurrentNetwork>::MAX_TRANSITIONS - 2,
++        Transaction::<CurrentNetwork>::MAX_TRANSITIONS - 1,
++        Transaction::<CurrentNetwork>::MAX_TRANSITIONS - 2
++    ))
++    .unwrap();
++    let result = process.add_program(&program);
++    assert!(result.is_err())
++}
++
++#[test]
++fn test_max_imports() {
++    // Construct the process.
++    let mut process = Process::<CurrentNetwork>::load().unwrap();
++
++    // Add `MAX_IMPORTS` programs to the process.
++    for i in 0..CurrentNetwork::MAX_IMPORTS {
++        println!("Adding program {i}");
++        // Initialize a new program.
++        let program = Program::from_str(&format!("program test{i}.aleo; function c:")).unwrap();
++        // Add the program to the process.
++        process.add_program(&program).unwrap();
++    }
++
++    // Add a program importing all `MAX_IMPORTS` programs, which should pass.
++    let import_string =
++        (0..CurrentNetwork::MAX_IMPORTS).map(|i| format!("import test{}.aleo;", i)).collect::<Vec<_>>().join(" ");
++    let program =
++        Program::from_str(&format!("{import_string}program test{}.aleo; function c:", CurrentNetwork::MAX_IMPORTS))
++            .unwrap();
++    process.add_program(&program).unwrap();
++
++    // Attempt to construct a program importing `MAX_IMPORTS + 1` programs, which should fail.
++    let import_string =
++        (0..CurrentNetwork::MAX_IMPORTS + 1).map(|i| format!("import test{}.aleo;", i)).collect::<Vec<_>>().join(" ");
++    let result = Program::<CurrentNetwork>::from_str(&format!(
++        "{import_string}program test{}.aleo; function c:",
++        CurrentNetwork::MAX_IMPORTS + 1
++    ));
++    assert!(result.is_err());
++}
+diff --git a/synthesizer/program/src/lib.rs b/synthesizer/program/src/lib.rs
+index 39daab2ce..9ff50db65 100644
+--- a/synthesizer/program/src/lib.rs
++++ b/synthesizer/program/src/lib.rs
+@@ -295,6 +295,9 @@ impl<N: Network, Instruction: InstructionTrait<N>, Command: CommandTrait<N>> Pro
+         // Retrieve the imported program name.
+         let import_name = *import.name();
+ 
++        // Ensure that the number of imports is within the allowed range.
++        ensure!(self.imports.len() < N::MAX_IMPORTS, "Program exceeds the maximum number of imports");
++
+         // Ensure the import name is new.
+         ensure!(self.is_unique_name(&import_name), "'{import_name}' is already in use.");
+         // Ensure the import name is not a reserved opcode.
+diff --git a/synthesizer/program/src/traits/stack_and_registers.rs b/synthesizer/program/src/traits/stack_and_registers.rs
+index 5a5f55f72..1b79996ae 100644
+--- a/synthesizer/program/src/traits/stack_and_registers.rs
++++ b/synthesizer/program/src/traits/stack_and_registers.rs
+@@ -65,6 +65,9 @@ pub trait StackProgram<N: Network> {
+     /// Returns the program ID.
+     fn program_id(&self) -> &ProgramID<N>;
+ 
++    /// Returns the program depth.
++    fn program_depth(&self) -> usize;
++
+     /// Returns `true` if the stack contains the external record.
+     fn contains_external_record(&self, locator: &Locator<N>) -> bool;
+ 

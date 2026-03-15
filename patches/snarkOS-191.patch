@@ -1,0 +1,33 @@
+diff --git a/network/src/node.rs b/network/src/node.rs
+index 7653a984e..6f0bd6d02 100644
+--- a/network/src/node.rs
++++ b/network/src/node.rs
+@@ -189,13 +189,7 @@ impl Node {
+             }
+             Ok(peers) => {
+                 for peer in peers {
+-                    self.peer_book
+-                        .add_peer(
+-                            peer.address,
+-                            self.config.bootnodes.load().contains(&peer.address),
+-                            Some(&peer),
+-                        )
+-                        .await;
++                    self.peer_book.add_peer(peer.address, Some(&peer)).await;
+                 }
+             }
+         }
+diff --git a/network/src/peers/peers.rs b/network/src/peers/peers.rs
+index 6fc319ac3..6aadf130f 100644
+--- a/network/src/peers/peers.rs
++++ b/network/src/peers/peers.rs
+@@ -327,8 +327,7 @@ impl Node {
+ 
+         let connected_peers = self.peer_book.connected_peers_snapshot().await;
+ 
+-        let basic_filter =
+-            |peer: &Peer| peer.address != remote_address && !self.config.bootnodes().contains(&peer.address);
++        let basic_filter = |peer: &Peer| peer.address != remote_address;
+         let strict_filter = |peer: &Peer| {
+             basic_filter(peer)
+                 && peer.quality.connection_transient_fail_count == 0

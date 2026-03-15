@@ -1,0 +1,13 @@
+diff --git a/cli/src/commands/developer/mod.rs b/cli/src/commands/developer/mod.rs
+index 566d5f71f..cbba15160 100644
+--- a/cli/src/commands/developer/mod.rs
++++ b/cli/src/commands/developer/mod.rs
+@@ -205,7 +205,7 @@ impl Developer {
+     fn handle_ureq_result(result: Result<http::Response<ureq::Body>>) -> Result<Option<ureq::Body>> {
+         let response = result?;
+ 
+-        if response.status() == http::StatusCode::OK {
++        if response.status().is_success() {
+             Ok(Some(response.into_body()))
+         } else if response.status() == http::StatusCode::NOT_FOUND {
+             Ok(None)

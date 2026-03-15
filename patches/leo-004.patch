@@ -1,0 +1,60 @@
+diff --git a/asg/src/expression/binary.rs b/asg/src/expression/binary.rs
+index 0dd5a6e5f4..3c4bfc207c 100644
+--- a/asg/src/expression/binary.rs
++++ b/asg/src/expression/binary.rs
+@@ -134,10 +134,12 @@ impl FromAst<leo_ast::BinaryExpression> for BinaryExpression {
+             },
+             BinaryOperationClass::Numeric => match expected_type {
+                 Some(x @ PartialType::Integer(_, _)) => Some(x),
++                Some(x @ PartialType::Type(Type::Field)) => Some(x),
++                Some(x @ PartialType::Type(Type::Group)) => Some(x),
+                 Some(x) => {
+                     return Err(AsgConvertError::unexpected_type(
+                         &x.to_string(),
+-                        Some("integer"),
++                        Some("integer, field, or group"),
+                         &value.span,
+                     ));
+                 }
+diff --git a/asg/tests/pass/field/mod.rs b/asg/tests/pass/field/mod.rs
+index 56074af7a3..8c895b0c92 100644
+--- a/asg/tests/pass/field/mod.rs
++++ b/asg/tests/pass/field/mod.rs
+@@ -28,6 +28,16 @@ fn test_add() {
+     load_asg(program_string).unwrap();
+ }
+ 
++#[test]
++fn test_add_explicit() {
++    let program_string = r#"
++    function main() {
++        let c: field = 0field + 1field;
++    }
++    "#;
++    load_asg(program_string).unwrap();
++}
++
+ #[test]
+ fn test_sub() {
+     let program_string = include_str!("sub.leo");
+diff --git a/asg/tests/pass/group/mod.rs b/asg/tests/pass/group/mod.rs
+index 58514957dd..a8a213e37a 100644
+--- a/asg/tests/pass/group/mod.rs
++++ b/asg/tests/pass/group/mod.rs
+@@ -104,6 +104,16 @@ fn test_add() {
+     load_asg(program_string).unwrap();
+ }
+ 
++#[test]
++fn test_add_explicit() {
++    let program_string = r#"
++    function main() {
++        let c: group = 0group + 1group;
++    }
++    "#;
++    load_asg(program_string).unwrap();
++}
++
+ #[test]
+ fn test_sub() {
+     let program_string = include_str!("sub.leo");

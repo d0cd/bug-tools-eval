@@ -1,0 +1,545 @@
+diff --git a/console/network/src/consensus_heights.rs b/console/network/src/consensus_heights.rs
+index a010eb542..1f9151bc0 100644
+--- a/console/network/src/consensus_heights.rs
++++ b/console/network/src/consensus_heights.rs
+@@ -45,7 +45,7 @@ pub enum ConsensusVersion {
+     V10 = 10,
+     /// V11: Expand array size limit to 512 and introduce ECDSA signature verification opcodes.
+     V11 = 11,
+-    /// V12: Prevent connection to forked nodes.
++    /// V12: Prevent connection to forked nodes, disable StringType.
+     V12 = 12,
+ }
+ 
+diff --git a/console/program/src/data_types/array_type/mod.rs b/console/program/src/data_types/array_type/mod.rs
+index b117644ab..08cf04a6d 100644
+--- a/console/program/src/data_types/array_type/mod.rs
++++ b/console/program/src/data_types/array_type/mod.rs
+@@ -37,7 +37,29 @@ impl<N: Network> ArrayType<N> {
+         matches!(self.next_element_type(), PlaintextType::Literal(LiteralType::Boolean))
+     }
+ 
+-    /// Returns `true` if the record contains an array type with a size that exceeds the given maximum.
++    /// Returns `true` if the `ArrayType` contains a string type.
++    pub fn contains_string_type(&self) -> bool {
++        // Initialize depth counter and current array type.
++        let mut array_type = self;
++
++        // Check nested array types up to the maximum data depth.
++        for _ in 0..=N::MAX_DATA_DEPTH {
++            // Check if the current element type is a string type.
++            if array_type.next_element_type().contains_string_type() {
++                return true;
++            }
++            // If the next element is an array, continue to the next depth. Otherwise, we can stop checking.
++            if let PlaintextType::Array(next) = array_type.next_element_type() {
++                array_type = next;
++            } else {
++                return false;
++            }
++        }
++        // If we reach here, it means we've exceeded the maximum depth without finding a non-array type.
++        true
++    }
++
++    /// Returns `true` if the `ArrayType` contains an array type with a size that exceeds the given maximum.
+     pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
+         // Initialize depth counter and current array type.
+         let mut array_type = self;
+@@ -48,7 +70,7 @@ impl<N: Network> ArrayType<N> {
+             if **array_type.length() > max_array_size {
+                 return true;
+             }
+-            // If the next eleemtn is an array, continue to the next depth. Otherwise, we can stop checking.
++            // If the next element is an array, continue to the next depth. Otherwise, we can stop checking.
+             if let PlaintextType::Array(next) = array_type.next_element_type() {
+                 array_type = next;
+             } else {
+diff --git a/console/program/src/data_types/plaintext_type/mod.rs b/console/program/src/data_types/plaintext_type/mod.rs
+index 9f689f795..6fd409f57 100644
+--- a/console/program/src/data_types/plaintext_type/mod.rs
++++ b/console/program/src/data_types/plaintext_type/mod.rs
+@@ -64,7 +64,16 @@ impl<N: Network> PlaintextType<N> {
+     /// Prefix bits for (de)serializing the `Struct` variant.
+     pub const STRUCT_PREFIX_BITS: [bool; 2] = [false, true];
+ 
+-    /// Returns `true` if the plaintext type is an array and the size exceeds the given maximum.
++    /// Returns `true` if the `PlaintextType` contains a string type.
++    pub fn contains_string_type(&self) -> bool {
++        match self {
++            Self::Literal(LiteralType::String) => true,
++            Self::Array(array_type) => array_type.contains_string_type(),
++            _ => false, // Structs are checked in their definition.
++        }
++    }
++
++    /// Returns `true` if the `PlaintextType` is an array and the size exceeds the given maximum.
+     pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
+         match self {
+             Self::Literal(_) | Self::Struct(_) => false,
+diff --git a/console/program/src/data_types/record_type/mod.rs b/console/program/src/data_types/record_type/mod.rs
+index d6d45c806..fd9136488 100644
+--- a/console/program/src/data_types/record_type/mod.rs
++++ b/console/program/src/data_types/record_type/mod.rs
+@@ -56,6 +56,11 @@ impl<N: Network> RecordType<N> {
+         &self.entries
+     }
+ 
++    /// Returns `true` if the record contains a string type.
++    pub fn contains_string_type(&self) -> bool {
++        self.entries.values().any(|entry_type| entry_type.plaintext_type().contains_string_type())
++    }
++
+     /// Returns `true` if the record contains an array type with a size that exceeds the given maximum.
+     pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
+         self.entries.values().any(|entry_type| entry_type.plaintext_type().exceeds_max_array_size(max_array_size))
+diff --git a/console/program/src/data_types/register_type/mod.rs b/console/program/src/data_types/register_type/mod.rs
+index b78fc049e..4f40162a4 100644
+--- a/console/program/src/data_types/register_type/mod.rs
++++ b/console/program/src/data_types/register_type/mod.rs
+@@ -67,6 +67,14 @@ impl<N: Network> From<FinalizeType<N>> for RegisterType<N> {
+ }
+ 
+ impl<N: Network> RegisterType<N> {
++    /// Returns `true` if the register type contains a string type.
++    pub fn contains_string_type(&self) -> bool {
++        match self {
++            Self::Plaintext(plaintext_type) => plaintext_type.contains_string_type(),
++            _ => false, // Record, external record, and future types are checked elsewhere.
++        }
++    }
++
+     /// Returns `true` if the register type is an array and the size exceeds the given maximum.
+     pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
+         match self {
+diff --git a/console/program/src/data_types/struct_type/mod.rs b/console/program/src/data_types/struct_type/mod.rs
+index fd9e2e709..84379fe4b 100644
+--- a/console/program/src/data_types/struct_type/mod.rs
++++ b/console/program/src/data_types/struct_type/mod.rs
+@@ -43,6 +43,11 @@ impl<N: Network> StructType<N> {
+         &self.members
+     }
+ 
++    /// Returns `true` if the struct contains a string type.
++    pub fn contains_string_type(&self) -> bool {
++        self.members.values().any(|plaintext_type| plaintext_type.contains_string_type())
++    }
++
+     /// Returns `true` if the struct contains an array type with a size that exceeds the given maximum.
+     pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
+         self.members.values().any(|plaintext_type| plaintext_type.exceeds_max_array_size(max_array_size))
+diff --git a/console/program/src/data_types/value_type/mod.rs b/console/program/src/data_types/value_type/mod.rs
+index 59e55aafe..3f2928c0f 100644
+--- a/console/program/src/data_types/value_type/mod.rs
++++ b/console/program/src/data_types/value_type/mod.rs
+@@ -65,6 +65,16 @@ impl<N: Network> From<EntryType<N>> for ValueType<N> {
+ }
+ 
+ impl<N: Network> ValueType<N> {
++    /// Returns `true` if the value type contains a string type.
++    /// Record, external record, and future types are checked elsewhere.
++    pub fn contains_string_type(&self) -> bool {
++        use ValueType::*;
++        matches!(
++            self,
++            Constant(plaintext) | Public(plaintext) | Private(plaintext) if plaintext.contains_string_type()
++        )
++    }
++
+     /// Returns `true` if the value type is an array and the size exceeds the given maximum.
+     pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
+         use ValueType::*;
+diff --git a/synthesizer/program/src/closure/mod.rs b/synthesizer/program/src/closure/mod.rs
+index b1c9fad47..db553f093 100644
+--- a/synthesizer/program/src/closure/mod.rs
++++ b/synthesizer/program/src/closure/mod.rs
+@@ -70,6 +70,12 @@ impl<N: Network> ClosureCore<N> {
+         &self.outputs
+     }
+ 
++    /// Returns `true` if the closure instructions contain a string type.
++    /// Note that input and output types don't have to be checked if we are sure the broader function doesn't contain a string type.
++    pub fn contains_string_type(&self) -> bool {
++        self.instructions.iter().any(|instruction| instruction.contains_string_type())
++    }
++
+     /// Returns `true` if the closure contains an array type with a size that exceeds the given maximum.
+     pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
+         self.inputs.iter().any(|input| input.register_type().exceeds_max_array_size(max_array_size))
+diff --git a/synthesizer/program/src/constructor/mod.rs b/synthesizer/program/src/constructor/mod.rs
+index ba8bff2e5..08b5547bd 100644
+--- a/synthesizer/program/src/constructor/mod.rs
++++ b/synthesizer/program/src/constructor/mod.rs
+@@ -51,14 +51,14 @@ impl<N: Network> ConstructorCore<N> {
+         &self.positions
+     }
+ 
++    /// Returns `true` if the constructor commands contain a string type.
++    pub fn contains_string_type(&self) -> bool {
++        self.commands.iter().any(|command| command.contains_string_type())
++    }
++
+     /// Returns `true` if the constructor contains an array type with a size that exceeds the given maximum.
+     pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
+-        self.commands.iter().any(|command| {
+-            matches!(
+-                command,
+-                Command::Instruction(instruction) if instruction.exceeds_max_array_size(max_array_size)
+-            )
+-        })
++        self.commands.iter().any(|command| command.exceeds_max_array_size(max_array_size))
+     }
+ }
+ 
+diff --git a/synthesizer/program/src/finalize/mod.rs b/synthesizer/program/src/finalize/mod.rs
+index 0502db7b7..bf35629a0 100644
+--- a/synthesizer/program/src/finalize/mod.rs
++++ b/synthesizer/program/src/finalize/mod.rs
+@@ -80,18 +80,21 @@ impl<N: Network> FinalizeCore<N> {
+         &self.positions
+     }
+ 
++    /// Returns `true` if the finalize scope contains a string type.
++    pub fn contains_string_type(&self) -> bool {
++        self.input_types().iter().any(|input_type| {
++            matches!(input_type, FinalizeType::Plaintext(plaintext_type) if plaintext_type.contains_string_type())
++        }) || self.commands.iter().any(|command| {
++            command.contains_string_type()
++        })
++    }
++
+     /// Returns `true` if the finalize scope contains an array type with a size that exceeds the given maximum.
+     pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
+-        self.inputs.iter().any(|input| {
+-            matches!(
+-                input.finalize_type(),
+-                FinalizeType::Plaintext(plaintext_type) if plaintext_type.exceeds_max_array_size(max_array_size)
+-            )
++        self.input_types().iter().any(|input_type| {
++            matches!(input_type, FinalizeType::Plaintext(plaintext_type) if plaintext_type.exceeds_max_array_size(max_array_size))
+         }) || self.commands.iter().any(|command| {
+-            matches!(
+-                command,
+-                Command::Instruction(instruction) if instruction.exceeds_max_array_size(max_array_size)
+-            )
++            command.exceeds_max_array_size(max_array_size)
+         })
+     }
+ }
+diff --git a/synthesizer/program/src/function/mod.rs b/synthesizer/program/src/function/mod.rs
+index 0ef567a63..2e6f3a210 100644
+--- a/synthesizer/program/src/function/mod.rs
++++ b/synthesizer/program/src/function/mod.rs
+@@ -96,6 +96,14 @@ impl<N: Network> FunctionCore<N> {
+         self.finalize_logic.as_ref()
+     }
+ 
++    /// Returns `true` if the function contains a string type.
++    pub fn contains_string_type(&self) -> bool {
++        self.input_types().iter().any(|input| input.contains_string_type())
++            || self.output_types().iter().any(|output| output.contains_string_type())
++            || self.instructions.iter().any(|instruction| instruction.contains_string_type())
++            || self.finalize_logic.as_ref().map(|finalize| finalize.contains_string_type()).unwrap_or(false)
++    }
++
+     /// Returns `true` if the function scope contains an array type with a size that exceeds the given maximum.
+     pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
+         self.inputs.iter().any(|input| input.value_type().exceeds_max_array_size(max_array_size))
+diff --git a/synthesizer/program/src/lib.rs b/synthesizer/program/src/lib.rs
+index ea24d4118..9f3bb4fff 100644
+--- a/synthesizer/program/src/lib.rs
++++ b/synthesizer/program/src/lib.rs
+@@ -966,6 +966,19 @@ impl<N: Network> ProgramCore<N> {
+ 
+         function_contains || closure_contains || command_contains || array_size_exceeds
+     }
++
++    /// Returns `true` if a program contains any string type.
++    /// Before ConsensusVersion::V12, variable-length string sampling when using them as inputs caused deployment synthesis to be inconsistent and abort with probability 63/64.
++    /// After ConsensusVersion::V12, string types are disallowed.
++    #[inline]
++    pub fn contains_string_type(&self) -> bool {
++        self.mappings.values().any(|mapping| mapping.contains_string_type())
++            || self.structs.values().any(|struct_type| struct_type.contains_string_type())
++            || self.records.values().any(|record_type| record_type.contains_string_type())
++            || self.closures.values().any(|closure| closure.contains_string_type())
++            || self.functions.values().any(|function| function.contains_string_type())
++            || self.constructor.iter().any(|constructor| constructor.contains_string_type())
++    }
+ }
+ 
+ impl<N: Network> TypeName for ProgramCore<N> {
+diff --git a/synthesizer/program/src/logic/command/mod.rs b/synthesizer/program/src/logic/command/mod.rs
+index 1da7743c7..686e1e9bd 100644
+--- a/synthesizer/program/src/logic/command/mod.rs
++++ b/synthesizer/program/src/logic/command/mod.rs
+@@ -194,6 +194,19 @@ impl<N: Network> Command<N> {
+             Command::Position(position) => position.finalize().map(|_| None),
+         }
+     }
++
++    /// Returns `true` if the command contains a string type.
++    pub fn contains_string_type(&self) -> bool {
++        self.operands().iter().any(|operand| operand.contains_string_type())
++    }
++
++    /// Returns `true` if the command contains an array type with a size that exceeds the given maximum.
++    pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
++        match self {
++            Command::Instruction(instruction) => instruction.exceeds_max_array_size(max_array_size),
++            _ => false,
++        }
++    }
+ }
+ 
+ impl<N: Network> FromBytes for Command<N> {
+diff --git a/synthesizer/program/src/logic/instruction/mod.rs b/synthesizer/program/src/logic/instruction/mod.rs
+index 95e56452d..b2ec7a510 100644
+--- a/synthesizer/program/src/logic/instruction/mod.rs
++++ b/synthesizer/program/src/logic/instruction/mod.rs
+@@ -589,11 +589,15 @@ impl<N: Network> Instruction<N> {
+         instruction!(self, |instruction| instruction.output_types(stack, input_types))
+     }
+ 
++    /// Returns `true` if the instruction contains a literal string type.
++    pub fn contains_string_type(&self) -> bool {
++        self.operands().iter().any(|operand| operand.contains_string_type())
++    }
++
+     /// Returns `true` if the instruction contains an array type with a size that exceeds the given maximum.
+     pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
+-        // Only cast instructions may contain an explicit reference to an array.
+-        // Calls may produce them, but they don't explicitly reference the type, and that's
+-        // always been allowed.
++        // Only cast and serialize instructions may contain an explicit reference to an array.
++        // Calls may produce them, but they don't explicitly reference the type.
+         match self {
+             Self::Cast(instruction) => instruction.cast_type().exceeds_max_array_size(max_array_size),
+             Self::SerializeBits(instruction) => instruction.destination_type().exceeds_max_array_size(max_array_size),
+diff --git a/synthesizer/program/src/logic/instruction/operand/mod.rs b/synthesizer/program/src/logic/instruction/operand/mod.rs
+index e05360589..51420b399 100644
+--- a/synthesizer/program/src/logic/instruction/operand/mod.rs
++++ b/synthesizer/program/src/logic/instruction/operand/mod.rs
+@@ -90,6 +90,13 @@ impl<N: Network> From<&Register<N>> for Operand<N> {
+     }
+ }
+ 
++impl<N: Network> Operand<N> {
++    /// Returns `true` if the operand contains a string type.
++    pub fn contains_string_type(&self) -> bool {
++        matches!(self, Self::Literal(Literal::String(_)))
++    }
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+diff --git a/synthesizer/program/src/mapping/mod.rs b/synthesizer/program/src/mapping/mod.rs
+index e723aa17a..c1ee24298 100644
+--- a/synthesizer/program/src/mapping/mod.rs
++++ b/synthesizer/program/src/mapping/mod.rs
+@@ -55,6 +55,11 @@ impl<N: Network> Mapping<N> {
+         &self.value
+     }
+ 
++    /// Returns `true` if the mapping contains a string type.
++    pub fn contains_string_type(&self) -> bool {
++        self.key.plaintext_type().contains_string_type() || self.value.plaintext_type().contains_string_type()
++    }
++
+     /// Returns `true` if the mapping contains an array type with a size that exceeds the given maximum.
+     pub fn exceeds_max_array_size(&self, max_array_size: u32) -> bool {
+         self.key.plaintext_type().exceeds_max_array_size(max_array_size)
+diff --git a/synthesizer/src/vm/mod.rs b/synthesizer/src/vm/mod.rs
+index 3295a7620..d4024eee8 100644
+--- a/synthesizer/src/vm/mod.rs
++++ b/synthesizer/src/vm/mod.rs
+@@ -3448,4 +3448,171 @@ function adder:
+         // Check that the program was deployed.
+         assert!(vm.process().read().contains_program(&ProgramID::from_str("adder_program.aleo").unwrap()));
+     }
++
++    #[cfg(feature = "test")]
++    #[test]
++    fn test_deploy_string() {
++        let rng = &mut TestRng::default();
++
++        // Initialize a new caller.
++        let caller_private_key = crate::vm::test_helpers::sample_genesis_private_key(rng);
++
++        // Initialize the VM at consensus version 11.
++        let vm = crate::vm::test_helpers::sample_vm_at_height(
++            CurrentNetwork::CONSENSUS_HEIGHT(ConsensusVersion::V11).unwrap(),
++            rng,
++        );
++
++        // Deploy and execute a program in the same block.
++        let program = |i: u32| {
++            Program::from_str(&format!(
++                r#"
++program strings_{i}.aleo;
++
++mapping foo:
++    key as string.public;
++    value as string.public;
++
++mapping test:
++    key as string.public;
++    value as [boolean; 1u32].public;
++
++function dummy:
++    input r0 as string.public;
++    input r1 as string.private;
++    input r2 as string.private;
++    assert.eq "hello_friend" "hello_friend";
++    assert.neq r1 r2;
++    async dummy r0 r1 r2 into r3;
++    hash.bhp256 "hello" into r4 as address;
++    output r3 as strings_{i}.aleo/dummy.future;
++
++finalize dummy:
++    input r0 as string.public;
++    input r1 as string.public;
++    input r2 as string.public;
++    assert.eq "hello_friend" "hello_friend";
++    assert.neq r1 r2;
++    get.or_use foo[r1] r0 into r3;
++    set r2 into foo[r1];
++    set "test" into foo[r2];
++    set r2 into foo[r2];
++    get foo[r1] into r4;
++    assert.neq r3 r4;
++    assert.eq r2 r4;
++    assert.neq r0 r4;
++    get.or_use foo[r1] "hello" into r5;
++
++function dummy_with_array:
++    input r0 as [string; 3u32].public;
++    input r1 as [string; 4u32].private;
++    async dummy_with_array r0 r1 "test" into r2;
++    output r2 as strings_{i}.aleo/dummy_with_array.future;
++
++finalize dummy_with_array:
++    input r0 as [string; 3u32].public;
++    input r1 as [string; 4u32].public;
++    input r2 as string.public;
++    set r2 into foo[r2];
++
++constructor:
++    assert.eq true true;
++        "#
++            ))
++            .unwrap()
++        };
++
++        // Deploy the program.
++        let _deployment = vm.deploy(&caller_private_key, &program(0), None, 0, None, rng).unwrap();
++        // Check the deployment.
++        // NOTE: this will only consistently pass if string sampling is updated.
++        // vm.check_transaction(&deployment, None, rng).unwrap();
++
++        // let block = sample_next_block(&vm, &caller_private_key, &[deployment], rng).unwrap();
++        // assert_eq!(block.transactions().num_accepted(), 1);
++        // assert_eq!(block.transactions().num_rejected(), 0);
++        // assert_eq!(block.aborted_transaction_ids().len(), 0);
++        // vm.add_next_block(&block).unwrap();
++
++        // // Check that the program was deployed.
++        // assert!(vm.process().read().contains_program(&ProgramID::from_str("strings_0.aleo").unwrap()));
++
++        // let hello_literal = Literal::String(StringType::new("hello"));
++        // let hello_friend_literal = Literal::String(StringType::new("hello_friend"));
++        // let hello_friends_literal = Literal::String(StringType::new("hello_friends"));
++
++        // // Execution test 1
++        // let hello_friend_1 = Value::from(hello_friend_literal.clone());
++        // let hello_friend_2 = Value::from(hello_friend_literal.clone());
++        // let hello_friends = Value::from(hello_friends_literal.clone());
++
++        // // Execute the program.
++        // let transaction = vm
++        //     .execute(
++        //         &caller_private_key,
++        //         ("strings_0.aleo", "dummy"),
++        //         [hello_friend_1, hello_friend_2, hello_friends].iter(),
++        //         None,
++        //         0,
++        //         None,
++        //         rng,
++        //     )
++        //     .unwrap();
++        // // Verify the transaction.
++        // vm.check_transaction(&transaction, None, rng).unwrap();
++
++        // let block = sample_next_block(&vm, &caller_private_key, &[transaction], rng).unwrap();
++        // assert_eq!(block.transactions().num_accepted(), 1);
++        // assert_eq!(block.transactions().num_rejected(), 0);
++        // assert_eq!(block.aborted_transaction_ids().len(), 0);
++        // vm.add_next_block(&block).unwrap();
++
++        // // Execution test 2: change the public type
++        // let hello = Value::from(hello_literal.clone());
++        // let hello_friend = Value::from(hello_friend_literal.clone());
++        // let hello_friends = Value::from(hello_friends_literal.clone());
++
++        // // Execute the program.
++        // let transaction = vm.execute(
++        //     &caller_private_key,
++        //     ("strings_0.aleo", "dummy"),
++        //     [hello, hello_friend, hello_friends].iter(),
++        //     None,
++        //     0,
++        //     None,
++        //     rng,
++        // );
++        // assert!(transaction.is_err());
++
++        // // Execution test 3: change the private type
++        // let hello_friend_1 = Value::from(hello_friend_literal.clone());
++        // let hello_friend_2 = Value::from(hello_friend_literal.clone());
++        // let hello = Value::from(hello_literal.clone());
++
++        // // Execute the program.
++        // let transaction = vm.execute(
++        //     &caller_private_key,
++        //     ("strings_0.aleo", "dummy"),
++        //     [hello_friend_1, hello_friend_2, hello].iter(),
++        //     None,
++        //     0,
++        //     None,
++        //     rng,
++        // );
++        // assert!(transaction.is_err());
++
++        // // Deploy another program.
++        // let deployment = vm.deploy(&caller_private_key, &program(1), None, 0, None, rng).unwrap();
++        // // Check the deployment.
++        // assert!(vm.check_transaction(&deployment, None, rng).is_err());
++
++        // let block = sample_next_block(&vm, &caller_private_key, &[deployment], rng).unwrap();
++        // assert_eq!(block.transactions().num_accepted(), 0);
++        // assert_eq!(block.transactions().num_rejected(), 0);
++        // assert_eq!(block.aborted_transaction_ids().len(), 1);
++        // vm.add_next_block(&block).unwrap();
++
++        // // Check that the program was notdeployed.
++        // assert!(!vm.process().read().contains_program(&ProgramID::from_str("strings_1.aleo").unwrap()));
++    }
+ }
+diff --git a/synthesizer/src/vm/verify.rs b/synthesizer/src/vm/verify.rs
+index 24b0e3554..37e9fec4c 100644
+--- a/synthesizer/src/vm/verify.rs
++++ b/synthesizer/src/vm/verify.rs
+@@ -238,6 +238,12 @@ impl<N: Network, C: ConsensusStorage<N>> VM<N, C> {
+                         "Invalid deployment transaction '{id}' - program uses syntax that is not allowed before `ConsensusVersion::V11`"
+                     );
+                 }
++                if consensus_version >= ConsensusVersion::V12 {
++                    ensure!(
++                        !deployment.program().contains_string_type(),
++                        "Invalid deployment transaction '{id}' - program uses string type after `ConsensusVersion::V12`"
++                    );
++                }
+ 
+                 // If the program owner exists in the deployment, then verify that it matches the owner in the transaction.
+                 if let Some(given_owner) = deployment.program_owner() {

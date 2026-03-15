@@ -1,0 +1,2283 @@
+diff --git a/.circleci/token/run.sh b/.circleci/token/run.sh
+index 45fdc91936..9d244bb68a 100644
+--- a/.circleci/token/run.sh
++++ b/.circleci/token/run.sh
+@@ -18,7 +18,7 @@ fi
+ 
+ # Swap in the private key of Alice.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkp1w8PTxrRgGfAtfKUSq43iQyVbdQHfhGbiNPEg2LVSEXR
+ " > .env
+ 
+@@ -52,7 +52,7 @@ leo run mint_public aleo13ssze66adjjkt795z9u5wpq8h6kn0y2657726h4h3e3wfnez4vqsm30
+ 
+ # Swap in the private key of Bob.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkpFo72g7N9iFt3JzzeG8CqsS5doAiXyFvNCgk2oHvjRCzF
+ " > .env
+ 
+@@ -86,7 +86,7 @@ leo run mint_private aleo17vy26rpdhqx4598y5gp7nvaa9rk7tnvl6ufhvvf4calsrrqdaqyshd
+ 
+ # Swap in the private key of Alice.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkp1w8PTxrRgGfAtfKUSq43iQyVbdQHfhGbiNPEg2LVSEXR
+ " > .env
+ 
+@@ -120,7 +120,7 @@ leo run transfer_public aleo17vy26rpdhqx4598y5gp7nvaa9rk7tnvl6ufhvvf4calsrrqdaqy
+ 
+ # Swap in the private key of Bob.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkpFo72g7N9iFt3JzzeG8CqsS5doAiXyFvNCgk2oHvjRCzF
+ " > .env
+ 
+@@ -158,7 +158,7 @@ leo run transfer_private "{
+ 
+ # Swap in the private key of Alice.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkp1w8PTxrRgGfAtfKUSq43iQyVbdQHfhGbiNPEg2LVSEXR
+ " > .env
+ 
+@@ -193,7 +193,7 @@ leo run transfer_public_to_private aleo17vy26rpdhqx4598y5gp7nvaa9rk7tnvl6ufhvvf4
+ 
+ # Swap in the private key of Bob.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkpFo72g7N9iFt3JzzeG8CqsS5doAiXyFvNCgk2oHvjRCzF
+ " > .env
+ 
+@@ -234,6 +234,6 @@ leo run transfer_private_to_public "{
+ # Swap in the private key of Alice.
+ # This is done to ensure that program.json is the same after every execution of ./run.sh.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkp1w8PTxrRgGfAtfKUSq43iQyVbdQHfhGbiNPEg2LVSEXR
+ " > .env
+diff --git a/.github/dependabot.yml b/.github/dependabot.yml
+index 5c597886c7..8b8b9e0ca7 100644
+--- a/.github/dependabot.yml
++++ b/.github/dependabot.yml
+@@ -5,7 +5,7 @@ updates:
+     schedule:
+       interval: daily
+       time: "10:00"
+-    target-branch: "testnet3"
++    target-branch: "mainnet"
+     open-pull-requests-limit: 20
+     ignore:
+       - dependency-name: snarkvm-curves
+@@ -89,4 +89,4 @@ updates:
+           - 0.8.3
+       - dependency-name: rand_xorshift
+         versions:
+-          - 0.3.0
+\ No newline at end of file
++          - 0.3.0
+diff --git a/.github/workflows/acl2.yml b/.github/workflows/acl2.yml
+index e701800ad8..bfe8dda91e 100644
+--- a/.github/workflows/acl2.yml
++++ b/.github/workflows/acl2.yml
+@@ -21,7 +21,7 @@ jobs:
+ 
+       - name: Generate asts
+         run: |
+-          # This currently has to be on testnet3 to work:
++          # This currently has to be on mainnet to work:
+           cd compiler/parser
+           cargo -q install --path . --example parser
+           # To ensure full file tests,
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 81e8a883e0..746ea1e5b9 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -3,7 +3,7 @@ on:
+   pull_request:
+     push:
+       branches:
+-        - testnet3
++        - mainnet
+       paths-ignore:
+         - 'docs/**'
+         - 'documentation/**'
+@@ -189,7 +189,7 @@ jobs:
+       - name: Checkout
+         uses: actions/checkout@v2
+         with:
+-          ref: testnet3
++          ref: mainnet
+ 
+       - name: Install sccache
+         env:
+diff --git a/.github/workflows/codecov.yml b/.github/workflows/codecov.yml
+index b8cef037c9..33c6af58f9 100644
+--- a/.github/workflows/codecov.yml
++++ b/.github/workflows/codecov.yml
+@@ -2,7 +2,7 @@ name: Code Coverage
+ on:
+   push:
+     branches:
+-      - testnet3
++      - mainnet
+     paths-ignore:
+       - 'docs/**'
+       - 'documentation/**'
+@@ -100,4 +100,4 @@ jobs:
+         run: sccache --show-stats
+ 
+       - name: Stop sccache server
+-        run: sccache --stop-server || true
+\ No newline at end of file
++        run: sccache --stop-server || true
+diff --git a/.github/workflows/docs.yml b/.github/workflows/docs.yml
+index 26243b0a1a..cb2ae60d7a 100644
+--- a/.github/workflows/docs.yml
++++ b/.github/workflows/docs.yml
+@@ -17,7 +17,7 @@ jobs:
+       - name: Checkout
+         uses: actions/checkout@v2
+         with:
+-          ref: testnet3
++          ref: mainnet
+ 
+       - name: Install sccache
+         env:
+diff --git a/CONTRIBUTING.md b/CONTRIBUTING.md
+index 57f0e7760a..0c5f79082a 100644
+--- a/CONTRIBUTING.md
++++ b/CONTRIBUTING.md
+@@ -6,9 +6,9 @@ Thank you for your interest in contributing to Leo! Below you can find some guid
+ 
+ Please follow the instructions below when filing pull requests:
+ 
+-- Ensure that your branch is forked from the current [testnet3](https://github.com/AleoHQ/leo/tree/testnet3) branch.
++- Ensure that your branch is forked from the current [mainnet](https://github.com/AleoHQ/leo/tree/mainnet) branch.
+ - Fill out the provided markdown template for the feature or proposal. Be sure to link the pull request to any issues by using keywords. Example: "closes #130".
+-- Run `cargo fmt` before you commit; we use the `nightly` version of `rustfmt` to format the code, so you'll need to have the `nightly` toolchain installed on your machine; there's a [git hook](https://git-scm.com/docs/githooks) that ensures proper formatting before any commits can be made, and [`.rustfmt.toml`](https://github.com/AleoHQ/Leo/blob/testnet3/.rustfmt.toml) specifies some of the formatting conventions.
++- Run `cargo fmt` before you commit; we use the `nightly` version of `rustfmt` to format the code, so you'll need to have the `nightly` toolchain installed on your machine; there's a [git hook](https://git-scm.com/docs/githooks) that ensures proper formatting before any commits can be made, and [`.rustfmt.toml`](https://github.com/AleoHQ/Leo/blob/mainnet/.rustfmt.toml) specifies some of the formatting conventions.
+ - Run `cargo clippy` to ensure that popular correctness and performance pitfalls are avoided.
+ 
+ ## Style
+diff --git a/Cargo.lock b/Cargo.lock
+index a4224833e2..df7c693daa 100644
+--- a/Cargo.lock
++++ b/Cargo.lock
+@@ -2045,6 +2045,7 @@ dependencies = [
+  "serde_json",
+  "serial_test",
+  "sha2",
++ "snarkvm 0.16.19 (git+https://github.com/AleoHQ/snarkVM?rev=da3d78a)",
+  "tempfile",
+  "toml 0.8.12",
+  "ureq",
+@@ -2075,6 +2076,7 @@ dependencies = [
+  "serde",
+  "serde_json",
+  "serde_yaml",
++ "snarkvm 0.16.19 (git+https://github.com/AleoHQ/snarkVM?rev=da3d78a)",
+  "walkdir",
+ ]
+ 
+diff --git a/README.md b/README.md
+index 8c65fb027a..b522e7a763 100644
+--- a/README.md
++++ b/README.md
+@@ -6,9 +6,9 @@
+ 
+ <p align="center">
+     <a href="https://circleci.com/gh/AleoHQ/leo"><img src="https://circleci.com/gh/AleoHQ/leo.svg?style=svg&circle-token=00960191919c40be0774e00ce8f7fa1fcaa20c00"></a>
+-    <a href="https://codecov.io/gh/AleoHQ/leo"><img src="https://codecov.io/gh/AleoHQ/leo/branch/testnet3/graph/badge.svg?token=S6MWO60SYL"/></a>
++    <a href="https://codecov.io/gh/AleoHQ/leo"><img src="https://codecov.io/gh/AleoHQ/leo/branch/mainnet/graph/badge.svg?token=S6MWO60SYL"/></a>
+     <a href="https://discord.gg/aleo"><img src="https://img.shields.io/discord/700454073459015690?logo=discord"/></a>
+-    <a href="https://github.com/AleoHQ/leo/blob/testnet3/CONTRIBUTORS.md"><img src="https://img.shields.io/badge/contributors-393-ee8449"/></a>
++    <a href="https://github.com/AleoHQ/leo/blob/mainnet/CONTRIBUTORS.md"><img src="https://img.shields.io/badge/contributors-393-ee8449"/></a>
+      <a href="https://twitter.com/AleoHQ"><img src="https://img.shields.io/twitter/follow/AleoHQ?style=social"/></a>
+ </p>
+ <div id="top"></div>
+diff --git a/compiler/compiler/Cargo.toml b/compiler/compiler/Cargo.toml
+index a73c826429..13f250dc11 100644
+--- a/compiler/compiler/Cargo.toml
++++ b/compiler/compiler/Cargo.toml
+@@ -41,6 +41,9 @@ version = "=1.11.0"
+ [dependencies.sha2]
+ version = "0.10"
+ 
++[dependencies.snarkvm]
++workspace = true
++
+ [dependencies.indexmap]
+ version = "1.9"
+ features = [ ]
+diff --git a/compiler/compiler/src/compiler.rs b/compiler/compiler/src/compiler.rs
+index f0db0a953a..0651c41126 100644
+--- a/compiler/compiler/src/compiler.rs
++++ b/compiler/compiler/src/compiler.rs
+@@ -17,6 +17,9 @@
+ //! The compiler for Leo programs.
+ //!
+ //! The [`Compiler`] type compiles Leo programs into R1CS circuits.
++
++use crate::CompilerOptions;
++
+ pub use leo_ast::Ast;
+ use leo_ast::{NodeBuilder, Program, Stub};
+ use leo_errors::{emitter::Handler, CompilerError, Result};
+@@ -24,15 +27,15 @@ pub use leo_passes::SymbolTable;
+ use leo_passes::*;
+ use leo_span::{source_map::FileName, symbol::with_session_globals, Symbol};
+ 
+-use sha2::{Digest, Sha256};
+-use std::{fs, path::PathBuf};
++use snarkvm::prelude::Network;
+ 
+-use crate::CompilerOptions;
+ use indexmap::{IndexMap, IndexSet};
++use sha2::{Digest, Sha256};
++use std::{fs, path::PathBuf};
+ 
+ /// The primary entry point of the Leo compiler.
+ #[derive(Clone)]
+-pub struct Compiler<'a> {
++pub struct Compiler<'a, N: Network> {
+     /// The handler is used for error and warning emissions.
+     handler: &'a Handler,
+     /// The path to the main leo file.
+@@ -55,9 +58,11 @@ pub struct Compiler<'a> {
+     type_table: TypeTable,
+     /// The stubs for imported programs. Produced by `Retriever` module.
+     import_stubs: IndexMap<Symbol, Stub>,
++    // Allows the compiler to be generic over the network.
++    phantom: std::marker::PhantomData<N>,
+ }
+ 
+-impl<'a> Compiler<'a> {
++impl<'a, N: Network> Compiler<'a, N> {
+     /// Returns a new Leo compiler.
+     pub fn new(
+         program_name: String,
+@@ -83,6 +88,7 @@ impl<'a> Compiler<'a> {
+             assigner,
+             import_stubs,
+             type_table,
++            phantom: Default::default(),
+         }
+     }
+ 
+@@ -106,7 +112,7 @@ impl<'a> Compiler<'a> {
+         let prg_sf = with_session_globals(|s| s.source_map.new_source(program_string, name));
+ 
+         // Use the parser to construct the abstract syntax tree (ast).
+-        self.ast = leo_parser::parse_ast(self.handler, &self.node_builder, &prg_sf.src, prg_sf.start_pos)?;
++        self.ast = leo_parser::parse_ast::<N>(self.handler, &self.node_builder, &prg_sf.src, prg_sf.start_pos)?;
+ 
+         // If the program is imported, then check that the name of its program scope matches the file name.
+         // Note that parsing enforces that there is exactly one program scope in a file.
+@@ -149,7 +155,7 @@ impl<'a> Compiler<'a> {
+ 
+     /// Runs the type checker pass.
+     pub fn type_checker_pass(&'a self, symbol_table: SymbolTable) -> Result<(SymbolTable, StructGraph, CallGraph)> {
+-        let (symbol_table, struct_graph, call_graph) = TypeChecker::do_pass((
++        let (symbol_table, struct_graph, call_graph) = TypeChecker::<N>::do_pass((
+             &self.ast,
+             self.handler,
+             symbol_table,
+diff --git a/compiler/compiler/tests/compile.rs b/compiler/compiler/tests/compile.rs
+index 0f1e9b6db0..be8b448c40 100644
+--- a/compiler/compiler/tests/compile.rs
++++ b/compiler/compiler/tests/compile.rs
+@@ -140,7 +140,8 @@ fn run_test(test: Test, handler: &Handler, buf: &BufferEmitter) -> Result<Value,
+             handler.extend_if_error(process.add_program(&aleo_program).map_err(LeoError::Anyhow))?;
+ 
+             // Add the bytecode to the import stubs.
+-            let stub = handler.extend_if_error(disassemble_from_str(&bytecode).map_err(|err| err.into()))?;
++            let stub =
++                handler.extend_if_error(disassemble_from_str::<CurrentNetwork>(&bytecode).map_err(|err| err.into()))?;
+             import_stubs.insert(Symbol::intern(&program_name), stub);
+ 
+             // Hash the ast files.
+diff --git a/compiler/compiler/tests/execute.rs b/compiler/compiler/tests/execute.rs
+index a6fe10aeb3..2b1f9ed19a 100644
+--- a/compiler/compiler/tests/execute.rs
++++ b/compiler/compiler/tests/execute.rs
+@@ -184,7 +184,8 @@ fn run_test(test: Test, handler: &Handler, buf: &BufferEmitter) -> Result<Value,
+             }
+ 
+             // Add the bytecode to the import stubs.
+-            let stub = handler.extend_if_error(disassemble_from_str(&bytecode).map_err(|err| err.into()))?;
++            let stub =
++                handler.extend_if_error(disassemble_from_str::<CurrentNetwork>(&bytecode).map_err(|err| err.into()))?;
+             import_stubs.insert(Symbol::intern(&program_name), stub);
+ 
+             // Hash the ast files.
+diff --git a/compiler/compiler/tests/utilities/mod.rs b/compiler/compiler/tests/utilities/mod.rs
+index 91f1f36da1..3eeab76f6d 100644
+--- a/compiler/compiler/tests/utilities/mod.rs
++++ b/compiler/compiler/tests/utilities/mod.rs
+@@ -156,7 +156,7 @@ pub fn new_compiler(
+     main_file_path: PathBuf,
+     compiler_options: Option<CompilerOptions>,
+     import_stubs: IndexMap<Symbol, Stub>,
+-) -> Compiler<'_> {
++) -> Compiler<'_, CurrentNetwork> {
+     let output_dir = PathBuf::from("/tmp/output/");
+     fs::create_dir_all(output_dir.clone()).unwrap();
+ 
+@@ -178,7 +178,7 @@ pub fn parse_program<'a>(
+     cwd: Option<PathBuf>,
+     compiler_options: Option<CompilerOptions>,
+     import_stubs: IndexMap<Symbol, Stub>,
+-) -> Result<Compiler<'a>, LeoError> {
++) -> Result<Compiler<'a, CurrentNetwork>, LeoError> {
+     let mut compiler = new_compiler(
+         program_name,
+         handler,
+@@ -255,7 +255,7 @@ pub fn temp_dir() -> PathBuf {
+     tempfile::tempdir().expect("Failed to open temporary directory").into_path()
+ }
+ 
+-pub fn compile_and_process<'a>(parsed: &'a mut Compiler<'a>) -> Result<String, LeoError> {
++pub fn compile_and_process<'a>(parsed: &'a mut Compiler<'a, CurrentNetwork>) -> Result<String, LeoError> {
+     parsed.add_import_stubs()?;
+ 
+     let st = parsed.symbol_table_pass()?;
+diff --git a/compiler/parser/examples/parser.rs b/compiler/parser/examples/parser.rs
+index d309a5216e..8616f9674e 100644
+--- a/compiler/parser/examples/parser.rs
++++ b/compiler/parser/examples/parser.rs
+@@ -26,6 +26,8 @@ use std::{
+     path::{Path, PathBuf},
+ };
+ 
++type CurrentNetwork = snarkvm::prelude::MainnetV0;
++
+ #[derive(Debug, Parser)]
+ #[clap(name = "leo parser", about = "Parse Leo AST and store it as a JSON")]
+ struct Opt {
+@@ -48,7 +50,7 @@ fn main() -> Result<(), String> {
+ 
+         Handler::with(|h| {
+             let node_builder = NodeBuilder::default();
+-            let ast = leo_parser::parse_ast(h, &node_builder, &code.src, code.start_pos)?;
++            let ast = leo_parser::parse_ast::<CurrentNetwork>(h, &node_builder, &code.src, code.start_pos)?;
+             let json = Ast::to_json_string(&ast)?;
+             println!("{json}");
+             Ok(json)
+diff --git a/compiler/parser/src/lib.rs b/compiler/parser/src/lib.rs
+index 4a9470b08c..abe8a9a928 100644
+--- a/compiler/parser/src/lib.rs
++++ b/compiler/parser/src/lib.rs
+@@ -34,10 +34,17 @@ pub use parser::*;
+ use leo_ast::{Ast, NodeBuilder};
+ use leo_errors::{emitter::Handler, Result};
+ 
++use snarkvm::prelude::Network;
++
+ #[cfg(test)]
+ mod test;
+ 
+ /// Creates a new AST from a given file path and source code text.
+-pub fn parse_ast(handler: &Handler, node_builder: &NodeBuilder, source: &str, start_pos: BytePos) -> Result<Ast> {
+-    Ok(Ast::new(parser::parse(handler, node_builder, source, start_pos)?))
++pub fn parse_ast<N: Network>(
++    handler: &Handler,
++    node_builder: &NodeBuilder,
++    source: &str,
++    start_pos: BytePos,
++) -> Result<Ast> {
++    Ok(Ast::new(parse::<N>(handler, node_builder, source, start_pos)?))
+ }
+diff --git a/compiler/parser/src/parser/context.rs b/compiler/parser/src/parser/context.rs
+index 90db26a4b2..8639412447 100644
+--- a/compiler/parser/src/parser/context.rs
++++ b/compiler/parser/src/parser/context.rs
+@@ -20,11 +20,13 @@ use leo_ast::*;
+ use leo_errors::{emitter::Handler, ParserError, ParserWarning, Result};
+ use leo_span::{Span, Symbol};
+ 
+-use std::{fmt::Display, mem};
++use snarkvm::prelude::Network;
++
++use std::{fmt::Display, marker::PhantomData, mem};
+ 
+ /// Stores a program in tokenized format plus additional context.
+ /// May be converted into a [`Program`] AST by parsing all tokens.
+-pub(crate) struct ParserContext<'a> {
++pub(crate) struct ParserContext<'a, N: Network> {
+     /// Handler used to side-channel emit errors from the parser.
+     pub(crate) handler: &'a Handler,
+     /// Counter used to generate unique node ids.
+@@ -41,12 +43,14 @@ pub(crate) struct ParserContext<'a> {
+     pub(crate) disallow_struct_construction: bool,
+     /// The name of the program being parsed.
+     pub(crate) program_name: Option<Symbol>,
++    // Allows the parser to be generic over the network.
++    phantom: PhantomData<N>,
+ }
+ 
+ /// Dummy span used to appease borrow checker.
+ const DUMMY_EOF: SpannedToken = SpannedToken { token: Token::Eof, span: Span::dummy() };
+ 
+-impl<'a> ParserContext<'a> {
++impl<'a, N: Network> ParserContext<'a, N> {
+     /// Returns a new [`ParserContext`] type given a vector of tokens.
+     pub fn new(handler: &'a Handler, node_builder: &'a NodeBuilder, mut tokens: Vec<SpannedToken>) -> Self {
+         // Strip out comments.
+@@ -63,6 +67,7 @@ impl<'a> ParserContext<'a> {
+             token,
+             tokens,
+             program_name: None,
++            phantom: Default::default(),
+         };
+         p.bump();
+         p
+diff --git a/compiler/parser/src/parser/expression.rs b/compiler/parser/src/parser/expression.rs
+index c8ae9f5c9e..9da915b4c0 100644
+--- a/compiler/parser/src/parser/expression.rs
++++ b/compiler/parser/src/parser/expression.rs
+@@ -18,7 +18,7 @@ use super::*;
+ use leo_errors::{ParserError, Result};
+ 
+ use leo_span::sym;
+-use snarkvm::console::{account::Address, network::MainnetV0};
++use snarkvm::console::{account::Address, network::Network};
+ 
+ const INT_TYPES: &[Token] = &[
+     Token::I8,
+@@ -36,7 +36,7 @@ const INT_TYPES: &[Token] = &[
+     Token::Scalar,
+ ];
+ 
+-impl ParserContext<'_> {
++impl<N: Network> ParserContext<'_, N> {
+     /// Returns an [`Expression`] AST node if the next token is an expression.
+     /// Includes struct init expressions.
+     pub(crate) fn parse_expression(&mut self) -> Result<Expression> {
+@@ -769,7 +769,7 @@ impl ParserContext<'_> {
+             Token::True => Expression::Literal(Literal::Boolean(true, span, self.node_builder.next_id())),
+             Token::False => Expression::Literal(Literal::Boolean(false, span, self.node_builder.next_id())),
+             Token::AddressLit(address_string) => {
+-                if address_string.parse::<Address<MainnetV0>>().is_err() {
++                if address_string.parse::<Address<N>>().is_err() {
+                     self.emit_err(ParserError::invalid_address_lit(&address_string, span));
+                 }
+                 Expression::Literal(Literal::Address(address_string, span, self.node_builder.next_id()))
+diff --git a/compiler/parser/src/parser/file.rs b/compiler/parser/src/parser/file.rs
+index 0795207a7f..fe202aee20 100644
+--- a/compiler/parser/src/parser/file.rs
++++ b/compiler/parser/src/parser/file.rs
+@@ -18,7 +18,7 @@ use super::*;
+ 
+ use leo_errors::{ParserError, Result};
+ 
+-impl ParserContext<'_> {
++impl<N: Network> ParserContext<'_, N> {
+     /// Returns a [`Program`] AST if all tokens can be consumed and represent a valid Leo program.
+     pub fn parse_program(&mut self) -> Result<Program> {
+         let mut imports = IndexMap::new();
+diff --git a/compiler/parser/src/parser/mod.rs b/compiler/parser/src/parser/mod.rs
+index b906c66c69..7a6ee0d571 100644
+--- a/compiler/parser/src/parser/mod.rs
++++ b/compiler/parser/src/parser/mod.rs
+@@ -23,10 +23,11 @@ use crate::{tokenizer::*, Token};
+ 
+ use leo_ast::*;
+ use leo_errors::{emitter::Handler, Result};
+-use leo_span::Span;
++use leo_span::{span::BytePos, Span};
++
++use snarkvm::prelude::Network;
+ 
+ use indexmap::IndexMap;
+-use leo_span::span::BytePos;
+ use std::unreachable;
+ 
+ mod context;
+@@ -38,8 +39,13 @@ mod statement;
+ pub(super) mod type_;
+ 
+ /// Creates a new program from a given file path and source code text.
+-pub fn parse(handler: &Handler, node_builder: &NodeBuilder, source: &str, start_pos: BytePos) -> Result<Program> {
+-    let mut tokens = ParserContext::new(handler, node_builder, crate::tokenize(source, start_pos)?);
++pub fn parse<N: Network>(
++    handler: &Handler,
++    node_builder: &NodeBuilder,
++    source: &str,
++    start_pos: BytePos,
++) -> Result<Program> {
++    let mut tokens = ParserContext::<N>::new(handler, node_builder, crate::tokenize(source, start_pos)?);
+ 
+     tokens.parse_program()
+ }
+diff --git a/compiler/parser/src/parser/statement.rs b/compiler/parser/src/parser/statement.rs
+index fa7d7ab845..fa11c0fc5c 100644
+--- a/compiler/parser/src/parser/statement.rs
++++ b/compiler/parser/src/parser/statement.rs
+@@ -36,7 +36,7 @@ const ASSIGN_TOKENS: &[Token] = &[
+     Token::BitXorAssign,
+ ];
+ 
+-impl ParserContext<'_> {
++impl<N: Network> ParserContext<'_, N> {
+     /// Returns a [`Statement`] AST node if the next tokens represent a statement.
+     pub(crate) fn parse_statement(&mut self) -> Result<Statement> {
+         match &self.token.token {
+diff --git a/compiler/parser/src/parser/type_.rs b/compiler/parser/src/parser/type_.rs
+index 5b7f380e4d..fe57d57cf6 100644
+--- a/compiler/parser/src/parser/type_.rs
++++ b/compiler/parser/src/parser/type_.rs
+@@ -39,7 +39,7 @@ pub(super) const TYPE_TOKENS: &[Token] = &[
+     Token::U128,
+ ];
+ 
+-impl ParserContext<'_> {
++impl<N: Network> ParserContext<'_, N> {
+     /// Returns a [`IntegerType`] AST node if the given token is a supported integer type, or [`None`].
+     pub(super) fn token_to_int_type(token: &Token) -> Option<IntegerType> {
+         Some(match token {
+diff --git a/compiler/parser/src/test.rs b/compiler/parser/src/test.rs
+index 9d9bb420d9..f83f3ebb25 100644
+--- a/compiler/parser/src/test.rs
++++ b/compiler/parser/src/test.rs
+@@ -31,6 +31,8 @@ use serde::Serialize;
+ use serde_yaml::Value;
+ use tokenizer::Token;
+ 
++type CurrentNetwork = snarkvm::prelude::MainnetV0;
++
+ // TODO: Enable parser warnings for passing tests
+ 
+ struct TokenNamespace;
+@@ -49,7 +51,7 @@ impl Namespace for TokenNamespace {
+     }
+ }
+ 
+-fn not_fully_consumed(tokens: &mut ParserContext) -> Result<(), String> {
++fn not_fully_consumed(tokens: &mut ParserContext<CurrentNetwork>) -> Result<(), String> {
+     if !tokens.has_next() {
+         return Ok(());
+     }
+@@ -64,7 +66,7 @@ fn not_fully_consumed(tokens: &mut ParserContext) -> Result<(), String> {
+ 
+ fn with_handler<T>(
+     tokens: Vec<SpannedToken>,
+-    logic: impl FnOnce(&mut ParserContext<'_>) -> Result<T, LeoError>,
++    logic: impl FnOnce(&mut ParserContext<'_, CurrentNetwork>) -> Result<T, LeoError>,
+ ) -> Result<T, String> {
+     let (handler, buf) = Handler::new_with_buf();
+     let node_builder = NodeBuilder::default();
+diff --git a/compiler/passes/src/type_checking/check_expressions.rs b/compiler/passes/src/type_checking/check_expressions.rs
+index d0a7266a66..c4a8ac108d 100644
+--- a/compiler/passes/src/type_checking/check_expressions.rs
++++ b/compiler/passes/src/type_checking/check_expressions.rs
+@@ -28,7 +28,7 @@ use leo_ast::{
+     CoreFunction::FutureAwait,
+     Type::{Future, Tuple},
+ };
+-use snarkvm::console::network::{MainnetV0, Network};
++use snarkvm::console::network::Network;
+ use std::str::FromStr;
+ 
+ fn return_incorrect_type(t1: Option<Type>, t2: Option<Type>, expected: &Option<Type>) -> Option<Type> {
+@@ -45,7 +45,7 @@ fn return_incorrect_type(t1: Option<Type>, t2: Option<Type>, expected: &Option<T
+     }
+ }
+ 
+-impl<'a> ExpressionVisitor<'a> for TypeChecker<'a> {
++impl<'a, N: Network> ExpressionVisitor<'a> for TypeChecker<'a, N> {
+     type AdditionalInput = Option<Type>;
+     type Output = Option<Type>;
+ 
+@@ -313,27 +313,24 @@ impl<'a> ExpressionVisitor<'a> for TypeChecker<'a> {
+                 self.emit_err(TypeCheckerError::array_empty(input.span()));
+                 None
+             }
+-            // Check that the element types match.
+-            1..=MainnetV0::MAX_ARRAY_ELEMENTS => {
+-                let mut element_types = element_types.into_iter();
+-                // Note that this unwrap is safe because we already checked that the array is not empty.
+-                element_types.next().unwrap().map(|first_type| {
+-                    // Check that all elements have the same type.
+-                    for (element_type, element) in element_types.zip_eq(input.elements.iter().skip(1)) {
+-                        self.assert_type(&element_type, &first_type, element.span());
+-                    }
+-                    // Return the array type.
+-                    Type::Array(ArrayType::new(first_type, NonNegativeNumber::from(input.elements.len())))
+-                })
+-            }
+-            // The array cannot have more than `MAX_ARRAY_ELEMENTS` elements.
+             num_elements => {
+-                self.emit_err(TypeCheckerError::array_too_large(
+-                    num_elements,
+-                    MainnetV0::MAX_ARRAY_ELEMENTS,
+-                    input.span(),
+-                ));
+-                None
++                if num_elements <= N::MAX_ARRAY_ELEMENTS {
++                    // Check that the element types match.
++                    let mut element_types = element_types.into_iter();
++                    // Note that this unwrap is safe because we already checked that the array is not empty.
++                    element_types.next().unwrap().map(|first_type| {
++                        // Check that all elements have the same type.
++                        for (element_type, element) in element_types.zip_eq(input.elements.iter().skip(1)) {
++                            self.assert_type(&element_type, &first_type, element.span());
++                        }
++                        // Return the array type.
++                        Type::Array(ArrayType::new(first_type, NonNegativeNumber::from(input.elements.len())))
++                    })
++                } else {
++                    // The array cannot have more than `MAX_ARRAY_ELEMENTS` elements.
++                    self.emit_err(TypeCheckerError::array_too_large(num_elements, N::MAX_ARRAY_ELEMENTS, input.span()));
++                    None
++                }
+             }
+         };
+ 
+@@ -1001,7 +998,7 @@ impl<'a> ExpressionVisitor<'a> for TypeChecker<'a> {
+ 
+                     Some(Type::Tuple(expected_types.clone()))
+                 } else {
+-                    // Tuples must be explicitly typed in testnet3.
++                    // Tuples must be explicitly typed.
+                     self.emit_err(TypeCheckerError::invalid_tuple(input.span()));
+ 
+                     None
+diff --git a/compiler/passes/src/type_checking/check_program.rs b/compiler/passes/src/type_checking/check_program.rs
+index ee83c27dc9..5c1acd8484 100644
+--- a/compiler/passes/src/type_checking/check_program.rs
++++ b/compiler/passes/src/type_checking/check_program.rs
+@@ -25,12 +25,12 @@ use leo_errors::{TypeCheckerError, TypeCheckerWarning};
+ use leo_span::sym;
+ 
+ use leo_ast::Variant::{AsyncFunction, AsyncTransition};
+-use snarkvm::console::network::{MainnetV0, Network};
++use snarkvm::console::network::Network;
+ use std::collections::HashSet;
+ 
+ // TODO: Cleanup logic for tuples.
+ 
+-impl<'a> ProgramVisitor<'a> for TypeChecker<'a> {
++impl<'a, N: Network> ProgramVisitor<'a> for TypeChecker<'a, N> {
+     fn visit_program(&mut self, input: &'a Program) {
+         // Typecheck the program's stubs.
+         input.stubs.iter().for_each(|(symbol, stub)| {
+@@ -50,85 +50,6 @@ impl<'a> ProgramVisitor<'a> for TypeChecker<'a> {
+         input.program_scopes.values().for_each(|scope| self.visit_program_scope(scope));
+     }
+ 
+-    fn visit_stub(&mut self, input: &'a Stub) {
+-        // Set the current program name.
+-        self.scope_state.program_name = Some(input.stub_id.name.name);
+-
+-        // Cannot have constant declarations in stubs.
+-        if !input.consts.is_empty() {
+-            self.emit_err(TypeCheckerError::stubs_cannot_have_const_declarations(input.consts.first().unwrap().1.span));
+-        }
+-
+-        // Typecheck the program's structs.
+-        input.structs.iter().for_each(|(_, function)| self.visit_struct_stub(function));
+-
+-        // Typecheck the program's functions.
+-        input.functions.iter().for_each(|(_, function)| self.visit_function_stub(function));
+-    }
+-
+-    fn visit_function_stub(&mut self, input: &'a FunctionStub) {
+-        // Must not be an inline function
+-        if input.variant == Variant::Inline {
+-            self.emit_err(TypeCheckerError::stub_functions_must_not_be_inlines(input.span));
+-        }
+-
+-        // Lookup function metadata in the symbol table.
+-        // Note that this unwrap is safe since function metadata is stored in a prior pass.
+-        let function_index = self
+-            .symbol_table
+-            .borrow()
+-            .lookup_fn_symbol(Location::new(self.scope_state.program_name, input.identifier.name))
+-            .unwrap()
+-            .id;
+-
+-        // Enter the function's scope.
+-        self.enter_scope(function_index);
+-
+-        // Create a new child scope for the function's parameters and body.
+-        let scope_index = self.create_child_scope();
+-
+-        // Create future stubs.
+-        if input.variant == Variant::AsyncFunction {
+-            let finalize_input_map = &mut self.finalize_input_types;
+-            let resolved_inputs: Vec<Type> = input
+-                .input
+-                .iter()
+-                .map(|input_mode| {
+-                    match input_mode {
+-                        Internal(function_input) => match &function_input.type_ {
+-                            Future(f) => {
+-                                // Since we traverse stubs in post-order, we can assume that the corresponding finalize stub has already been traversed.
+-                                Future(FutureType::new(
+-                                    finalize_input_map.get(&f.location.clone().unwrap()).unwrap().clone(),
+-                                    f.location.clone(),
+-                                    true,
+-                                ))
+-                            }
+-                            _ => function_input.clone().type_,
+-                        },
+-                        External(_) => unreachable!("External inputs are not allowed in finalize outputs of stubs."),
+-                    }
+-                })
+-                .collect();
+-
+-            finalize_input_map
+-                .insert(Location::new(self.scope_state.program_name, input.identifier.name), resolved_inputs);
+-        }
+-
+-        // Query helper function to type check function parameters and outputs.
+-        self.check_function_signature(&Function::from(input.clone()));
+-
+-        // Exit the scope for the function's parameters and body.
+-        self.exit_scope(scope_index);
+-
+-        // Exit the function's scope.
+-        self.exit_scope(function_index);
+-    }
+-
+-    fn visit_struct_stub(&mut self, input: &'a Composite) {
+-        self.visit_struct(input);
+-    }
+-
+     fn visit_program_scope(&mut self, input: &'a ProgramScope) {
+         // Set the current program name.
+         self.scope_state.program_name = Some(input.program_id.name.name);
+@@ -152,9 +73,9 @@ impl<'a> ProgramVisitor<'a> for TypeChecker<'a> {
+         }
+ 
+         // Check that the number of mappings does not exceed the maximum.
+-        if mapping_count > MainnetV0::MAX_MAPPINGS {
++        if mapping_count > N::MAX_MAPPINGS {
+             self.emit_err(TypeCheckerError::too_many_mappings(
+-                MainnetV0::MAX_MAPPINGS,
++                N::MAX_MAPPINGS,
+                 input.program_id.name.span + input.program_id.network.span,
+             ));
+         }
+@@ -175,9 +96,9 @@ impl<'a> ProgramVisitor<'a> for TypeChecker<'a> {
+ 
+         // TODO: Need similar checks for structs (all in separate PR)
+         // Check that the number of transitions does not exceed the maximum.
+-        if transition_count > MainnetV0::MAX_FUNCTIONS {
++        if transition_count > N::MAX_FUNCTIONS {
+             self.emit_err(TypeCheckerError::too_many_transitions(
+-                MainnetV0::MAX_FUNCTIONS,
++                N::MAX_FUNCTIONS,
+                 input.program_id.name.span + input.program_id.network.span,
+             ));
+         }
+@@ -188,6 +109,22 @@ impl<'a> ProgramVisitor<'a> for TypeChecker<'a> {
+         }
+     }
+ 
++    fn visit_stub(&mut self, input: &'a Stub) {
++        // Set the current program name.
++        self.scope_state.program_name = Some(input.stub_id.name.name);
++
++        // Cannot have constant declarations in stubs.
++        if !input.consts.is_empty() {
++            self.emit_err(TypeCheckerError::stubs_cannot_have_const_declarations(input.consts.first().unwrap().1.span));
++        }
++
++        // Typecheck the program's structs.
++        input.structs.iter().for_each(|(_, function)| self.visit_struct_stub(function));
++
++        // Typecheck the program's functions.
++        input.functions.iter().for_each(|(_, function)| self.visit_function_stub(function));
++    }
++
+     fn visit_struct(&mut self, input: &'a Composite) {
+         // Check for conflicting struct/record member names.
+         let mut used = HashSet::new();
+@@ -424,4 +361,67 @@ impl<'a> ProgramVisitor<'a> for TypeChecker<'a> {
+             }
+         }
+     }
++
++    fn visit_function_stub(&mut self, input: &'a FunctionStub) {
++        // Must not be an inline function
++        if input.variant == Variant::Inline {
++            self.emit_err(TypeCheckerError::stub_functions_must_not_be_inlines(input.span));
++        }
++
++        // Lookup function metadata in the symbol table.
++        // Note that this unwrap is safe since function metadata is stored in a prior pass.
++        let function_index = self
++            .symbol_table
++            .borrow()
++            .lookup_fn_symbol(Location::new(self.scope_state.program_name, input.identifier.name))
++            .unwrap()
++            .id;
++
++        // Enter the function's scope.
++        self.enter_scope(function_index);
++
++        // Create a new child scope for the function's parameters and body.
++        let scope_index = self.create_child_scope();
++
++        // Create future stubs.
++        if input.variant == Variant::AsyncFunction {
++            let finalize_input_map = &mut self.finalize_input_types;
++            let resolved_inputs: Vec<Type> = input
++                .input
++                .iter()
++                .map(|input_mode| {
++                    match input_mode {
++                        Internal(function_input) => match &function_input.type_ {
++                            Future(f) => {
++                                // Since we traverse stubs in post-order, we can assume that the corresponding finalize stub has already been traversed.
++                                Future(FutureType::new(
++                                    finalize_input_map.get(&f.location.clone().unwrap()).unwrap().clone(),
++                                    f.location.clone(),
++                                    true,
++                                ))
++                            }
++                            _ => function_input.clone().type_,
++                        },
++                        External(_) => unreachable!("External inputs are not allowed in finalize outputs of stubs."),
++                    }
++                })
++                .collect();
++
++            finalize_input_map
++                .insert(Location::new(self.scope_state.program_name, input.identifier.name), resolved_inputs);
++        }
++
++        // Query helper function to type check function parameters and outputs.
++        self.check_function_signature(&Function::from(input.clone()));
++
++        // Exit the scope for the function's parameters and body.
++        self.exit_scope(scope_index);
++
++        // Exit the function's scope.
++        self.exit_scope(function_index);
++    }
++
++    fn visit_struct_stub(&mut self, input: &'a Composite) {
++        self.visit_struct(input);
++    }
+ }
+diff --git a/compiler/passes/src/type_checking/check_statements.rs b/compiler/passes/src/type_checking/check_statements.rs
+index 9a7fa9f4b2..e8b9e73ece 100644
+--- a/compiler/passes/src/type_checking/check_statements.rs
++++ b/compiler/passes/src/type_checking/check_statements.rs
+@@ -14,8 +14,8 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
++use super::*;
+ use crate::{ConditionalTreeNode, TypeChecker, VariableSymbol, VariableType};
+-use itertools::Itertools;
+ 
+ use leo_ast::{
+     Type::{Future, Tuple},
+@@ -23,7 +23,9 @@ use leo_ast::{
+ };
+ use leo_errors::TypeCheckerError;
+ 
+-impl<'a> StatementVisitor<'a> for TypeChecker<'a> {
++use itertools::Itertools;
++
++impl<'a, N: Network> StatementVisitor<'a> for TypeChecker<'a, N> {
+     fn visit_statement(&mut self, input: &'a Statement) {
+         // No statements can follow a return statement.
+         if self.scope_state.has_return {
+diff --git a/compiler/passes/src/type_checking/checker.rs b/compiler/passes/src/type_checking/checker.rs
+index 4217055ce3..ebe06924f6 100644
+--- a/compiler/passes/src/type_checking/checker.rs
++++ b/compiler/passes/src/type_checking/checker.rs
+@@ -36,7 +36,7 @@ use leo_ast::{
+ use leo_errors::{emitter::Handler, TypeCheckerError, TypeCheckerWarning};
+ use leo_span::{Span, Symbol};
+ 
+-use snarkvm::console::network::{MainnetV0, Network};
++use snarkvm::console::network::Network;
+ 
+ use crate::type_checking::{await_checker::AwaitChecker, scope_state::ScopeState};
+ use indexmap::IndexMap;
+@@ -47,9 +47,9 @@ use leo_ast::{
+     Type::{Future, Tuple},
+     Variant::AsyncTransition,
+ };
+-use std::cell::RefCell;
++use std::{cell::RefCell, marker::PhantomData};
+ 
+-pub struct TypeChecker<'a> {
++pub struct TypeChecker<'a, N: Network> {
+     /// The symbol table for the program.
+     pub(crate) symbol_table: RefCell<SymbolTable>,
+     /// A mapping from node IDs to their types.
+@@ -66,6 +66,8 @@ pub struct TypeChecker<'a> {
+     pub(crate) await_checker: AwaitChecker,
+     /// Mapping from async function name to the inferred input types.
+     pub(crate) finalize_input_types: IndexMap<Location, Vec<Type>>,
++    // Allows the type checker to be generic over the network.
++    phantom: PhantomData<N>,
+ }
+ 
+ const ADDRESS_TYPE: Type = Type::Address;
+@@ -112,7 +114,7 @@ const UNSIGNED_INT_TYPES: [Type; 5] = [
+ const MAGNITUDE_TYPES: [Type; 3] =
+     [Type::Integer(IntegerType::U8), Type::Integer(IntegerType::U16), Type::Integer(IntegerType::U32)];
+ 
+-impl<'a> TypeChecker<'a> {
++impl<'a, N: Network> TypeChecker<'a, N> {
+     /// Returns a new type checker given a symbol table and error handler.
+     pub fn new(
+         symbol_table: SymbolTable,
+@@ -134,6 +136,7 @@ impl<'a> TypeChecker<'a> {
+             scope_state: ScopeState::new(),
+             await_checker: AwaitChecker::new(max_depth, !disabled),
+             finalize_input_types: IndexMap::new(),
++            phantom: Default::default(),
+         }
+     }
+ 
+@@ -1197,9 +1200,10 @@ impl<'a> TypeChecker<'a> {
+                 // Check that the array length is valid.
+                 match array_type.length() {
+                     0 => self.emit_err(TypeCheckerError::array_empty(span)),
+-                    1..=MainnetV0::MAX_ARRAY_ELEMENTS => {}
+                     length => {
+-                        self.emit_err(TypeCheckerError::array_too_large(length, MainnetV0::MAX_ARRAY_ELEMENTS, span))
++                        if length > N::MAX_ARRAY_ELEMENTS {
++                            self.emit_err(TypeCheckerError::array_too_large(length, N::MAX_ARRAY_ELEMENTS, span))
++                        }
+                     }
+                 }
+                 // Check that the array element type is valid.
+diff --git a/compiler/passes/src/type_checking/mod.rs b/compiler/passes/src/type_checking/mod.rs
+index a7f1e54aa2..a752dfb430 100644
+--- a/compiler/passes/src/type_checking/mod.rs
++++ b/compiler/passes/src/type_checking/mod.rs
+@@ -14,14 +14,16 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
++mod await_checker;
++
+ pub mod check_expressions;
+ 
+ pub mod check_program;
+ 
+ pub mod check_statements;
+ 
+-mod await_checker;
+ pub mod checker;
++
+ mod scope_state;
+ 
+ pub use checker::*;
+@@ -31,12 +33,14 @@ use crate::{CallGraph, Pass, StructGraph, SymbolTable, TypeTable};
+ use leo_ast::{Ast, ProgramVisitor};
+ use leo_errors::{emitter::Handler, Result};
+ 
+-impl<'a> Pass for TypeChecker<'a> {
++use snarkvm::prelude::Network;
++
++impl<'a, N: Network> Pass for TypeChecker<'a, N> {
+     type Input = (&'a Ast, &'a Handler, SymbolTable, &'a TypeTable, usize, bool);
+     type Output = Result<(SymbolTable, StructGraph, CallGraph)>;
+ 
+     fn do_pass((ast, handler, st, tt, max_depth, await_checking): Self::Input) -> Self::Output {
+-        let mut visitor = TypeChecker::new(st, tt, handler, max_depth, await_checking);
++        let mut visitor = TypeChecker::<N>::new(st, tt, handler, max_depth, await_checking);
+         visitor.visit_program(ast.as_repr());
+         handler.last_err().map_err(|e| *e)?;
+ 
+diff --git a/docs/troubleshooting.md b/docs/troubleshooting.md
+index 9a825db50d..a87793bdf0 100644
+--- a/docs/troubleshooting.md
++++ b/docs/troubleshooting.md
+@@ -12,8 +12,8 @@ You will know that the download has failed if you see the following error messag
+ ```bash
+ ATTENTION - "genesis.prover.1c9bbe9" does not exist, downloading this file remotely and storing it locally. Please ensure "genesis.prover.1c9bbe9" is stored in "/Users/xxx/.aleo/resources/genesis.prover.1c9bbe9".
+ 
+-snarkvm_parameters::testnet3 - Downloading parameters...
+-snarkvm_parameters::testnet3 - thread `main` panicked at 'Failed to load proving key: Crate("curl::error", "Error { description: \"Transferred a partial file\", code: 18, extra: Some(\"transfer closed with 92197356 bytes remaining to read\") }")', /Users/xxx/.cargo/git/checkouts/snarkvm-f1160780ffe17de8/ea14990/parameters/src/testnet3/symbol_table_creation:95:9
++snarkvm_parameters::mainnet - Downloading parameters...
++snarkvm_parameters::mainnet - thread `main` panicked at 'Failed to load proving key: Crate("curl::error", "Error { description: \"Transferred a partial file\", code: 18, extra: Some(\"transfer closed with 92197356 bytes remaining to read\") }")', /Users/xxx/.cargo/git/checkouts/snarkvm-f1160780ffe17de8/ea14990/parameters/src/mainnet/symbol_table_creation:95:9
+ stack backtrace: 
+    0: backtrace::capture::Backtrace::new
+    1: leo::set_panic_hook::{{closure}}
+diff --git a/errors/src/errors/parser/parser_errors.rs b/errors/src/errors/parser/parser_errors.rs
+index ec25c7676e..c9c45114aa 100644
+--- a/errors/src/errors/parser/parser_errors.rs
++++ b/errors/src/errors/parser/parser_errors.rs
+@@ -211,7 +211,7 @@ create_messages!(
+     invalid_associated_access {
+         args: (name: impl Display),
+         msg: format!("Invalid associated access call to struct {name}."),
+-        help: Some("Double colon `::` syntax is only supported for core functions in Leo for testnet3.".to_string()),
++        help: Some("Double colon `::` syntax is only supported for core functions in Leo for mainnet.".to_string()),
+     }
+ 
+     @formatted
+diff --git a/errors/src/errors/utils/util_errors.rs b/errors/src/errors/utils/util_errors.rs
+index b5dacb4286..f91cfbd59f 100644
+--- a/errors/src/errors/utils/util_errors.rs
++++ b/errors/src/errors/utils/util_errors.rs
+@@ -114,7 +114,7 @@ create_messages!(
+     missing_network_error {
+         args: (dependency: impl Display),
+         msg: format!("Dependency {dependency} is missing a network specification"),
+-        help: Some("Add a network specification to the dependency in the `program.json` file. Example: `network: \"testnet3\"`".to_string()),
++        help: Some("Add a network specification to the dependency in the `program.json` file. Example: `network: \"mainnet\"`".to_string()),
+     }
+ 
+     @formatted
+diff --git a/examples/auction/.env b/examples/auction/.env
+index 8222b1f559..8cee101fe7 100644
+--- a/examples/auction/.env
++++ b/examples/auction/.env
+@@ -1,4 +1,4 @@
+ 
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkp5wvamYgK3WCAdpBQxZqQX8XnuN2u11Y6QprZTriVwZVc
+ 
+diff --git a/examples/auction/README.md b/examples/auction/README.md
+index 230ff14092..71e5e96249 100644
+--- a/examples/auction/README.md
++++ b/examples/auction/README.md
+@@ -44,8 +44,8 @@ When executing programs as different parties, be sure to set the `PRIVATE_KEY` f
+ See `./run.sh` for an example of how to run the program as different parties.
+ 
+ 
+-The [Aleo SDK](https://github.com/AleoHQ/leo/tree/testnet3) provides an interface for generating new accounts.
+-To generate a new account, navigate to [aleo.tools](https://aleo.tools).
++The [Aleo SDK](https://github.com/AleoHQ/leo/tree/mainnet) provides an interface for generating new accounts.
++To generate a new account, navigate to [provable.tools](https://provable.tools).
+ 
+ 
+ ### Providing inputs via the command line.
+diff --git a/examples/auction/run.sh b/examples/auction/run.sh
+index 560c345515..864d0d6e06 100755
+--- a/examples/auction/run.sh
++++ b/examples/auction/run.sh
+@@ -37,7 +37,7 @@ echo "
+ "
+ # Swap in the private key and address of the first bidder to .env.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkpG9Af9z5Ha4ejVyMCqVFXRKknSm8L1ELEwcc4htk9YhVK
+ " > .env
+ 
+@@ -59,7 +59,7 @@ leo run place_bid aleo1yzlta2q5h8t0fqe0v6dyh9mtv4aggd53fgzr068jvplqhvqsnvzq7pj2k
+ 
+ # Swap in the private key and address of the second bidder to .env.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkpAFshdsj2EqQzXh5zHceDapFWVCwR6wMCJFfkLYRKupug
+ " > .env
+ 
+@@ -81,7 +81,7 @@ leo run place_bid aleo1esqchvevwn7n5p84e735w4dtwt2hdtu4dpguwgwy94tsxm2p7qpqmlrta
+ 
+ # Swap in the private key and address of the auctioneer to .env.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkp5wvamYgK3WCAdpBQxZqQX8XnuN2u11Y6QprZTriVwZVc
+ " > .env
+ 
+diff --git a/examples/basic_bank/.env b/examples/basic_bank/.env
+index ca52526e34..1f6131a28f 100644
+--- a/examples/basic_bank/.env
++++ b/examples/basic_bank/.env
+@@ -1,4 +1,4 @@
+ 
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkpHtqVWT6fSHgUMNxsuVf7eaR6id2cj7TieKY1Z8CP5rCD
+ 
+diff --git a/examples/basic_bank/README.md b/examples/basic_bank/README.md
+index 56cb553918..67cab4c84d 100644
+--- a/examples/basic_bank/README.md
++++ b/examples/basic_bank/README.md
+@@ -45,8 +45,8 @@ When executing programs as different parties, be sure to set the `PRIVATE_KEY` f
+ See `./run.sh` for an example of how to run the program as different parties.
+ 
+ 
+-The [Aleo SDK](https://github.com/AleoHQ/leo/tree/testnet3) provides an interface for generating new accounts.
+-To generate a new account, navigate to [aleo.tools](https://aleo.tools).
++The [Aleo SDK](https://github.com/AleoHQ/leo/tree/mainnet) provides an interface for generating new accounts.
++To generate a new account, navigate to [provable.tools](https://provable.tools).
+ 
+ ### Providing inputs via the command line.
+ ```bash
+diff --git a/examples/basic_bank/run.sh b/examples/basic_bank/run.sh
+index e4894a008e..96ebf861a6 100755
+--- a/examples/basic_bank/run.sh
++++ b/examples/basic_bank/run.sh
+@@ -18,7 +18,7 @@ fi
+ 
+ # Swap in the private key and address of the bank to .env.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkpHtqVWT6fSHgUMNxsuVf7eaR6id2cj7TieKY1Z8CP5rCD
+ " > .env
+ 
+@@ -67,7 +67,7 @@ leo run issue aleo1zeklp6dd8e764spe74xez6f8w27dlua3w7hl4z2uln03re52egpsv46ngg 10
+ 
+ # Swap in the private key and address of the user to .env.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkp75cpr5NNQpVWc5mfsD9Uf2wg6XvHknf82iwB636q3rtc
+ " > .env
+ 
+@@ -161,7 +161,7 @@ echo "
+ 
+ # Swap in the private key and address of the bank to .env.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkpHtqVWT6fSHgUMNxsuVf7eaR6id2cj7TieKY1Z8CP5rCD
+ " > .env
+ 
+diff --git a/examples/battleship/.env b/examples/battleship/.env
+index 6cd3948e68..25045f5992 100644
+--- a/examples/battleship/.env
++++ b/examples/battleship/.env
+@@ -1,4 +1,4 @@
+ 
+-  NETWORK=testnet3
++  NETWORK=mainnet
+   PRIVATE_KEY=APrivateKey1zkp86FNGdKxjgAdgQZ967bqBanjuHkAaoRe19RK24ZCGsHH
+   
+diff --git a/examples/battleship/run.sh b/examples/battleship/run.sh
+index 8c8ef6b1c5..43d903a5f9 100755
+--- a/examples/battleship/run.sh
++++ b/examples/battleship/run.sh
+@@ -17,7 +17,7 @@ echo "
+ "
+ 
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkpGKaJY47BXb6knSqmT3JZnBUEGBDFAWz2nMVSsjwYpJmm
+ " > .env
+ 
+@@ -67,7 +67,7 @@ echo "
+ "
+ (
+   echo "
+-  NETWORK=testnet3
++  NETWORK=mainnet
+   PRIVATE_KEY=APrivateKey1zkp86FNGdKxjgAdgQZ967bqBanjuHkAaoRe19RK24ZCGsHH
+   " > .env
+ 
+@@ -115,7 +115,7 @@ echo "
+ "
+ (
+   echo "
+-  NETWORK=testnet3
++  NETWORK=mainnet
+   PRIVATE_KEY=APrivateKey1zkpGKaJY47BXb6knSqmT3JZnBUEGBDFAWz2nMVSsjwYpJmm
+   " > .env
+ 
+@@ -151,7 +151,7 @@ echo "
+ (
+ 
+   echo "
+-  NETWORK=testnet3
++  NETWORK=mainnet
+   PRIVATE_KEY=APrivateKey1zkp86FNGdKxjgAdgQZ967bqBanjuHkAaoRe19RK24ZCGsHH
+   " > .env
+ 
+@@ -186,7 +186,7 @@ echo "
+ "
+ (
+   echo "
+-  NETWORK=testnet3
++  NETWORK=mainnet
+   PRIVATE_KEY=APrivateKey1zkpGKaJY47BXb6knSqmT3JZnBUEGBDFAWz2nMVSsjwYpJmm
+   " > .env
+ 
+@@ -222,7 +222,7 @@ echo "
+ (
+ 
+   echo "
+-  NETWORK=testnet3
++  NETWORK=mainnet
+   PRIVATE_KEY=APrivateKey1zkp86FNGdKxjgAdgQZ967bqBanjuHkAaoRe19RK24ZCGsHH
+   " > .env
+ 
+diff --git a/examples/bubblesort/.env b/examples/bubblesort/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/bubblesort/.env
++++ b/examples/bubblesort/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/core/.env b/examples/core/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/core/.env
++++ b/examples/core/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/fibonacci/.env b/examples/fibonacci/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/fibonacci/.env
++++ b/examples/fibonacci/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/groups/.env b/examples/groups/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/groups/.env
++++ b/examples/groups/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/hackers-delight/ntzdebruijn/.env b/examples/hackers-delight/ntzdebruijn/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/hackers-delight/ntzdebruijn/.env
++++ b/examples/hackers-delight/ntzdebruijn/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/hackers-delight/ntzgaudet/.env b/examples/hackers-delight/ntzgaudet/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/hackers-delight/ntzgaudet/.env
++++ b/examples/hackers-delight/ntzgaudet/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/hackers-delight/ntzloops/.env b/examples/hackers-delight/ntzloops/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/hackers-delight/ntzloops/.env
++++ b/examples/hackers-delight/ntzloops/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/hackers-delight/ntzmasks/.env b/examples/hackers-delight/ntzmasks/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/hackers-delight/ntzmasks/.env
++++ b/examples/hackers-delight/ntzmasks/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/hackers-delight/ntzreisers/.env b/examples/hackers-delight/ntzreisers/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/hackers-delight/ntzreisers/.env
++++ b/examples/hackers-delight/ntzreisers/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/hackers-delight/ntzseals/.env b/examples/hackers-delight/ntzseals/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/hackers-delight/ntzseals/.env
++++ b/examples/hackers-delight/ntzseals/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/hackers-delight/ntzsearchtree/.env b/examples/hackers-delight/ntzsearchtree/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/hackers-delight/ntzsearchtree/.env
++++ b/examples/hackers-delight/ntzsearchtree/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/hackers-delight/ntzsmallvals/.env b/examples/hackers-delight/ntzsmallvals/.env
+index 69ded9e8c4..e01e56c78a 100644
+--- a/examples/hackers-delight/ntzsmallvals/.env
++++ b/examples/hackers-delight/ntzsmallvals/.env
+@@ -1,3 +1,3 @@
+ 
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/helloworld/.env b/examples/helloworld/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/helloworld/.env
++++ b/examples/helloworld/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/interest/.env b/examples/interest/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/interest/.env
++++ b/examples/interest/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/lottery/.env b/examples/lottery/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/lottery/.env
++++ b/examples/lottery/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/message/.env b/examples/message/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/message/.env
++++ b/examples/message/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/simple_token/.env b/examples/simple_token/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/simple_token/.env
++++ b/examples/simple_token/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/tictactoe/.env b/examples/tictactoe/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/tictactoe/.env
++++ b/examples/tictactoe/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/token/.env b/examples/token/.env
+index e86f465a56..5c2ddd82b1 100644
+--- a/examples/token/.env
++++ b/examples/token/.env
+@@ -1,4 +1,4 @@
+ 
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkp1w8PTxrRgGfAtfKUSq43iQyVbdQHfhGbiNPEg2LVSEXR
+ 
+diff --git a/examples/token/run.sh b/examples/token/run.sh
+index 45fdc91936..9d244bb68a 100755
+--- a/examples/token/run.sh
++++ b/examples/token/run.sh
+@@ -18,7 +18,7 @@ fi
+ 
+ # Swap in the private key of Alice.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkp1w8PTxrRgGfAtfKUSq43iQyVbdQHfhGbiNPEg2LVSEXR
+ " > .env
+ 
+@@ -52,7 +52,7 @@ leo run mint_public aleo13ssze66adjjkt795z9u5wpq8h6kn0y2657726h4h3e3wfnez4vqsm30
+ 
+ # Swap in the private key of Bob.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkpFo72g7N9iFt3JzzeG8CqsS5doAiXyFvNCgk2oHvjRCzF
+ " > .env
+ 
+@@ -86,7 +86,7 @@ leo run mint_private aleo17vy26rpdhqx4598y5gp7nvaa9rk7tnvl6ufhvvf4calsrrqdaqyshd
+ 
+ # Swap in the private key of Alice.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkp1w8PTxrRgGfAtfKUSq43iQyVbdQHfhGbiNPEg2LVSEXR
+ " > .env
+ 
+@@ -120,7 +120,7 @@ leo run transfer_public aleo17vy26rpdhqx4598y5gp7nvaa9rk7tnvl6ufhvvf4calsrrqdaqy
+ 
+ # Swap in the private key of Bob.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkpFo72g7N9iFt3JzzeG8CqsS5doAiXyFvNCgk2oHvjRCzF
+ " > .env
+ 
+@@ -158,7 +158,7 @@ leo run transfer_private "{
+ 
+ # Swap in the private key of Alice.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkp1w8PTxrRgGfAtfKUSq43iQyVbdQHfhGbiNPEg2LVSEXR
+ " > .env
+ 
+@@ -193,7 +193,7 @@ leo run transfer_public_to_private aleo17vy26rpdhqx4598y5gp7nvaa9rk7tnvl6ufhvvf4
+ 
+ # Swap in the private key of Bob.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkpFo72g7N9iFt3JzzeG8CqsS5doAiXyFvNCgk2oHvjRCzF
+ " > .env
+ 
+@@ -234,6 +234,6 @@ leo run transfer_private_to_public "{
+ # Swap in the private key of Alice.
+ # This is done to ensure that program.json is the same after every execution of ./run.sh.
+ echo "
+-NETWORK=testnet3
++NETWORK=mainnet
+ PRIVATE_KEY=APrivateKey1zkp1w8PTxrRgGfAtfKUSq43iQyVbdQHfhGbiNPEg2LVSEXR
+ " > .env
+diff --git a/examples/twoadicity/.env b/examples/twoadicity/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/twoadicity/.env
++++ b/examples/twoadicity/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/examples/vote/.env b/examples/vote/.env
+index 8e588d2d11..71372dab5b 100644
+--- a/examples/vote/.env
++++ b/examples/vote/.env
+@@ -1,2 +1,2 @@
+-NETWORK=testnet3
+-PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+\ No newline at end of file
++NETWORK=mainnet
++PRIVATE_KEY=APrivateKey1zkpBvXdKZKaXXcLUnwAVFCQNp41jrX6JqTuJo1JShfPoRfx
+diff --git a/leo/cli/cli.rs b/leo/cli/cli.rs
+index 631ee5063e..109218015f 100644
+--- a/leo/cli/cli.rs
++++ b/leo/cli/cli.rs
+@@ -201,7 +201,7 @@ mod tests {
+         });
+ 
+         // TODO: Clear tmp directory
+-        // let registry = temp_dir.join(".aleo").join("registry").join("testnet3");
++        // let registry = temp_dir.join(".aleo").join("registry").join("mainnet");
+         // std::fs::remove_dir_all(registry).unwrap();
+         // std::fs::remove_dir_all(project_directory).unwrap();
+     }
+@@ -411,7 +411,7 @@ function external_nested_function:
+                 command: Add {
+                     name: "nested_example_layer_0".to_string(),
+                     local: None,
+-                    network: "testnet3".to_string(),
++                    network: "mainnet".to_string(),
+                     clear: false,
+                 },
+             },
+@@ -424,7 +424,7 @@ function external_nested_function:
+         });
+ 
+         // Add custom `.aleo` directory
+-        let registry = temp_dir.join(".aleo").join("registry").join("testnet3");
++        let registry = temp_dir.join(".aleo").join("registry").join("mainnet");
+         std::fs::create_dir_all(&registry).unwrap();
+         std::fs::write(registry.join("nested_example_layer_0.aleo"), nested_example_layer_0).unwrap();
+         std::fs::write(registry.join("nested_example_layer_1.aleo"), nested_example_layer_1).unwrap();
+@@ -505,7 +505,7 @@ program child.aleo {
+                 command: Add {
+                     name: "parent".to_string(),
+                     local: Some(parent_directory.clone()),
+-                    network: "testnet3".to_string(),
++                    network: "mainnet".to_string(),
+                     clear: false,
+                 },
+             },
+@@ -520,7 +520,7 @@ program child.aleo {
+                 command: Add {
+                     name: "child".to_string(),
+                     local: Some(child_directory.clone()),
+-                    network: "testnet3".to_string(),
++                    network: "mainnet".to_string(),
+                     clear: false,
+                 },
+             },
+@@ -535,7 +535,7 @@ program child.aleo {
+                 command: Add {
+                     name: "child".to_string(),
+                     local: Some(child_directory.clone()),
+-                    network: "testnet3".to_string(),
++                    network: "mainnet".to_string(),
+                     clear: false,
+                 },
+             },
+@@ -659,7 +659,7 @@ program outer.aleo {
+                 command: Add {
+                     name: "inner_1".to_string(),
+                     local: Some(inner_1_directory.clone()),
+-                    network: "testnet3".to_string(),
++                    network: "mainnet".to_string(),
+                     clear: false,
+                 },
+             },
+@@ -674,7 +674,7 @@ program outer.aleo {
+                 command: Add {
+                     name: "inner_2".to_string(),
+                     local: Some(inner_2_directory.clone()),
+-                    network: "testnet3".to_string(),
++                    network: "mainnet".to_string(),
+                     clear: false,
+                 },
+             },
+@@ -828,7 +828,7 @@ program outer_2.aleo {
+                 command: Add {
+                     name: "inner_1".to_string(),
+                     local: Some(inner_1_directory.clone()),
+-                    network: "testnet3".to_string(),
++                    network: "mainnet".to_string(),
+                     clear: false,
+                 },
+             },
+@@ -843,7 +843,7 @@ program outer_2.aleo {
+                 command: Add {
+                     name: "inner_2".to_string(),
+                     local: Some(inner_2_directory.clone()),
+-                    network: "testnet3".to_string(),
++                    network: "mainnet".to_string(),
+                     clear: false,
+                 },
+             },
+diff --git a/leo/cli/commands/account.rs b/leo/cli/commands/account.rs
+index 471e21bf98..20d1752786 100644
+--- a/leo/cli/commands/account.rs
++++ b/leo/cli/commands/account.rs
+@@ -214,7 +214,7 @@ fn print_keys(private_key: PrivateKey<CurrentNetwork>, discreet: bool) -> Result
+ 
+ // Write the network and private key to the .env file in project directory.
+ fn write_to_env_file(private_key: PrivateKey<CurrentNetwork>, ctx: &Context) -> Result<()> {
+-    let data = format!("NETWORK=testnet3\nPRIVATE_KEY={private_key}\n");
++    let data = format!("NETWORK=mainnet\nPRIVATE_KEY={private_key}\n");
+     let program_dir = ctx.dir()?;
+     Env::<CurrentNetwork>::from(data).write_to(&program_dir)?;
+     tracing::info!("✅ Private Key written to {}", program_dir.join(".env").display());
+diff --git a/leo/cli/commands/add.rs b/leo/cli/commands/add.rs
+index 46618b7cee..6ac1f27b59 100755
+--- a/leo/cli/commands/add.rs
++++ b/leo/cli/commands/add.rs
+@@ -15,7 +15,7 @@
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use super::*;
+-use leo_retriever::{Dependency, Location, Manifest, Network};
++use leo_retriever::{Dependency, Location, Manifest, NetworkName};
+ use std::path::PathBuf;
+ 
+ /// Add a new on-chain or local dependency to the current package.
+@@ -28,7 +28,7 @@ pub struct Add {
+     #[clap(short = 'l', long, help = "Path to local dependency")]
+     pub(crate) local: Option<PathBuf>,
+ 
+-    #[clap(short = 'n', long, help = "Name of the network to use", default_value = "testnet3")]
++    #[clap(short = 'n', long, help = "Name of the network to use", default_value = "mainnet")]
+     pub(crate) network: String,
+ 
+     #[clap(short = 'c', long, help = "Clear all previous dependencies.", default_value = "false")]
+@@ -113,7 +113,7 @@ impl Command for Add {
+             }
+             None => {
+                 tracing::info!("✅ Added network dependency to program `{name}` from network `{}`.", self.network);
+-                Dependency::new(name, Location::Network, Some(Network::from(&self.network)), None)
++                Dependency::new(name, Location::Network, Some(NetworkName::from(&self.network)), None)
+             }
+         });
+ 
+diff --git a/leo/cli/commands/build.rs b/leo/cli/commands/build.rs
+index 4a997f68fa..b4b1047727 100644
+--- a/leo/cli/commands/build.rs
++++ b/leo/cli/commands/build.rs
+@@ -23,10 +23,7 @@ use leo_package::{build::BuildDirectory, outputs::OutputsDirectory, source::Sour
+ use leo_retriever::Retriever;
+ use leo_span::Symbol;
+ 
+-use snarkvm::{
+-    package::Package,
+-    prelude::{MainnetV0, ProgramID},
+-};
++use snarkvm::{package::Package, prelude::ProgramID};
+ 
+ use indexmap::IndexMap;
+ use std::{
+@@ -34,8 +31,6 @@ use std::{
+     path::{Path, PathBuf},
+ };
+ 
+-type CurrentNetwork = MainnetV0;
+-
+ impl From<BuildOptions> for CompilerOptions {
+     fn from(options: BuildOptions) -> Self {
+         let mut out_options = Self {
+@@ -109,8 +104,9 @@ impl Command for Build {
+ 
+         // Retrieve all local dependencies in post order
+         let main_sym = Symbol::intern(&program_id.name().to_string());
+-        let mut retriever = Retriever::new(main_sym, &package_path, &home_path, self.options.endpoint.clone())
+-            .map_err(|err| UtilError::failed_to_retrieve_dependencies(err, Default::default()))?;
++        let mut retriever =
++            Retriever::<CurrentNetwork>::new(main_sym, &package_path, &home_path, self.options.endpoint.clone())
++                .map_err(|err| UtilError::failed_to_retrieve_dependencies(err, Default::default()))?;
+         let mut local_dependencies =
+             retriever.retrieve().map_err(|err| UtilError::failed_to_retrieve_dependencies(err, Default::default()))?;
+ 
+@@ -142,7 +138,7 @@ impl Command for Build {
+                 for file_path in local_source_files {
+                     compile_leo_file(
+                         file_path,
+-                        &ProgramID::<MainnetV0>::try_from(format!("{}.aleo", dependency))
++                        &ProgramID::<CurrentNetwork>::try_from(format!("{}.aleo", dependency))
+                             .map_err(|_| UtilError::snarkvm_error_building_program_id(Default::default()))?,
+                         &local_outputs_directory,
+                         &local_build_directory,
+@@ -186,7 +182,7 @@ impl Command for Build {
+ #[allow(clippy::too_many_arguments)]
+ fn compile_leo_file(
+     file_path: PathBuf,
+-    program_id: &ProgramID<MainnetV0>,
++    program_id: &ProgramID<CurrentNetwork>,
+     outputs: &Path,
+     build: &Path,
+     handler: &Handler,
+@@ -201,7 +197,7 @@ fn compile_leo_file(
+     aleo_file_path.push(format!("main.{}", program_id.network()));
+ 
+     // Create a new instance of the Leo compiler.
+-    let mut compiler = Compiler::new(
++    let mut compiler = Compiler::<CurrentNetwork>::new(
+         program_name.clone(),
+         program_id.network().to_string(),
+         handler,
+diff --git a/leo/cli/commands/mod.rs b/leo/cli/commands/mod.rs
+index b4d7dc92c4..ee457f71c9 100644
+--- a/leo/cli/commands/mod.rs
++++ b/leo/cli/commands/mod.rs
+@@ -174,7 +174,7 @@ pub struct BuildOptions {
+ pub struct FeeOptions {
+     #[clap(long, help = "Priority fee in microcredits. Defaults to 0.", default_value = "0")]
+     pub(crate) priority_fee: String,
+-    #[clap(long, help = "Network to broadcast to. Defaults to testnet3.", default_value = "testnet3")]
++    #[clap(long, help = "Network to broadcast to. Defaults to mainnet.", default_value = "mainnet")]
+     pub(crate) network: String,
+     #[clap(long, help = "Private key to authorize fee expenditure.")]
+     pub(crate) private_key: Option<String>,
+diff --git a/leo/package/src/root/env.rs b/leo/package/src/root/env.rs
+index a1e64ee70a..f49f958e71 100644
+--- a/leo/package/src/root/env.rs
++++ b/leo/package/src/root/env.rs
+@@ -64,6 +64,6 @@ impl<N: Network> Env<N> {
+         // Initialize a new development private key.
+         let private_key = PrivateKey::<N>::new(rng)?;
+ 
+-        Ok(format!("NETWORK=testnet3\nPRIVATE_KEY={private_key}\n"))
++        Ok(format!("NETWORK=mainnet\nPRIVATE_KEY={private_key}\n"))
+     }
+ }
+diff --git a/tests/test-framework/Cargo.toml b/tests/test-framework/Cargo.toml
+index 5461a5fc9d..93fe53921e 100644
+--- a/tests/test-framework/Cargo.toml
++++ b/tests/test-framework/Cargo.toml
+@@ -61,3 +61,6 @@ path = "../../compiler/span"
+ 
+ [dev-dependencies.criterion]
+ version = "0.5"
++
++[dev-dependencies.snarkvm]
++workspace = true
+diff --git a/tests/test-framework/benches/leo_compiler.rs b/tests/test-framework/benches/leo_compiler.rs
+index 3231dc8b4a..f2c9fcac35 100644
+--- a/tests/test-framework/benches/leo_compiler.rs
++++ b/tests/test-framework/benches/leo_compiler.rs
+@@ -28,6 +28,8 @@ use std::{
+     time::{Duration, Instant},
+ };
+ 
++type CurrentNetwork = snarkvm::prelude::MainnetV0;
++
+ /// An enum to represent the stage of the Compiler we are benchmarking.
+ enum BenchMode {
+     /// Benchmarks parsing.
+@@ -81,7 +83,7 @@ struct Sample {
+ }
+ 
+ /// A helper function to help create a Leo Compiler struct.
+-fn new_compiler(handler: &Handler) -> Compiler<'_> {
++fn new_compiler(handler: &Handler) -> Compiler<'_, CurrentNetwork> {
+     Compiler::new(
+         String::from("test"),
+         String::from("aleo"),
+@@ -142,7 +144,7 @@ impl Sample {
+     }
+ 
+     /// Benchmarks `logic(compiler)` where `compiler` is provided.
+-    fn bencher(&self, c: &mut Criterion, mode: &str, mut logic: impl FnMut(Compiler) -> Duration) {
++    fn bencher(&self, c: &mut Criterion, mode: &str, mut logic: impl FnMut(Compiler<CurrentNetwork>) -> Duration) {
+         c.bench_function(&format!("{mode} {}", self.name), |b| {
+             // Iter custom is used so we can use custom timings around the compiler stages.
+             // This way we can only time the necessary stage.
+@@ -156,7 +158,12 @@ impl Sample {
+ 
+     /// Benchmarks `logic(compiler)` where `compiler` is provided.
+     /// Parsing has already been done.
+-    fn bencher_after_parse(&self, c: &mut Criterion, mode: &str, mut logic: impl FnMut(Compiler) -> Duration) {
++    fn bencher_after_parse(
++        &self,
++        c: &mut Criterion,
++        mode: &str,
++        mut logic: impl FnMut(Compiler<CurrentNetwork>) -> Duration,
++    ) {
+         self.bencher(c, mode, |mut compiler| {
+             let (input, name) = self.data();
+             compiler.parse_program_from_string(input, name).expect("Failed to parse program");
+diff --git a/utils/disassembler/src/lib.rs b/utils/disassembler/src/lib.rs
+index 73023933cd..8abd0b72a1 100644
+--- a/utils/disassembler/src/lib.rs
++++ b/utils/disassembler/src/lib.rs
+@@ -14,16 +14,16 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
++use leo_ast::{Composite, FunctionStub, Identifier, Mapping, ProgramId, Stub};
++use leo_errors::UtilError;
++use leo_span::Symbol;
++
+ use snarkvm::{
+-    prelude::{Itertools, MainnetV0, Network},
++    prelude::{Itertools, Network},
+     synthesizer::program::{CommandTrait, InstructionTrait, Program, ProgramCore},
+ };
+-use std::str::FromStr;
+-type CurrentNetwork = MainnetV0;
+ 
+-use leo_ast::{Composite, FunctionStub, Identifier, Mapping, ProgramId, Stub};
+-use leo_errors::UtilError;
+-use leo_span::Symbol;
++use std::str::FromStr;
+ 
+ pub fn disassemble<N: Network, Instruction: InstructionTrait<N>, Command: CommandTrait<N>>(
+     program: ProgramCore<N, Instruction, Command>,
+@@ -86,8 +86,8 @@ pub fn disassemble<N: Network, Instruction: InstructionTrait<N>, Command: Comman
+     }
+ }
+ 
+-pub fn disassemble_from_str(program: &str) -> Result<Stub, UtilError> {
+-    match Program::<CurrentNetwork>::from_str(program) {
++pub fn disassemble_from_str<N: Network>(program: &str) -> Result<Stub, UtilError> {
++    match Program::<N>::from_str(program) {
+         Ok(p) => Ok(disassemble(p)),
+         Err(_) => Err(UtilError::snarkvm_parsing_error(Default::default())),
+     }
+@@ -97,10 +97,10 @@ pub fn disassemble_from_str(program: &str) -> Result<Stub, UtilError> {
+ mod tests {
+     use super::*;
+     use leo_span::symbol::create_session_if_not_set_then;
+-    use snarkvm::{prelude::MainnetV0, synthesizer::program::Program};
++    use snarkvm::synthesizer::program::Program;
+     use std::fs;
+ 
+-    type CurrentNetwork = MainnetV0;
++    type CurrentNetwork = snarkvm::prelude::MainnetV0;
+ 
+     #[test]
+     #[ignore]
+@@ -123,8 +123,8 @@ mod tests {
+     fn array_test() {
+         create_session_if_not_set_then(|_| {
+             let program_from_file =
+-                fs::read_to_string("../tmp/.aleo/registry/testnet3/zk_bitwise_stack_v0_0_2.aleo").unwrap();
+-            let _program = disassemble_from_str(&program_from_file).unwrap();
++                fs::read_to_string("../tmp/.aleo/registry/mainnet/zk_bitwise_stack_v0_0_2.aleo").unwrap();
++            let _program = disassemble_from_str::<CurrentNetwork>(&program_from_file).unwrap();
+         });
+     }
+ }
+diff --git a/utils/retriever/Cargo.toml b/utils/retriever/Cargo.toml
+index 34cffa7e2d..d2962ecf3c 100644
+--- a/utils/retriever/Cargo.toml
++++ b/utils/retriever/Cargo.toml
+@@ -18,6 +18,9 @@ license = "GPL-3.0"
+ edition = "2021"
+ rust-version = "1.69"
+ 
++[dependencies.snarkvm]
++workspace = true
++
+ [dependencies.leo-ast]
+ version = "1.11.0"
+ path = "../../compiler/ast"
+diff --git a/utils/retriever/src/lib.rs b/utils/retriever/src/lib.rs
+index 30d96ac295..1fba54335c 100644
+--- a/utils/retriever/src/lib.rs
++++ b/utils/retriever/src/lib.rs
+@@ -23,11 +23,15 @@ pub use program_context::*;
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+-    use aleo_std::aleo_dir;
+     use leo_span::{symbol::create_session_if_not_set_then, Symbol};
++
++    use aleo_std::aleo_dir;
++
+     use serial_test::serial;
+     use std::path::PathBuf;
+ 
++    type CurrentNetwork = snarkvm::prelude::MainnetV0;
++
+     #[test]
+     #[ignore]
+     #[serial]
+@@ -38,9 +42,13 @@ mod tests {
+         create_session_if_not_set_then(|_| {
+             let build_dir = PathBuf::from(BUILD_DIRECTORY);
+             let home_dir = PathBuf::from(HOME_DIRECTORY);
+-            let mut retriever =
+-                Retriever::new(Symbol::intern("nested"), &build_dir, &home_dir, "http://0.0.0.0:3030".to_string())
+-                    .expect("Failed to build retriever");
++            let mut retriever = Retriever::<CurrentNetwork>::new(
++                Symbol::intern("nested"),
++                &build_dir,
++                &home_dir,
++                "http://0.0.0.0:3030".to_string(),
++            )
++            .expect("Failed to build retriever");
+             retriever.retrieve().expect("failed to retrieve");
+             retriever.prepare_local(Symbol::intern("nested")).expect("failed to prepare local");
+             retriever.process_local(Symbol::intern("nested"), true).expect("failed to process local");
+@@ -57,9 +65,13 @@ mod tests {
+             let build_dir = PathBuf::from(BUILD_DIRECTORY);
+ 
+             println!("aleo_dir: {:?}", aleo_dir());
+-            let mut retriever =
+-                Retriever::new(Symbol::intern("nested"), &build_dir, &aleo_dir(), "http://0.0.0.0:3030".to_string())
+-                    .expect("Failed to build retriever");
++            let mut retriever = Retriever::<CurrentNetwork>::new(
++                Symbol::intern("nested"),
++                &build_dir,
++                &aleo_dir(),
++                "http://0.0.0.0:3030".to_string(),
++            )
++            .expect("Failed to build retriever");
+             retriever.retrieve().expect("failed to retrieve");
+             retriever.prepare_local(Symbol::intern("nested")).expect("failed to prepare local");
+             retriever.process_local(Symbol::intern("nested"), true).expect("failed to process local");
+@@ -76,9 +88,13 @@ mod tests {
+         create_session_if_not_set_then(|_| {
+             let build_dir = PathBuf::from(BUILD_DIRECTORY);
+             let home_dir = PathBuf::from(HOME_DIRECTORY);
+-            let mut retriever =
+-                Retriever::new(Symbol::intern("simple"), &build_dir, &home_dir, "http://0.0.0.0:3030".to_string())
+-                    .expect("Failed to build retriever");
++            let mut retriever = Retriever::<CurrentNetwork>::new(
++                Symbol::intern("simple"),
++                &build_dir,
++                &home_dir,
++                "http://0.0.0.0:3030".to_string(),
++            )
++            .expect("Failed to build retriever");
+             retriever.retrieve().expect("failed to retrieve");
+             retriever.prepare_local(Symbol::intern("simple")).expect("failed to prepare local");
+             retriever.process_local(Symbol::intern("simple"), true).expect("failed to process local");
+@@ -95,9 +111,13 @@ mod tests {
+         create_session_if_not_set_then(|_| {
+             let build_dir = PathBuf::from(BUILD_DIRECTORY);
+             let home_dir = PathBuf::from(HOME_DIRECTORY);
+-            let mut retriever =
+-                Retriever::new(Symbol::intern("local_test"), &build_dir, &home_dir, "http://0.0.0.0:3030".to_string())
+-                    .expect("Failed to build retriever");
++            let mut retriever = Retriever::<CurrentNetwork>::new(
++                Symbol::intern("local_test"),
++                &build_dir,
++                &home_dir,
++                "http://0.0.0.0:3030".to_string(),
++            )
++            .expect("Failed to build retriever");
+             let _deps = retriever.retrieve().expect("failed to retrieve");
+             retriever.prepare_local(Symbol::intern("nested")).expect("failed to prepare local");
+             // retriever.process_local(Symbol::intern("nested")).expect("failed to process local");
+diff --git a/utils/retriever/src/program_context/dependency.rs b/utils/retriever/src/program_context/dependency.rs
+index af0af1aacd..7634fe3db8 100644
+--- a/utils/retriever/src/program_context/dependency.rs
++++ b/utils/retriever/src/program_context/dependency.rs
+@@ -14,22 +14,23 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{Location, Network};
++use crate::{Location, NetworkName};
+ use leo_span::Symbol;
++
+ use serde::{Deserialize, Serialize};
+ use std::path::PathBuf;
+ 
+ // Information required to retrieve external program
+-#[derive(Debug, Clone, std::cmp::Eq, PartialEq, Hash, Serialize, Deserialize)]
++#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+ pub struct Dependency {
+     name: String,
+     location: Location,
+-    network: Option<Network>,
++    network: Option<NetworkName>,
+     path: Option<PathBuf>,
+ }
+ 
+ impl Dependency {
+-    pub fn new(name: String, location: Location, network: Option<Network>, path: Option<PathBuf>) -> Self {
++    pub fn new(name: String, location: Location, network: Option<NetworkName>, path: Option<PathBuf>) -> Self {
+         Self { name, location, network, path }
+     }
+ 
+@@ -41,7 +42,7 @@ impl Dependency {
+         &self.location
+     }
+ 
+-    pub fn network(&self) -> &Option<Network> {
++    pub fn network(&self) -> &Option<NetworkName> {
+         &self.network
+     }
+ 
+diff --git a/utils/retriever/src/program_context/lock_file_entry.rs b/utils/retriever/src/program_context/lock_file_entry.rs
+index 3540072ab0..2abf3d0840 100644
+--- a/utils/retriever/src/program_context/lock_file_entry.rs
++++ b/utils/retriever/src/program_context/lock_file_entry.rs
+@@ -14,14 +14,14 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use crate::{Location, Network, ProgramContext};
++use crate::{Location, NetworkName, ProgramContext};
+ use serde::{Deserialize, Serialize};
+ use std::path::PathBuf;
+ 
+ #[derive(Debug, Clone, Serialize, Deserialize)]
+ pub struct LockFileEntry {
+     name: String,
+-    network: Option<Network>,
++    network: Option<NetworkName>,
+     location: Location,
+     path: Option<PathBuf>,
+     checksum: String,
+@@ -42,7 +42,7 @@ impl From<&ProgramContext> for LockFileEntry {
+     fn from(context: &ProgramContext) -> Self {
+         LockFileEntry {
+             name: context.full_name().to_string(),
+-            network: context.network.clone(), // Direct access as per instruction
++            network: context.network, // Direct access as per instruction
+             location: context.location().clone(),
+             path: context.full_path.clone(), // Direct access as per instruction
+             checksum: context.checksum().to_string(),
+diff --git a/utils/retriever/src/program_context/mod.rs b/utils/retriever/src/program_context/mod.rs
+index ce56b532c9..2ff767d238 100644
+--- a/utils/retriever/src/program_context/mod.rs
++++ b/utils/retriever/src/program_context/mod.rs
+@@ -14,23 +14,28 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-pub mod network;
+-
+-use indexmap::IndexSet;
+-pub use network::*;
+-use sha2::{Digest, Sha256};
+-use std::path::{Path, PathBuf};
+ pub mod location;
+ pub use location::Location;
+-pub mod manifest;
+-pub use manifest::*;
++
+ pub mod dependency;
+ pub use dependency::*;
+-use leo_ast::Stub;
+-use leo_span::Symbol;
+ 
+ pub mod lock_file_entry;
+ pub use lock_file_entry::*;
++
++pub mod manifest;
++pub use manifest::*;
++
++pub mod network_name;
++pub use network_name::*;
++
++use leo_ast::Stub;
++use leo_span::Symbol;
++
++use indexmap::IndexSet;
++use sha2::{Digest, Sha256};
++use std::path::{Path, PathBuf};
++
+ use std::fmt::Write;
+ 
+ #[derive(Clone, Debug)]
+@@ -38,7 +43,7 @@ pub struct ProgramContext {
+     name: Symbol,
+     full_name: String,
+     location: Location,
+-    network: Option<Network>,
++    network: Option<NetworkName>,
+     path: Option<PathBuf>,
+     full_path: Option<PathBuf>,
+     compiled_file_path: Option<PathBuf>,
+@@ -76,7 +81,7 @@ impl ProgramContext {
+     }
+ 
+     // Method to extract 'network', panics if `None`. Only safe to access if location is 'Network'
+-    pub fn network(&self) -> &Network {
++    pub fn network(&self) -> &NetworkName {
+         self.network.as_ref().expect("ProgramContext network is None")
+     }
+ 
+@@ -172,7 +177,7 @@ impl From<Dependency> for ProgramContext {
+             name: Symbol::from(&dependency),
+             full_name: dependency.name().clone(),
+             location: dependency.location().clone(),
+-            network: dependency.network().clone(),
++            network: *dependency.network(),
+             path: dependency.path().clone(),
+             full_path: None,
+             compiled_file_path: None,
+diff --git a/utils/retriever/src/program_context/network.rs b/utils/retriever/src/program_context/network_name.rs
+similarity index 71%
+rename from utils/retriever/src/program_context/network.rs
+rename to utils/retriever/src/program_context/network_name.rs
+index b01a1c727b..ac623e60f7 100644
+--- a/utils/retriever/src/program_context/network.rs
++++ b/utils/retriever/src/program_context/network_name.rs
+@@ -18,29 +18,29 @@ use serde::{Deserialize, Serialize};
+ use std::fmt;
+ 
+ // Retrievable networks for an external program
+-#[derive(Debug, Clone, std::cmp::Eq, PartialEq, Hash, Serialize, Deserialize)]
+-pub enum Network {
+-    #[serde(rename = "testnet3")]
+-    Testnet3,
++#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize)]
++pub enum NetworkName {
++    #[serde(rename = "testnet")]
++    TestnetV0,
+     #[serde(rename = "mainnet")]
+-    Mainnet,
++    MainnetV0,
+ }
+ 
+-impl From<&String> for Network {
++impl From<&String> for NetworkName {
+     fn from(network: &String) -> Self {
+         match network.to_ascii_lowercase().as_str() {
+-            "testnet3" => Network::Testnet3,
+-            "mainnet" => Network::Mainnet,
++            "testnet" => NetworkName::TestnetV0,
++            "mainnet" => NetworkName::MainnetV0,
+             _ => panic!("Invalid network"),
+         }
+     }
+ }
+ 
+-impl fmt::Display for Network {
++impl fmt::Display for NetworkName {
+     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+         match self {
+-            Network::Testnet3 => write!(f, "testnet3"),
+-            Network::Mainnet => write!(f, "mainnet"),
++            NetworkName::TestnetV0 => write!(f, "testnet"),
++            NetworkName::MainnetV0 => write!(f, "mainnet"),
+         }
+     }
+ }
+diff --git a/utils/retriever/src/retriever/mod.rs b/utils/retriever/src/retriever/mod.rs
+index 28ecc0639f..6996b35305 100644
+--- a/utils/retriever/src/retriever/mod.rs
++++ b/utils/retriever/src/retriever/mod.rs
+@@ -14,31 +14,36 @@
+ // You should have received a copy of the GNU General Public License
+ // along with the Leo library. If not, see <https://www.gnu.org/licenses/>.
+ 
+-use indexmap::{IndexMap, IndexSet};
++use crate::{Dependency, Location, LockFileEntry, Manifest, NetworkName, ProgramContext};
++
+ use leo_ast::Stub;
+ use leo_disassembler::disassemble_from_str;
+ use leo_errors::UtilError;
+ use leo_passes::{common::DiGraph, DiGraphError};
+ use leo_span::Symbol;
+ 
+-use crate::{Dependency, Location, LockFileEntry, Manifest, Network, ProgramContext};
++use snarkvm::prelude::Network;
++
++use indexmap::{IndexMap, IndexSet};
+ use std::{
+     fs,
+     fs::File,
+     io::Read,
++    marker::PhantomData,
+     path::{Path, PathBuf},
+ };
+ 
+ // Retriever is responsible for retrieving external programs
+-pub struct Retriever {
++pub struct Retriever<N: Network> {
+     name: Symbol,
+     contexts: IndexMap<Symbol, ProgramContext>,
+     project_path: PathBuf,
+     registry_path: PathBuf,
+     endpoint: String,
++    phantom: PhantomData<N>,
+ }
+ 
+-impl Retriever {
++impl<N: Network> Retriever<N> {
+     // Initialize a new Retriever.
+     pub fn new(name: Symbol, path: &PathBuf, home: &Path, endpoint: String) -> Result<Self, UtilError> {
+         // Starting point is all of the dependencies specified in the main `program.json` file
+@@ -54,6 +59,7 @@ impl Retriever {
+             project_path: path.clone(),
+             registry_path: home.join("registry"),
+             endpoint: endpoint.clone(),
++            phantom: Default::default(),
+         })
+     }
+ 
+@@ -83,11 +89,10 @@ impl Retriever {
+                 // Split into cases based on network dependency or local dependency
+                 let nested_dependencies = match cur_context.location() {
+                     Location::Network => {
+-                        let (stub, nested_dependencies) = retrieve_from_network(
++                        let (stub, nested_dependencies) = retrieve_from_network::<N>(
+                             &self.project_path,
+                             &self.registry_path,
+                             cur_context.full_name(),
+-                            cur_context.network(),
+                             &self.endpoint,
+                         )?;
+ 
+@@ -304,7 +309,7 @@ impl Retriever {
+             })?;
+ 
+             // Cache the disassembled stub
+-            let stub: Stub = disassemble_from_str(&content)?;
++            let stub: Stub = disassemble_from_str::<N>(&content)?;
+             if cur_context.add_stub(stub.clone()) {
+                 Err(UtilError::duplicate_dependency_name_error(stub.stub_id.name.name, Default::default()))?;
+             }
+@@ -418,15 +423,21 @@ fn retrieve_local(name: &String, path: &PathBuf) -> Result<Vec<Dependency>, Util
+ }
+ 
+ // Retrieve from network
+-fn retrieve_from_network(
++fn retrieve_from_network<N: Network>(
+     project_path: &Path,
+     home_path: &Path,
+     name: &String,
+-    network: &Network,
+     endpoint: &String,
+ ) -> Result<(Stub, Vec<Dependency>), UtilError> {
++    // Get the network being used.
++    let network = match N::ID {
++        snarkvm::console::network::MainnetV0::ID => NetworkName::MainnetV0,
++        snarkvm::console::network::TestnetV0::ID => NetworkName::TestnetV0,
++        _ => NetworkName::MainnetV0,
++    };
++
+     // Check if the file is already cached in `~/.aleo/registry/{network}/{program}`
+-    let move_to_path = home_path.join(format!("{network}"));
++    let move_to_path = home_path.join(network.to_string());
+     let path = move_to_path.join(name.clone());
+     let mut file_str: String;
+     if !path.exists() {
+@@ -439,11 +450,14 @@ fn retrieve_from_network(
+             )
+         })?;
+ 
++        // Construct the endpoint for the network.
++        let endpoint = format!("{endpoint}/{network}");
++
+         // Fetch from network
+-        println!("Retrieving {} from {:?}.", name, network.clone());
+-        file_str = fetch_from_network(endpoint, name, network.clone())?;
++        println!("Retrieving {name} from {endpoint}.");
++        file_str = fetch_from_network(&endpoint, name)?;
+         file_str = file_str.replace("\\n", "\n").replace('\"', "");
+-        println!("Successfully retrieved {} from {:?}!", name, network);
++        println!("Successfully retrieved {} from {:?}!", name, endpoint);
+ 
+         // Write file to cache
+         std::fs::write(path.clone(), file_str.clone().replace("\\n", "\n")).map_err(|err| {
+@@ -484,7 +498,7 @@ fn retrieve_from_network(
+     })?;
+ 
+     // Disassemble into Stub
+-    let stub: Stub = disassemble_from_str(&file_str)?;
++    let stub: Stub = disassemble_from_str::<N>(&file_str)?;
+ 
+     // Create entry for leo.lock
+     Ok((
+@@ -496,7 +510,7 @@ fn retrieve_from_network(
+                 Dependency::new(
+                     id.name.name.to_string() + "." + id.network.name.to_string().as_str(),
+                     Location::Network,
+-                    Some(network.clone()),
++                    Some(network),
+                     None,
+                 )
+             })
+@@ -504,8 +518,8 @@ fn retrieve_from_network(
+     ))
+ }
+ 
+-fn fetch_from_network(endpoint: &String, program: &String, network: Network) -> Result<String, UtilError> {
+-    let url = format!("{}/{}/program/{}", endpoint, network.clone(), program);
++fn fetch_from_network(endpoint: &String, program: &String) -> Result<String, UtilError> {
++    let url = format!("{}/program/{}", endpoint, program);
+     let response = ureq::get(&url.clone())
+         .call()
+         .map_err(|err| UtilError::failed_to_retrieve_from_endpoint(err, Default::default()))?;

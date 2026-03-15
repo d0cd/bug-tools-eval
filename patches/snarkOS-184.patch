@@ -1,0 +1,13 @@
+diff --git a/cli/src/commands/clean.rs b/cli/src/commands/clean.rs
+index 723fb4c0e..ed6271aba 100644
+--- a/cli/src/commands/clean.rs
++++ b/cli/src/commands/clean.rs
+@@ -42,7 +42,7 @@ impl Clean {
+         let path = aleo_std::aleo_ledger_dir(network, dev);
+ 
+         // Prepare the path string.
+-        let path_string = format!("(in \"{}\")", path.join("build").display()).dimmed();
++        let path_string = format!("(in \"{}\")", path.display()).dimmed();
+ 
+         // Check if the path to the ledger exists in storage.
+         if path.exists() {

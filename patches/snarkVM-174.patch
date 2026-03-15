@@ -1,0 +1,14 @@
+diff --git a/synthesizer/src/program/instruction/operation/commit.rs b/synthesizer/src/program/instruction/operation/commit.rs
+index 7c3d67a02..706ec2c0a 100644
+--- a/synthesizer/src/program/instruction/operation/commit.rs
++++ b/synthesizer/src/program/instruction/operation/commit.rs
+@@ -175,7 +175,8 @@ impl<N: Network, const VARIANT: u8> CommitInstruction<N, VARIANT> {
+         // TODO (howardwu): If the operation is Pedersen, check that it is within the number of bits.
+ 
+         match VARIANT {
+-            0 | 1 | 2 | 3 | 4 | 5 => Ok(vec![RegisterType::Plaintext(PlaintextType::Literal(LiteralType::Field))]),
++            0 | 1 | 2 | 3 => Ok(vec![RegisterType::Plaintext(PlaintextType::Literal(LiteralType::Field))]),
++            4 | 5 => Ok(vec![RegisterType::Plaintext(PlaintextType::Literal(LiteralType::Group))]),
+             _ => bail!("Invalid 'commit' variant: {VARIANT}"),
+         }
+     }

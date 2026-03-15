@@ -1,0 +1,213 @@
+diff --git a/vm/compiler/src/process/mod.rs b/vm/compiler/src/process/mod.rs
+index 8abed1d39..c32f107a8 100644
+--- a/vm/compiler/src/process/mod.rs
++++ b/vm/compiler/src/process/mod.rs
+@@ -463,6 +463,30 @@ mod tests {
+         );
+     }
+ 
++    #[test]
++    fn test_process_circuit_key() {
++        // Initialize a new program.
++        let program = Program::<CurrentNetwork>::from_str(
++            r#"program testing.aleo;
++
++function hello_world:
++    input r0 as u32.public;
++    input r1 as u32.private;
++    add r0 r1 into r2;
++    output r2 as u32.private;
++"#,
++        )
++        .unwrap();
++
++        // Declare the function name.
++        let function_name = Identifier::from_str("hello_world").unwrap();
++
++        // Construct the process.
++        let process = Process::<CurrentNetwork, CurrentAleo>::new(program.clone()).unwrap();
++        // Check that the circuit key can be synthesized.
++        process.circuit_key(program.id(), &function_name).unwrap();
++    }
++
+     #[test]
+     fn test_process_execute_call_closure() {
+         // Initialize a new program.
+@@ -526,6 +550,11 @@ function compute:
+ 
+         // Construct the process.
+         let process = Process::<CurrentNetwork, CurrentAleo>::new(program.clone()).unwrap();
++        // Check that the circuit key can be synthesized.
++        process.circuit_key(program.id(), &function_name).unwrap();
++
++        // Reset the process.
++        let process = Process::<CurrentNetwork, CurrentAleo>::new(program.clone()).unwrap();
+ 
+         // Authorize the function call.
+         let authorization =
+diff --git a/vm/compiler/src/process/stack/mod.rs b/vm/compiler/src/process/stack/mod.rs
+index 19d63517b..e2348859d 100644
+--- a/vm/compiler/src/process/stack/mod.rs
++++ b/vm/compiler/src/process/stack/mod.rs
+@@ -709,9 +709,12 @@ impl<N: Network, A: circuit::Aleo<Network = N, BaseField = N::Field>> Stack<N, A
+         #[cfg(debug_assertions)]
+         Self::log_circuit("Complete");
+ 
+-        // If the circuit is not satisfied, then return early.
+-        if !A::is_satisfied() {
+-            bail!("The circuit for '{program_id}/{}' is not satisfied with the given inputs.", function.name());
++        // If the circuit is in execute mode, then ensure the circuit is valid.
++        if let CallStack::Execute(..) = self.call_stack {
++            // If the circuit is not satisfied, then return early.
++            if !A::is_satisfied() {
++                bail!("The circuit for '{program_id}/{}' is not satisfied with the given inputs.", function.name());
++            }
+         }
+ 
+         // Eject the response.
+diff --git a/vm/compiler/src/program/mod.rs b/vm/compiler/src/program/mod.rs
+index 7bfa7b067..f6a36b283 100644
+--- a/vm/compiler/src/program/mod.rs
++++ b/vm/compiler/src/program/mod.rs
+@@ -769,6 +769,13 @@ function compute:
+         // Retrieve the function from the program.
+         let function = program.get_function(&function_name).unwrap();
+ 
++        {
++            // Construct the process.
++            let process = Process::<CurrentNetwork, CurrentAleo>::new(program.clone()).unwrap();
++            // Check that the circuit key can be synthesized.
++            process.circuit_key(program.id(), &function_name).unwrap();
++        }
++
+         // Construct the process.
+         let process = Process::<CurrentNetwork, CurrentAleo>::new(program.clone()).unwrap();
+ 
+diff --git a/vm/file/aleo.rs b/vm/file/aleo.rs
+index f02745d2f..4f3f28069 100644
+--- a/vm/file/aleo.rs
++++ b/vm/file/aleo.rs
+@@ -164,6 +164,24 @@ function hello_world:
+         &self.program
+     }
+ 
++    /// Writes the program string to the file.
++    pub fn write_to(&self, path: &Path) -> Result<()> {
++        // Ensure the path is well-formed.
++        Self::check_path(path)?;
++
++        // Retrieve the file name.
++        let file_name = path
++            .file_stem()
++            .ok_or_else(|| anyhow!("File name not found."))?
++            .to_str()
++            .ok_or_else(|| anyhow!("File name not found."))?
++            .to_string();
++        // Ensure the file name matches the expected file name.
++        ensure!(file_name == self.file_name, "File name does not match.");
++
++        Ok(File::create(&path)?.write_all(self.program_string.as_bytes())?)
++    }
++
+     /// Removes the file at the given path, if it exists.
+     pub fn remove(&self, path: &Path) -> Result<()> {
+         // If the path does not exist, do nothing.
+@@ -172,8 +190,12 @@ function hello_world:
+         } else {
+             // Ensure the path is well-formed.
+             Self::check_path(path)?;
+-            // Remove the file.
+-            Ok(fs::remove_file(&path)?)
++            // If the path exists, remove it.
++            if path.exists() {
++                // Remove the file.
++                fs::remove_file(&path)?;
++            }
++            Ok(())
+         }
+     }
+ }
+@@ -188,9 +210,6 @@ impl<N: Network> AleoFile<N> {
+         let extension = path.extension().ok_or_else(|| anyhow!("File extension not found."))?;
+         ensure!(extension == ALEO_FILE_EXTENSION, "File extension is incorrect.");
+ 
+-        // Ensure the given path exists.
+-        ensure!(path.exists(), "File does not exist: {}", path.display());
+-
+         Ok(())
+     }
+ 
+@@ -199,6 +218,9 @@ impl<N: Network> AleoFile<N> {
+         // Ensure the path is well-formed.
+         Self::check_path(file)?;
+ 
++        // Ensure the given path exists.
++        ensure!(file.exists(), "File does not exist: {}", file.display());
++
+         // Retrieve the file name.
+         let file_name = file
+             .file_stem()
+@@ -214,24 +236,6 @@ impl<N: Network> AleoFile<N> {
+ 
+         Ok(Self { file_name, program_string, program })
+     }
+-
+-    /// Writes the program string to the file.
+-    pub fn write_to(&self, path: &Path) -> Result<()> {
+-        // Ensure the path is well-formed.
+-        Self::check_path(path)?;
+-
+-        // Retrieve the file name.
+-        let file_name = path
+-            .file_stem()
+-            .ok_or_else(|| anyhow!("File name not found."))?
+-            .to_str()
+-            .ok_or_else(|| anyhow!("File name not found."))?
+-            .to_string();
+-        // Ensure the file name matches the expected file name.
+-        ensure!(file_name == self.file_name, "File name does not match.");
+-
+-        Ok(File::create(&path)?.write_all(self.program_string.as_bytes())?)
+-    }
+ }
+ 
+ #[cfg(test)]
+diff --git a/vm/file/avm.rs b/vm/file/avm.rs
+index f4552e71b..e7dd3ee5a 100644
+--- a/vm/file/avm.rs
++++ b/vm/file/avm.rs
+@@ -118,8 +118,12 @@ impl<N: Network> AVMFile<N> {
+         } else {
+             // Ensure the path is well-formed.
+             Self::check_path(path)?;
+-            // Remove the file.
+-            Ok(fs::remove_file(&path)?)
++            // If the path exists, remove it.
++            if path.exists() {
++                // Remove the file.
++                fs::remove_file(&path)?;
++            }
++            Ok(())
+         }
+     }
+ }
+@@ -134,9 +138,6 @@ impl<N: Network> AVMFile<N> {
+         let extension = path.extension().ok_or_else(|| anyhow!("File extension not found."))?;
+         ensure!(extension == AVM_FILE_EXTENSION, "File extension is incorrect.");
+ 
+-        // Ensure the given path exists.
+-        ensure!(path.exists(), "File does not exist: {}", path.display());
+-
+         Ok(())
+     }
+ 
+@@ -145,6 +146,9 @@ impl<N: Network> AVMFile<N> {
+         // Ensure the path is well-formed.
+         Self::check_path(file)?;
+ 
++        // Ensure the given path exists.
++        ensure!(file.exists(), "File does not exist: {}", file.display());
++
+         // Retrieve the file name.
+         let file_name = file
+             .file_stem()

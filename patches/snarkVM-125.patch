@@ -1,0 +1,171 @@
+diff --git a/algorithms/src/r1cs/constraint_system.rs b/algorithms/src/r1cs/constraint_system.rs
+index 9c3d04af3..91c1f90c0 100644
+--- a/algorithms/src/r1cs/constraint_system.rs
++++ b/algorithms/src/r1cs/constraint_system.rs
+@@ -106,7 +106,7 @@ pub trait ConstraintSystem<F: Field>: Sized {
+     fn is_in_setup_mode(&self) -> bool;
+ }
+ 
+-/// Convenience implementation of ConstraintSystem<F> for mutable references to
++/// Convenience implementation of `ConstraintSystem<F>` for mutable references to
+ /// constraint systems.
+ impl<F: Field, CS: ConstraintSystem<F>> ConstraintSystem<F> for &mut CS {
+     type Root = CS::Root;
+diff --git a/algorithms/src/snark/varuna/varuna.rs b/algorithms/src/snark/varuna/varuna.rs
+index a2608d60e..375009654 100644
+--- a/algorithms/src/snark/varuna/varuna.rs
++++ b/algorithms/src/snark/varuna/varuna.rs
+@@ -344,7 +344,7 @@ where
+ 
+     /// This is the main entrypoint for creating proofs.
+     /// You can find a specification of the prover algorithm in:
+-    /// https://github.com/ProvableHQ/protocol-docs
++    /// <https://github.com/ProvableHQ/protocol-docs>
+     fn prove_batch<C: ConstraintSynthesizer<E::Fr>, R: Rng + CryptoRng>(
+         universal_prover: &Self::UniversalProver,
+         fs_parameters: &Self::FSParameters,
+@@ -694,7 +694,7 @@ where
+ 
+     /// This is the main entrypoint for verifying proofs.
+     /// You can find a specification of the verifier algorithm in:
+-    /// https://github.com/ProvableHQ/protocol-docs
++    /// <https://github.com/ProvableHQ/protocol-docs>
+     fn verify_batch<B: Borrow<Self::VerifierInput>>(
+         universal_verifier: &Self::UniversalVerifier,
+         fs_parameters: &Self::FSParameters,
+diff --git a/circuit/environment/src/helpers/updatable_count.rs b/circuit/environment/src/helpers/updatable_count.rs
+index 20dd919cb..14e8d85e3 100644
+--- a/circuit/environment/src/helpers/updatable_count.rs
++++ b/circuit/environment/src/helpers/updatable_count.rs
+@@ -33,7 +33,7 @@ static WORKSPACE_ROOT: OnceCell<PathBuf> = OnceCell::new();
+ 
+ /// To update the arguments to `count_is!`, run cargo test with the `UPDATE_COUNT` flag set to the name of the file containing the macro invocation.
+ /// e.g. `UPDATE_COUNT=boolean cargo test
+-/// See https://github.com/ProvableHQ/snarkVM/pull/1688 for more details.
++/// See <https://github.com/ProvableHQ/snarkVM/pull/1688> for more details.
+ #[macro_export]
+ macro_rules! count_is {
+     ($num_constants:literal, $num_public:literal, $num_private:literal, $num_constraints:literal) => {
+@@ -51,7 +51,7 @@ macro_rules! count_is {
+ 
+ /// To update the arguments to `count_less_than!`, run cargo test with the `UPDATE_COUNT` flag set to the name of the file containing the macro invocation.
+ /// e.g. `UPDATE_COUNT=boolean cargo test
+-/// See https://github.com/ProvableHQ/snarkVM/pull/1688 for more details.
++/// See <https://github.com/ProvableHQ/snarkVM/pull/1688> for more details.
+ #[macro_export]
+ macro_rules! count_less_than {
+     ($num_constants:literal, $num_public:literal, $num_private:literal, $num_constraints:literal) => {
+diff --git a/circuit/environment/src/traits/operators.rs b/circuit/environment/src/traits/operators.rs
+index 27ca9e5be..9bc75dd32 100644
+--- a/circuit/environment/src/traits/operators.rs
++++ b/circuit/environment/src/traits/operators.rs
+@@ -36,10 +36,9 @@ pub trait SquareRoot {
+     fn square_root(&self) -> Self::Output;
+ }
+ 
+-///
+ /// A single-bit binary adder with a carry bit.
+ ///
+-/// https://en.wikipedia.org/wiki/Adder_(electronics)#Full_adder
++/// <https://en.wikipedia.org/wiki/Adder_(electronics)#Full_adder>
+ ///
+ /// sum = (a XOR b) XOR carry
+ /// carry = a AND b OR carry AND (a XOR b)
+@@ -53,10 +52,9 @@ pub trait Adder {
+     fn adder(&self, other: &Self, carry: &Self) -> (Self::Sum, Self::Carry);
+ }
+ 
+-///
+ /// A single-bit binary subtractor with a borrow bit.
+ ///
+-/// https://en.wikipedia.org/wiki/Subtractor#Full_subtractor
++/// <https://en.wikipedia.org/wiki/Subtractor#Full_subtractor>
+ ///
+ /// difference = (a XOR b) XOR borrow
+ /// borrow = ((NOT a) AND b) OR (borrow AND (NOT (a XOR b)))
+diff --git a/console/network/environment/src/helpers/variable_length.rs b/console/network/environment/src/helpers/variable_length.rs
+index 7fe43dab5..5b552216d 100644
+--- a/console/network/environment/src/helpers/variable_length.rs
++++ b/console/network/environment/src/helpers/variable_length.rs
+@@ -20,7 +20,7 @@ use snarkvm_utilities::{
+ };
+ 
+ /// Returns the variable length integer of the given value.
+-/// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
++/// <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>
+ pub fn variable_length_integer(value: &u64) -> Vec<u8> {
+     match value {
+         // bounded by u8::max_value()
+@@ -35,7 +35,7 @@ pub fn variable_length_integer(value: &u64) -> Vec<u8> {
+ }
+ 
+ /// Decode the value of a variable length integer.
+-/// https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer
++/// <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>
+ pub fn read_variable_length_integer<R: Read>(mut reader: R) -> IoResult<u64> {
+     let flag = u8::read_le(&mut reader)?;
+ 
+diff --git a/console/network/environment/src/traits/parse_string.rs b/console/network/environment/src/traits/parse_string.rs
+index 88e8ec4a9..a7c980a96 100644
+--- a/console/network/environment/src/traits/parse_string.rs
++++ b/console/network/environment/src/traits/parse_string.rs
+@@ -13,7 +13,7 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
+-/// From https://github.com/Geal/nom/blob/main/examples/string.rs
++/// From <https://github.com/Geal/nom/blob/main/examples/string.rs>
+ pub mod string_parser {
+     /// This example shows an example of how to parse an escaped string. The
+     /// rules for the string are similar to JSON and rust. A string is:
+diff --git a/curves/src/bls12_377/fr.rs b/curves/src/bls12_377/fr.rs
+index 454e0f366..58ce23f80 100644
+--- a/curves/src/bls12_377/fr.rs
++++ b/curves/src/bls12_377/fr.rs
+@@ -27,7 +27,7 @@ use snarkvm_utilities::biginteger::BigInteger256 as BigInteger;
+ ///
+ /// Roots of unity computed from modulus and R using this sage code:
+ ///
+-/// ```ignore
++/// ```r,ignore
+ /// q = 8444461749428370424248824938781546531375899335154063827935233455917409239041
+ /// R = 6014086494747379908336260804527802945383293308637734276299549080986809532403 # Montgomery R
+ /// s = 47
+diff --git a/synthesizer/program/src/logic/instruction/mod.rs b/synthesizer/program/src/logic/instruction/mod.rs
+index 2a4bbab77..3585da7b2 100644
+--- a/synthesizer/program/src/logic/instruction/mod.rs
++++ b/synthesizer/program/src/logic/instruction/mod.rs
+@@ -208,18 +208,17 @@ pub enum Instruction<N: Network> {
+ ///
+ /// ## Example
+ /// This example will print the opcode and the instruction to the given stream.
+-/// ```ignore
++/// ```rust,ignore
+ /// instruction!(self, |instruction| write!(f, "{} {};", self.opcode(), instruction))
+ /// ```
+ /// The above example is equivalent to the following logic:
+-/// ```ignore
++/// ```rust,ignore
+ ///     match self {
+ ///         Self::Add(instruction) => write!(f, "{} {};", self.opcode(), instruction),
+ ///         Self::Sub(instruction) => write!(f, "{} {};", self.opcode(), instruction),
+ ///         Self::Mul(instruction) => write!(f, "{} {};", self.opcode(), instruction),
+ ///         Self::Div(instruction) => write!(f, "{} {};", self.opcode(), instruction),
+ ///     }
+-/// )
+ /// ```
+ #[macro_export]
+ macro_rules! instruction {
+diff --git a/utilities/src/error.rs b/utilities/src/error.rs
+index 81676f98d..54dbb41c1 100644
+--- a/utilities/src/error.rs
++++ b/utilities/src/error.rs
+@@ -41,7 +41,7 @@ impl Error for crate::io::Error {}
+ 
+ /// This macro provides a VM runtime environment which will safely halt
+ /// without producing logs that look like unexpected behavior.
+-/// In debug mode, it prints to stderr using the format: "VM safely halted at <location>: <halt message>".
++/// In debug mode, it prints to stderr using the format: "VM safely halted at {location}: {halt message}".
+ #[macro_export]
+ macro_rules! try_vm_runtime {
+     ($e:expr) => {{

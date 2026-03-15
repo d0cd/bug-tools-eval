@@ -1,0 +1,92 @@
+diff --git a/node/bft/ledger-service/src/ledger.rs b/node/bft/ledger-service/src/ledger.rs
+index 35efe8695..3647aa2de 100644
+--- a/node/bft/ledger-service/src/ledger.rs
++++ b/node/bft/ledger-service/src/ledger.rs
+@@ -360,7 +360,7 @@ impl<N: Network, C: ConsensusStorage<N>> LedgerService<N> for CoreLedgerService<
+     #[cfg(feature = "ledger-write")]
+     fn advance_to_next_block(&self, block: &Block<N>) -> Result<()> {
+         // If the Ctrl-C handler registered the signal, then skip advancing to the next block.
+-        if self.shutdown.load(Ordering::Relaxed) {
++        if self.shutdown.load(Ordering::Acquire) {
+             bail!("Skipping advancing to block {} - The node is shutting down", block.height());
+         }
+         // Advance to the next block.
+diff --git a/node/cdn/src/blocks.rs b/node/cdn/src/blocks.rs
+index 581a281de..bcd8e7a25 100644
+--- a/node/cdn/src/blocks.rs
++++ b/node/cdn/src/blocks.rs
+@@ -165,7 +165,7 @@ pub async fn load_blocks<N: Network>(
+     let mut current_height = start_height.saturating_sub(1);
+     while current_height < end_height - 1 {
+         // If we are instructed to shut down, abort.
+-        if shutdown.load(Ordering::Relaxed) {
++        if shutdown.load(Ordering::Acquire) {
+             info!("Stopping block sync at {} - shutting down", current_height);
+             // We can shut down cleanly from here, as the node hasn't been started yet.
+             std::process::exit(0);
+@@ -244,7 +244,7 @@ async fn download_block_bundles<N: Network>(
+     let mut start = cdn_start;
+     while start < cdn_end - 1 {
+         // If we are instructed to shut down, stop downloading.
+-        if shutdown.load(Ordering::Relaxed) {
++        if shutdown.load(Ordering::Acquire) {
+             break;
+         }
+ 
+diff --git a/node/src/client/mod.rs b/node/src/client/mod.rs
+index 435979229..4145944c4 100644
+--- a/node/src/client/mod.rs
++++ b/node/src/client/mod.rs
+@@ -170,7 +170,7 @@ impl<N: Network, C: ConsensusStorage<N>> Client<N, C> {
+         self.handles.lock().push(tokio::spawn(async move {
+             loop {
+                 // If the Ctrl-C handler registered the signal, stop the node.
+-                if node.shutdown.load(std::sync::atomic::Ordering::Relaxed) {
++                if node.shutdown.load(std::sync::atomic::Ordering::Acquire) {
+                     info!("Shutting down block production");
+                     break;
+                 }
+@@ -197,7 +197,7 @@ impl<N: Network, C: ConsensusStorage<N>> NodeInterface<N> for Client<N, C> {
+ 
+         // Shut down the node.
+         trace!("Shutting down the node...");
+-        self.shutdown.store(true, std::sync::atomic::Ordering::Relaxed);
++        self.shutdown.store(true, std::sync::atomic::Ordering::Release);
+ 
+         // Abort the tasks.
+         trace!("Shutting down the validator...");
+diff --git a/node/src/prover/mod.rs b/node/src/prover/mod.rs
+index eeea16a5e..1c133817b 100644
+--- a/node/src/prover/mod.rs
++++ b/node/src/prover/mod.rs
+@@ -156,7 +156,7 @@ impl<N: Network, C: ConsensusStorage<N>> NodeInterface<N> for Prover<N, C> {
+ 
+         // Shut down the puzzle.
+         debug!("Shutting down the puzzle...");
+-        self.shutdown.store(true, Ordering::Relaxed);
++        self.shutdown.store(true, Ordering::Release);
+ 
+         // Abort the tasks.
+         debug!("Shutting down the prover...");
+@@ -227,7 +227,7 @@ impl<N: Network, C: ConsensusStorage<N>> Prover<N, C> {
+             }
+ 
+             // If the Ctrl-C handler registered the signal, stop the prover.
+-            if self.shutdown.load(Ordering::Relaxed) {
++            if self.shutdown.load(Ordering::Acquire) {
+                 debug!("Shutting down the puzzle...");
+                 break;
+             }
+diff --git a/node/src/validator/mod.rs b/node/src/validator/mod.rs
+index 53ea77198..07a385ef1 100644
+--- a/node/src/validator/mod.rs
++++ b/node/src/validator/mod.rs
+@@ -425,7 +425,7 @@ impl<N: Network, C: ConsensusStorage<N>> NodeInterface<N> for Validator<N, C> {
+ 
+         // Shut down the node.
+         trace!("Shutting down the node...");
+-        self.shutdown.store(true, std::sync::atomic::Ordering::Relaxed);
++        self.shutdown.store(true, std::sync::atomic::Ordering::Release);
+ 
+         // Abort the tasks.
+         trace!("Shutting down the validator...");

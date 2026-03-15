@@ -1,0 +1,114 @@
+diff --git a/compiler/ast/src/expressions/ternary.rs b/compiler/ast/src/expressions/ternary.rs
+index 43c32eb748..0cf6b0be5b 100644
+--- a/compiler/ast/src/expressions/ternary.rs
++++ b/compiler/ast/src/expressions/ternary.rs
+@@ -31,7 +31,7 @@ pub struct TernaryExpression {
+ 
+ impl fmt::Display for TernaryExpression {
+     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+-        write!(f, "if {} ? {} : {}", self.condition, self.if_true, self.if_false)
++        write!(f, "({} ? {} : {})", self.condition, self.if_true, self.if_false)
+     }
+ }
+ 
+diff --git a/compiler/passes/src/static_single_assignment/rename_program.rs b/compiler/passes/src/static_single_assignment/rename_program.rs
+index 6057650016..773d015209 100644
+--- a/compiler/passes/src/static_single_assignment/rename_program.rs
++++ b/compiler/passes/src/static_single_assignment/rename_program.rs
+@@ -56,14 +56,15 @@ impl ProgramReconstructor for StaticSingleAssigner<'_> {
+             .fold(last_return_expression, |acc, (guard, expr)| match guard {
+                 None => unreachable!("All return statements except for the last one must have a guard."),
+                 // Note that type checking guarantees that all expressions in return statements in the function body have the same type.
+-                Some(guard) => match (acc, expr) {
++                Some(guard) => match (expr, acc) {
+                     // If the function returns tuples, fold the return expressions into a tuple of ternary expressions.
+-                    (Expression::Tuple(acc_tuple), Expression::Tuple(expr_tuple)) => {
++                    // Note that `expr` and `acc` are correspond to the `if` and `else` cases of the ternary expression respectively.
++                    (Expression::Tuple(expr_tuple), Expression::Tuple(acc_tuple)) => {
+                         Expression::Tuple(TupleExpression {
+-                            elements: acc_tuple
++                            elements: expr_tuple
+                                 .elements
+                                 .into_iter()
+-                                .zip_eq(expr_tuple.elements.into_iter())
++                                .zip_eq(acc_tuple.elements.into_iter())
+                                 .map(|(if_true, if_false)| {
+                                     Expression::Ternary(TernaryExpression {
+                                         condition: Box::new(guard.clone()),
+@@ -77,10 +78,11 @@ impl ProgramReconstructor for StaticSingleAssigner<'_> {
+                         })
+                     }
+                     // Otherwise, fold the return expressions into a single ternary expression.
+-                    (acc, expr) => Expression::Ternary(TernaryExpression {
++                    // Note that `expr` and `acc` are correspond to the `if` and `else` cases of the ternary expression respectively.
++                    (expr, acc) => Expression::Ternary(TernaryExpression {
+                         condition: Box::new(guard),
+-                        if_true: Box::new(acc),
+-                        if_false: Box::new(expr),
++                        if_true: Box::new(expr),
++                        if_false: Box::new(acc),
+                         span: Default::default(),
+                     }),
+                 },
+diff --git a/compiler/passes/src/static_single_assignment/static_single_assigner.rs b/compiler/passes/src/static_single_assignment/static_single_assigner.rs
+index b4649a92b3..6c199eb8f0 100644
+--- a/compiler/passes/src/static_single_assignment/static_single_assigner.rs
++++ b/compiler/passes/src/static_single_assignment/static_single_assigner.rs
+@@ -38,6 +38,7 @@ pub struct StaticSingleAssigner<'a> {
+     /// A stack of condition `Expression`s visited up to the current point in the AST.
+     pub(crate) condition_stack: Vec<Expression>,
+     /// A list containing tuples of guards and expressions associated with early `ReturnStatement`s.
++    /// Note that early returns are inserted in the order they are encountered during a pre-order traversal of the AST.
+     pub(crate) early_returns: Vec<(Option<Expression>, Expression)>,
+ }
+ 
+diff --git a/tests/expectations/compiler/function/conditional_return.out b/tests/expectations/compiler/function/conditional_return.out
+index a57da13fd5..3ed267e322 100644
+--- a/tests/expectations/compiler/function/conditional_return.out
++++ b/tests/expectations/compiler/function/conditional_return.out
+@@ -6,4 +6,4 @@ outputs:
+       - initial_input_ast: ae0703890dbea144e675f85228e958d6903df0d1ebd88f16a531624270205cc2
+     initial_ast: 3dac7cf725df154640f7ea5979ac102b14916dc88215a69f555752f1e8051eec
+     unrolled_ast: 3dac7cf725df154640f7ea5979ac102b14916dc88215a69f555752f1e8051eec
+-    ssa_ast: 4245cbfd9ba6af41aaffaa237c46d126d54f558b04bc7abb36751f47b0cb0c24
++    ssa_ast: b92c41b537132f3b09078850939b343fb275836ce8f4890b74f3a4390b9a6c41
+diff --git a/tests/expectations/compiler/statements/assign.out b/tests/expectations/compiler/statements/assign.out
+index a0676ca67d..00dd337d9a 100644
+--- a/tests/expectations/compiler/statements/assign.out
++++ b/tests/expectations/compiler/statements/assign.out
+@@ -6,4 +6,4 @@ outputs:
+       - initial_input_ast: 9f519c84609aa8fc9c90d398fdb30fe75df106dc0347ab1e3d7e947b2ab1b724
+     initial_ast: 90d7b657319b7b4c7151826d74e891f1c2e9722ea96527002a5b541a8bf33107
+     unrolled_ast: 90d7b657319b7b4c7151826d74e891f1c2e9722ea96527002a5b541a8bf33107
+-    ssa_ast: 74be6b9acdcf67a3ac2f593b6437867c6661fe139bd40e48c26bb56fd0ddd732
++    ssa_ast: abfbbb6c7005dc4102e1cacb6e8c1f8c8477896cbbeb9fa86c7c8d27a65a76e1
+diff --git a/tests/expectations/compiler/statements/multiple_returns.out b/tests/expectations/compiler/statements/multiple_returns.out
+index 8598df7d86..ceae0280ec 100644
+--- a/tests/expectations/compiler/statements/multiple_returns.out
++++ b/tests/expectations/compiler/statements/multiple_returns.out
+@@ -7,4 +7,4 @@ outputs:
+       - initial_input_ast: 05aec88bcd0cad7448814728a983f3ff8cb52f9dc5f9bd464e130f18c4ae1033
+     initial_ast: 72f2d64a55e6db776ee3af263fe200d8dd806e4f20e27696012e49f6987a8609
+     unrolled_ast: 72f2d64a55e6db776ee3af263fe200d8dd806e4f20e27696012e49f6987a8609
+-    ssa_ast: 1792d3a73c33221886da3e41cbf14dfe10b2d7181fba0c609f43db043643416d
++    ssa_ast: 073290d894ce45effb6c829253cf0e36a7efeeac4cef28b286d781f49e903277
+diff --git a/tests/expectations/compiler/statements/mutate.out b/tests/expectations/compiler/statements/mutate.out
+index 805d641190..d1591beb4f 100644
+--- a/tests/expectations/compiler/statements/mutate.out
++++ b/tests/expectations/compiler/statements/mutate.out
+@@ -7,4 +7,4 @@ outputs:
+       - initial_input_ast: 965f2de6d6d4b0d3b2bf32e29ca196835aec7ca5803f9c6a33b8987185a5c233
+     initial_ast: 97eb6d68a9c10827d6420dc9013f0c391291bfb52df42439f9fb9fa30abb6a93
+     unrolled_ast: 97eb6d68a9c10827d6420dc9013f0c391291bfb52df42439f9fb9fa30abb6a93
+-    ssa_ast: 44792534cd773c5072884b90803b2ddfa50041039f2459fa1e3e48a074a1413d
++    ssa_ast: e28d175aae45224d73f23adf2624c0e7873169c234528ba1b399f12977044129
+diff --git a/tests/expectations/compiler/tuple/function_early_return.out b/tests/expectations/compiler/tuple/function_early_return.out
+index 2d4c79facb..5b7737dcf5 100644
+--- a/tests/expectations/compiler/tuple/function_early_return.out
++++ b/tests/expectations/compiler/tuple/function_early_return.out
+@@ -6,4 +6,4 @@ outputs:
+       - initial_input_ast: 2839953e7e597fbba9a151db4849720b37a3b4394bf9de22a09410013a18c9f7
+     initial_ast: eb6dfd0a82152f03c56709e72e4a7403b1b7a8636268a3ac70e98349299e88ec
+     unrolled_ast: eb6dfd0a82152f03c56709e72e4a7403b1b7a8636268a3ac70e98349299e88ec
+-    ssa_ast: 5a016f84e71e78451062d81982bfb89a6a762f02529d515ed1acf27a94a4161f
++    ssa_ast: dde4e8447e34c663a78a96b7f1e603fbf44578b5c4abbad858c2b784d27e42e6

@@ -1,0 +1,71 @@
+diff --git a/.circleci/leo-add-remove.sh b/.circleci/leo-add-remove.sh
+index de855a4ed8..8f4a2f6eed 100755
+--- a/.circleci/leo-add-remove.sh
++++ b/.circleci/leo-add-remove.sh
+@@ -1,6 +1,8 @@
+ # leo add (w/o login) & remove
+ 
+ $LEO new my-app && cd my-app || exit 1
+-$LEO add howard/silly-sudoku
+-$LEO remove silly-sudoku
++$LEO add justice-league/u8u32
++echo "import u8u32.u8_u32; function main() {}" > src/main.leo
++$LEO build
++$LEO remove u8u32
+ $LEO clean
+diff --git a/imports/src/errors/import_parser.rs b/imports/src/errors/import_parser.rs
+index 0c04467403..c91d06a006 100644
+--- a/imports/src/errors/import_parser.rs
++++ b/imports/src/errors/import_parser.rs
+@@ -94,10 +94,10 @@ impl ImportParserError {
+     }
+ 
+     ///
+-    /// Failed to find a library file for the current package.
++    /// Failed to find a main file for the current package.
+     ///
+-    pub fn expected_lib_file(entry: String, span: &Span) -> Self {
+-        let message = format!("Expected library file `{}`.", entry,);
++    pub fn expected_main_file(entry: String, span: &Span) -> Self {
++        let message = format!("Expected main file at `{}`.", entry,);
+ 
+         Self::new_from_span(message, span)
+     }
+diff --git a/imports/src/parser/parse_package.rs b/imports/src/parser/parse_package.rs
+index d7252844e7..a14f12a2cc 100644
+--- a/imports/src/parser/parse_package.rs
++++ b/imports/src/parser/parse_package.rs
+@@ -72,6 +72,7 @@ impl<'a> ImportParser<'a> {
+ 
+         // Search for package name in `imports` directory
+         let mut imports_directory = path.clone();
++        imports_directory.pop(); // path leads to src/ folder, imports is one level below
+         imports_directory.push(IMPORTS_DIRECTORY_NAME);
+ 
+         // Read from local `src` directory or the current path
+diff --git a/imports/src/parser/parse_symbol.rs b/imports/src/parser/parse_symbol.rs
+index e37e89a9f2..3a09506546 100644
+--- a/imports/src/parser/parse_symbol.rs
++++ b/imports/src/parser/parse_symbol.rs
+@@ -19,7 +19,7 @@ use leo_ast::{Program, Span};
+ 
+ use std::fs::DirEntry;
+ 
+-static LIBRARY_FILE: &str = "src/lib.leo";
++static MAIN_FILE: &str = "src/main.leo";
+ 
+ impl<'a> ImportParser<'a> {
+     ///
+@@ -39,10 +39,10 @@ impl<'a> ImportParser<'a> {
+ 
+         let mut file_path = package.path();
+         if file_type.is_dir() {
+-            file_path.push(LIBRARY_FILE);
++            file_path.push(MAIN_FILE);
+ 
+             if !file_path.exists() {
+-                return Err(ImportParserError::expected_lib_file(
++                return Err(ImportParserError::expected_main_file(
+                     format!("{:?}", file_path.as_path()),
+                     span,
+                 ));

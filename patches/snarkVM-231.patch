@@ -1,0 +1,884 @@
+diff --git a/algorithms/src/merkle_tree/merkle_path.rs b/algorithms/src/merkle_tree/merkle_path.rs
+index 196c0bdaf..dd08925d6 100644
+--- a/algorithms/src/merkle_tree/merkle_path.rs
++++ b/algorithms/src/merkle_tree/merkle_path.rs
+@@ -18,7 +18,7 @@ use crate::{
+     errors::MerkleError,
+     traits::{MerkleParameters, CRH},
+ };
+-use snarkvm_utilities::{FromBytes, FromBytesDeserializer, ToBytes, ToBytesSerializer};
++use snarkvm_utilities::{error, FromBytes, FromBytesDeserializer, ToBytes, ToBytesSerializer};
+ 
+ use anyhow::Result;
+ use serde::{Deserialize, Deserializer, Serialize, Serializer};
+@@ -124,17 +124,20 @@ impl<P: MerkleParameters> FromBytes for MerklePath<P> {
+         //  is being introduced until a proper refactor can be discussed and implemented.
+         //  If you are seeing this message, please be proactive in bringing it up :)
+         let parameters = {
+-            let setup_message_length: u64 = FromBytes::read_le(&mut reader)?;
++            // Decode the setup message size.
++            let setup_message_length = u16::read_le(&mut reader)?;
+ 
+             let mut setup_message_bytes = vec![0u8; setup_message_length as usize];
+             reader.read_exact(&mut setup_message_bytes)?;
+-            let setup_message =
+-                String::from_utf8(setup_message_bytes).expect("Failed to parse setup message for Merkle parameters");
++            let setup_message = String::from_utf8(setup_message_bytes)
++                .map_err(|_| error("Failed to parse setup message for Merkle parameters"))?;
+ 
+             Arc::new(P::setup(&setup_message))
+         };
+ 
+-        let path_length: u64 = FromBytes::read_le(&mut reader)?;
++        // Decode the Merkle path depth.
++        let path_length: u8 = FromBytes::read_le(&mut reader)?;
++
+         let mut path = Vec::with_capacity(path_length as usize);
+         for _ in 0..path_length {
+             path.push(FromBytes::read_le(&mut reader)?);
+@@ -150,12 +153,23 @@ impl<P: MerkleParameters> ToBytes for MerklePath<P> {
+     #[inline]
+     fn write_le<W: Write>(&self, mut writer: W) -> IoResult<()> {
+         let setup_message_bytes: &[u8] = self.parameters.setup_message().as_bytes();
+-        let setup_message_length: u64 = setup_message_bytes.len() as u64;
+ 
+-        setup_message_length.write_le(&mut writer)?;
++        // Ensure the setup message size is within bounds.
++        if setup_message_bytes.len() > (u16::MAX as usize) {
++            return Err(error(format!("Merkle path setup message cannot exceed {} bytes", u16::MAX)));
++        }
++
++        // Encode the setup message.
++        (setup_message_bytes.len() as u16).write_le(&mut writer)?;
+         setup_message_bytes.write_le(&mut writer)?;
+ 
+-        (self.path.len() as u64).write_le(&mut writer)?;
++        // Ensure the Merkle path length is within bounds.
++        if self.path.len() > (u8::MAX as usize) {
++            return Err(error(format!("Merkle path depth cannot exceed {}", u8::MAX)));
++        }
++
++        // Encode the Merkle path.
++        (self.path.len() as u8).write_le(&mut writer)?;
+         self.path.write_le(&mut writer)?;
+ 
+         self.leaf_index.write_le(&mut writer)
+diff --git a/dpc/src/block/block.rs b/dpc/src/block/block.rs
+index 14b6dadf1..c862a4f9b 100644
+--- a/dpc/src/block/block.rs
++++ b/dpc/src/block/block.rs
+@@ -487,7 +487,7 @@ mod tests {
+         // Serialize
+         let expected_string = expected_block.to_string();
+         let candidate_string = serde_json::to_string(&expected_block).unwrap();
+-        assert_eq!(4899, candidate_string.len(), "Update me if serialization has changed");
++        assert_eq!(4896, candidate_string.len(), "Update me if serialization has changed");
+         assert_eq!(expected_string, candidate_string);
+ 
+         // Deserialize
+@@ -504,7 +504,7 @@ mod tests {
+         // Serialize
+         let expected_bytes = expected_block.to_bytes_le().unwrap();
+         let candidate_bytes = bincode::serialize(&expected_block).unwrap();
+-        assert_eq!(2515, expected_bytes.len(), "Update me if serialization has changed");
++        assert_eq!(2505, expected_bytes.len(), "Update me if serialization has changed");
+         // TODO (howardwu): Serialization - Handle the inconsistency between ToBytes and Serialize (off by a length encoding).
+         assert_eq!(&expected_bytes[..], &candidate_bytes[8..]);
+ 
+diff --git a/dpc/src/block/template.rs b/dpc/src/block/template.rs
+index 2cf30f116..94d22858c 100644
+--- a/dpc/src/block/template.rs
++++ b/dpc/src/block/template.rs
+@@ -285,7 +285,7 @@ mod tests {
+         // Serialize
+         let expected_string = expected_template.to_string();
+         let candidate_string = serde_json::to_string(&expected_template).unwrap();
+-        assert_eq!(3987, candidate_string.len(), "Update me if serialization has changed");
++        assert_eq!(3984, candidate_string.len(), "Update me if serialization has changed");
+         assert_eq!(expected_string, candidate_string);
+ 
+         // Deserialize
+@@ -311,7 +311,7 @@ mod tests {
+         // Serialize
+         let expected_bytes = expected_template.to_bytes_le().unwrap();
+         let candidate_bytes = bincode::serialize(&expected_template).unwrap();
+-        assert_eq!(1857, expected_bytes.len(), "Update me if serialization has changed");
++        assert_eq!(1847, expected_bytes.len(), "Update me if serialization has changed");
+         // TODO (howardwu): Serialization - Handle the inconsistency between ToBytes and Serialize (off by a length encoding).
+         assert_eq!(&expected_bytes[..], &candidate_bytes[8..]);
+ 
+diff --git a/dpc/src/block/transactions.rs b/dpc/src/block/transactions.rs
+index b399d849e..b8f25a66a 100644
+--- a/dpc/src/block/transactions.rs
++++ b/dpc/src/block/transactions.rs
+@@ -301,7 +301,7 @@ mod tests {
+         // Serialize
+         let expected_string = expected_transactions.to_string();
+         let candidate_string = serde_json::to_string(&expected_transactions).unwrap();
+-        assert_eq!(3053, candidate_string.len(), "Update me if serialization has changed");
++        assert_eq!(3050, candidate_string.len(), "Update me if serialization has changed");
+         assert_eq!(expected_string, candidate_string);
+ 
+         // Deserialize
+@@ -316,7 +316,7 @@ mod tests {
+         // Serialize
+         let expected_bytes = expected_transactions.to_bytes_le().unwrap();
+         let candidate_bytes = bincode::serialize(&expected_transactions).unwrap();
+-        assert_eq!(1523, expected_bytes.len(), "Update me if serialization has changed");
++        assert_eq!(1513, expected_bytes.len(), "Update me if serialization has changed");
+         // TODO (howardwu): Serialization - Handle the inconsistency between ToBytes and Serialize (off by a length encoding).
+         assert_eq!(&expected_bytes[..], &candidate_bytes[8..]);
+ 
+diff --git a/dpc/src/circuits/tests.rs b/dpc/src/circuits/tests.rs
+index 5f9f4734e..ba8370918 100644
+--- a/dpc/src/circuits/tests.rs
++++ b/dpc/src/circuits/tests.rs
+@@ -90,8 +90,8 @@ fn dpc_execute_circuits_test<N: Network>(
+         <N as Network>::InputSNARK::setup(&InputCircuit::<N>::blank(), &mut SRS::CircuitSpecific(rng)).unwrap();
+ 
+     // Compute the input circuit proofs.
+-    let mut input_proofs = Vec::with_capacity(N::MAX_NUM_INPUT_RECORDS);
+-    let mut input_public_variables = Vec::with_capacity(N::MAX_NUM_INPUT_RECORDS);
++    let mut input_proofs = Vec::with_capacity(N::NUM_INPUTS as usize);
++    let mut input_public_variables = Vec::with_capacity(N::NUM_INPUTS as usize);
+     for (
+         ((((record, serial_number), ledger_proof), signature), input_value_commitment),
+         input_value_commitment_randomness,
+@@ -169,8 +169,8 @@ fn dpc_execute_circuits_test<N: Network>(
+         <N as Network>::OutputSNARK::setup(&OutputCircuit::<N>::blank(), &mut SRS::CircuitSpecific(rng)).unwrap();
+ 
+     // Compute the output circuit proofs.
+-    let mut output_proofs = Vec::with_capacity(N::MAX_NUM_OUTPUT_RECORDS);
+-    let mut output_public_variables = Vec::with_capacity(N::MAX_NUM_OUTPUT_RECORDS);
++    let mut output_proofs = Vec::with_capacity(N::NUM_OUTPUTS as usize);
++    let mut output_public_variables = Vec::with_capacity(N::NUM_OUTPUTS as usize);
+     for (
+         (((record, commitment), encryption_randomness), output_value_commitment),
+         output_value_commitment_randomness,
+diff --git a/dpc/src/network/testnet1.rs b/dpc/src/network/testnet1.rs
+index 81b31ab3e..7ae4eda6e 100644
+--- a/dpc/src/network/testnet1.rs
++++ b/dpc/src/network/testnet1.rs
+@@ -79,8 +79,8 @@ impl Network for Testnet1 {
+     const NUM_TRANSITIONS: u8 = u8::pow(2, Self::TRANSACTION_TREE_DEPTH as u32);
+     const NUM_EVENTS: u16 = 2;
+ 
+-    const MAX_NUM_INPUT_RECORDS: usize = 16;
+-    const MAX_NUM_OUTPUT_RECORDS: usize = 16;
++    const NUM_INPUTS: u16 = 16;
++    const NUM_OUTPUTS: u16 = 16;
+ 
+     const BLOCK_HASH_PREFIX: u16 = hrp2!("ab");
+     const LEDGER_ROOT_PREFIX: u16 = hrp2!("al");
+@@ -117,7 +117,7 @@ impl Network for Testnet1 {
+     const HEADER_PROOF_SIZE_IN_BYTES: usize = 796;
+     const PROGRAM_PROOF_SIZE_IN_BYTES: usize = 193;
+     const PROGRAM_ID_SIZE_IN_BYTES: usize = 32;
+-    const RECORD_CIPHERTEXT_SIZE_IN_BYTES: usize = 294;
++    const RECORD_CIPHERTEXT_SIZE_IN_BYTES: usize = 292;
+     const RECORD_PAYLOAD_SIZE_IN_BYTES: usize = 128;
+     const RECORD_VIEW_KEY_SIZE_IN_BYTES: usize = 32;
+     const SIGNATURE_SIZE_IN_BYTES: usize = 128;
+diff --git a/dpc/src/network/testnet2.rs b/dpc/src/network/testnet2.rs
+index 0eebbd3b9..c04af81df 100644
+--- a/dpc/src/network/testnet2.rs
++++ b/dpc/src/network/testnet2.rs
+@@ -84,8 +84,8 @@ impl Network for Testnet2 {
+     const NUM_TRANSITIONS: u8 = u8::pow(2, Self::TRANSACTION_TREE_DEPTH as u32);
+     const NUM_EVENTS: u16 = 2;
+ 
+-    const MAX_NUM_INPUT_RECORDS: usize = 16;
+-    const MAX_NUM_OUTPUT_RECORDS: usize = 16;
++    const NUM_INPUTS: u16 = 16;
++    const NUM_OUTPUTS: u16 = 16;
+ 
+     const BLOCK_HASH_PREFIX: u16 = hrp2!("ab");
+     const LEDGER_ROOT_PREFIX: u16 = hrp2!("al");
+@@ -122,7 +122,7 @@ impl Network for Testnet2 {
+     const HEADER_PROOF_SIZE_IN_BYTES: usize = 796;
+     const PROGRAM_PROOF_SIZE_IN_BYTES: usize = 963;
+     const PROGRAM_ID_SIZE_IN_BYTES: usize = 32;
+-    const RECORD_CIPHERTEXT_SIZE_IN_BYTES: usize = 294;
++    const RECORD_CIPHERTEXT_SIZE_IN_BYTES: usize = 292;
+     const RECORD_PAYLOAD_SIZE_IN_BYTES: usize = 128;
+     const RECORD_VIEW_KEY_SIZE_IN_BYTES: usize = 32;
+     const SIGNATURE_SIZE_IN_BYTES: usize = 128;
+diff --git a/dpc/src/posw/proof.rs b/dpc/src/posw/proof.rs
+index 2576969ad..03c3b4561 100644
+--- a/dpc/src/posw/proof.rs
++++ b/dpc/src/posw/proof.rs
+@@ -70,7 +70,8 @@ impl<N: Network> PoSWProof<N> {
+         match self {
+             Self::NonHiding(proof) => {
+                 // Ensure the proof is valid.
+-                if !<<N as Network>::PoSWSNARK as SNARK>::verify(verifying_key, &inputs.to_vec(), proof).unwrap() {
++                let check = <<N as Network>::PoSWSNARK as SNARK>::verify(verifying_key, &inputs.to_vec(), proof);
++                if check.is_err() || !check.unwrap() {
+                     #[cfg(debug_assertions)]
+                     eprintln!("PoSW proof verification failed");
+                     return false;
+diff --git a/dpc/src/record/ciphertext.rs b/dpc/src/record/ciphertext.rs
+index f14b2f6a7..c7cc56757 100644
+--- a/dpc/src/record/ciphertext.rs
++++ b/dpc/src/record/ciphertext.rs
+@@ -16,7 +16,7 @@
+ 
+ use crate::{DecryptionKey, Network, RecordError, ViewKey};
+ use snarkvm_algorithms::traits::{EncryptionScheme, CRH};
+-use snarkvm_utilities::{io::Result as IoResult, to_bytes_le, FromBytes, Read, ToBytes, Write};
++use snarkvm_utilities::{error, io::Result as IoResult, to_bytes_le, FromBytes, Read, ToBytes, Write};
+ 
+ use anyhow::{anyhow, Result};
+ use core::hash::{Hash, Hasher};
+@@ -149,7 +149,9 @@ impl<N: Network> FromBytes for Ciphertext<N> {
+         let ciphertext_randomizer = N::RecordRandomizer::read_le(&mut reader)?;
+         let record_view_key_commitment = N::RecordViewKeyCommitment::read_le(&mut reader)?;
+ 
+-        let num_elements: u32 = FromBytes::read_le(&mut reader)?;
++        // Decode the number of ciphertext elements.
++        let num_elements: u16 = FromBytes::read_le(&mut reader)?;
++
+         let mut record_elements = Vec::with_capacity(num_elements as usize);
+         for _ in 0..num_elements {
+             record_elements.push(FromBytes::read_le(&mut reader)?);
+@@ -173,7 +175,12 @@ impl<N: Network> ToBytes for Ciphertext<N> {
+         self.randomizer.write_le(&mut writer)?;
+         self.record_view_key_commitment.write_le(&mut writer)?;
+ 
+-        (self.record_elements.len() as u32).write_le(&mut writer)?;
++        // Ensure the number of elements is within bounds.
++        if self.record_elements.len() > (u16::MAX as usize) {
++            return Err(error(format!("The number of ciphertext elements cannot exceed {} elements", u16::MAX)));
++        }
++
++        (self.record_elements.len() as u16).write_le(&mut writer)?;
+         for element in &self.record_elements {
+             element.write_le(&mut writer)?;
+         }
+diff --git a/dpc/src/traits/network.rs b/dpc/src/traits/network.rs
+index 124c5134a..7dee63ac8 100644
+--- a/dpc/src/traits/network.rs
++++ b/dpc/src/traits/network.rs
+@@ -101,8 +101,8 @@ pub trait Network: 'static + Copy + Clone + Debug + Default + PartialEq + Eq + S
+     const NUM_TRANSITIONS: u8;
+     const NUM_EVENTS: u16;
+ 
+-    const MAX_NUM_INPUT_RECORDS: usize;
+-    const MAX_NUM_OUTPUT_RECORDS: usize;
++    const NUM_INPUTS: u16;
++    const NUM_OUTPUTS: u16;
+ 
+     const BLOCK_HASH_PREFIX: u16;
+     const LEDGER_ROOT_PREFIX: u16;
+diff --git a/dpc/src/transaction/request.rs b/dpc/src/transaction/request.rs
+index ca7ba7e57..b4b7b6ef4 100644
+--- a/dpc/src/transaction/request.rs
++++ b/dpc/src/transaction/request.rs
+@@ -105,7 +105,7 @@ impl<N: Network> Request<N> {
+             return Err(anyhow!("There must be at least one record consumed."));
+         }
+ 
+-        let mut signatures = Vec::with_capacity(N::MAX_NUM_INPUT_RECORDS);
++        let mut signatures = Vec::with_capacity(N::NUM_INPUTS as usize);
+         for record in records.iter() {
+             // Ensure the caller and record owner match.
+             if caller_address != record.owner() {
+@@ -141,12 +141,8 @@ impl<N: Network> Request<N> {
+     /// Returns `true` if the request signature is valid.
+     pub fn is_valid(&self) -> bool {
+         // Ensure the number of records is correct.
+-        if self.records.len() > N::MAX_NUM_INPUT_RECORDS {
+-            eprintln!(
+-                "Incorrect number of request records. Maximum {}, found {}",
+-                N::MAX_NUM_INPUT_RECORDS,
+-                self.records.len()
+-            );
++        if self.records.len() > (N::NUM_INPUTS as usize) {
++            eprintln!("Incorrect number of request records. Maximum {}, found {}", N::NUM_INPUTS, self.records.len());
+             return false;
+         }
+ 
+diff --git a/dpc/src/transaction/response.rs b/dpc/src/transaction/response.rs
+index 9a7b29dbe..719cc8f37 100644
+--- a/dpc/src/transaction/response.rs
++++ b/dpc/src/transaction/response.rs
+@@ -91,7 +91,7 @@ impl<N: Network> Response<N> {
+ 
+     /// Returns the commitments.
+     pub fn commitments(&self) -> Vec<N::Commitment> {
+-        self.records.iter().take(N::MAX_NUM_OUTPUT_RECORDS).map(Record::commitment).collect()
++        self.records.iter().take(N::NUM_OUTPUTS as usize).map(Record::commitment).collect()
+     }
+ 
+     /// Returns a reference to the records.
+@@ -101,7 +101,7 @@ impl<N: Network> Response<N> {
+ 
+     /// Returns the ciphertexts.
+     pub fn ciphertexts(&self) -> Vec<N::RecordCiphertext> {
+-        self.records.iter().take(N::MAX_NUM_OUTPUT_RECORDS).map(Record::ciphertext).cloned().collect()
++        self.records.iter().take(N::NUM_OUTPUTS as usize).map(Record::ciphertext).cloned().collect()
+     }
+ 
+     /// Returns a reference to the encryption randomness.
+diff --git a/dpc/src/transaction/transaction.rs b/dpc/src/transaction/transaction.rs
+index 2142fc83e..8121ba2a9 100644
+--- a/dpc/src/transaction/transaction.rs
++++ b/dpc/src/transaction/transaction.rs
+@@ -29,6 +29,7 @@ use crate::{
+     VirtualMachine,
+ };
+ use snarkvm_utilities::{
++    error,
+     has_duplicates,
+     io::{Read, Result as IoResult, Write},
+     FromBytes,
+@@ -119,7 +120,7 @@ impl<N: Network> Transaction<N> {
+         }
+ 
+         // Returns `false` if the number of serial numbers in the transaction is incorrect.
+-        if self.serial_numbers().count() > num_transitions * N::MAX_NUM_INPUT_RECORDS {
++        if self.serial_numbers().count() > num_transitions * N::NUM_INPUTS as usize {
+             eprintln!("Transaction contains incorrect number of serial numbers");
+             return false;
+         }
+@@ -131,7 +132,7 @@ impl<N: Network> Transaction<N> {
+         }
+ 
+         // Returns `false` if the number of commitments in the transaction is incorrect.
+-        if self.commitments().count() > num_transitions * N::MAX_NUM_OUTPUT_RECORDS {
++        if self.commitments().count() > num_transitions * N::NUM_OUTPUTS as usize {
+             eprintln!("Transaction contains incorrect number of commitments");
+             return false;
+         }
+@@ -143,7 +144,7 @@ impl<N: Network> Transaction<N> {
+         }
+ 
+         // Returns `false` if the number of record ciphertexts in the transaction is incorrect.
+-        if self.ciphertexts().count() > num_transitions * N::MAX_NUM_OUTPUT_RECORDS {
++        if self.ciphertexts().count() > num_transitions * N::NUM_OUTPUTS as usize {
+             eprintln!("Transaction contains incorrect number of record ciphertexts");
+             return false;
+         }
+@@ -348,8 +349,8 @@ impl<N: Network> FromBytes for Transaction<N> {
+             transitions.push(FromBytes::read_le(&mut reader)?);
+         }
+ 
+-        Ok(Self::from(input_circuit_id, output_circuit_id, ledger_root, transitions)
+-            .expect("Failed to deserialize a transaction"))
++        Self::from(input_circuit_id, output_circuit_id, ledger_root, transitions)
++            .map_err(|e| error(format!("Failed to deserialize a transaction: {e}")))
+     }
+ }
+ 
+@@ -359,6 +360,12 @@ impl<N: Network> ToBytes for Transaction<N> {
+         self.input_circuit_id.write_le(&mut writer)?;
+         self.output_circuit_id.write_le(&mut writer)?;
+         self.ledger_root.write_le(&mut writer)?;
++
++        // Ensure the number of transitions is within bounds.
++        if self.transitions.len() > N::NUM_TRANSITIONS as usize {
++            return Err(error(format!("The number of transitions cannot exceed {}", N::NUM_TRANSITIONS)));
++        }
++
+         (self.transitions.len() as u16).write_le(&mut writer)?;
+         self.transitions.write_le(&mut writer)
+     }
+@@ -491,7 +498,7 @@ mod tests {
+         // Serialize
+         let expected_string = expected_transaction.to_string();
+         let candidate_string = serde_json::to_string(&expected_transaction).unwrap();
+-        assert_eq!(3022, candidate_string.len(), "Update me if serialization has changed");
++        assert_eq!(3019, candidate_string.len(), "Update me if serialization has changed");
+         assert_eq!(expected_string, candidate_string);
+ 
+         // Deserialize
+@@ -511,7 +518,7 @@ mod tests {
+         // Serialize
+         let expected_bytes = expected_transaction.to_bytes_le().unwrap();
+         let candidate_bytes = bincode::serialize(&expected_transaction).unwrap();
+-        assert_eq!(1521, expected_bytes.len(), "Update me if serialization has changed");
++        assert_eq!(1511, expected_bytes.len(), "Update me if serialization has changed");
+         // TODO (howardwu): Serialization - Handle the inconsistency between ToBytes and Serialize (off by a length encoding).
+         assert_eq!(&expected_bytes[..], &candidate_bytes[8..]);
+ 
+diff --git a/dpc/src/transaction/transition.rs b/dpc/src/transaction/transition.rs
+index e76d70041..f9c377c8a 100644
+--- a/dpc/src/transaction/transition.rs
++++ b/dpc/src/transaction/transition.rs
+@@ -19,7 +19,7 @@ use crate::{
+     prelude::*,
+ };
+ use snarkvm_algorithms::merkle_tree::{MerklePath, MerkleTree};
+-use snarkvm_utilities::{FromBytes, FromBytesDeserializer, ToBytes, ToBytesSerializer};
++use snarkvm_utilities::{error, FromBytes, FromBytesDeserializer, ToBytes, ToBytesSerializer};
+ 
+ use anyhow::{anyhow, Result};
+ use itertools::Itertools;
+@@ -181,7 +181,7 @@ impl<N: Network> Transition<N> {
+ 
+         let program_id = self.execution.program_execution.as_ref().map(|x| x.program_id);
+ 
+-        let mut input_public_variables = Vec::with_capacity(N::MAX_NUM_INPUT_RECORDS);
++        let mut input_public_variables = Vec::with_capacity(N::NUM_INPUTS as usize);
+         for (serial_number, input_value_commitment) in self.serial_numbers().zip_eq(self.input_value_commitments()) {
+             let input_public = InputPublicVariables::<N>::new(
+                 *serial_number,
+@@ -194,7 +194,7 @@ impl<N: Network> Transition<N> {
+             input_public_variables.push(input_public);
+         }
+ 
+-        let mut output_public_variables = Vec::with_capacity(N::MAX_NUM_OUTPUT_RECORDS);
++        let mut output_public_variables = Vec::with_capacity(N::NUM_OUTPUTS as usize);
+         for (commitment, output_value_commitment) in self.commitments().zip_eq(self.output_value_commitments()) {
+             let output_public =
+                 OutputPublicVariables::<N>::new(*commitment, output_value_commitment.clone(), program_id);
+@@ -359,12 +359,8 @@ impl<N: Network> Transition<N> {
+         // Construct the leaves of the transition tree.
+         let leaves: Vec<Vec<u8>> = vec![
+             // TODO (raychu86): split - handle padding serial numbers and commitments. (i.e. leaf 1 - 16 = serial numbers, 17 - 32 = commitments)
+-            serial_numbers
+-                .iter()
+-                .take(N::MAX_NUM_INPUT_RECORDS)
+-                .map(ToBytes::to_bytes_le)
+-                .collect::<Result<Vec<_>>>()?,
+-            commitments.iter().take(N::MAX_NUM_OUTPUT_RECORDS).map(ToBytes::to_bytes_le).collect::<Result<Vec<_>>>()?,
++            serial_numbers.iter().take(N::NUM_INPUTS as usize).map(ToBytes::to_bytes_le).collect::<Result<Vec<_>>>()?,
++            commitments.iter().take(N::NUM_OUTPUTS as usize).map(ToBytes::to_bytes_le).collect::<Result<Vec<_>>>()?,
+         ]
+         .concat();
+ 
+@@ -395,13 +391,15 @@ impl<N: Network> FromBytes for Transition<N> {
+     fn read_le<R: Read>(mut reader: R) -> IoResult<Self> {
+         let transition_id: N::TransitionID = FromBytes::read_le(&mut reader)?;
+ 
+-        let num_input_records: u32 = FromBytes::read_le(&mut reader)?;
++        let num_input_records: u16 = FromBytes::read_le(&mut reader)?;
++
+         let mut serial_numbers = Vec::<N::SerialNumber>::with_capacity(num_input_records as usize);
+         for _ in 0..num_input_records {
+             serial_numbers.push(FromBytes::read_le(&mut reader)?);
+         }
+ 
+-        let num_output_records: u32 = FromBytes::read_le(&mut reader)?;
++        let num_output_records: u16 = FromBytes::read_le(&mut reader)?;
++
+         let mut ciphertexts = Vec::<N::RecordCiphertext>::with_capacity(num_output_records as usize);
+         for _ in 0..num_output_records {
+             ciphertexts.push(FromBytes::read_le(&mut reader)?);
+@@ -429,7 +427,7 @@ impl<N: Network> FromBytes for Transition<N> {
+ 
+         let execution: Execution<N> = FromBytes::read_le(&mut reader)?;
+ 
+-        Ok(Self::from(
++        Self::from(
+             transition_id,
+             serial_numbers,
+             ciphertexts,
+@@ -440,7 +438,7 @@ impl<N: Network> FromBytes for Transition<N> {
+             events,
+             execution,
+         )
+-        .expect("Failed to deserialize a transition from bytes"))
++        .map_err(|e| error(format!("Failed to deserialize a transition from bytes: {e}")))
+     }
+ }
+ 
+@@ -448,16 +446,36 @@ impl<N: Network> ToBytes for Transition<N> {
+     #[inline]
+     fn write_le<W: Write>(&self, mut writer: W) -> IoResult<()> {
+         self.transition_id.write_le(&mut writer)?;
+-        (self.serial_numbers.len() as u32).write_le(&mut writer)?;
++
++        // Ensure the number of serial numbers is within bounds.
++        if self.serial_numbers.len() > N::NUM_INPUTS as usize {
++            return Err(error(format!("The number of serial numbers cannot exceed {}", N::NUM_INPUTS)));
++        }
++
++        (self.serial_numbers.len() as u16).write_le(&mut writer)?;
+         self.serial_numbers.write_le(&mut writer)?;
+-        (self.ciphertexts.len() as u32).write_le(&mut writer)?;
++
++        // Ensure the number of ciphertexts is within bounds.
++        if self.ciphertexts.len() > N::NUM_OUTPUTS as usize {
++            return Err(error(format!("The number of ciphertexts cannot exceed {}", N::NUM_OUTPUTS)));
++        }
++
++        (self.ciphertexts.len() as u16).write_le(&mut writer)?;
+         self.ciphertexts.write_le(&mut writer)?;
++
+         self.value_balance.write_le(&mut writer)?;
+         self.input_value_commitments.write_le(&mut writer)?;
+         self.output_value_commitments.write_le(&mut writer)?;
+         self.value_balance_commitment.write_le(&mut writer)?;
++
++        // Ensure the number of events is within bounds.
++        if self.events.len() > N::NUM_EVENTS as usize {
++            return Err(error(format!("The number of events cannot exceed {}", N::NUM_EVENTS)));
++        }
++
+         (self.events.len() as u16).write_le(&mut writer)?;
+         self.events.write_le(&mut writer)?;
++
+         self.execution.write_le(&mut writer)
+     }
+ }
+@@ -536,13 +554,13 @@ mod tests {
+             let transaction = Testnet1::genesis_block().to_coinbase_transaction().unwrap();
+             let transition = transaction.transitions().first().unwrap().clone();
+             let transition_bytes = transition.to_bytes_le().unwrap();
+-            assert_eq!(1391, transition_bytes.len(),);
++            assert_eq!(1381, transition_bytes.len());
+         }
+         {
+             let transaction = Testnet2::genesis_block().to_coinbase_transaction().unwrap();
+             let transition = transaction.transitions().first().unwrap().clone();
+             let transition_bytes = transition.to_bytes_le().unwrap();
+-            assert_eq!(1391, transition_bytes.len(),);
++            assert_eq!(1381, transition_bytes.len());
+         }
+     }
+ 
+@@ -554,7 +572,7 @@ mod tests {
+         // Serialize
+         let expected_string = expected_transition.to_string();
+         let candidate_string = serde_json::to_string(&expected_transition).unwrap();
+-        assert_eq!(2640, candidate_string.len(), "Update me if serialization has changed");
++        assert_eq!(2637, candidate_string.len(), "Update me if serialization has changed");
+         assert_eq!(expected_string, candidate_string);
+ 
+         // Deserialize
+@@ -570,7 +588,7 @@ mod tests {
+         // Serialize
+         let expected_bytes = expected_transition.to_bytes_le().unwrap();
+         let candidate_bytes = bincode::serialize(&expected_transition).unwrap();
+-        assert_eq!(1391, expected_bytes.len(), "Update me if serialization has changed");
++        assert_eq!(1381, expected_bytes.len(), "Update me if serialization has changed");
+         // TODO (howardwu): Serialization - Handle the inconsistency between ToBytes and Serialize (off by a length encoding).
+         assert_eq!(&expected_bytes[..], &candidate_bytes[8..]);
+ 
+diff --git a/dpc/src/virtual_machine/builder.rs b/dpc/src/virtual_machine/builder.rs
+index 9a2f018c3..0185ed312 100644
+--- a/dpc/src/virtual_machine/builder.rs
++++ b/dpc/src/virtual_machine/builder.rs
+@@ -41,9 +41,9 @@ impl<N: Network> ResponseBuilder<N> {
+     pub fn new() -> Self {
+         Self {
+             request: OnceCell::new(),
+-            outputs: Vec::with_capacity(N::MAX_NUM_OUTPUT_RECORDS),
+-            events: Vec::new(),
+-            errors: Vec::new(),
++            outputs: Vec::with_capacity(N::NUM_OUTPUTS as usize),
++            events: Vec::with_capacity(N::NUM_EVENTS as usize),
++            errors: Vec::with_capacity(N::NUM_TRANSITIONS as usize),
+         }
+     }
+ 
+@@ -68,7 +68,7 @@ impl<N: Network> ResponseBuilder<N> {
+             self.errors.push("Builder cannot add new outputs before adding a request".into());
+         }
+ 
+-        match self.outputs.len() < N::MAX_NUM_OUTPUT_RECORDS {
++        match self.outputs.len() < N::NUM_OUTPUTS as usize {
+             true => self.outputs.push(output),
+             false => self.errors.push("Builder exceeded maximum outputs".into()),
+         };
+@@ -129,7 +129,7 @@ impl<N: Network> ResponseBuilder<N> {
+             .outputs
+             .iter()
+             .enumerate()
+-            .take(N::MAX_NUM_OUTPUT_RECORDS)
++            .take(N::NUM_OUTPUTS as usize)
+             .map(|(i, output)| {
+                 let (record, encryption_randomness) = output.to_record(rng)?;
+ 
+@@ -145,7 +145,7 @@ impl<N: Network> ResponseBuilder<N> {
+             .unzip();
+ 
+         // Ensure the input records have the correct program ID.
+-        for (i, input_record) in input_records.iter().enumerate().take(N::MAX_NUM_INPUT_RECORDS) {
++        for (i, input_record) in input_records.iter().enumerate().take(N::NUM_INPUTS as usize) {
+             if input_record.program_id() != program_id {
+                 return Err(anyhow!("Program ID in input record {} is incorrect", i));
+             }
+@@ -160,15 +160,14 @@ impl<N: Network> ResponseBuilder<N> {
+         // }
+ 
+         // Compute the commitments.
+-        let commitments: Vec<_> =
+-            output_records.iter().take(N::MAX_NUM_OUTPUT_RECORDS).map(Record::commitment).collect();
++        let commitments: Vec<_> = output_records.iter().take(N::NUM_OUTPUTS as usize).map(Record::commitment).collect();
+ 
+         // Compute the value balance.
+         let mut value_balance = AleoAmount::ZERO;
+-        for record in input_records.iter().take(N::MAX_NUM_INPUT_RECORDS) {
++        for record in input_records.iter().take(N::NUM_INPUTS as usize) {
+             value_balance = value_balance.add(record.value());
+         }
+-        for record in output_records.iter().take(N::MAX_NUM_OUTPUT_RECORDS) {
++        for record in output_records.iter().take(N::NUM_OUTPUTS as usize) {
+             value_balance = value_balance.sub(record.value());
+         }
+ 
+@@ -187,8 +186,8 @@ impl<N: Network> ResponseBuilder<N> {
+         // Construct the input value commitments.
+         let input_record_values: Vec<AleoAmount> = request.records().iter().map(|x| x.value()).collect();
+ 
+-        let mut input_value_commitments = Vec::with_capacity(N::MAX_NUM_INPUT_RECORDS);
+-        let mut input_value_commitment_randomness = Vec::with_capacity(N::MAX_NUM_INPUT_RECORDS);
++        let mut input_value_commitments = Vec::with_capacity(N::NUM_INPUTS as usize);
++        let mut input_value_commitment_randomness = Vec::with_capacity(N::NUM_INPUTS as usize);
+ 
+         for value in input_record_values.iter() {
+             let commitment_randomness = N::ProgramScalarField::rand(rng);
+@@ -202,8 +201,8 @@ impl<N: Network> ResponseBuilder<N> {
+         // Construct the output value commitments.
+         let output_record_values: Vec<AleoAmount> = output_records.iter().map(|x| x.value()).collect();
+ 
+-        let mut output_value_commitments = Vec::with_capacity(N::MAX_NUM_OUTPUT_RECORDS);
+-        let mut output_value_commitment_randomness = Vec::with_capacity(N::MAX_NUM_OUTPUT_RECORDS);
++        let mut output_value_commitments = Vec::with_capacity(N::NUM_OUTPUTS as usize);
++        let mut output_value_commitment_randomness = Vec::with_capacity(N::NUM_OUTPUTS as usize);
+ 
+         for value in output_record_values.iter() {
+             let commitment_randomness = N::ProgramScalarField::rand(rng);
+diff --git a/dpc/src/virtual_machine/event.rs b/dpc/src/virtual_machine/event.rs
+index baecaa25f..bb6a4746a 100644
+--- a/dpc/src/virtual_machine/event.rs
++++ b/dpc/src/virtual_machine/event.rs
+@@ -15,7 +15,7 @@
+ // along with the snarkVM library. If not, see <https://www.gnu.org/licenses/>.
+ 
+ use crate::{Network, Operation};
+-use snarkvm_utilities::{FromBytes, FromBytesDeserializer, ToBytes, ToBytesSerializer};
++use snarkvm_utilities::{error, FromBytes, FromBytesDeserializer, ToBytes, ToBytesSerializer};
+ 
+ use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
+ use std::{
+@@ -63,7 +63,7 @@ impl<N: Network> FromBytes for Event<N> {
+                 Ok(Self::RecordViewKey(index, record_view_key))
+             }
+             2 => Ok(Self::Operation(FromBytes::read_le(&mut reader)?)),
+-            _ => unreachable!("Invalid event ID during deserialization"),
++            3.. => Err(error("Invalid event ID during deserialization")),
+         }
+     }
+ }
+@@ -149,7 +149,7 @@ impl<'de, N: Network> Deserialize<'de> for Event<N> {
+                     2 => Ok(Self::Operation(
+                         serde_json::from_value(event["operation"].clone()).map_err(de::Error::custom)?,
+                     )),
+-                    _ => unreachable!("Invalid event id {}", event_id),
++                    3.. => Err(error("Invalid event ID during deserialization")).map_err(de::Error::custom),
+                 }
+             }
+             false => FromBytesDeserializer::<Self>::deserialize_with_size_encoding(deserializer, "event"),
+diff --git a/dpc/src/virtual_machine/execution.rs b/dpc/src/virtual_machine/execution.rs
+index 0404ace05..08f506496 100644
+--- a/dpc/src/virtual_machine/execution.rs
++++ b/dpc/src/virtual_machine/execution.rs
+@@ -16,14 +16,14 @@
+ 
+ use crate::{Network, ProgramPublicVariables};
+ use snarkvm_algorithms::{merkle_tree::MerklePath, SNARK};
+-use snarkvm_utilities::{FromBytes, FromBytesDeserializer, ToBytes, ToBytesSerializer};
++use snarkvm_utilities::{error, FromBytes, FromBytesDeserializer, ToBytes, ToBytesSerializer};
+ 
+ use anyhow::Result;
+ use itertools::Itertools;
+ use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
+ use std::{
+     fmt,
+-    io::{Error, ErrorKind, Read, Result as IoResult, Write},
++    io::{Read, Result as IoResult, Write},
+     str::FromStr,
+ };
+ 
+@@ -144,20 +144,22 @@ impl<N: Network> FromBytes for Execution<N> {
+             false => None,
+         };
+ 
+-        let num_input_proofs: u32 = FromBytes::read_le(&mut reader)?;
++        let num_input_proofs = u16::read_le(&mut reader)?;
++
+         let mut input_proofs = Vec::with_capacity(num_input_proofs as usize);
+         for _ in 0..num_input_proofs {
+             input_proofs.push(FromBytes::read_le(&mut reader)?);
+         }
+ 
+-        let num_output_proofs: u32 = FromBytes::read_le(&mut reader)?;
++        let num_output_proofs = u16::read_le(&mut reader)?;
++
+         let mut output_proofs = Vec::with_capacity(num_output_proofs as usize);
+         for _ in 0..num_output_proofs {
+             output_proofs.push(FromBytes::read_le(&mut reader)?);
+         }
+ 
+         Self::from(program_execution, input_proofs, output_proofs)
+-            .map_err(|error| Error::new(ErrorKind::Other, format!("{}", error)))
++            .map_err(|e| error(format!("Failed to deserialize execution: {e}")))
+     }
+ }
+ 
+@@ -175,9 +177,20 @@ impl<N: Network> ToBytes for Execution<N> {
+             None => false.write_le(&mut writer)?,
+         }
+ 
+-        (self.input_proofs.len() as u32).write_le(&mut writer)?;
++        // Ensure the number of input proofs is within bounds.
++        if self.input_proofs.len() > N::NUM_INPUTS as usize {
++            return Err(error(format!("The number of input proofs cannot exceed {}", N::NUM_INPUTS)));
++        }
++
++        (self.input_proofs.len() as u16).write_le(&mut writer)?;
+         self.input_proofs.write_le(&mut writer)?;
+-        (self.output_proofs.len() as u32).write_le(&mut writer)?;
++
++        // Ensure the number of output proofs is within bounds.
++        if self.output_proofs.len() > N::NUM_OUTPUTS as usize {
++            return Err(error(format!("The number of output proofs cannot exceed {}", N::NUM_OUTPUTS)));
++        }
++
++        (self.output_proofs.len() as u16).write_le(&mut writer)?;
+         self.output_proofs.write_le(&mut writer)
+     }
+ }
+diff --git a/dpc/src/virtual_machine/operation.rs b/dpc/src/virtual_machine/operation.rs
+index dc332d90b..997b8f952 100644
+--- a/dpc/src/virtual_machine/operation.rs
++++ b/dpc/src/virtual_machine/operation.rs
+@@ -16,7 +16,7 @@
+ 
+ use crate::{Address, AleoAmount, FunctionInputs, Network};
+ use snarkvm_fields::{ConstraintFieldError, ToConstraintField};
+-use snarkvm_utilities::{FromBytes, FromBytesDeserializer, ToBytes, ToBytesSerializer};
++use snarkvm_utilities::{error, FromBytes, FromBytesDeserializer, ToBytes, ToBytesSerializer};
+ 
+ use anyhow::{anyhow, Result};
+ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+@@ -106,7 +106,7 @@ impl<N: Network> FromBytes for Operation<N> {
+                 let function_inputs = FromBytes::read_le(&mut reader)?;
+                 Ok(Self::Evaluate(function_id, function_inputs))
+             }
+-            _ => unreachable!("Invalid operation during deserialization"),
++            4.. => Err(error("Invalid operation ID during deserialization")),
+         }
+     }
+ }
+@@ -159,7 +159,7 @@ impl<N: Network> FromStr for Operation<N> {
+                 let function_inputs = serde_json::from_value(operation["function_inputs"].clone())?;
+                 Ok(Self::Evaluate(function_id, function_inputs))
+             }
+-            _ => unreachable!("Invalid operation id {}", operation_id),
++            4.. => Err(error("Invalid operation ID during deserialization").into()),
+         }
+     }
+ }
+diff --git a/dpc/src/virtual_machine/virtual_machine.rs b/dpc/src/virtual_machine/virtual_machine.rs
+index f7905dcd8..732d1b479 100644
+--- a/dpc/src/virtual_machine/virtual_machine.rs
++++ b/dpc/src/virtual_machine/virtual_machine.rs
+@@ -75,7 +75,7 @@ impl<N: Network> VirtualMachine<N> {
+ 
+         // TODO (raychu86): Clean this up.
+         // Compute the input circuit proofs.
+-        let mut input_proofs = Vec::with_capacity(N::MAX_NUM_INPUT_RECORDS);
++        let mut input_proofs = Vec::with_capacity(N::NUM_INPUTS as usize);
+         for (
+             ((((record, serial_number), ledger_proof), signature), input_value_commitment),
+             input_value_commitment_randomness,
+@@ -112,7 +112,7 @@ impl<N: Network> VirtualMachine<N> {
+ 
+         // TODO (raychu86): Clean this up.
+         // Compute the output circuit proofs.
+-        let mut output_proofs = Vec::with_capacity(N::MAX_NUM_OUTPUT_RECORDS);
++        let mut output_proofs = Vec::with_capacity(N::NUM_OUTPUTS as usize);
+         for (
+             (((record, commitment), encryption_randomness), output_value_commitment),
+             output_value_commitment_randomness,
+@@ -309,7 +309,7 @@ impl<N: Network> VirtualMachine<N> {
+ 
+         // TODO (raychu86): Clean this up.
+         // Compute the input circuit proofs.
+-        let mut input_proofs = Vec::with_capacity(N::MAX_NUM_INPUT_RECORDS);
++        let mut input_proofs = Vec::with_capacity(N::NUM_INPUTS as usize);
+         for (
+             ((((record, serial_number), ledger_proof), signature), input_value_commitment),
+             input_value_commitment_randomness,
+@@ -346,7 +346,7 @@ impl<N: Network> VirtualMachine<N> {
+ 
+         // TODO (raychu86): Clean this up.
+         // Compute the output circuit proofs.
+-        let mut output_proofs = Vec::with_capacity(N::MAX_NUM_OUTPUT_RECORDS);
++        let mut output_proofs = Vec::with_capacity(N::NUM_OUTPUTS as usize);
+         for (
+             (((record, commitment), encryption_randomness), output_value_commitment),
+             output_value_commitment_randomness,
+diff --git a/parameters/src/testnet1/genesis.rs b/parameters/src/testnet1/genesis.rs
+index 902c106ee..c173b4560 100644
+--- a/parameters/src/testnet1/genesis.rs
++++ b/parameters/src/testnet1/genesis.rs
+@@ -20,7 +20,7 @@ pub struct GenesisBlock;
+ 
+ impl Genesis for GenesisBlock {
+     const CHECKSUM: &'static str = "";
+-    const SIZE: u64 = 2515;
++    const SIZE: u64 = 2505;
+ 
+     fn load_bytes() -> Vec<u8> {
+         include_bytes!("./resources/block.genesis").to_vec()
+diff --git a/parameters/src/testnet1/resources/block.genesis b/parameters/src/testnet1/resources/block.genesis
+index 82539c567..84db0fa5b 100644
+Binary files a/parameters/src/testnet1/resources/block.genesis and b/parameters/src/testnet1/resources/block.genesis differ
+diff --git a/parameters/src/testnet2/genesis.rs b/parameters/src/testnet2/genesis.rs
+index 902c106ee..c173b4560 100644
+--- a/parameters/src/testnet2/genesis.rs
++++ b/parameters/src/testnet2/genesis.rs
+@@ -20,7 +20,7 @@ pub struct GenesisBlock;
+ 
+ impl Genesis for GenesisBlock {
+     const CHECKSUM: &'static str = "";
+-    const SIZE: u64 = 2515;
++    const SIZE: u64 = 2505;
+ 
+     fn load_bytes() -> Vec<u8> {
+         include_bytes!("./resources/block.genesis").to_vec()
+diff --git a/parameters/src/testnet2/resources/block.genesis b/parameters/src/testnet2/resources/block.genesis
+index d29829dfc..468230710 100644
+Binary files a/parameters/src/testnet2/resources/block.genesis and b/parameters/src/testnet2/resources/block.genesis differ
+diff --git a/utilities/src/serialize/impls.rs b/utilities/src/serialize/impls.rs
+index 4c11bff9f..cd8a6b53f 100644
+--- a/utilities/src/serialize/impls.rs
++++ b/utilities/src/serialize/impls.rs
+@@ -26,7 +26,7 @@ pub use crate::{
+ };
+ use crate::{serialize::traits::*, SerializationError};
+ 
+-use std::{borrow::Cow, collections::BTreeMap, rc::Rc, sync::Arc};
++use std::{borrow::Cow, collections::BTreeMap, mem, rc::Rc, sync::Arc};
+ 
+ impl CanonicalSerialize for bool {
+     #[inline]
+@@ -294,6 +294,11 @@ impl<T: CanonicalDeserialize> CanonicalDeserialize for Vec<T> {
+     #[inline]
+     fn deserialize<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+         let len = u64::deserialize(reader)?;
++
++        if mem::size_of::<T>().saturating_mul(len as usize) > 1024 * 1024 * 1024 {
++            return Err(SerializationError::InvalidData);
++        }
++
+         let mut values = Vec::with_capacity(len as usize);
+         for _ in 0..len {
+             values.push(T::deserialize(reader)?);
+@@ -304,6 +309,11 @@ impl<T: CanonicalDeserialize> CanonicalDeserialize for Vec<T> {
+     #[inline]
+     fn deserialize_uncompressed<R: Read>(reader: &mut R) -> Result<Self, SerializationError> {
+         let len = u64::deserialize(reader)?;
++
++        if mem::size_of::<T>().saturating_mul(len as usize) > 1024 * 1024 * 1024 {
++            return Err(SerializationError::InvalidData);
++        }
++
+         let mut values = Vec::with_capacity(len as usize);
+         for _ in 0..len {
+             values.push(T::deserialize_uncompressed(reader)?);

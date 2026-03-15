@@ -1,0 +1,38 @@
+diff --git a/ast/src/common/identifier.rs b/ast/src/common/identifier.rs
+index 971f473563..5c6837104d 100644
+--- a/ast/src/common/identifier.rs
++++ b/ast/src/common/identifier.rs
+@@ -66,6 +66,11 @@ impl Identifier {
+             span,
+         }
+     }
++
++    /// Check if the Identifier name matches the other name
++    pub fn matches(&self, other: &Self) -> bool {
++        self.name == other.name
++    }
+ }
+ 
+ impl<'ast> From<InputIdentifier<'ast>> for Identifier {
+@@ -90,7 +95,7 @@ impl fmt::Debug for Identifier {
+ 
+ impl PartialEq for Identifier {
+     fn eq(&self, other: &Self) -> bool {
+-        self.name == other.name
++        self.name == other.name && self.span == other.span
+     }
+ }
+ 
+diff --git a/compiler/src/statement/assign/assignee/member.rs b/compiler/src/statement/assign/assignee/member.rs
+index ac4fef1bcf..e1c2e76728 100644
+--- a/compiler/src/statement/assign/assignee/member.rs
++++ b/compiler/src/statement/assign/assignee/member.rs
+@@ -36,7 +36,7 @@ impl<'a, F: PrimeField, G: GroupType<F>> ConstrainedProgram<'a, F, G> {
+         match context.input.remove(0) {
+             ConstrainedValue::CircuitExpression(_variable, members) => {
+                 // Modify the circuit variable in place
+-                let matched_variable = members.iter_mut().find(|member| &member.0 == name);
++                let matched_variable = members.iter_mut().find(|member| member.0.matches(name));
+ 
+                 match matched_variable {
+                     Some(member) => {

@@ -7,12 +7,41 @@ import os
 import re
 import subprocess
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
+import anthropic as _anthropic
 from anthropic import Anthropic
 
 from bugeval.agent_models import AgentResult
+from bugeval.pr_eval_models import default_pricing
+
+T = TypeVar("T")
+
+_ANTHROPIC_RETRYABLE: tuple[type[Exception], ...] = (
+    _anthropic.RateLimitError,
+    _anthropic.InternalServerError,
+    _anthropic.APIConnectionError,
+)
+
+
+def _retry_call(
+    fn: Callable[[], T],
+    retryable: tuple[type[Exception], ...],
+    max_retries: int = 3,
+    base_delay: float = 1.0,
+) -> T:
+    """Call fn, retrying on retryable exceptions with exponential backoff."""
+    for attempt in range(max_retries + 1):
+        try:
+            return fn()
+        except retryable:
+            if attempt == max_retries:
+                raise
+            time.sleep(base_delay * (2**attempt))
+    raise RuntimeError("unreachable")
+
 
 AGENT_TOOLS: list[dict[str, Any]] = [
     {
@@ -59,6 +88,50 @@ AGENT_TOOLS: list[dict[str, Any]] = [
                 },
             },
             "required": ["pattern", "path"],
+        },
+    },
+    {
+        "name": "read_file_range",
+        "description": "Read a specific range of lines from a file (1-indexed, inclusive).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Relative path to the file within the repository",
+                },
+                "start_line": {
+                    "type": "integer",
+                    "description": "First line to read (1-indexed)",
+                },
+                "end_line": {
+                    "type": "integer",
+                    "description": "Last line to read (inclusive)",
+                },
+            },
+            "required": ["path", "start_line", "end_line"],
+        },
+    },
+    {
+        "name": "git_blame",
+        "description": "Show git blame for a range of lines in a file to see who wrote each line.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "description": "Relative path to the file within the repository",
+                },
+                "start_line": {
+                    "type": "integer",
+                    "description": "First line to blame (1-indexed)",
+                },
+                "end_line": {
+                    "type": "integer",
+                    "description": "Last line to blame (inclusive)",
+                },
+            },
+            "required": ["path", "start_line", "end_line"],
         },
     },
 ]
@@ -111,6 +184,35 @@ def execute_tool(tool_name: str, tool_input: dict[str, Any], repo_dir: Path) -> 
         except subprocess.TimeoutExpired:
             return "search_code timed out"
         return result.stdout[:10000] if result.stdout else "(no matches)"
+
+    elif tool_name == "read_file_range":
+        path = _safe_path(tool_input["path"], repo_dir)
+        start_line = int(tool_input["start_line"])
+        end_line = int(tool_input["end_line"])
+        try:
+            lines = path.read_text(errors="replace").splitlines()
+            selected = lines[max(0, start_line - 1) : end_line]
+            return "\n".join(selected)
+        except OSError as e:
+            return f"Error reading file: {e}"
+
+    elif tool_name == "git_blame":
+        path = _safe_path(tool_input["path"], repo_dir)
+        start_line = int(tool_input["start_line"])
+        end_line = int(tool_input["end_line"])
+        try:
+            result = subprocess.run(
+                ["git", "blame", f"-L{start_line},{end_line}", "--", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+                cwd=repo_dir,
+            )
+            return result.stdout[:10000] if result.stdout else result.stderr[:1000] or "(no output)"
+        except subprocess.TimeoutExpired:
+            return "git_blame timed out"
+        except OSError as e:
+            return f"Error running git blame: {e}"
 
     else:
         raise ValueError(f"Unknown tool: {tool_name!r}")
@@ -168,21 +270,30 @@ def run_agent_api(
     messages: list[dict[str, Any]] = [{"role": "user", "content": user_prompt}]
     conversation: list[dict[str, Any]] = []
     total_tokens = 0
+    total_cost_usd = 0.0
     turns = 0
     findings: list[dict[str, Any]] = []
     start = time.monotonic()
     active_tools: list[dict[str, Any]] = AGENT_TOOLS if context_level != "diff-only" else []
+    pricing = default_pricing()
 
     while turns < max_turns:
-        response = client.messages.create(
-            model=model,
-            system=system_prompt,
-            messages=messages,  # type: ignore[arg-type]
-            tools=active_tools,  # type: ignore[arg-type]
-            max_tokens=16384,
+        response = _retry_call(
+            lambda: client.messages.create(
+                model=model,
+                system=system_prompt,
+                messages=messages,  # type: ignore[arg-type]
+                tools=active_tools,  # type: ignore[arg-type]
+                max_tokens=16384,
+                temperature=0,
+            ),
+            retryable=_ANTHROPIC_RETRYABLE,
         )
         turns += 1
         total_tokens += response.usage.input_tokens + response.usage.output_tokens
+        total_cost_usd += pricing.estimate_cost(
+            model, response.usage.input_tokens, response.usage.output_tokens
+        )
 
         # Record assistant message
         assistant_content = [block.model_dump() for block in response.content]
@@ -231,6 +342,7 @@ def run_agent_api(
         findings=findings,
         conversation=conversation,
         token_count=total_tokens,
+        cost_usd=total_cost_usd,
         wall_time_seconds=wall_time,
         turns=turns,
         model=model,
