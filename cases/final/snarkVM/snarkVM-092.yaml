@@ -1,27 +1,38 @@
 id: snarkVM-092
 repo: ProvableHQ/snarkVM
-base_commit: dd2fecb9ef305d983012b681a8cdd7c416399cf2^
-head_commit: dd2fecb9ef305d983012b681a8cdd7c416399cf2
-fix_commit: dd2fecb9ef305d983012b681a8cdd7c416399cf2
-category: logic
+base_commit: 6725ea36a9f498ee8cc038bb190e62fcae44f0e6^
+head_commit: 6725ea36a9f498ee8cc038bb190e62fcae44f0e6
+fix_commit: 6725ea36a9f498ee8cc038bb190e62fcae44f0e6
+category: api-misuse
 difficulty: medium
 severity: medium
 language: rust
-pr_size: large
-description: The bytecode module included an implementation of `Metrics` (constraint
-  count inference) for `Function` that was being replaced by computing constraint
-  counts after synthesis. The fix removes the now-incorrect inference logic and associated
-  `Count` tests from the bytecode crate, along with unused imports that referenced
-  the removed types.
+pr_size: small
+description: String parsing in snarkVM console types was missing proper error handling
+  for external errors. The fix adds FromExternalError to the nom error trait bounds
+  and imports, ensuring that string parsing can correctly propagate errors from external
+  sources through the nom parser combinator chain.
 expected_findings:
-- file: bytecode/src/function/mod.rs
-  line: 28
-  summary: Unused/incorrect import of inference-related types (e.g., Count/Metrics)
-    that should be removed since Metrics is no longer computed via inference in Function
-- file: bytecode/src/main.rs
-  line: 14
-  summary: Import includes types related to the removed Metrics/inference functionality
-    that are no longer needed
+- file: console/network/environment/src/traits/string.rs
+  line: 32
+  summary: Missing FromExternalError in nom error import — without this trait bound,
+    external errors during string parsing cannot be properly converted and propagated
+    through the parser
+  line_side: pre_fix
+- file: console/types/string/src/parse.rs
+  line: 92
+  summary: String parse implementation lacks proper external error handling; nom combinators
+    that call into non-nom code will fail to convert errors without FromExternalError
+    bound on the error type
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

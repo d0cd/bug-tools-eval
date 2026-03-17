@@ -1,28 +1,30 @@
 id: snarkOS-019
 repo: ProvableHQ/snarkOS
-base_commit: 6470b39f0d379517a1b8f0ae0ab78e7a28aa8959^
-head_commit: 6470b39f0d379517a1b8f0ae0ab78e7a28aa8959
-fix_commit: 6470b39f0d379517a1b8f0ae0ab78e7a28aa8959
-category: logic
-difficulty: medium
-severity: medium
+base_commit: 218ca7be36e4a229fd5624247123ba5934033c73^
+head_commit: 218ca7be36e4a229fd5624247123ba5934033c73
+fix_commit: 218ca7be36e4a229fd5624247123ba5934033c73
+category: incomplete
+difficulty: hard
+severity: low
 language: rust
-pr_size: small
-description: The build script (build.rs) was missing an additional locktick check
-  when resolving configuration values. The code at two parallel locations (around
-  lines 167 and 211) processes environment variable overrides for TOML configuration
-  values but failed to perform a necessary lock validation step, which could cause
-  build inconsistencies or incorrect configuration resolution. The fix adds the missing
-  locktick check at both code paths.
+pr_size: xl
+description: Large refactoring PR that migrates modules from snarkVM, modularizes
+  node logic for different node types, and introduces prover logic. This is a structural
+  reorganization, not a bug fix. No diff is available to identify a specific defect.
 expected_findings:
-- file: build.rs
-  line: 167
-  summary: Missing locktick check before processing env variable overrides for TOML
-    values; configuration could be resolved without proper lock validation
-- file: build.rs
-  line: 211
-  summary: Missing locktick check in second code path that overrides TOML values with
-    env variables; same validation gap as line 167
+- file: cli/src/commands/start.rs
+  line: 1
+  summary: Major refactoring PR with no identifiable bug-fix target; node logic modularization
+    may introduce integration issues but no specific defect is visible without a diff
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 1992
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

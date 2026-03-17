@@ -1,0 +1,30 @@
+id: sentry-166
+repo: getsentry/sentry
+base_commit: dbe7c72d96d8bcbc07fff9b03264e7586932d2f3^
+head_commit: dbe7c72d96d8bcbc07fff9b03264e7586932d2f3
+fix_commit: dbe7c72d96d8bcbc07fff9b03264e7586932d2f3
+category: style
+difficulty: easy
+severity: low
+language: typescript
+pr_size: tiny
+description: A lint violation existed in the snapshot test utility file. The fix is
+  a minimal 1-line change correcting a code style issue (likely formatting, naming,
+  or import order) to satisfy the project's linter rules.
+expected_findings:
+- file: tests/js/sentry-test/snapshots/snapshot.ts
+  line: 1
+  summary: "Lint violation: code does not conform to the project's configured linting\
+    \ rules (exact line unknown \u2014 diff not available)"
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110414
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,31 +1,53 @@
 id: snarkVM-020
 repo: ProvableHQ/snarkVM
-base_commit: 06964e8c81ee81ff8c0f2062234196151d6767ba^
-head_commit: 06964e8c81ee81ff8c0f2062234196151d6767ba
-fix_commit: 06964e8c81ee81ff8c0f2062234196151d6767ba
-category: logic
-difficulty: hard
+base_commit: 1337b39829031b265ae3300ff1e94f47713a9fe1^
+head_commit: 1337b39829031b265ae3300ff1e94f47713a9fe1
+fix_commit: 1337b39829031b265ae3300ff1e94f47713a9fe1
+category: api-misuse
+difficulty: medium
 severity: high
 language: rust
 pr_size: medium
-description: The quorum calculation for subdag certificate verification incorrectly
-  excluded the author's stake, causing block verification failures. The fix reintroduces
-  proper quorum checks that include the author's stake and refactors committee lookback
-  construction to use the correct helper method `get_committee_lookback_for_round`.
+description: The REST query client unconditionally appended '/v2/' to every base URL,
+  producing malformed double-versioned paths (e.g. '/v1/v2/network/route') when the
+  URL already contained a version suffix. Additionally, the error handler always attempted
+  JSON deserialization, crashing on V1 endpoints that return plain-text error responses.
+  The fix detects whether the base URL already contains an API version and conditionally
+  appends it, and inspects Content-Type before choosing the error deserialization
+  strategy.
 expected_findings:
-- file: ledger/src/check_next_block.rs
-  line: 81
-  summary: "Missing or incorrect quorum verification for subdag certificates \u2014\
-    \ the committee lookback is not computed via the proper helper method, and the\
-    \ author's stake is omitted from the quorum calculation."
-- file: ledger/src/check_next_block.rs
-  line: 106
-  summary: Committee lookback constructed directly instead of using `get_committee_lookback_for_round`,
-    leading to inconsistent quorum threshold computation.
-- file: ledger/src/advance.rs
-  line: 257
-  summary: Committee lookback for the penultimate round not obtained via the dedicated
-    helper method, risking incorrect stake/quorum calculations.
+- file: ledger/query/src/query/rest.rs
+  line: 192
+  summary: build_path unconditionally formats the URL with API_VERSION ('v2'), causing
+    double-versioned paths when the base URL already contains '/v1' or '/v2'. Should
+    check whether a version is already present before appending.
+  line_side: pre_fix
+- file: ledger/query/src/query/rest.rs
+  line: 228
+  summary: Error response is always deserialized as JSON (RestError), but V1 API endpoints
+    return plain-text errors. Should inspect Content-Type header before choosing deserialization
+    strategy.
+  line_side: pre_fix
+- file: ledger/query/src/query/rest.rs
+  line: 100
+  summary: FromStr::from_str constructs RestQuery directly via struct literal instead
+    of delegating to From<Uri>, bypassing any version-detection logic. Should use
+    Self::from(base_url) to ensure consistent initialization.
+  line_side: pre_fix
+- file: ledger/query/src/query/rest.rs
+  line: 195
+  summary: API version 'v2' is unconditionally interpolated into the URL path even
+    when the base URL already contains a version suffix, causing double-versioned
+    paths like '/v1/v2/network/route'.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,31 +1,39 @@
 id: leo-167
 repo: ProvableHQ/leo
-base_commit: 26efe304a40ef7d9335f16d9807d1a16e38d89d9^
-head_commit: 26efe304a40ef7d9335f16d9807d1a16e38d89d9
-fix_commit: 26efe304a40ef7d9335f16d9807d1a16e38d89d9
+base_commit: afcace8b649fdb97c21e497bd1190cd19bdf3132^
+head_commit: afcace8b649fdb97c21e497bd1190cd19bdf3132
+fix_commit: afcace8b649fdb97c21e497bd1190cd19bdf3132
 category: logic
 difficulty: medium
-severity: critical
+severity: high
 language: rust
-pr_size: medium
-description: Stack overflow caused by infinite recursion in field/group type allocation.
-  The `to_allocated` conversion methods in `FieldType` and `GroupType` likely recursed
-  infinitely when encountering an already-allocated value, instead of returning the
-  allocated value directly. The fix adds proper handling of the `Allocated` variant
-  to break the recursion.
+pr_size: large
+description: The code generation mapping for commit core functions (BHP256/512/768/1024,
+  Pedersen64/128) in the Leo compiler AST was incorrect, causing commit_to_address,
+  commit_to_field, and commit_to_group operations to generate wrong Aleo instructions.
+  The generated instructions had incorrect operand handling for the scalar randomizer
+  argument, producing invalid output across all commit variants.
 expected_findings:
-- file: compiler/src/group/mod.rs
-  line: 35
-  summary: 'Infinite recursion: `to_allocated` method lacks a base case for the already-allocated
-    variant, causing stack overflow when converting group values'
-- file: compiler/src/field/mod.rs
-  line: 150
-  summary: 'Infinite recursion: field allocation path re-allocates an already-allocated
-    `FpGadget`, leading to stack overflow instead of returning the existing allocation'
-- file: compiler/src/group/edwards_bls12.rs
-  line: 133
-  summary: Missing base case in group Edwards BLS12 allocation that triggers recursive
-    allocation and stack overflow
+- file: compiler/ast/src/functions/core_function.rs
+  line: 99
+  summary: Incorrect mapping of commit_to_* core function variants to CommitVariant
+    enum values — the match arms for BHP and Pedersen commit functions generate wrong
+    Aleo instruction operands (scalar randomizer argument is mishandled in code generation)
+  line_side: pre_fix
+- file: compiler/ast/src/functions/core_function.rs
+  line: 105
+  summary: Same incorrect commit variant mapping pattern repeats for additional BHP/Pedersen
+    commit_to_field and commit_to_group variants — all commit_* core functions share
+    the same code generation bug
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

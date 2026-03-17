@@ -1,25 +1,45 @@
 id: leo-012
 repo: ProvableHQ/leo
-base_commit: f30bc410147167c12769b376d559cf5033df80b9^
-head_commit: f30bc410147167c12769b376d559cf5033df80b9
-fix_commit: f30bc410147167c12769b376d559cf5033df80b9
-category: api
+base_commit: 0e2c0c35c3863b69d10f726262656159e166d30b^
+head_commit: 0e2c0c35c3863b69d10f726262656159e166d30b
+fix_commit: 0e2c0c35c3863b69d10f726262656159e166d30b
+category: api-misuse
 difficulty: easy
-severity: high
+severity: medium
 language: rust
 pr_size: small
-description: The `leo query program` command always included an edition (e.g., `/latest`)
-  in the API URL when fetching program data. The `/latest` endpoint was deprecated
-  or changed, causing queries to fail. The fix omits the edition from the URL when
-  the user has not explicitly specified one, allowing the API to return the latest
-  version by default.
+description: 'The `leo clean` command had two bugs: it proceeded to delete directories
+  without first checking that a Leo project manifest exists, risking deletion in non-project
+  directories. Additionally, `remove_dir_all` was called with hard error propagation
+  via `.map_err()?`, causing the command to fail if the `outputs` or `build` directories
+  did not already exist, instead of handling their absence gracefully.'
 expected_findings:
-- file: leo/cli/commands/query/program.rs
-  line: 63
-  summary: API URL construction always includes edition (e.g., `/latest`) even when
-    user did not specify one. The `/latest` endpoint is deprecated; edition should
-    be omitted from the URL when not explicitly provided to fetch the latest program
-    version.
+- file: leo/cli/commands/clean.rs
+  line: 37
+  summary: 'Missing manifest existence check: `clean` proceeds directly to remove
+    directories without verifying that a Leo manifest file exists in the current directory,
+    risking file deletion in arbitrary non-project directories.'
+  line_side: pre_fix
+- file: leo/cli/commands/clean.rs
+  line: 40
+  summary: 'Hard failure on missing directory: `std::fs::remove_dir_all(&outputs_path).map_err(...)`
+    propagates an error when the `outputs` directory does not exist; should silently
+    succeed instead of failing.'
+  line_side: pre_fix
+- file: leo/cli/commands/clean.rs
+  line: 45
+  summary: 'Same issue for build directory: `std::fs::remove_dir_all(&build_path).map_err(...)`
+    fails when `build` directory is absent instead of handling the missing directory
+    gracefully.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

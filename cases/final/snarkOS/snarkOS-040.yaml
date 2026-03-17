@@ -1,33 +1,43 @@
 id: snarkOS-040
 repo: ProvableHQ/snarkOS
-base_commit: d9ef85588ac054b581f596729be9619c54bab01e^
-head_commit: d9ef85588ac054b581f596729be9619c54bab01e
-fix_commit: d9ef85588ac054b581f596729be9619c54bab01e
-category: logic
-difficulty: hard
-severity: medium
+base_commit: 38ea9d4da2435eec32cad13867e14aa5e778b634^
+head_commit: 38ea9d4da2435eec32cad13867e14aa5e778b634
+fix_commit: 38ea9d4da2435eec32cad13867e14aa5e778b634
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: BlockSync's process_next_block() eagerly removed block responses from
-  its internal map before Sync finished validating and adding them to the ledger.
-  This created a window where BlockSync was unaware of pending blocks and would re-request
-  them, causing duplicate block requests during syncing. The fix introduces a peek_next_block()
-  that leaves responses in the map until they are successfully added to the ledger
-  or encounter an error.
+pr_size: small
+description: The heartbeat logic lacks awareness of pending connections, causing Router::connect
+  to be called multiple times for the same peer during handshake. This generates frequent
+  WARN-level log messages for conditions that are not errors (already connected or
+  currently connecting). The fix downgrades these warnings to debug-level messages,
+  reducing log noise without changing connection behavior.
 expected_findings:
-- file: node/sync/src/block_sync.rs
-  line: 322
-  summary: process_next_block() removes the block response from the internal map before
-    the caller has validated and committed it to the ledger, creating a window for
-    duplicate requests
-- file: node/bft/src/sync/mod.rs
-  line: 314
-  summary: Calls process_next_block() which eagerly removes the block from BlockSync's
-    responses; should peek instead and only remove after successful ledger addition
-- file: node/bft/src/sync/mod.rs
-  line: 338
-  summary: 'Same eager-removal issue: block is removed from responses map before validation
-    completes, causing BlockSync to re-request already-pending blocks'
+- file: node/router/src/lib.rs
+  line: 166
+  summary: 'Logging at WARN level for a non-error condition: attempting to connect
+    to a peer that is already shaking hands as the initiator should be debug, not
+    warn'
+  line_side: pre_fix
+- file: node/router/src/lib.rs
+  line: 199
+  summary: WARN log for connecting to an already-connected peer is misleading; this
+    is expected behavior when heartbeat re-triggers connect before handshake completes
+  line_side: pre_fix
+- file: node/router/src/lib.rs
+  line: 216
+  summary: WARN log for duplicate connection attempt should be downgraded to debug
+    since heartbeat has no pending-connection state and repeated calls are normal
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

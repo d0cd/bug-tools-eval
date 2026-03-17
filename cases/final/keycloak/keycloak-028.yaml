@@ -1,26 +1,42 @@
 id: keycloak-028
 repo: keycloak/keycloak
-base_commit: fa592f882a6793fd81cc374fd0245c9f5850d9dd^
-head_commit: fa592f882a6793fd81cc374fd0245c9f5850d9dd
-fix_commit: fa592f882a6793fd81cc374fd0245c9f5850d9dd
-category: logic
-difficulty: medium
-severity: medium
-language: typescript
-pr_size: small
-description: The `useSetTimeout()` hook does not reset `didUnmountRef` to `false`
-  when the component remounts. With React StrictMode's automatic unmount/remount cycle
-  (enabled via the new Root API), the ref retains its stale `true` value from the
-  previous unmount, causing the hook to incorrectly believe the component is unmounted
-  and skip scheduled timeouts.
+base_commit: 5c67b60920bf76f364ffad62470032df0d5657f0^
+head_commit: 5c67b60920bf76f364ffad62470032df0d5657f0
+fix_commit: 5c67b60920bf76f364ffad62470032df0d5657f0
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: medium
+description: Documentation-only change that removes outdated references to default
+  settings in the Keycloak authorization services docs. Three .adoc files were edited,
+  with 55 lines deleted and no lines added, cleaning up references to a default resource
+  server configuration that was apparently removed or changed.
 expected_findings:
-- file: js/apps/admin-ui/src/utils/useSetTimeout.ts
-  line: 4
-  summary: "useEffect cleanup sets didUnmountRef to true on unmount but never resets\
-    \ it to false on mount \u2014 under React StrictMode remounting, the ref starts\
-    \ in a stale 'unmounted' state, preventing timeouts from firing"
+- file: docs/documentation/authorization_services/topics/resource-server-default-config.adoc
+  line: 1
+  summary: Entire file content describing default resource server configuration is
+    outdated and references settings that no longer exist; file should be removed
+    or gutted
+  line_side: pre_fix
+- file: docs/documentation/authorization_services/topics.adoc
+  line: 12
+  summary: Include/reference to default config topic should be removed since the referenced
+    default settings no longer apply
+  line_side: pre_fix
+- file: docs/documentation/authorization_services/topics/resource-create.adoc
+  line: 19
+  summary: References to default resource settings should be removed as they describe
+    behavior that no longer exists
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

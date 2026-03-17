@@ -1,0 +1,51 @@
+id: sentry-111
+repo: getsentry/sentry
+base_commit: 927cd817ec15f7642b634a6d64dd69795798f79f^
+head_commit: 927cd817ec15f7642b634a6d64dd69795798f79f
+fix_commit: 927cd817ec15f7642b634a6d64dd69795798f79f
+category: logic
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: small
+description: A loading state bug caused the 'connect repositories' popup to incorrectly
+  reappear when project Seer preferences were updated. The mutation or query invalidation
+  logic did not distinguish between initial data loading (where showing the popup
+  is appropriate) and refetching after a settings change, causing UI elements gated
+  on `isLoading` to flash incorrectly. Additionally, branding was incompletely renamed
+  from 'Autofix Agent' to 'Autofix Handoff'.
+expected_findings:
+- file: static/app/components/events/autofix/preferences/hooks/useUpdateProjectSeerPreferences.ts
+  line: 1
+  summary: "Mutation or cache invalidation triggers a loading state indistinguishable\
+    \ from initial load, causing the 'connect repositories' popup to reappear after\
+    \ a settings change \u2014 should use isFetching or a separate flag to differentiate\
+    \ refetch from initial load"
+  line_side: pre_fix
+- file: static/gsApp/views/seerAutomation/components/seerAgentHooks.tsx
+  line: 1
+  summary: Query hook exposes isLoading without distinguishing initial load from refetch
+    after mutation, causing UI gated on isLoading to flash incorrectly on preference
+    updates
+  line_side: pre_fix
+- file: static/gsApp/views/seerAutomation/components/projectTable/seerProjectTableHeader.tsx
+  line: 33
+  summary: 'Incomplete branding rename: tooltip text still references ''Autofix Agent''
+    instead of ''Autofix Handoff'''
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110448
+reviewer_notes: []
+reviewer_findings:
+- file: static/gsApp/views/seerAutomation/components/projectTable/seerProjectTableHeader.tsx
+  line: 33
+  summary: '### Incomplete branding rename in adjacent tooltip text  **Low Severity**  <!--
+    DESCRIPTION START --> The column header '
+  line_side: pre_fix
+quality_flags: []

@@ -1,0 +1,40 @@
+id: cal.com-041
+repo: calcom/cal.com
+base_commit: 8e5a5629a4110a5c2854bde81406ac054f06d7e5^
+head_commit: 8e5a5629a4110a5c2854bde81406ac054f06d7e5
+fix_commit: 8e5a5629a4110a5c2854bde81406ac054f06d7e5
+category: logic
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: medium
+description: The OAuth authorization flow broke when an unauthenticated user needed
+  to sign up. The login page redirected to signup/onboarding but did not preserve
+  the original OAuth redirect URL (`/auth/oauth2/authorize`), so after completing
+  onboarding the user landed in the main app instead of being sent back to complete
+  the OAuth consent flow. The fix stores the OAuth return URL (via `ONBOARDING_REDIRECT_KEY`
+  in localStorage) during login and reads it back after onboarding completes.
+expected_findings:
+- file: apps/web/modules/onboarding/hooks/useSubmitPersonalOnboarding.ts
+  line: 57
+  summary: After onboarding completes, the redirect target does not check for a stored
+    OAuth return URL; new users who entered via an OAuth authorize flow are sent to
+    the default app route instead of back to `/auth/oauth2/authorize`.
+  line_side: pre_fix
+- file: apps/web/modules/auth/login-view.tsx
+  line: 47
+  summary: When redirecting an unauthenticated user to the signup flow, the original
+    OAuth `callbackUrl` / redirect query parameter is not persisted, so it is lost
+    across the signup and onboarding steps.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

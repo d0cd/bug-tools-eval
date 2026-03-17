@@ -1,32 +1,32 @@
 id: keycloak-038
 repo: keycloak/keycloak
-base_commit: 5c67b60920bf76f364ffad62470032df0d5657f0^
-head_commit: 5c67b60920bf76f364ffad62470032df0d5657f0
-fix_commit: 5c67b60920bf76f364ffad62470032df0d5657f0
-category: logic
-difficulty: easy
-severity: low
-language: unknown
-pr_size: medium
-description: Authorization service documentation contained references to default settings
-  that no longer exist or are misleading. The fix removes 55 lines of outdated documentation
-  content across three .adoc files to eliminate incorrect references to default resource
-  server configuration.
+base_commit: 78e85cfe2a2b0821ad7c60417fbd25ac26d770b7^
+head_commit: 78e85cfe2a2b0821ad7c60417fbd25ac26d770b7
+fix_commit: 78e85cfe2a2b0821ad7c60417fbd25ac26d770b7
+category: api-misuse
+difficulty: medium
+severity: high
+language: java
+pr_size: small
+description: 'Profile initialization was incorrectly placed in the constructor instead
+  of the initAndStart method, a regression introduced by PR #46378. This lifecycle
+  ordering error means the profile is initialized too early, before the application
+  context is fully ready, causing failures at startup.'
 expected_findings:
-- file: docs/documentation/authorization_services/topics/resource-server-default-config.adoc
-  line: 1
-  summary: This file documents default resource server configuration that is outdated
-    or no longer accurate; entire file content should be removed or rewritten
-- file: docs/documentation/authorization_services/topics.adoc
-  line: 12
-  summary: Include directive or section referencing default settings documentation
-    that no longer reflects actual behavior
-- file: docs/documentation/authorization_services/topics/resource-create.adoc
-  line: 19
-  summary: References to default settings in resource creation docs that are incorrect
-    or misleading
+- file: services/src/test/java/org/keycloak/services/resteasy/ResteasyKeycloakApplication.java
+  line: 48
+  summary: Profile initialization is in the constructor but should be deferred to
+    initAndStart(); initializing here is too early in the application lifecycle and
+    causes a regression
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

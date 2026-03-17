@@ -1,32 +1,42 @@
 id: sdk-034
 repo: ProvableHQ/sdk
-base_commit: 0e2c01aa643d9692d36e9bb63b9fdd561a77fd0c^
-head_commit: 0e2c01aa643d9692d36e9bb63b9fdd561a77fd0c
-fix_commit: 0e2c01aa643d9692d36e9bb63b9fdd561a77fd0c
-category: logic
-difficulty: medium
-severity: medium
-language: typescript
-pr_size: large
-description: The SDK's function execution verification did not support programs with
-  multiple imports. The fix adds ImportedVerifyingKeys and ImportedPrograms types
-  and threads them through the browser, network-client, and program-manager layers
-  so that verification can resolve all imported programs and their verifying keys,
-  not just the top-level program.
+base_commit: 7341b716e9e5c79bc035ec39ed1812c4d8ee6680^
+head_commit: 7341b716e9e5c79bc035ec39ed1812c4d8ee6680
+fix_commit: 7341b716e9e5c79bc035ec39ed1812c4d8ee6680
+category: api-misuse
+difficulty: easy
+severity: high
+language: javascript
+pr_size: small
+description: 'Two bugs fixed: (1) The rollup config files used the deprecated `assert
+  { type: "json" }` import assertion syntax which fails under Node 22, replaced with
+  the newer `with { type: "json" }` syntax. (2) The `change-version.js` script had
+  incorrect logic for updating version strings in `Cargo.toml`, causing version bumps
+  to fail for that file.'
 expected_findings:
-- file: sdk/src/program-manager.ts
-  line: 1952
-  summary: "Verification of function executions does not account for multiple imported\
-    \ programs \u2014 imported verifying keys and programs are not passed through,\
-    \ causing verification to fail when the executed program has imports."
-- file: wasm/src/programs/execution.rs
-  line: 103
-  summary: The WASM execution verification routine lacks parameters for imported programs
-    and their verifying keys, so it cannot verify executions that depend on imports.
-- file: sdk/src/network-client.ts
-  line: 33
-  summary: Network client does not fetch or supply imported program data needed for
-    verifying executions with multiple imports.
+- file: sdk/rollup.config.js
+  line: 1
+  summary: Import assertion uses deprecated `assert` keyword instead of `with`, causing
+    build failure on Node 22
+  line_side: pre_fix
+- file: sdk/rollup.test.js
+  line: 1
+  summary: Import assertion uses deprecated `assert` keyword instead of `with`, causing
+    build failure on Node 22
+  line_side: pre_fix
+- file: scripts/change-version.js
+  line: 37
+  summary: Cargo.toml version update logic is incorrect — regex or replacement pattern
+    fails to match/update the version field properly
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

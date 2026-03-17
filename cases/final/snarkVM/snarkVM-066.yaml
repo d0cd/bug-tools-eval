@@ -1,35 +1,52 @@
 id: snarkVM-066
 repo: ProvableHQ/snarkVM
-base_commit: b0dd5c524175ff17fa587c3c57933a7a0c0e981b^
-head_commit: b0dd5c524175ff17fa587c3c57933a7a0c0e981b
-fix_commit: b0dd5c524175ff17fa587c3c57933a7a0c0e981b
-category: concurrency
+base_commit: 47d7b9f90595086edb99289c57ccc621106b288e^
+head_commit: 47d7b9f90595086edb99289c57ccc621106b288e
+fix_commit: 47d7b9f90595086edb99289c57ccc621106b288e
+category: constraint
 difficulty: hard
 severity: high
 language: rust
-pr_size: medium
-description: Race condition in Ledger where `prepare_next_beacon_block` could read
-  `current_block` from one state and `state_root` from a different state if `advance_to_next_block`
-  executes concurrently between those two reads. The fix makes the block preparation
-  functions atomic by acquiring a lock (likely reusing the sequential operation mutex)
-  to prevent interleaved reads of inconsistent ledger state.
+pr_size: xl
+description: Major DPC model upgrade that restructures state transitions (noop, add,
+  remove, update, split, join, joinsplit), simplifies serial number nonce derivation
+  to use the previous record's serial number, reduces outer circuit from 4 proofs
+  to 1, and adds enforcement that input program IDs match output program IDs or the
+  noop program ID for each record pair. Also updates PoSW Merkle tree depth from a
+  higher value to 3 and adds metadata to block header leaves.
 expected_findings:
-- file: ledger/src/lib.rs
-  line: 133
-  summary: 'Missing synchronization: `prepare_next_beacon_block` reads `current_block`
-    and `state_root` without holding a lock, allowing a concurrent `advance_to_next_block`
-    to update state between the two reads, producing an invalid block with mismatched
-    height and state root.'
-- file: ledger/src/lib.rs
-  line: 156
-  summary: 'Missing synchronization: `prepare_next_quorum_block` similarly reads multiple
-    ledger fields non-atomically, vulnerable to the same TOCTOU race condition where
-    concurrent block advancement causes inconsistent reads.'
-- file: ledger/src/advance.rs
-  line: 21
-  summary: The advance functions update `current_block` and `state_root` without coordinating
-    with reader functions like `prepare_next_beacon_block`, enabling concurrent readers
-    to observe partially-updated state.
+- file: dpc/src/circuits/inner_circuit.rs
+  line: 58
+  summary: 'Inner circuit constraint changes: verify that program ID matching enforcement
+    (input program ID == output program ID || noop program ID) is correctly constrained
+    for every (input, output) record pair to prevent soundness issues'
+  line_side: pre_fix
+- file: dpc/src/circuits/outer_circuit.rs
+  line: 84
+  summary: 'Outer circuit reduced from 4 proof verifications to 1: verify the single
+    proof verification correctly covers all cases previously handled by 4 separate
+    proofs, as missing any case would be a soundness vulnerability'
+  line_side: pre_fix
+- file: dpc/src/dpc.rs
+  line: 60
+  summary: "State transition refactor: serial number nonce now derived from previous\
+    \ record's serial number \u2014 verify this does not allow nonce collisions or\
+    \ replay attacks when records are split/joined across transitions"
+  line_side: pre_fix
+- file: dpc/src/circuits/outer_public_variables.rs
+  line: 33
+  summary: "program_id set to None in outer public variables \u2014 confirm this does\
+    \ not weaken soundness by allowing arbitrary program IDs to pass outer circuit\
+    \ verification after program commitment removal"
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 411
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

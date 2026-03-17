@@ -1,32 +1,38 @@
 id: leo-182
 repo: ProvableHQ/leo
-base_commit: 5cce8b4a0e27eb7d95cc3c70191150359073c215^
-head_commit: 23615c685825bcbefcce255b351e491a83c50c4d
-fix_commit: 5cce8b4a0e27eb7d95cc3c70191150359073c215
-category: logic
-difficulty: medium
-severity: high
-language: rust
+base_commit: baddfcc076879a84ddcdf3e6a24fe2123d1fdab3^
+head_commit: baddfcc076879a84ddcdf3e6a24fe2123d1fdab3
+fix_commit: baddfcc076879a84ddcdf3e6a24fe2123d1fdab3
+category: style
+difficulty: easy
+severity: low
+language: leo
 pr_size: medium
-description: Incomplete work-in-progress cast expression feature was prematurely merged
-  into the Leo compiler. The WIP code added a CastExpression AST node, parser rules,
-  tokenizer support, type checking, SSA renaming, and code generation across 15 files,
-  but the implementation was incomplete and broken. The fix reverts all of these changes
-  (159 lines removed).
+description: A parser test file for implicit integer literals was incorrectly formatted
+  — it was meant to be disabled but did not begin with the required block comment
+  prefix. The fix reformats the test to start with a block comment and changes its
+  expectation from Pass to Fail, since current Leo disallows untyped literals.
 expected_findings:
-- file: compiler/ast/src/expressions/cast.rs
+- file: tests/parser/expression/literal/int_parse/implicit.leo
   line: 1
-  summary: "Incomplete CastExpression AST node definition should not have been merged\
-    \ \u2014 WIP code that is not fully implemented and causes compiler issues"
-- file: compiler/parser/src/parser/expression.rs
+  summary: Test file intended to be disabled does not start with a block comment as
+    required by the test harness convention; it will be silently treated as active
+    with incorrect expectations.
+  line_side: pre_fix
+- file: tests/expectations/parser/parser/expression/literal/int_parse/implicit.leo.out
   line: 1
-  summary: "Incomplete cast expression parsing logic added as WIP \u2014 parser handles\
-    \ 'as' cast syntax but the downstream passes cannot correctly process it"
-- file: compiler/passes/src/type_checking/check_expressions.rs
-  line: 1
-  summary: "Incomplete type checking for cast expressions \u2014 WIP type checker\
-    \ code for CastExpression is not fully implemented and may allow invalid casts\
-    \ or panic"
+  summary: Expectation file indicates Pass but the test exercises untyped literals
+    which are not supported in the current language version; expectation should be
+    Fail.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,26 +1,44 @@
 id: leo-017
 repo: ProvableHQ/leo
-base_commit: 0178e67ca767febe6bab1c10fa380981888bc154^
-head_commit: 0178e67ca767febe6bab1c10fa380981888bc154
-fix_commit: 0178e67ca767febe6bab1c10fa380981888bc154
-category: api
-difficulty: easy
-severity: low
+base_commit: 13dc1210912d7d05f67971ad486c48a1f6e8fb3f^
+head_commit: 13dc1210912d7d05f67971ad486c48a1f6e8fb3f
+fix_commit: 13dc1210912d7d05f67971ad486c48a1f6e8fb3f
+category: type
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: The HTTP headers used in Leo CLI network calls were set to inappropriate
-  values. The fix updates the headers in both `leo/cli/commands/mod.rs` and `utils/retriever/src/retriever/mod.rs`
-  to more sensible defaults, likely correcting the header name or value used when
-  making HTTP requests.
+pr_size: medium
+description: Leo's type checker did not recognize that nested array syntax (`[[u8;
+  2]; 3]`) and tuple array syntax (`[u8; (3, 2)]`) represent the same multidimensional
+  array type. Functions returning a multidimensional array would fail type checking
+  if the return type declaration used a different syntax form than the return value's
+  inferred type. The fix adds a `match_array_types` method to `Type` that normalizes
+  both representations before comparison, and integrates this check into the return
+  statement and value constraint logic.
 expected_findings:
-- file: leo/cli/commands/mod.rs
-  line: 287
-  summary: "Incorrect HTTP header set for network request \u2014 header name or value\
-    \ should be updated to a more appropriate default."
-- file: utils/retriever/src/retriever/mod.rs
-  line: 523
-  summary: "Incorrect HTTP header set for network request \u2014 header name or value\
-    \ should be updated to a more appropriate default."
+- file: compiler/src/statement/return_/return_.rs
+  line: 30
+  summary: Return type check does not account for equivalent array type representations
+    (nested vs tuple syntax); needs fallback to structural array type matching
+  line_side: pre_fix
+- file: typed/src/types/type_.rs
+  line: 58
+  summary: 'Missing `match_array_types` method on Type: no way to compare `[[u8; 2];
+    3]` and `[u8; (3, 2)]` as equivalent types'
+  line_side: pre_fix
+- file: compiler/src/value/value.rs
+  line: 108
+  summary: Array value constraint resolution does not normalize array type syntax,
+    causing false type mismatch errors for multidimensional arrays
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

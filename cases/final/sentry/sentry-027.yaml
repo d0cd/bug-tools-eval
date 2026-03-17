@@ -1,32 +1,32 @@
 id: sentry-027
 repo: getsentry/sentry
-base_commit: 9e655db8e4ba87965b055613d6ab86fedf8c30ca^
-head_commit: 9e655db8e4ba87965b055613d6ab86fedf8c30ca
-fix_commit: 9e655db8e4ba87965b055613d6ab86fedf8c30ca
+base_commit: 22762ff3868b69dfa64d2b0a4c2167c1ca291ff0^
+head_commit: 22762ff3868b69dfa64d2b0a4c2167c1ca291ff0
+fix_commit: 22762ff3868b69dfa64d2b0a4c2167c1ca291ff0
 category: logic
 difficulty: easy
-severity: low
-language: typescript
+severity: medium
+language: python
 pr_size: small
-description: The trace timeline feature's `useTraceTimelineEvents` hook was querying
-  the `issuePlatform` API without filtering out hidden issue types (e.g., LLM Detected
-  issues still in development), causing them to appear in the '1 other issue' count.
-  The fix adds a `HIDDEN_OCCURRENCE_TYPE_IDS` exclusion filter to the API query and
-  introduces a `HIDDEN_ISSUE_TYPES` constant as a single source of truth for issue
-  types that should never be shown in the UI.
+description: 'The WorkflowEngineDetectorSerializer.serialize() method was missing
+  the ''snooze'' field that AlertRule serializers include. When a detector is disabled
+  (snoozed), the serialized output should contain ''"snooze": True'' for consistency
+  with the existing AlertRule serializer contract, but this field was never set.'
 expected_findings:
-- file: static/app/views/issueDetails/traceTimeline/useTraceTimelineEvents.tsx
-  line: 83
-  summary: 'Missing filter: issuePlatform API query does not exclude hidden issue
-    types (HIDDEN_OCCURRENCE_TYPE_IDS), causing in-development issue types like LLM
-    Detected to appear in the trace timeline'
-- file: static/app/types/group.tsx
-  line: 348
-  summary: No centralized constant for hidden issue type IDs to use in API query filtering;
-    VISIBLE_ISSUE_TYPES exists but no corresponding exclusion list for occurrence
-    type IDs
+- file: src/sentry/incidents/endpoints/serializers/workflow_engine_detector.py
+  line: 440
+  summary: 'Missing ''snooze'' field in serialized output: when `obj.enabled` is False,
+    data should include `"snooze": True` to be consistent with AlertRule serializers.
+    Without this, consumers cannot distinguish snoozed detectors from active ones.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

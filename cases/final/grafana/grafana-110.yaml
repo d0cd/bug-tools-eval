@@ -1,0 +1,35 @@
+id: grafana-110
+repo: grafana/grafana
+base_commit: e9a93dcf338efe9c68faf054c129e58eeec76980^
+head_commit: e9a93dcf338efe9c68faf054c129e58eeec76980
+fix_commit: e9a93dcf338efe9c68faf054c129e58eeec76980
+category: api-misuse
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: medium
+description: MenuItem components rendering as links (<a href>) did not receive role="menuitem",
+  causing VoiceOver to count them separately from button-based menuitems. This made
+  the Keyboard shortcuts button announce "1 of 1" instead of its correct position
+  in the menu. The fix applies role="menuitem" to link-based MenuItems by default
+  while still allowing callers to override via the role prop.
+expected_findings:
+- file: packages/grafana-ui/src/components/Menu/MenuItem.tsx
+  line: 1
+  summary: 'Link-based MenuItem missing role="menuitem" attribute: when MenuItem renders
+    an <a> element, it should default to role="menuitem" so assistive technologies
+    like VoiceOver correctly count all items in the parent menu list. Without this,
+    VoiceOver treats button menuitems and link menuitems as separate lists, causing
+    incorrect position announcements (e.g. "1 of 1").'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119779
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

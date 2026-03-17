@@ -1,0 +1,38 @@
+id: grafana-059
+repo: grafana/grafana
+base_commit: 7b1ccacc4b329bf5f77dbc3657a09f974e8b7cf9^
+head_commit: 7b1ccacc4b329bf5f77dbc3657a09f974e8b7cf9
+fix_commit: 7b1ccacc4b329bf5f77dbc3657a09f974e8b7cf9
+category: api-misuse
+difficulty: medium
+severity: high
+language: unknown
+pr_size: small
+description: The PR weekly digest workflow passes the full PR JSON payload (thousands
+  of PRs for grafana/grafana) through GitHub Actions outputs and environment variables,
+  which are subject to the shell ARG_MAX limit. This causes the workflow to crash
+  with 'Argument list too long'. The fix writes the PR data to a temporary file in
+  the fetch step and reads it back in the processing step, avoiding the shell argument
+  length limit.
+expected_findings:
+- file: .github/workflows/external-pr-weekly-digest.yml
+  line: 1
+  summary: Passing large PR digest JSON through GitHub Actions outputs/env vars will
+    exceed ARG_MAX on repos with many PRs; should use a temp file or artifact instead
+  line_side: pre_fix
+- file: .github/workflows/scripts/pr-digest.mts
+  line: 1
+  summary: Script receives PR data via command-line argument or environment variable
+    which is subject to OS argument length limits; should read from a file instead
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119941
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

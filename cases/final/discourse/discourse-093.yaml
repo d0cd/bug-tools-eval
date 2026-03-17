@@ -1,0 +1,32 @@
+id: discourse-093
+repo: discourse/discourse
+base_commit: d2176ac67b93fed2a877691213a1957982f4e7ea^
+head_commit: d2176ac67b93fed2a877691213a1957982f4e7ea
+fix_commit: d2176ac67b93fed2a877691213a1957982f4e7ea
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: 'The `enable_auto_grid_images` site setting was visible in the admin
+  settings panel while simultaneously being listed as an upcoming change. The fix
+  hides the setting from the site settings UI by adding a `hidden: true` flag in the
+  YAML configuration, preventing user confusion from seeing a not-yet-ready feature
+  toggle.'
+expected_findings:
+- file: config/site_settings.yml
+  line: 1
+  summary: 'The `enable_auto_grid_images` setting is missing `hidden: true` — it should
+    not be user-visible while it is still in the upcoming-changes list'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

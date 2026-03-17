@@ -1,32 +1,50 @@
 id: snarkVM-076
 repo: ProvableHQ/snarkVM
-base_commit: 3acee60f8d999d16f9887cc9680be03336d32bfc^
-head_commit: 3acee60f8d999d16f9887cc9680be03336d32bfc
-fix_commit: 3acee60f8d999d16f9887cc9680be03336d32bfc
-category: api
+base_commit: 54447585f74775e3b9e583bff18c9e52b1aeaae9^
+head_commit: 54447585f74775e3b9e583bff18c9e52b1aeaae9
+fix_commit: 54447585f74775e3b9e583bff18c9e52b1aeaae9
+category: security
 difficulty: medium
 severity: high
 language: rust
-pr_size: small
-description: "The VM tests and integer shift-left implementations were using an incorrect\
-  \ version of checked_shl \u2014 likely the standard library's checked_shl instead\
-  \ of the custom CheckedShl trait defined in the console environment. The fix updates\
-  \ imports to include the custom CheckedShl trait and updates the bitwise.rs implementation\
-  \ and macros.rs test scaffolding to use the correct trait method, ensuring shift-left\
-  \ operations follow snarkVM's checked arithmetic semantics."
+pr_size: medium
+description: Multiple `FromBytes` implementations read a `u32` count from untrusted
+  input and pass it directly to `Vec::with_capacity()` without upper-bound validation.
+  On 32-bit architectures this panics if the value exceeds `i32::MAX`, and on all
+  architectures an attacker-controlled allocation size enables denial-of-service.
+  The fix adds bounds checks against protocol-defined maximums (e.g. `MAX_SOLUTIONS`,
+  `BatchHeader::MAX_TRANSMISSIONS_PER_BATCH`) and tightens the type of `MAX_SOLUTIONS`
+  from `usize` to `u16`.
 expected_findings:
-- file: vm/compiler/src/program/instruction/operation/macros.rs
-  line: 729
-  summary: 'Wrong checked_shl used: the ''shl'' case should use console::prelude::traits::integers::CheckedShl::checked_shl
-    instead of the std library version'
-- file: console/types/integers/src/bitwise.rs
-  line: 154
-  summary: "Incorrect checked_shl implementation for integer shift-left \u2014 uses\
-    \ wrong trait method that does not match snarkVM's checked shift semantics"
-- file: console/network/environment/src/traits/mod.rs
-  line: 52
-  summary: Missing import of CheckedShl trait from integer_type module, causing consumers
-    to resolve to the wrong checked_shl method
+- file: ledger/narwhal/batch-header/src/bytes.rs
+  line: 34
+  summary: Unbounded `u32::read_le` result for `num_transmission_ids` passed directly
+    to `Vec::with_capacity()` without checking against a maximum limit — attacker-controlled
+    allocation size enables DoS via panic or OOM.
+  line_side: pre_fix
+- file: ledger/narwhal/subdag/src/bytes.rs
+  line: 21
+  summary: Missing upper-bound check on deserialized counts in subdag `FromBytes`
+    before allocation; malicious input can trigger panic or excessive memory use.
+  line_side: pre_fix
+- file: ledger/committee/src/bytes.rs
+  line: 28
+  summary: Number of committee members read from bytes used for allocation without
+    validating it falls within the allowed committee size limit.
+  line_side: pre_fix
+- file: utilities/src/bytes.rs
+  line: 145
+  summary: Generic `FromBytes` helper reads a size parameter without enforcing an
+    upper bound, allowing untrusted input to trigger excessive memory allocation
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

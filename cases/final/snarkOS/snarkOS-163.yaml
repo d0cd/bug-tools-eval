@@ -1,23 +1,46 @@
 id: snarkOS-163
 repo: ProvableHQ/snarkOS
-base_commit: 48a2d6a4bda0450a7c228da2267f243a21702848^
-head_commit: 48a2d6a4bda0450a7c228da2267f243a21702848
-fix_commit: 48a2d6a4bda0450a7c228da2267f243a21702848
-category: logic
-difficulty: medium
-severity: high
+base_commit: ddd0020de5a0973d6d57401dd720d0824793f8f9^
+head_commit: ddd0020de5a0973d6d57401dd720d0824793f8f9
+fix_commit: ddd0020de5a0973d6d57401dd720d0824793f8f9
+category: cryptographic
+difficulty: hard
+severity: critical
 language: rust
-pr_size: tiny
-description: The BFT's send_primary_round_to_bft method incorrectly returned true
-  when storage failed to increment to the next round. This caused the primary to start
-  proposing batches even on failure, preventing synced nodes from participating in
-  consensus. The fix changes the error-path return value from true to false.
+pr_size: large
+description: SchnorrParametersGadget was allocated as a witness (via AllocGadget)
+  instead of being embedded as a constant in the circuit. This allows a malicious
+  prover to substitute arbitrary Schnorr parameters, breaking signature verification
+  soundness. Additionally, the precomputed scalar multiplication used Rust's default
+  zip behavior which silently truncates to the shorter iterator when scalar bits and
+  generator powers don't match, potentially producing incorrect results.
 expected_findings:
-- file: node/bft/src/bft.rs
-  line: 251
-  summary: 'Wrong return value on error path: returns true when storage fails to increment
-    to next round, causing the primary to incorrectly begin proposing batches. Should
-    return false to indicate failure.'
+- file: models/src/gadgets/algorithms/signature.rs
+  line: 9
+  summary: ParametersGadget is constrained as AllocGadget (witness) instead of a constant.
+    A malicious prover can supply arbitrary Schnorr parameters, breaking signature
+    verification soundness in the circuit.
+  line_side: pre_fix
+- file: models/src/gadgets/curves/group.rs
+  line: 167
+  summary: precomputed_base_scalar_mul uses itertools zip (or std zip) which silently
+    truncates to the shorter of scalar_bits and generator powers. If lengths mismatch
+    the multiplication is incomplete, producing wrong results without any error.
+  line_side: pre_fix
+- file: gadgets/src/algorithms/signature/schnorr.rs
+  line: 47
+  summary: Schnorr parameter gadget implements AllocGadget, allocating parameters
+    as witnesses rather than circuit constants. Parameters should be hardcoded constants
+    to prevent prover manipulation.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 323
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

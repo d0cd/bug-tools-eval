@@ -1,24 +1,34 @@
 id: leo-107
 repo: ProvableHQ/leo
-base_commit: d039543c4788b243c7296b7ea0707a572301fdc0^
-head_commit: d039543c4788b243c7296b7ea0707a572301fdc0
-fix_commit: d039543c4788b243c7296b7ea0707a572301fdc0
+base_commit: 66dddd992dc6d04be4cd6a0046139bf4e28d80a6^
+head_commit: 66dddd992dc6d04be4cd6a0046139bf4e28d80a6
+fix_commit: 66dddd992dc6d04be4cd6a0046139bf4e28d80a6
 category: logic
 difficulty: medium
-severity: medium
-language: leo
-pr_size: medium
-description: The Leo parser incorrectly parsed negative scalar and field literals
-  (e.g., `-1scalar`, `-1field`) as unary negation expressions applied to positive
-  literals, rather than recognizing them as negative literal values directly. The
-  fix modifies the expression parser in `expression.rs` to detect and consume the
-  negative sign as part of the literal token for scalar and field types.
+severity: high
+language: rust
+pr_size: small
+description: The `select` (conditional ternary) operation on ConstrainedValue did
+  not have a match arm for two Tuple variants, causing a runtime error when a function
+  returned a tuple from a conditional expression. The fix adds a `(ConstrainedValue::Tuple,
+  ConstrainedValue::Tuple)` arm that recursively selects element-wise between the
+  two tuples.
 expected_findings:
-- file: compiler/parser/src/parser/expression.rs
-  line: 248
-  summary: Parser does not handle negative sign as part of scalar/field literal tokens;
-    `-1scalar` is incorrectly parsed as Unary(Negate, Literal(1scalar)) instead of
-    Literal(-1scalar)
+- file: compiler/src/value/value.rs
+  line: 457
+  summary: 'Missing match arm in conditional select: when both branches return tuples,
+    the select operation fails at runtime because there is no handler for (ConstrainedValue::Tuple,
+    ConstrainedValue::Tuple). Need to add element-wise recursive selection over tuple
+    members.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

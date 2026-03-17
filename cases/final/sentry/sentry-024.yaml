@@ -1,35 +1,33 @@
 id: sentry-024
 repo: getsentry/sentry
-base_commit: 4c008f663d9b49d8bb543f144451dd0a9fad836f^
-head_commit: 4c008f663d9b49d8bb543f144451dd0a9fad836f
-fix_commit: 4c008f663d9b49d8bb543f144451dd0a9fad836f
+base_commit: 1ebda1bb3ac4c99547dab657e0571eb0b196b6bf^
+head_commit: 1ebda1bb3ac4c99547dab657e0571eb0b196b6bf
+fix_commit: 1ebda1bb3ac4c99547dab657e0571eb0b196b6bf
 category: logic
-difficulty: medium
+difficulty: easy
 severity: medium
-language: python
-pr_size: medium
-description: Integration tests for pre-prod EAP didn't inherit from the correct base
-  test case classes (TestCase, SnubaTestCase), so they were never discovered or run
-  by the test runner. Additionally, the tests used the async Kafka producer (SingletonProducer)
-  which only flushes on process exit, meaning TraceItems never reached Snuba during
-  test runs. The fix adds proper base class inheritance, switches to the synchronous
-  store_occurrences HTTP endpoint pattern, and adds missing __init__.py files.
+language: typescript
+pr_size: tiny
+description: The widget full-screen modal displayed an issues table alongside timeseries
+  visualizations (line, bar, area) for ISSUES dataset widgets. Since issue tables
+  do not support aggregates, this produced broken or misleading results. The fix adds
+  a condition to hide the table for issues timeseries widgets, as well as for rage/dead
+  click and server tree widgets.
 expected_findings:
-- file: tests/snuba/preprod/eap/test_preprod_eap_integration.py
-  line: 12
-  summary: Test class does not inherit from TestCase/SnubaTestCase, so the test runner
-    never discovers or executes these tests
-- file: tests/snuba/preprod/eap/test_preprod_eap_integration.py
-  line: 59
-  summary: Using async Kafka producer (SingletonProducer) which only flushes on process
-    exit; TraceItems will never reach Snuba during test runs. Should use synchronous
-    store_occurrences HTTP endpoint instead
-- file: tests/snuba/preprod/__init__.py
+- file: static/app/components/modals/widgetViewerModal.tsx
   line: 1
-  summary: Missing __init__.py prevents Python from treating this directory as a package,
-    potentially hiding tests from discovery
+  summary: 'Missing guard: full-screen modal renders an issues table alongside timeseries
+    charts even though issue tables do not support aggregate queries, producing broken/misleading
+    data'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110532
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

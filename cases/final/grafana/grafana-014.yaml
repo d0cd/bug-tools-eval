@@ -1,24 +1,38 @@
 id: grafana-014
 repo: grafana/grafana
-base_commit: 26d5623afa746cee5dbec9f584810692f6d52208^
-head_commit: 26d5623afa746cee5dbec9f584810692f6d52208
-fix_commit: 26d5623afa746cee5dbec9f584810692f6d52208
-category: logic
+base_commit: 25511ca069cfcd915e294308046e79aa643d6ae4^
+head_commit: 25511ca069cfcd915e294308046e79aa643d6ae4
+fix_commit: 25511ca069cfcd915e294308046e79aa643d6ae4
+category: api-misuse
 difficulty: medium
-severity: medium
-language: typescript
-pr_size: medium
-description: Graphite metric name variable queries running through the backend mode
-  incorrectly set the text and value fields for data frames. The fix uses the displayNameFromDS
-  value to correctly populate these fields after a change in data frame construction.
+severity: high
+language: go
+pr_size: small
+description: The status subresource store in the Grafana API server app installer
+  was configured with an incorrect or missing KeyFunc. This caused status update requests
+  to fail to correctly identify the target resource, breaking status subresource operations.
+  The fix corrects the KeyFunc assignment for status stores at two locations where
+  cluster-scoped and namespace-scoped resources are set up.
 expected_findings:
-- file: public/app/plugins/datasource/graphite/datasource.ts
-  line: 763
-  summary: "In the graphiteBackendMode branch, metric name variable query results\
-    \ use wrong field for series name \u2014 should use displayNameFromDS for text/value\
-    \ instead of the default frame name"
+- file: pkg/services/apiserver/appinstaller/server.go
+  line: 151
+  summary: Status subresource store is using an incorrect KeyFunc — it should use
+    the parent resource's KeyFunc so status updates correctly resolve the resource
+    identity
+  line_side: pre_fix
+- file: pkg/services/apiserver/appinstaller/server.go
+  line: 173
+  summary: Same KeyFunc issue repeated for the second status store setup path — status
+    subresource KeyFunc must match the parent resource's KeyFunc
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,25 +1,39 @@
 id: sentry-061
 repo: getsentry/sentry
-base_commit: 3da4a6d995542fd69c2d99f20a3fa0cd8dd6af88^
-head_commit: 3da4a6d995542fd69c2d99f20a3fa0cd8dd6af88
-fix_commit: 3da4a6d995542fd69c2d99f20a3fa0cd8dd6af88
-category: api
-difficulty: easy
+base_commit: 4c008f663d9b49d8bb543f144451dd0a9fad836f^
+head_commit: 4c008f663d9b49d8bb543f144451dd0a9fad836f
+fix_commit: 4c008f663d9b49d8bb543f144451dd0a9fad836f
+category: incomplete
+difficulty: medium
 severity: high
-language: unknown
+language: python
 pr_size: medium
-description: The api-docs workspace had a transitive dependency on form-data@4.0.1,
-  which contains a prototype pollution vulnerability (GHSA-fjxv-7rqg-78g4). The fix
-  adds a pnpm.overrides entry in api-docs/package.json to force form-data>=4.0.2,
-  resolving to 4.0.5.
+description: Integration test classes did not inherit from the required base test
+  case classes (SnubaTestCase, TestCase), so the test discovery framework never collected
+  or ran them. Additionally, the tests used the async Kafka producer (SingletonProducer)
+  which only flushes on process exit, meaning data never reached Snuba during test
+  runs. Missing __init__.py files further prevented proper test module discovery.
 expected_findings:
-- file: api-docs/package.json
-  line: 1
-  summary: 'Missing pnpm.overrides for form-data: transitive dependency form-data@4.0.1
-    (via json-refs@3.0.15) has prototype pollution vulnerability GHSA-fjxv-7rqg-78g4;
-    should override to >=4.0.2'
+- file: tests/snuba/preprod/eap/test_preprod_eap_integration.py
+  line: 12
+  summary: Test class does not inherit from SnubaTestCase/TestCase base classes, so
+    it is never discovered or executed by the test runner — these tests are silently
+    skipped
+  line_side: pre_fix
+- file: tests/snuba/preprod/eap/test_preprod_eap_integration.py
+  line: 59
+  summary: Test produces TraceItems via async SingletonProducer which only flushes
+    on process exit; data never reaches Snuba during test runs. Should use synchronous
+    store_occurrences HTTP endpoint like other Snuba integration tests
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

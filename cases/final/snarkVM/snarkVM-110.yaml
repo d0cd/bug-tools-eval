@@ -1,29 +1,47 @@
 id: snarkVM-110
 repo: ProvableHQ/snarkVM
-base_commit: 735d69121780ec8ff9a01fe0c516a0efccff6148^
-head_commit: 735d69121780ec8ff9a01fe0c516a0efccff6148
-fix_commit: 735d69121780ec8ff9a01fe0c516a0efccff6148
-category: logic
-difficulty: medium
+base_commit: 802491c0e3543b0cd54532dae5f50fb2ee35cf4b^
+head_commit: 802491c0e3543b0cd54532dae5f50fb2ee35cf4b
+fix_commit: 802491c0e3543b0cd54532dae5f50fb2ee35cf4b
+category: performance
+difficulty: hard
 severity: high
 language: rust
-pr_size: small
-description: Unsigned integer division and remainder instructions had unnecessary
-  overflow checks that could cause valid operations to incorrectly halt. Since unsigned
-  div/rem can only fail on divide-by-zero (not overflow), the overflow guard was a
-  false-positive halt condition. The fix removes the overflow checks while keeping
-  the divide-by-zero checks intact.
+pr_size: medium
+description: 'Programs with deeply nested imports consumed excessive memory due to
+  two issues: (1) stack trees containing all imported external stacks were being needlessly
+  cloned at each nesting level, causing exponential memory growth, and (2) during
+  CheckDeployment verification, `execute_function` was called instead of `evaluate_function`
+  for nested calls, performing unnecessary circuit synthesis work when only the top-level
+  circuit was needed.'
 expected_findings:
-- file: synthesizer/program/src/logic/instruction/operation/mod.rs
-  line: 158
-  summary: 'Unnecessary overflow check on unsigned division (Div.U8/U16/U32/U64/U128):
-    unsigned integer division cannot overflow, only divide-by-zero should halt. The
-    overflow guard causes valid operations to incorrectly halt.'
-- file: synthesizer/program/src/logic/instruction/operation/mod.rs
-  line: 499
-  summary: 'Unnecessary overflow check on unsigned remainder (Rem.U8/U16/U32/U64/U128):
-    unsigned integer remainder cannot overflow, only divide-by-zero should halt. The
-    overflow guard causes valid operations to incorrectly halt.'
+- file: synthesizer/process/src/stack/evaluate.rs
+  line: 106
+  summary: CheckDeployment path calls `execute_function` for nested calls instead
+    of `evaluate_function`; only the top-level circuit needs full execution, nested
+    calls should use the cheaper evaluate path to avoid redundant circuit synthesis
+    and excessive memory allocation
+  line_side: pre_fix
+- file: synthesizer/process/src/stack/mod.rs
+  line: 169
+  summary: External stacks stored as `Arc<Stack<N>>` in an IndexMap are cloned along
+    with the entire stack tree on each nested import, causing O(n^depth) memory usage;
+    should use shared references or avoid deep-cloning the external_stacks map
+  line_side: pre_fix
+- file: synthesizer/process/src/stack/helpers/initialize.rs
+  line: 58
+  summary: '`insert_external_stack` accepts and stores full `Arc<Stack<N>>` copies
+    including their own external_stacks, leading to duplicated nested stack trees
+    across all levels of import depth'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

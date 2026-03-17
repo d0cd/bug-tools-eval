@@ -1,28 +1,31 @@
 id: snarkOS-048
 repo: ProvableHQ/snarkOS
-base_commit: 6fc8cd20ad35839fd6acd8c16cfb3d3c14f4efd6^
-head_commit: 6fc8cd20ad35839fd6acd8c16cfb3d3c14f4efd6
-fix_commit: 6fc8cd20ad35839fd6acd8c16cfb3d3c14f4efd6
-category: concurrency
+base_commit: 3f2ef8974b76347cd88b4f134be6048388b25aa6^
+head_commit: 3f2ef8974b76347cd88b4f134be6048388b25aa6
+fix_commit: 3f2ef8974b76347cd88b4f134be6048388b25aa6
+category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: small
-description: When a validator disconnects from the BFT network, its cached requests
-  were not being cleared. This could lead to stale cached data being used when the
-  validator reconnects or resources not being freed, potentially causing incorrect
-  consensus behavior. The fix adds a cache-clearing method in cache.rs and calls it
-  from the disconnect handler in gateway.rs.
+pr_size: tiny
+description: The cache `refresh` call was ordered before the `fetch`, creating an
+  edge case where the refresh could clear the last-seen timestamp before the fetch
+  reads it. The fix reorders the operations so that `refresh` runs after `fetch`,
+  preserving the timestamp for the fetch to use.
 expected_findings:
-- file: node/bft/src/gateway.rs
-  line: 1085
-  summary: 'Missing cache invalidation on peer disconnect: when a validator disconnects,
-    cached validator requests should be cleared to prevent stale data from persisting
-    and causing incorrect behavior on reconnect.'
-- file: node/bft/src/helpers/cache.rs
-  line: 119
-  summary: Cache structure lacks a method to clear entries associated with a specific
-    peer/validator, allowing stale entries to accumulate after disconnections.
+- file: node/router/src/helpers/cache.rs
+  line: 231
+  summary: Cache refresh is called before fetch, which can clear the last-seen timestamp
+    before it is read — reorder so refresh happens after the fetch
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

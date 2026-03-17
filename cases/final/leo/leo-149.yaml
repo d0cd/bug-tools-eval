@@ -1,24 +1,32 @@
 id: leo-149
 repo: ProvableHQ/leo
-base_commit: 2cde6d06597cb029081e28f30612f7aaa3cdfd89^
-head_commit: 2cde6d06597cb029081e28f30612f7aaa3cdfd89
-fix_commit: 2cde6d06597cb029081e28f30612f7aaa3cdfd89
-category: api
+base_commit: 9af730e8ee917e4cb04307b7532d846fc3b47b5a^
+head_commit: 9af730e8ee917e4cb04307b7532d846fc3b47b5a
+fix_commit: 9af730e8ee917e4cb04307b7532d846fc3b47b5a
+category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: rust
 pr_size: small
-description: The `get_indicator_value` method in statement.rs called `.unwrap()` on
-  an `Option` returned by the `eq` method on an indicator boolean gadget. When `console.log`
-  was used inside a conditional statement, this `Option` could be `None`, causing
-  a panic. The fix replaces the bare `.unwrap()` with a fallback to `false` when the
-  value is `None`.
+description: Function input types were only partially canonicalized — the `Self` type
+  replacement in function inputs did not recurse into compound types like arrays (`[Self;
+  3]`) or tuples (`(Self)`). The fix ensures `canonicalize_self_type` properly handles
+  these nested type constructs for function parameters.
 expected_findings:
-- file: compiler/src/statement/statement.rs
-  line: 143
-  summary: "Unsafe `.unwrap()` on `Option` returned by indicator boolean `eq` \u2014\
-    \ will panic with `None` when console methods are called inside conditional blocks.\
-    \ Should use `.unwrap_or(false)` or equivalent safe default."
+- file: ast-passes/src/canonicalization/canonicalizer.rs
+  line: 470
+  summary: 'Incomplete canonicalization: `canonicalize_self_type` is called on the
+    function input''s type but does not recurse into array or tuple type variants,
+    leaving `Self` references unresolved in compound types.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

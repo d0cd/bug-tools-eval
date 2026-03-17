@@ -1,0 +1,38 @@
+id: cal.com-025
+repo: calcom/cal.com
+base_commit: 48f8d324056769a5e9ac18f51d6f1af670f6a415^
+head_commit: 48f8d324056769a5e9ac18f51d6f1af670f6a415
+fix_commit: 48f8d324056769a5e9ac18f51d6f1af670f6a415
+category: logic
+difficulty: easy
+severity: high
+language: typescript
+pr_size: tiny
+description: The blocked relay/disposable email domains list incorrectly included
+  fastmail.com and proton.me, which are primary mailbox domains used by millions of
+  legitimate users. This caused false-positive rejections during signup, preventing
+  real users from creating accounts. The fix removes these two domains while keeping
+  actual relay/alias service domains (e.g. simplelogin.com) on the list.
+expected_findings:
+- file: packages/features/auth/signup/utils/validateDisposableEmail.ts
+  line: 21
+  summary: fastmail.com is a primary mailbox domain, not a relay-only domain. Including
+    it in the blocked list will reject legitimate Fastmail users during signup.
+  line_side: pre_fix
+- file: packages/features/auth/signup/utils/validateDisposableEmail.ts
+  line: 35
+  summary: proton.me is Proton Mail's primary domain used by millions of users. The
+    existing comment even acknowledges this is problematic. Proton's alias domains
+    (simplelogin.com, etc.) are already blocked separately.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,30 +1,32 @@
 id: snarkOS-073
 repo: ProvableHQ/snarkOS
-base_commit: 2a2c57f88891a731f11e634ff0d9adf04b7947e2^
-head_commit: 2a2c57f88891a731f11e634ff0d9adf04b7947e2
-fix_commit: 2a2c57f88891a731f11e634ff0d9adf04b7947e2
-category: logic
-difficulty: hard
-severity: critical
+base_commit: 654fe0eb8372259ca66ff6c4cc5c8bfbff302ac6^
+head_commit: 654fe0eb8372259ca66ff6c4cc5c8bfbff302ac6
+fix_commit: 654fe0eb8372259ca66ff6c4cc5c8bfbff302ac6
+category: security
+difficulty: easy
+severity: high
 language: rust
-pr_size: medium
-description: The gateway's authorized validator check only fetched the committee lookback
-  at the latest ledger round, but the storage's current round can be ahead (e.g.,
-  current round n+2 vs ledger round n). This caused valid committee members to be
-  treated as unauthorized and disconnected, potentially preventing validators from
-  reaching quorum (2f+1) and halting consensus. The fix expands the authorized set
-  to include committee members from rounds up to the sync range tolerance.
+pr_size: small
+description: The node automatically cleared (deleted) the entire ledger when it detected
+  invalid ledger state, which could cause unexpected data loss without user consent.
+  The fix removes the automatic clearing and instead notifies the user to manually
+  run the clean command, preventing silent data destruction.
 expected_findings:
-- file: node/bft/src/gateway.rs
-  line: 100
-  summary: Authorized validator set only considers the committee at the latest ledger
-    round, not the current storage round. When these rounds diverge, legitimate validators
-    may be excluded, breaking quorum.
-- file: node/bft/ledger-service/src/traits.rs
-  line: 51
-  summary: Ledger service trait is missing a `get_block_round` method needed to look
-    up block rounds by height, which is required to compute the correct range of committees
-    for validator authorization.
+- file: cli/src/commands/start.rs
+  line: 198
+  summary: 'Automatic ledger clearing on invalid state is dangerous: silently deletes
+    user data without confirmation. Should prompt or instruct the user to manually
+    clear instead of calling remove_ledger automatically.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

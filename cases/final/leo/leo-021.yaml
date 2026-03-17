@@ -1,23 +1,43 @@
 id: leo-021
 repo: ProvableHQ/leo
-base_commit: 61680fb3637b0e81f93303e3daab9c133779cb9a^
-head_commit: 61680fb3637b0e81f93303e3daab9c133779cb9a
-fix_commit: 61680fb3637b0e81f93303e3daab9c133779cb9a
+base_commit: 16888656e1ce67f536805025b57078f1cfc27086^
+head_commit: 16888656e1ce67f536805025b57078f1cfc27086
+fix_commit: 16888656e1ce67f536805025b57078f1cfc27086
 category: logic
-difficulty: easy
+difficulty: medium
 severity: medium
 language: rust
-pr_size: tiny
-description: The `leo execute` command did not handle program names that included
-  the `.aleo` suffix, causing failures when users provided the full program name (e.g.,
-  `my_program.aleo` instead of `my_program`). The fix strips the `.aleo` extension
-  from the program name if it exists before using it.
+pr_size: medium
+description: 'Three import-related bugs: (1) the `PackageAccess::Star` AST variant
+  did not carry a `Span`, so star imports (`import bar.*`) lost source location information
+  in the AST output; (2) the parser accepted empty import lists (`import bar.()`)
+  without error instead of rejecting them; (3) the ABNF grammar did not match the
+  intended import syntax, requiring a restructuring of the import-declaration rule.'
 expected_findings:
-- file: leo/cli/commands/execute.rs
-  line: 172
-  summary: 'Missing normalization of program name: the `.aleo` suffix is not stripped
-    before use, so passing a program name with `.aleo` extension causes execution
-    to fail.'
+- file: ast/src/imports/package_access.rs
+  line: 21
+  summary: PackageAccess::Star variant is missing a Span field, causing star imports
+    to lose source location information in the generated AST
+  line_side: pre_fix
+- file: parser/src/parser/file.rs
+  line: 136
+  summary: parse_package_accesses does not check for and reject empty parenthesized
+    import lists like `import bar.()`, allowing invalid syntax to parse without error
+  line_side: pre_fix
+- file: grammar/abnf-grammar.txt
+  line: 965
+  summary: import-declaration grammar rule does not correctly separate package-path
+    from package-access, causing the grammar to not match the actual intended import
+    syntax
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

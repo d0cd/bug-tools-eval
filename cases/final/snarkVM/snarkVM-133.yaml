@@ -1,36 +1,43 @@
 id: snarkVM-133
 repo: ProvableHQ/snarkVM
-base_commit: f7e36f8f448c9f4983186ba6b309dbced6300798^
-head_commit: f7e36f8f448c9f4983186ba6b309dbced6300798
-fix_commit: f7e36f8f448c9f4983186ba6b309dbced6300798
-category: type
+base_commit: a95e1dc986ad917e5e16c6344154679a658621ba^
+head_commit: a95e1dc986ad917e5e16c6344154679a658621ba
+fix_commit: a95e1dc986ad917e5e16c6344154679a658621ba
+category: logic
 difficulty: medium
-severity: critical
+severity: high
 language: rust
-pr_size: medium
-description: The byte serialization of Plaintext and Record types used u8 to read/write
-  the number of members/entries, limiting counts to 255 and causing a size mismatch
-  with the intended format. The fix changes the serialization size (likely u8 to u16)
-  in both the read and write paths for plaintext members and record entries, and regenerates
-  the genesis block to match the corrected format.
+pr_size: large
+description: StringType was allowed in programs and deployments despite being broken
+  (sampling doesn't work correctly). The fix adds `contains_string_type()` checks
+  across all data types and program components, gated on ConsensusVersion::V12, to
+  prevent any deployment using StringType from landing on the network.
 expected_findings:
-- file: console/program/src/data/plaintext/bytes.rs
-  line: 26
-  summary: 'Incorrect serialization size: u8::read_le used for num_members count,
-    should use a larger integer type (e.g., u16) to match the write side and avoid
-    truncation'
-- file: console/program/src/data/plaintext/bytes.rs
-  line: 62
-  summary: 'Incorrect serialization size: u8::read_le used for num_members in a second
-    variant/path, same u8-vs-u16 mismatch'
-- file: console/program/src/data/record/bytes.rs
-  line: 24
-  summary: 'Incorrect serialization size: u8::read_le used for num_entries in record
-    deserialization, should match the corrected write size'
-- file: console/program/src/data/record/bytes.rs
-  line: 68
-  summary: 'Incorrect serialization size: u8::read_le used for num_entries in record
-    write path, write side also uses wrong size type'
+- file: synthesizer/src/vm/verify.rs
+  line: 238
+  summary: 'Missing validation: transaction verification does not check whether deployed
+    programs contain StringType, allowing broken StringType deployments to pass verification
+    before V12.'
+  line_side: pre_fix
+- file: synthesizer/program/src/lib.rs
+  line: 966
+  summary: Program validation does not reject programs that contain StringType in
+    their inputs, outputs, closures, functions, or mappings, allowing broken StringType
+    usage.
+  line_side: pre_fix
+- file: console/program/src/data_types/plaintext_type/mod.rs
+  line: 64
+  summary: No method exists to detect StringType presence in PlaintextType, which
+    is needed to enforce the StringType ban across all type positions.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

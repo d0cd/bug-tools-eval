@@ -1,0 +1,37 @@
+id: sentry-101
+repo: getsentry/sentry
+base_commit: 82034dd8d0e0aaa92090aaf2a2db4086ff5284d7^
+head_commit: 82034dd8d0e0aaa92090aaf2a2db4086ff5284d7
+fix_commit: 82034dd8d0e0aaa92090aaf2a2db4086ff5284d7
+category: incomplete
+difficulty: easy
+severity: medium
+language: unknown
+pr_size: medium
+description: A dependency version bump to fix a crash caused by custom elements with
+  invalid names (e.g. Electron's `<webview>` tag) in the session replayer was applied
+  to the main rrweb packages but missed bumping `@sentry-internal/rrweb-types` to
+  the matching 2.41.0 version. This inconsistency between related packages in the
+  same family can lead to type mismatches or subtle runtime issues.
+expected_findings:
+- file: package.json
+  line: 71
+  summary: 'Incomplete version bump: `@sentry-internal/rrweb-types` should also be
+    bumped to 2.41.0 to stay consistent with the other rrweb package updates'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110352
+reviewer_notes: []
+reviewer_findings:
+- file: package.json
+  line: 71
+  summary: '### `@sentry-internal/rrweb-types` not bumped to 2.41.0  **Medium Severity**  <!--
+    DESCRIPTION START --> `@sentry-intern'
+  line_side: pre_fix
+quality_flags: []

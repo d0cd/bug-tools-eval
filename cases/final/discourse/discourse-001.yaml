@@ -1,32 +1,30 @@
 id: discourse-001
 repo: discourse/discourse
-base_commit: 838f630d8538436d3072147763904889bfdf2d58^
-head_commit: 838f630d8538436d3072147763904889bfdf2d58
-fix_commit: 838f630d8538436d3072147763904889bfdf2d58
-category: logic
+base_commit: 006b061c81d4b0268aadfede376fc4647e499d7b^
+head_commit: 006b061c81d4b0268aadfede376fc4647e499d7b
+fix_commit: 006b061c81d4b0268aadfede376fc4647e499d7b
+category: style
 difficulty: easy
 severity: low
-language: ruby
-pr_size: small
-description: Multiple random typos across documentation, configuration files, frontend
-  JavaScript/GJS components, and test specs. The fix corrects spelling and wording
-  errors that could cause confusion in comments, documentation, or minor misbehavior
-  in string-matching code paths.
+language: unknown
+pr_size: tiny
+description: A typo in the server locale file used 'Github' instead of the correct
+  brand name 'GitHub' (capital H). The fix corrects the capitalization to match GitHub's
+  official branding.
 expected_findings:
-- file: frontend/pretty-text/addon/emoji.js
-  line: 82
-  summary: "Typo in emoji replacement logic \u2014 misspelled variable, string literal,\
-    \ or comment affecting readability or correctness of emoji matching"
-- file: frontend/discourse/app/lib/textarea-text-manipulation.js
-  line: 845
-  summary: "Typo in comment or string near heading-removal logic \u2014 could mislead\
-    \ future developers about intended behavior"
-- file: config/pitchfork.conf.rb
-  line: 110
-  summary: "Typo in configuration comment describing Sidekiq log reopening delay \u2014\
-    \ incorrect wording that misrepresents the delay behavior"
+- file: config/locales/server.en.yml
+  line: 1
+  summary: Incorrect capitalization 'Github' should be 'GitHub' to match the official
+    brand name
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

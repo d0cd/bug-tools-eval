@@ -1,31 +1,53 @@
 id: snarkVM-014
 repo: ProvableHQ/snarkVM
-base_commit: 3b413c02545d8da0c1037ad1beff127f974d4b79^
-head_commit: 3b413c02545d8da0c1037ad1beff127f974d4b79
-fix_commit: 3b413c02545d8da0c1037ad1beff127f974d4b79
+base_commit: 0e9a5fc649abeada99671e78f11cd4301305f609^
+head_commit: 0e9a5fc649abeada99671e78f11cd4301305f609
+fix_commit: 0e9a5fc649abeada99671e78f11cd4301305f609
 category: logic
-difficulty: easy
-severity: medium
+difficulty: hard
+severity: high
 language: rust
-pr_size: small
-description: The deployment variable and constraint limits (MAX_DEPLOYMENT_VARIABLES
-  and MAX_DEPLOYMENT_CONSTRAINTS) were set too low at 1<<20 (~1M), preventing developers
-  from deploying programs with richer circuit logic. The fix doubles both limits to
-  1<<21 (~2M) and updates tests to verify programs near the new boundary are accepted.
+pr_size: large
+description: 'The Leo compiler''s assignment enforcement only supported plain identifiers
+  as assignee targets, so `self.field = expr` inside circuit methods silently failed
+  or errored. The fix introduces a `KeywordOrIdentifier` AST node, threads a `declared_circuit_reference`
+  through function and statement enforcement, and updates assignment logic to resolve
+  `self` to the correct circuit variable. However, the fix is incomplete: conditional
+  branches hardcode the circuit reference to empty string, breaking `self` mutation
+  inside if-blocks.'
 expected_findings:
-- file: console/network/src/lib.rs
-  line: 137
-  summary: MAX_DEPLOYMENT_VARIABLES is set to 1 << 20 (1,048,576) which is too restrictive
-    for complex program deployments; should be 1 << 21 (2,097,152)
-- file: synthesizer/src/vm/mod.rs
-  line: 1370
-  summary: Test program uses instructions that stay under the old 1<<20 constraint
-    limit; should use more complex instructions (e.g. hash.sha3_256) to validate the
-    new higher limit
-- file: synthesizer/src/vm/mod.rs
-  line: 1405
-  summary: Test program for exceeding constraint limit uses instructions calibrated
-    to old 1<<20 boundary; needs updating to reflect the new 1<<21 limit
+- file: r1cs/src/test_constraint_checker.rs
+  line: 1
+  summary: New TestConstraintChecker implementation — verify it correctly checks constraint
+    satisfaction without storing constraints (e.g., ensure is_satisfied() evaluates
+    all constraints even though they are not retained)
+  line_side: pre_fix
+- file: ast/src/leo.pest
+  line: 4
+  summary: Grammar rule `assignee = { identifier ~ access_assignee* }` only allows
+    plain identifiers — `self` keyword cannot appear as an assignee target, so `self.field
+    = expr` is unparseable
+  line_side: pre_fix
+- file: compiler/src/statement/assign/assign.rs
+  line: 82
+  summary: Assignment to `Assignee::CircuitField` calls `mutute_circuit_variable`
+    without handling the case where the assignee is the `self` keyword — circuit methods
+    cannot mutate their own member variables via `self.field = value`
+  line_side: pre_fix
+- file: compiler/src/function/function.rs
+  line: 47
+  summary: Function enforcement signature lacks a `declared_circuit_reference` parameter,
+    so circuit context is unavailable when enforcing assignment statements that target
+    `self`
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

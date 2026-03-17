@@ -1,23 +1,36 @@
 id: leo-055
 repo: ProvableHQ/leo
-base_commit: c57332baa99b41febb6ced9a35c728c886630918^
-head_commit: c57332baa99b41febb6ced9a35c728c886630918
-fix_commit: c57332baa99b41febb6ced9a35c728c886630918
-category: perf
+base_commit: 38448b986e986af57e4f712e5fad0e7536a0b4ab^
+head_commit: 38448b986e986af57e4f712e5fad0e7536a0b4ab
+fix_commit: 38448b986e986af57e4f712e5fad0e7536a0b4ab
+category: style
 difficulty: easy
 severity: low
-language: rust
-pr_size: tiny
-description: The `leo build` command contained unused JSON deserialization logic that
-  read back a serialized circuit file without using the result. The fix removes this
-  dead code, eliminating an unnecessary file read and deserialization step during
-  the build process.
+language: leo
+pr_size: large
+description: CI and test infrastructure cleanup PR accompanying a refactor. Updates
+  address literals across test files, reorganizes blake2s stdlib tests, removes deprecated
+  blake2s compiler code, and fixes the WASM CI workflow. The PR title itself is prefixed
+  with '[Ignore]' indicating it is housekeeping.
 expected_findings:
-- file: leo/commands/build.rs
-  line: 148
-  summary: 'Unused deserialization: `circuit_file.read_from(&package_path)` reads
-    and deserializes the circuit JSON but the result is never used, wasting I/O and
-    CPU cycles.'
+- file: compiler/src/expression/expression.rs
+  line: 179
+  summary: Removal of 'function' variant handling in expression compilation — verify
+    callers no longer rely on this branch
+  line_side: pre_fix
+- file: compiler/src/prelude/mod.rs
+  line: 14
+  summary: Prelude module reorganization removing blake2s — ensure no downstream imports
+    reference the old path
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

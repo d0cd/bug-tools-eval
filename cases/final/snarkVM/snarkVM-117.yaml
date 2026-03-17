@@ -1,27 +1,43 @@
 id: snarkVM-117
 repo: ProvableHQ/snarkVM
-base_commit: dffd731b0412026368432f879a59aa1c0e256964^
-head_commit: dffd731b0412026368432f879a59aa1c0e256964
-fix_commit: dffd731b0412026368432f879a59aa1c0e256964
+base_commit: 8c0524f46209db1dd87d840376292f95406f1df7^
+head_commit: 8c0524f46209db1dd87d840376292f95406f1df7
+fix_commit: 8c0524f46209db1dd87d840376292f95406f1df7
 category: logic
-difficulty: easy
-severity: medium
+difficulty: medium
+severity: high
 language: rust
 pr_size: small
-description: The Display/formatter implementation for nested struct plaintext values
-  incorrectly printed an extra closing brace after every member of a nested struct.
-  The fix changes the non-last-member formatting branches (around lines 141 and 243)
-  to only write a comma delimiter instead of a comma followed by a spurious closing
-  brace.
+description: Package::deploy created a local Process internally, which did not contain
+  the imported programs needed by deployment_cost. This caused deployment of programs
+  with imports to fail. The fix changes deploy() to accept an external &Process<N>
+  parameter so that all imports are available when computing deployment cost.
 expected_findings:
-- file: console/program/src/data/plaintext/parse.rs
-  line: 141
-  summary: 'Incorrect formatting: writing an extra closing brace after struct member
-    separator. Should be `write!(f, ",")` without appending `}`.'
-- file: console/program/src/data/plaintext/parse.rs
-  line: 243
-  summary: Same extra closing brace bug in second Display impl for nested struct members.
-    Should be `write!(f, ",")` without appending `}`.
+- file: vm/package/deploy.rs
+  line: 113
+  summary: deploy() creates or uses a local Process that lacks imported programs;
+    should accept an external &Process<N> parameter so deployment_cost can access
+    all imports
+  line_side: pre_fix
+- file: vm/package/deploy.rs
+  line: 156
+  summary: Inner deploy helper also uses a local Process without imports; needs the
+    external process passed through to ensure imports are present for cost calculation
+  line_side: pre_fix
+- file: vm/package/mod.rs
+  line: 165
+  summary: is_main flag set to false when calling deploy, but the process scope is
+    wrong — deploy needs to receive the external Process that already has imports
+    loaded
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

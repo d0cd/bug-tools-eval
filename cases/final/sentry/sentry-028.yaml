@@ -1,29 +1,31 @@
 id: sentry-028
 repo: getsentry/sentry
-base_commit: 718f6364267979371b651cb86a69e0261a3a0ce4^
-head_commit: 718f6364267979371b651cb86a69e0261a3a0ce4
-fix_commit: 718f6364267979371b651cb86a69e0261a3a0ce4
-category: api
-difficulty: medium
-severity: high
+base_commit: 250c5fc20fe8a69c8cee956dee4a639621b4a26e^
+head_commit: 250c5fc20fe8a69c8cee956dee4a639621b4a26e
+fix_commit: 250c5fc20fe8a69c8cee956dee4a639621b4a26e
+category: incomplete
+difficulty: easy
+severity: medium
 language: python
 pr_size: tiny
-description: "The authentication_classes on OrganizationPreprodRetentionEndpoint listed\
-  \ SessionAuthentication before token authentication classes. When a request carried\
-  \ both session cookies and a Bearer token, session auth would win, set request.auth\
-  \ to None, and trigger the SSO check \u2014 returning a spurious 401 sso-required\
-  \ error, blocking CLI token-based access. The fix adds OrgAuthTokenAuthentication\
-  \ and reorders authentication_classes so token classes precede SessionAuthentication,\
-  \ matching the project's DEFAULT_AUTHENTICATION ordering."
+description: The list of available project instrumentation types was incomplete, missing
+  the 'spans' entry. This caused downstream consumers relying on the instrumentation
+  flags to not receive span data for projects that support it.
 expected_findings:
-- file: src/sentry/preprod/api/endpoints/organization_preprod_retention.py
-  line: 49
-  summary: 'authentication_classes ordering is wrong: SessionAuthentication precedes
-    token auth classes, so session auth wins when both cookies and Bearer token are
-    present, causing spurious 401 sso-required errors. Token authentication classes
-    (OrgAuthTokenAuthentication, UserAuthTokenAuthentication) must come before SessionAuthentication.'
+- file: src/sentry/seer/explorer/context_engine_utils.py
+  line: 50
+  summary: Instrumentation list is missing 'spans' — the available instrumentation
+    types are incomplete, which means projects with span data won't have that capability
+    surfaced
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

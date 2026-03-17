@@ -1,35 +1,33 @@
 id: discourse-045
 repo: discourse/discourse
-base_commit: 0873467ce4494c81e0854e6136140cfb30d08563^
-head_commit: 0873467ce4494c81e0854e6136140cfb30d08563
-fix_commit: 0873467ce4494c81e0854e6136140cfb30d08563
-category: logic
+base_commit: 58564c50cca31aac30bfeaee2274ea3e35053a8b^
+head_commit: 7d42b006a8234809bbd04b2d5753644ec6ec53cb
+fix_commit: 58564c50cca31aac30bfeaee2274ea3e35053a8b
+category: incomplete
 difficulty: easy
-severity: low
-language: javascript
-pr_size: small
-description: 'Multiple visual inconsistencies in the foundation theme: the composer
-  actions dropdown button lacked a custom CSS class for proper styling, profile tab
-  buttons had incorrect selector grouping affecting hover/active states, and category/tag
-  text colors in the header were misapplied. The fix adds the missing ''composer-actions-btn''
-  class in the JS component and corrects CSS selector groupings in the theme stylesheet.'
+severity: medium
+language: ruby
+pr_size: tiny
+description: A prior commit (7d42b006a8) renamed or changed the CSS class for the
+  post language selector component, but the corresponding page object constant in
+  the system specs was not updated to match. This caused system tests relying on the
+  old selector to fail. The fix updates the POST_LANGUAGE_SELECTOR constant to use
+  the correct class name.
 expected_findings:
-- file: frontend/discourse/select-kit/components/composer-actions.js
-  line: 37
-  summary: 'Missing custom CSS class on composer actions button: ''btnCustomClasses''
-    property not set, causing the dropdown button to lack proper foundation theme
-    styling'
-- file: app/assets/stylesheets/common/base/uc-modernize-foundation-theme.scss
-  line: 63
-  summary: 'Incorrect CSS selector grouping for .profile-tab-btn: selector is misplaced
-    or missing from the rule block, causing visual inconsistencies in hover/active/text-color
-    states'
-- file: app/assets/stylesheets/common/base/uc-modernize-foundation-theme.scss
-  line: 85
-  summary: CSS rule for category and tag text colors in header not correctly scoped,
-    causing text color to be wrong or unstyled in the foundation theme
+- file: spec/system/page_objects/components/composer.rb
+  line: 8
+  summary: 'Stale CSS selector: POST_LANGUAGE_SELECTOR references the old class name
+    that no longer exists in the DOM after commit 7d42b006a8; must be updated to match
+    the renamed element'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,31 +1,36 @@
 id: sentry-023
 repo: getsentry/sentry
-base_commit: 9e655db8e4ba87965b055613d6ab86fedf8c30ca^
-head_commit: 9e655db8e4ba87965b055613d6ab86fedf8c30ca
-fix_commit: 9e655db8e4ba87965b055613d6ab86fedf8c30ca
+base_commit: 1dcb876a185fc2e5a02ea94310100ee2e437786a^
+head_commit: 1dcb876a185fc2e5a02ea94310100ee2e437786a
+fix_commit: 1dcb876a185fc2e5a02ea94310100ee2e437786a
 category: logic
-difficulty: easy
-severity: low
+difficulty: hard
+severity: high
 language: typescript
 pr_size: small
-description: LLM Detected issues (still in development) were appearing in the trace
-  timeline's '1 other issue' display because the issuePlatform API query in useTraceTimelineEvents
-  did not filter out hidden issue types. The fix adds a HIDDEN_ISSUE_TYPES constant
-  as a single source of truth and derives HIDDEN_OCCURRENCE_TYPE_IDS to exclude these
-  types from the trace timeline query.
+description: 'ChartLegend''s useLayoutEffect read triggerWidth from React state (via
+  useDimensions), which was always one render behind due to queued layout-effect state
+  updates. At the exact overflow boundary, this one-render lag caused a permanent
+  oscillation: showing the ''+N more'' trigger made items not fit, hiding it made
+  them fit, creating an infinite render loop (''Maximum update depth exceeded'').
+  The fix reads triggerRef.current?.getBoundingClientRect().width directly instead
+  of relying on stale state.'
 expected_findings:
-- file: static/app/views/issueDetails/traceTimeline/useTraceTimelineEvents.tsx
-  line: 83
-  summary: 'Missing filter: issuePlatform API query does not exclude hidden issue
-    types (e.g., LLM Detected), causing development-stage issues to appear in the
-    trace timeline'
-- file: static/app/types/group.tsx
-  line: 348
-  summary: No centralized constant for hidden issue types; VISIBLE_ISSUE_TYPES excludes
-    them but there is no reusable HIDDEN_ISSUE_TYPES or HIDDEN_OCCURRENCE_TYPE_IDS
-    for API query filtering
+- file: static/app/components/charts/chartLegend.tsx
+  line: 1
+  summary: Stale triggerWidth from useDimensions state causes infinite render loop
+    at overflow boundary; should read getBoundingClientRect().width directly from
+    the ref inside the layout effect instead of depending on state that lags by one
+    render
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110187
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

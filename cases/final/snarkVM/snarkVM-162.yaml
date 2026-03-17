@@ -1,32 +1,43 @@
 id: snarkVM-162
 repo: ProvableHQ/snarkVM
-base_commit: dc5d6978becdee47e7ed2e6bc4c6e64e4ad1124f^
-head_commit: dc5d6978becdee47e7ed2e6bc4c6e64e4ad1124f
-fix_commit: dc5d6978becdee47e7ed2e6bc4c6e64e4ad1124f
-category: api
-difficulty: hard
-severity: medium
+base_commit: dc0460a13b4aacf5a9f3518a2d25841f416722aa^
+head_commit: dc0460a13b4aacf5a9f3518a2d25841f416722aa
+fix_commit: dc0460a13b4aacf5a9f3518a2d25841f416722aa
+category: incomplete
+difficulty: medium
+severity: high
 language: rust
-pr_size: xl
-description: Serial numbers were serialized using `to_bytes_le` (ToBytes trait) which
-  keeps both x and y coordinates of an elliptic curve point, instead of using compressed
-  serialization that only keeps the x coordinate. This caused transaction sizes to
-  increase by 64 bytes. The fix introduces a SchnorrCompressed signature variant that
-  serializes only the x coordinate, leveraging the fact that on twisted Edwards curves,
-  y can be recovered from x.
+pr_size: medium
+description: The block header Metadata struct was missing a `last_coinbase_target`
+  field needed for calculating subsequent coinbase targets. Without this field, the
+  protocol cannot track the previous coinbase target across blocks, breaking the difficulty
+  adjustment mechanism. The fix adds the field to the struct, all serialization paths
+  (bytes, bits, hash, JSON), and the genesis block initialization.
 expected_findings:
-- file: dpc/src/parameters/testnet1.rs
-  line: 31
-  summary: Signature scheme should use SchnorrCompressed instead of Schnorr to avoid
-    serializing both x and y coordinates, inflating transaction size by 64 bytes
-- file: dpc/src/parameters/testnet2.rs
-  line: 31
-  summary: Signature scheme should use SchnorrCompressed instead of Schnorr to produce
-    shorter serial numbers via compressed point serialization
-- file: algorithms/src/traits/signature.rs
-  line: 15
-  summary: SignatureScheme trait's PublicKey bound uses ToBytes which serializes full
-    (x,y) point; should support compressed serialization keeping only x coordinate
+- file: synthesizer/src/block/header/metadata/mod.rs
+  line: 37
+  summary: 'Metadata struct is missing a `last_coinbase_target: u64` field required
+    for coinbase target adjustment calculations between blocks'
+  line_side: pre_fix
+- file: synthesizer/src/block/header/metadata/to_hash.rs
+  line: 20
+  summary: Metadata bit-length comment and hash input will be incorrect once `last_coinbase_target`
+    is added — currently undercounts by 64 bits
+  line_side: pre_fix
+- file: console/network/src/lib.rs
+  line: 87
+  summary: ANCHOR_TIME constant change (to 25) is bundled with the new metadata field
+    addition — appears to be an unrelated parameter tweak that should be reviewed
+    separately
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

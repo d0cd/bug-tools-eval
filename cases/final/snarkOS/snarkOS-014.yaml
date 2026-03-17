@@ -1,32 +1,44 @@
 id: snarkOS-014
 repo: ProvableHQ/snarkOS
-base_commit: 41654e3d60ab05fc1068b756f6151155571e7cdd^
-head_commit: 41654e3d60ab05fc1068b756f6151155571e7cdd
-fix_commit: 41654e3d60ab05fc1068b756f6151155571e7cdd
-category: logic
+base_commit: 1848cee4c23bc4cde940a3c69fd21349294518cd^
+head_commit: 1848cee4c23bc4cde940a3c69fd21349294518cd
+fix_commit: 1848cee4c23bc4cde940a3c69fd21349294518cd
+category: api-misuse
 difficulty: medium
 severity: high
 language: rust
-pr_size: small
-description: The `downgrade_peer_to_candidate` function was called unconditionally
-  during handshake failure/abort, incorrectly downgrading peers that were not in the
-  `ConnectingPeer` state. This could cause already-established peer connections to
-  be improperly demoted. The fix adds a guard to only downgrade peers that are `ConnectingPeer`,
-  and changes the duplicate-address handshake abort from an error to a non-error return.
+pr_size: xl
+description: The `dev execute` command assumed a V2 API endpoint, causing failures
+  when used against a V1 API. V1 returns errors as plain strings (not JSON) and responds
+  with HTTP 500 (not 404) for missing transactions, breaking both error parsing and
+  the `--wait` polling loop. The fix adds version detection via `parse_custom_endpoint`
+  and branches the error-handling and status-code logic accordingly.
 expected_findings:
-- file: node/bft/src/gateway.rs
-  line: 1275
-  summary: 'Unconditional call to downgrade_peer_to_candidate: should check that the
-    peer is a ConnectingPeer before downgrading, otherwise already-connected peers
-    may be incorrectly demoted.'
-- file: node/router/src/handshake.rs
-  line: 147
-  summary: 'Unconditional call to downgrade_peer_to_candidate: should only downgrade
-    if the peer is a ConnectingPeer, not an already-established connection.'
-- file: node/src/bootstrap_client/handshake.rs
-  line: 139
-  summary: 'Unconditional call to downgrade_peer_to_candidate: missing guard to verify
-    peer is a ConnectingPeer before downgrading.'
+- file: cli/src/commands/developer/execute.rs
+  line: 152
+  summary: 'API version not detected: code assumes V2 behavior (JSON errors, 404 for
+    missing tx) but V1 endpoints return plain-string errors and HTTP 500, causing
+    parse failures and broken --wait polling.'
+  line_side: pre_fix
+- file: cli/src/commands/developer/mod.rs
+  line: 191
+  summary: 'Missing endpoint version parsing: no logic to distinguish V1 vs V2 API,
+    so all helper functions (block range fetching, transaction waiting) use V2 assumptions
+    that fail against V1 nodes.'
+  line_side: pre_fix
+- file: cli/src/commands/developer/scan.rs
+  line: 145
+  summary: parse_block_range has redundant branches both fetching latest block height;
+    should be simplified and made version-aware to handle V1/V2 response format differences.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

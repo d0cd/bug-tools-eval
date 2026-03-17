@@ -1,26 +1,33 @@
 id: leo-057
 repo: ProvableHQ/leo
-base_commit: 019bbbff093b28a9f9be4a29929c626a48ec780b^
-head_commit: 019bbbff093b28a9f9be4a29929c626a48ec780b
-fix_commit: 019bbbff093b28a9f9be4a29929c626a48ec780b
+base_commit: 3c00cf5b5fa608bb030774eed58be123080e60cd^
+head_commit: 3c00cf5b5fa608bb030774eed58be123080e60cd
+fix_commit: 3c00cf5b5fa608bb030774eed58be123080e60cd
 category: logic
 difficulty: easy
 severity: low
-language: rust
-pr_size: small
-description: Two Rust source files had formatting that did not pass `cargo fmt --check`,
-  blocking the release. The fix reformatted the `Display` impl match arms in `circuit_member.rs`
-  and `main_function.rs` to comply with rustfmt standards.
+language: leo
+pr_size: tiny
+description: The `0x`-prefixed integer literal failure tests were categorized under
+  the wrong parser namespace, causing them to be parsed in a context where the failure
+  wasn't triggered in both the Rust and ACL2 parsers. The fix changes the test namespace
+  from its previous category (likely `ParseStatement`) to `ParseExpression`, ensuring
+  the malformed `0x` literals are correctly rejected by both parser implementations.
 expected_findings:
-- file: ast/src/circuits/circuit_member.rs
-  line: 58
-  summary: 'Formatting non-compliance: the `CircuitMember::CircuitVariable` match
-    arm in the Display impl has incorrect line wrapping or indentation that fails
-    cargo fmt.'
-- file: compiler/src/function/main_function.rs
-  line: 52
-  summary: 'Formatting non-compliance: the `FunctionInput::MutSelfKeyword` match arm
-    has incorrect formatting (likely long line or indentation) that fails cargo fmt.'
+- file: tests/parser/expression/literal/int_fail.leo
+  line: 1
+  summary: 'Test namespace is incorrect: should be `ParseExpression` rather than the
+    current category so that `0x` literal tests exercise the expression parser path
+    and fail consistently in both Rust and ACL2 parsers'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

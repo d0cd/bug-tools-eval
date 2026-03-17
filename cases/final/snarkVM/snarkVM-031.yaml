@@ -1,22 +1,36 @@
 id: snarkVM-031
 repo: ProvableHQ/snarkVM
-base_commit: 17b2e578f94f0d4e5929ea7f6a81dd2aaa67b4f7^
-head_commit: 17b2e578f94f0d4e5929ea7f6a81dd2aaa67b4f7
-fix_commit: 17b2e578f94f0d4e5929ea7f6a81dd2aaa67b4f7
-category: logic
+base_commit: 1db1f757939aef9b2f58c1f382d8d66cd81f9232^
+head_commit: 1db1f757939aef9b2f58c1f382d8d66cd81f9232
+fix_commit: 1db1f757939aef9b2f58c1f382d8d66cd81f9232
+category: api-misuse
 difficulty: easy
-severity: low
+severity: high
 language: rust
 pr_size: tiny
-description: After ARC41 enabled prebonding to any address, an error-level log message
-  for validators not in the committee was incorrectly categorized. The log was misleading
-  since prebonding is now expected behavior, not an error. The fix downgrades the
-  log level from error!() to trace!().
+description: A prior PR changed TransactionID to no longer be passed by reference,
+  but several call sites still passed it by reference or dereferenced incorrectly,
+  breaking compilation. The fix updates the affected call sites in the ledger and
+  deploy modules to match the new API signature.
 expected_findings:
-- file: synthesizer/src/vm/helpers/rewards.rs
-  line: 54
-  summary: 'Log level too severe: error!() used for a non-error condition (prebonding
-    to non-committee validator is valid after ARC41). Should be trace!() instead.'
+- file: vm/compiler/src/ledger/get.rs
+  line: 78
+  summary: Passing TransactionID by reference (`&transaction_id`) but the API was
+    changed to take it by value; remove the borrow to fix compilation
+  line_side: pre_fix
+- file: vm/package/deploy.rs
+  line: 30
+  summary: Unnecessary dereference (`*deployment.program_id()`) inconsistent with
+    updated type signature; adjust to match the new non-reference API
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

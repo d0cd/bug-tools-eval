@@ -1,0 +1,42 @@
+id: sentry-087
+repo: getsentry/sentry
+base_commit: 69fda7ef18f597944a70b5b0fd82adfe579a5361^
+head_commit: 69fda7ef18f597944a70b5b0fd82adfe579a5361
+fix_commit: 69fda7ef18f597944a70b5b0fd82adfe579a5361
+category: logic
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: medium
+description: Sequential `if` statements in useAutofix each call `openModal` for different
+  error types. Because `openModal` overwrites the previously opened modal, when multiple
+  error conditions are true simultaneously only the last modal is displayed, silently
+  hiding earlier errors. The fix likely converts the chain to `else if` or adds early
+  returns so only one modal opens.
+expected_findings:
+- file: static/app/components/events/autofix/useAutofix.tsx
+  line: 446
+  summary: Sequential `if` (not `else if`) blocks each call `openModal` for different
+    failure types; if multiple conditions match, only the last modal is shown, silently
+    swallowing earlier error modals.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 109695
+reviewer_notes:
+- '[inline] **Bug:** Sequential `if` statements call `openModal` for different error
+  types. Since `openModal` overwrites the previous state, only the last error modal
+  is displayed, hiding other errors. <sub>Severity: MEDIUM</sub> <!-- BUG_PREDICTION
+  -->  <details> <summary><b title="Reference ID: `11021233/0`">'
+reviewer_findings:
+- file: static/app/components/events/autofix/useAutofix.tsx
+  line: 446
+  summary: '**Bug:** Sequential `if` statements call `openModal` for different error
+    types. Since `openModal` overwrites the previou'
+  line_side: pre_fix
+quality_flags: []

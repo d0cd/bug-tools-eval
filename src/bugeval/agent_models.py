@@ -20,4 +20,5 @@ class AgentResult(BaseModel):
     turns: int = 0
     model: str = ""
     context_level: str = ""
+    response_text: str = ""
     error: str | None = None

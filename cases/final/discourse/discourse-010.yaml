@@ -1,33 +1,36 @@
 id: discourse-010
 repo: discourse/discourse
-base_commit: 9e5a6ef54161a2acec90234c4e838b96e55f3b7f^
-head_commit: 9e5a6ef54161a2acec90234c4e838b96e55f3b7f
-fix_commit: 9e5a6ef54161a2acec90234c4e838b96e55f3b7f
-category: logic
-difficulty: medium
+base_commit: 09bbde38d1ea4c3be743384389607d03d5ee5ee9^
+head_commit: b89e514552fdc029b2b998adc7024e10b1049574
+fix_commit: 09bbde38d1ea4c3be743384389607d03d5ee5ee9
+category: incomplete
+difficulty: easy
 severity: medium
-language: ruby
-pr_size: medium
-description: The rollup plugin compiler incorrectly attempts to render JS assets for
-  plugins with empty JS directories that lack a valid asset manifest. Additionally,
-  discourse.rb had incorrect fallback logic to the old compilation system, and js_manager.rb
-  used class-level memoization (@@) instead of instance-level (@), causing shared
-  state issues across instances.
+language: unknown
+pr_size: small
+description: A previous commit (b89e514) moved the suggested-topics tabs to render
+  inside the table header. Because mobile styles hide the table header entirely, the
+  tabs became invisible on mobile. The fix forces the tabs to display on mobile and
+  adjusts border styling so they render correctly outside the hidden header.
 expected_findings:
-- file: lib/discourse.rb
-  line: 461
-  summary: 'Incorrect fallback condition: logical_path check allows falling back to
-    old compilation system when it should not under ROLLUP_PLUGIN_COMPILER mode'
-- file: lib/discourse.rb
-  line: 485
-  summary: Same incorrect logical_path fallback condition duplicated for another code
-    path
-- file: lib/plugin/js_manager.rb
-  line: 2
-  summary: Class variable @@manifest_data used for memoization instead of instance
-    variable @manifest_data, causing shared mutable state across instances
+- file: app/assets/stylesheets/common/components/more-topics.scss
+  line: 53
+  summary: Mobile styles hide the table header, which now contains the suggested-topics
+    tabs — tabs need an explicit override to remain visible on mobile.
+  line_side: pre_fix
+- file: frontend/discourse/app/components/topic-list/list.gjs
+  line: 34
+  summary: Component lacks injection of `moreTopicsTabs` service needed to conditionally
+    render tabs outside the hidden table header on mobile.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

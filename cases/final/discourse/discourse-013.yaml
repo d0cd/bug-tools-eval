@@ -1,34 +1,33 @@
 id: discourse-013
 repo: discourse/discourse
-base_commit: b57140b2b895d5e76660851d8cc0e3c7f828e8fd^
-head_commit: b57140b2b895d5e76660851d8cc0e3c7f828e8fd
-fix_commit: b57140b2b895d5e76660851d8cc0e3c7f828e8fd
-category: logic
-difficulty: medium
-severity: medium
+base_commit: 1499ab07410b74af8cc377da85e6081fd16d8f27^
+head_commit: 1499ab07410b74af8cc377da85e6081fd16d8f27
+fix_commit: 1499ab07410b74af8cc377da85e6081fd16d8f27
+category: api-misuse
+difficulty: easy
+severity: high
 language: ruby
-pr_size: medium
-description: 'Two bugs in the vote-button Glimmer component: (1) the `topic` reference
-  was cached as a plain instance property at construction time instead of being a
-  reactive getter, so navigating between topics kept the stale label and vote state;
-  (2) the ''Remove vote'' dropdown item was rendered unconditionally, showing on closed
-  topics even when the user had never voted. Fixed by converting `topic` to a getter
-  over `this.args.topic`, adding an `onShowMenu` action that resets tracked state
-  when reopened, and gating the remove-vote item on `this.topic.user_voted`.'
+pr_size: small
+description: The sidebar 'New Topic' button passed `this.tag?.id` (a numeric database
+  ID) to `composer.openNewTopic()`, which expects tag names as strings. This caused
+  a TypeError for non-staff users (calling `.filter` on a number) that prevented the
+  composer from opening, and for staff users it silently inserted the numeric ID as
+  the tag name.
 expected_findings:
-- file: plugins/discourse-topic-voting/assets/javascripts/discourse/components/vote-button.gjs
-  line: 17
-  summary: 'Stale cached reference: `topic = this.args.topic` captures the topic at
-    construction time. In Ember/Glimmer, navigating between topics may reuse the component
-    with new args, so this should be a getter (`get topic() { return this.args.topic;
-    }`) to stay reactive.'
-- file: plugins/discourse-topic-voting/assets/javascripts/discourse/components/vote-button.gjs
-  line: 180
-  summary: 'Missing guard: the ''Remove vote'' dropdown item is rendered unconditionally.
-    It should be wrapped in `{{#if this.topic.user_voted}}` so it only appears when
-    the user has actually voted on the current topic.'
+- file: themes/horizon/javascripts/discourse/components/sidebar-new-topic-button.gjs
+  line: 55
+  summary: 'API misuse: `this.tag?.id` passes a numeric ID where `composer.openNewTopic()`
+    expects a tag name string. Should be `this.tag?.name` to match the composer''s
+    expected interface.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -48,14 +48,16 @@ def load_agent_prompt(
     path: Path | None = None,
     language: str | None = None,
     config_dir: Path | None = None,
+    context_level: str | None = None,
 ) -> str:
-    """Load system prompt, with optional language-specific override.
+    """Load system prompt, with optional context-level and language overrides.
 
     Resolution order:
     1. Explicit path= (if provided and exists)
-    2. config_dir/agent_prompt_{language}.md (if language provided and file exists)
-    3. config_dir/agent_prompt.md
-    4. Built-in _DEFAULT_SYSTEM_PROMPT
+    2. config_dir/agent_prompt_{context_level}.md (if context_level provided and file exists)
+    3. config_dir/agent_prompt_{language}.md (if language provided and file exists)
+    4. config_dir/agent_prompt.md
+    5. Built-in _DEFAULT_SYSTEM_PROMPT
     """
     if path is not None:
         if path.exists():
@@ -63,6 +65,11 @@ def load_agent_prompt(
         return _DEFAULT_SYSTEM_PROMPT
 
     base = config_dir if config_dir is not None else Path("config")
+    if context_level:
+        ctx_file = base / f"agent_prompt_{context_level}.md"
+        if ctx_file.exists():
+            return ctx_file.read_text()
+
     if language:
         lang_file = base / f"agent_prompt_{language}.md"
         if lang_file.exists():
@@ -94,8 +101,18 @@ def build_user_prompt(case: TestCase, patch_content: str, context_level: str) ->
     if context_level in ("diff+repo", "diff+repo+domain"):
         lines += [
             "",
-            "The full repository is available in the current working directory.",
-            "You may explore the repo to understand surrounding context before reporting findings.",
+            "The full repository is checked out in the current working directory"
+            " with the patch applied.",
+            "",
+            "**Step 1 — Understand the change** (use Read, Grep, Glob as needed):",
+            "- Read the functions that contain the changed lines (not the entire file)",
+            "- Grep for callers and usages of any function the patch modifies",
+            "- Briefly describe: what this patch is trying to accomplish and what"
+            "  invariants or contracts the changed code is expected to maintain",
+            "",
+            "**Step 2 — Find violations**:",
+            "- Check whether the patch correctly maintains those invariants",
+            "- Look for edge cases, incorrect assumptions, or missing checks",
         ]
 
     if context_level == "diff+repo+domain":
@@ -108,9 +125,18 @@ def build_user_prompt(case: TestCase, patch_content: str, context_level: str) ->
             f"- Description: {case.description}",
         ]
 
-    lines += [
-        "",
-        "Review the patch and return a JSON array of findings.",
-    ]
+    if context_level in ("diff+repo", "diff+repo+domain"):
+        lines += [
+            "",
+            "Walk through your reasoning, then end with the JSON array in a ```json"
+            " code block.",
+        ]
+    else:
+        lines += [
+            "",
+            "Review this patch as you would in a code review. Identify bugs, code smells,"
+            " security issues, incomplete changes, or anything a good reviewer would flag."
+            " Return your findings as a JSON array.",
+        ]
 
     return "\n".join(lines)

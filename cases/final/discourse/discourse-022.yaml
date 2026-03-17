@@ -1,35 +1,44 @@
 id: discourse-022
 repo: discourse/discourse
-base_commit: 77bab9e64562fe96a053ef6d57e74c0ebc30bcca^
-head_commit: 77bab9e64562fe96a053ef6d57e74c0ebc30bcca
-fix_commit: 77bab9e64562fe96a053ef6d57e74c0ebc30bcca
-category: logic
+base_commit: 1dbe92f2222589feedd7044109084cafdafcf1ec^
+head_commit: 1dbe92f2222589feedd7044109084cafdafcf1ec
+fix_commit: 1dbe92f2222589feedd7044109084cafdafcf1ec
+category: api-misuse
 difficulty: medium
-severity: medium
+severity: high
 language: ruby
 pr_size: medium
-description: When a user explicitly clicks 'Translate Post' on a bot post, the translation
-  job is queued but silently skipped because the detect_translate_post and detect_translate_topic
-  jobs unconditionally return early for bot content. The fix adds a setting-aware
-  check (ai_translation_include_bot_content) so bot content can be translated when
-  explicitly requested, and moves that setting into the correct ai-features settings
-  group.
+description: The Anthropic integration was sending anthropic-beta headers for prompt
+  caching and extended thinking/effort features that have graduated to GA. Sending
+  these now-unsupported beta flags causes API requests to break. The fix removes the
+  obsolete beta headers and updates model presets from Claude 4.5 to Claude 4.6 with
+  corrected token limits.
 expected_findings:
-- file: plugins/discourse-ai/app/jobs/regular/detect_translate_post.rb
-  line: 17
-  summary: Unconditional early return skips bot posts even when translation is explicitly
-    requested by a user; should check ai_translation_include_bot_content setting or
-    allow explicit requests to bypass the bot filter
-- file: plugins/discourse-ai/app/jobs/regular/detect_translate_topic.rb
-  line: 17
-  summary: Unconditional early return skips bot topics even when translation is explicitly
-    requested; same logic gap as detect_translate_post
-- file: plugins/discourse-ai/app/controllers/discourse_ai/translation/translation_controller.rb
-  line: 90
-  summary: Posts query uses secured(guardian) which may exclude bot posts from translation
-    results even when user explicitly requests topic translation
+- file: plugins/discourse-ai/lib/completions/endpoints/anthropic.rb
+  line: 1
+  summary: "Anthropic-beta headers for prompt caching and effort features are no longer\
+    \ valid \u2014 these are now GA and sending the beta flag causes API errors. Remove\
+    \ the beta header injection."
+  line_side: pre_fix
+- file: plugins/discourse-ai/lib/completions/endpoints/aws_bedrock.rb
+  line: 1
+  summary: AWS Bedrock endpoint may also be sending deprecated beta headers or missing
+    model ID mappings for Claude 4.5/4.6, causing request failures.
+  line_side: pre_fix
+- file: plugins/discourse-ai/lib/completions/llm_presets.rb
+  line: 1
+  summary: Model presets reference Claude 4.5 Opus/Sonnet with stale max_output_tokens
+    and pricing; should be updated to Claude 4.6 variants with 128k output token limit
+    for Opus.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 37934
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

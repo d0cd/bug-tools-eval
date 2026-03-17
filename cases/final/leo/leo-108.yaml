@@ -1,24 +1,43 @@
 id: leo-108
 repo: ProvableHQ/leo
-base_commit: 298c2036af9d19e282ebd6e0048b5fe0a259b62a^
-head_commit: 298c2036af9d19e282ebd6e0048b5fe0a259b62a
-fix_commit: 298c2036af9d19e282ebd6e0048b5fe0a259b62a
-category: type
-difficulty: medium
-severity: high
+base_commit: 674dc6aece97bf48e43bfd47e6cf19b0ddb7b824^
+head_commit: 674dc6aece97bf48e43bfd47e6cf19b0ddb7b824
+fix_commit: 674dc6aece97bf48e43bfd47e6cf19b0ddb7b824
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: The type checker did not validate struct initialization expressions against
-  the expected type. When a function expected a specific return type (e.g., unit),
-  returning a struct init expression would not trigger a type error. The fix adds
-  a check comparing the expected type against the actual struct type in the struct
-  init expression visitor.
+pr_size: medium
+description: Deployment limit error messages did not display the actual values that
+  triggered the constraint violation, making it difficult for users to understand
+  why their deployment was rejected. The fix updates the error constructor signatures
+  to accept and format the actual program size, the limit, and the network name into
+  the error message.
 expected_findings:
-- file: compiler/passes/src/type_checking/checker.rs
-  line: 321
-  summary: 'Missing type check: struct init expressions are not validated against
-    the expected type, allowing type mismatches (e.g., returning a record/struct where
-    unit is expected) to pass silently.'
+- file: errors/src/errors/cli/cli_errors.rs
+  line: 288
+  summary: Error message definition does not include actual values (program name,
+    actual size, limit, network) in its format string — users see a generic limit
+    error with no actionable detail
+  line_side: pre_fix
+- file: leo/cli/commands/deploy.rs
+  line: 195
+  summary: Deployment limit check raises error without passing the actual constraint
+    values (program size, limit, network) to the error constructor
+  line_side: pre_fix
+- file: leo/cli/commands/deploy.rs
+  line: 326
+  summary: Second deployment limit check also omits actual values from the error message,
+    same pattern as the other call site
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

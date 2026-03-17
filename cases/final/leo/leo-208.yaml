@@ -1,32 +1,43 @@
 id: leo-208
 repo: ProvableHQ/leo
-base_commit: 160a89494ff43b276d710568e7ef416331d49ce0^
-head_commit: 160a89494ff43b276d710568e7ef416331d49ce0
-fix_commit: 160a89494ff43b276d710568e7ef416331d49ce0
-category: logic
-difficulty: medium
-severity: high
+base_commit: d1dd42a70a6c3fc9fa235448070a1cd71c58f005^
+head_commit: d1dd42a70a6c3fc9fa235448070a1cd71c58f005
+fix_commit: d1dd42a70a6c3fc9fa235448070a1cd71c58f005
+category: api-misuse
+difficulty: easy
+severity: low
 language: rust
-pr_size: large
-description: The code generation pass for Leo's finalize blocks used the wrong output
-  type, causing incorrect Aleo instructions to be emitted. The fix corrects how the
-  output type is resolved for finalize blocks in visit_statements.rs, ensuring the
-  finalize-specific return type is used instead of the parent function's return type.
-  The PR also modernizes format strings across the AST codebase to use Rust's inline
-  variable capture syntax.
+pr_size: small
+description: The arguments to `AsgError::unexpected_type(expected, got, span)` were
+  passed in the wrong order at multiple call sites, causing error messages to display
+  the expected type and the actual type swapped. The fix corrects the argument ordering
+  across all callers in the ASG expression modules and potentially the error definition
+  itself.
 expected_findings:
-- file: compiler/passes/src/code_generation/visit_statements.rs
-  line: 47
-  summary: 'Incorrect output type retrieved for finalize block: should use the finalize
-    block''s own return type rather than the enclosing function''s return type'
-- file: compiler/passes/src/code_generation/visit_statements.rs
-  line: 114
-  summary: Output type for finalize block is incorrectly resolved, leading to wrong
-    type annotation in generated code
-- file: compiler/ast/src/functions/finalize.rs
-  line: 71
-  summary: Finalize block Display implementation may not correctly render the return
-    type, affecting AST pretty-printing and downstream code generation
+- file: asg/src/expression/array_init.rs
+  line: 74
+  summary: 'Arguments to `unexpected_type` are in wrong order: expected type and actual
+    type are swapped, producing a misleading error message'
+  line_side: pre_fix
+- file: asg/src/expression/binary.rs
+  line: 123
+  summary: 'Arguments to `unexpected_type` are swapped: passes `(Type::Boolean, x)`
+    but `x` is the expected type and `Type::Boolean` is what was received (or vice
+    versa)'
+  line_side: pre_fix
+- file: errors/src/asg/asg_errors.rs
+  line: 443
+  summary: The `unexpected_type` error definition — parameter naming or format string
+    may need updating to match corrected call-site argument order
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

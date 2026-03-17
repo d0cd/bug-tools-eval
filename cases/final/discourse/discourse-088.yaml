@@ -1,0 +1,34 @@
+id: discourse-088
+repo: discourse/discourse
+base_commit: c9391cdc751861876027c27843ba7ed12638f8d6^
+head_commit: c9391cdc751861876027c27843ba7ed12638f8d6
+fix_commit: c9391cdc751861876027c27843ba7ed12638f8d6
+category: security
+difficulty: medium
+severity: high
+language: ruby
+pr_size: small
+description: The TemplatesController#use action checks that the user is logged in
+  and passes the global can_use_templates? gate, but does not verify the user has
+  visibility into the topic's category. This allows a regular user to call the use
+  endpoint with a topic ID from a restricted category they cannot access, bypassing
+  category-level access controls. The fix adds guardian.ensure_can_see!(topic) to
+  enforce visibility.
+expected_findings:
+- file: plugins/discourse-templates/app/controllers/discourse_templates/templates_controller.rb
+  line: 1
+  summary: "Missing authorization check: the `use` action verifies Topic#template?\
+    \ but never checks whether the calling user can see the topic's category \u2014\
+    \ add guardian.ensure_can_see!(topic) before processing"
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 37980
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

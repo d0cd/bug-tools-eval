@@ -1,33 +1,39 @@
 id: snarkOS-029
 repo: ProvableHQ/snarkOS
-base_commit: dbbf6d8a348eacfd455de8aab270d4e824e0b342^
-head_commit: dbbf6d8a348eacfd455de8aab270d4e824e0b342
-fix_commit: dbbf6d8a348eacfd455de8aab270d4e824e0b342
+base_commit: 2a2c57f88891a731f11e634ff0d9adf04b7947e2^
+head_commit: 2a2c57f88891a731f11e634ff0d9adf04b7947e2
+fix_commit: 2a2c57f88891a731f11e634ff0d9adf04b7947e2
 category: logic
-difficulty: medium
-severity: high
+difficulty: hard
+severity: critical
 language: rust
 pr_size: medium
-description: 'BlockLocators validation had two incorrect checks: (1) the check verifying
-  that the checkpoints map covers as many blocks as possible was wrong, and (2) the
-  check for overlapping checkpoints and recents was incorrect. Additionally, the `new_unchecked()`
-  constructor that bypasses validation was incorrectly exposed as public API. The
-  fix corrects both validation conditions and restricts the unsafe constructor''s
-  visibility.'
+description: The gateway fetched the authorized validator committee using the latest
+  ledger round instead of accounting for the storage's current round and sync range
+  tolerance. When the current round diverges from the latest ledger round, the committee
+  lookback returns stale membership, causing legitimate validators to be disconnected.
+  If enough validators are affected to break the 2f+1 quorum, consensus halts.
 expected_findings:
-- file: node/sync/locators/src/block_locators.rs
-  line: 59
-  summary: 'Incorrect validation logic: the check verifying that checkpoints cover
-    as many blocks as possible is wrong, allowing invalid BlockLocators to pass validation.'
-- file: node/sync/locators/src/block_locators.rs
-  line: 88
-  summary: 'Incorrect validation logic: the check for overlapping checkpoints and
-    recents is wrong, failing to properly detect invalid overlap conditions.'
-- file: node/sync/locators/src/block_locators.rs
-  line: 144
-  summary: The `new_unchecked()` constructor bypasses validation but is publicly visible,
-    allowing callers to create invalid BlockLocators without checks. Should be restricted
-    to pub(crate) or private.
+- file: node/bft/src/gateway.rs
+  line: 100
+  summary: Authorized validator set is derived from a single committee lookback at
+    the latest ledger round, but should include committees across the sync range tolerance
+    to account for round divergence between ledger and storage.
+  line_side: pre_fix
+- file: node/bft/ledger-service/src/ledger.rs
+  line: 108
+  summary: get_block_round is missing or not used to translate block heights to rounds
+    for the extended committee lookback range, preventing the gateway from checking
+    committees across the sync tolerance window.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

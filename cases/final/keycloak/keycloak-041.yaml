@@ -1,35 +1,57 @@
 id: keycloak-041
 repo: keycloak/keycloak
-base_commit: 83159fc1629eb45d2e7b9ed4adce35af35cbd19b^
-head_commit: 83159fc1629eb45d2e7b9ed4adce35af35cbd19b
-fix_commit: 83159fc1629eb45d2e7b9ed4adce35af35cbd19b
-category: logic
+base_commit: 80839bfc447ef9eca1eb191344270762c712e335^
+head_commit: 80839bfc447ef9eca1eb191344270762c712e335
+fix_commit: 80839bfc447ef9eca1eb191344270762c712e335
+category: api-misuse
 difficulty: medium
-severity: high
+severity: medium
 language: java
-pr_size: small
-description: The Keycloak operator's OIDC and SAML client controllers were unconditionally
-  enabled in production, exposing client CRDs that should not be available by default.
-  The fix gates both controllers behind an `@IfBuildProperty` annotation so they only
-  activate when `test.operator.client-controllers=true` is set, and removes client
-  CRDs from the OLM bundle.
+pr_size: medium
+description: The PreAuthorizedCodeGrantRequest for the OID4VCI flow was incorrectly
+  constructed, deviating from the established pattern of using dedicated request types
+  per grant. The fix reverted to a dedicated request approach and preserved authorization_details
+  on the request, correcting parameter handling in the AbstractHttpPostRequest hierarchy.
 expected_findings:
-- file: operator/src/main/java/org/keycloak/operator/controllers/KeycloakOIDCClientController.java
-  line: 29
-  summary: 'Missing @IfBuildProperty guard: OIDC client controller is unconditionally
-    registered, exposing client CRDs in production when they should be gated behind
-    a build property'
-- file: operator/src/main/java/org/keycloak/operator/controllers/KeycloakSAMLClientController.java
-  line: 22
-  summary: 'Missing @IfBuildProperty guard: SAML client controller is unconditionally
-    registered, exposing client CRDs in production when they should be gated behind
-    a build property'
-- file: operator/scripts/create-olm-bundle.sh
-  line: 72
-  summary: OLM bundle includes client CRDs by default; they should be stripped out
-    to prevent unintended usage in production deployments
+- file: tests/utils-shared/src/main/java/org/keycloak/testsuite/util/oauth/AccessTokenRequest.java
+  line: 74
+  summary: Pre-authorized code grant request incorrectly reuses the general AccessTokenRequest
+    instead of a dedicated request type, breaking the established pattern of grant-specific
+    request classes and likely sending wrong parameters or authentication method
+  line_side: pre_fix
+- file: tests/utils-shared/src/main/java/org/keycloak/testsuite/util/oauth/AccessTokenRequest.java
+  line: 17
+  summary: "AccessTokenRequest deviates from the general pattern used by other request\
+    \ objects (IntrospectionRequest, RefreshRequest, etc.) \u2014 should follow the\
+    \ same dedicated-request-per-grant convention"
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 46004
+reviewer_notes: []
+reviewer_findings:
+- file: tests/utils-shared/src/main/java/org/keycloak/testsuite/util/oauth/AccessTokenRequest.java
+  line: 74
+  summary: I don't consider this change as an advantage.  So far, we use dedicated
+    request types for each grant and `AccessTokenReq
+  line_side: pre_fix
+- file: tests/utils-shared/src/main/java/org/keycloak/testsuite/util/oauth/AccessTokenRequest.java
+  line: 74
+  summary: ok - reverted to dedicated request & preserved authorization_details on
+    the request
+  line_side: pre_fix
+- file: tests/utils-shared/src/main/java/org/keycloak/testsuite/util/oauth/AccessTokenRequest.java
+  line: 17
+  summary: It seems general pattern for those "request" objects (like `AccessTokenRequest`
+    , `IntrospectionRequest` , `RefreshReque
+  line_side: pre_fix
+- file: tests/utils-shared/src/main/java/org/keycloak/testsuite/util/oauth/AccessTokenRequest.java
+  line: 17
+  summary: good catch
+  line_side: pre_fix
+quality_flags: []

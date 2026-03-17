@@ -1,0 +1,40 @@
+id: grafana-067
+repo: grafana/grafana
+base_commit: 8760d7fdb0f33d6379dec7781241a523c0771942^
+head_commit: 8760d7fdb0f33d6379dec7781241a523c0771942
+fix_commit: 8760d7fdb0f33d6379dec7781241a523c0771942
+category: incomplete
+difficulty: medium
+severity: low
+language: go
+pr_size: medium
+description: PR adds a target-eligibility guard to skip unified-storage migrations
+  when the Grafana target is not 'all' or 'core'. However, the pre-existing SkipsMigrations
+  test cases ('storage type is not unified', 'data migrations disabled') do not set
+  cfg.Target to an eligible value, so they now pass vacuously due to the new target
+  check rather than the condition they claim to test.
+expected_findings:
+- file: pkg/storage/unified/migrations/service_test.go
+  line: 27
+  summary: Existing 'storage type is not unified' test case does not set cfg.Target
+    to an eligible value (e.g. []string{"all"}). With the new target-eligibility check,
+    this test passes because Target defaults to empty/nil (ineligible), not because
+    of the storage-type condition it purports to test.
+  line_side: pre_fix
+- file: pkg/storage/unified/migrations/service_test.go
+  line: 33
+  summary: Existing 'data migrations disabled' test case also does not set cfg.Target.
+    It now passes due to the target-eligibility guard rather than DisableDataMigrations=true,
+    making the assertion unreliable.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,32 +1,34 @@
 id: discourse-004
 repo: discourse/discourse
-base_commit: b1a9f00bbd804c18bf2cc64f489c9634aee85bb4^
-head_commit: b1a9f00bbd804c18bf2cc64f489c9634aee85bb4
-fix_commit: b1a9f00bbd804c18bf2cc64f489c9634aee85bb4
-category: type
+base_commit: 02aa9e41a89cfef2444160148270b8cfed6fbe4f^
+head_commit: 02aa9e41a89cfef2444160148270b8cfed6fbe4f
+fix_commit: 02aa9e41a89cfef2444160148270b8cfed6fbe4f
+category: logic
 difficulty: medium
 severity: medium
-language: ruby
-pr_size: medium
-description: Category custom field checkbox values stored as the string "true" in
-  the database were converted to boolean for FormKit checkboxes, but when saved back,
-  Ruby's boolean-to-string conversion produced "t" instead of "true", breaking subsequent
-  reads. The fix makes the FormKit checkbox accept additional truthy string values
-  ("t", "true") and ensures the server-side controller explicitly converts boolean
-  custom field values back to their canonical string representation.
+language: javascript
+pr_size: tiny
+description: The theme JS detection logic in the test setup file was never updated
+  when Discourse switched themes from AMD scripts to native ES modules. The `hasThemeJs`
+  check uses a `document.querySelector` selector that matches the old AMD script pattern,
+  so it always returns false for the new module-based themes. This causes `isCoreTest`
+  to be incorrectly true for theme tests, making deprecation warnings erroneously
+  raise errors during theme QUnit tests.
 expected_findings:
-- file: app/controllers/categories_controller.rb
-  line: 206
-  summary: "Category custom field boolean values are not normalized to string before\
-    \ saving \u2014 Ruby will convert `true` to \"t\" instead of preserving the original\
-    \ \"true\" string, corrupting the stored value on re-save"
-- file: frontend/discourse/app/form-kit/components/fk/control/checkbox.gjs
-  line: 4
-  summary: "Checkbox checked state only compares with strict equality to `true` boolean\
-    \ \u2014 does not handle truthy string values like \"true\" or \"t\" that may\
-    \ come from the database"
+- file: frontend/discourse/tests/setup-tests.js
+  line: 375
+  summary: 'Stale selector in hasThemeJs: querySelector still matches the old AMD
+    script tag pattern instead of the native module pattern introduced when themes
+    switched to ES modules, causing this check to always be falsy for modern themes.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

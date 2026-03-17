@@ -1,32 +1,33 @@
 id: leo-124
 repo: ProvableHQ/leo
-base_commit: e7f1833d5395414fb8c215857840266a075ff584^
-head_commit: e7f1833d5395414fb8c215857840266a075ff584
-fix_commit: e7f1833d5395414fb8c215857840266a075ff584
+base_commit: 7fb6216a13ff228be67bd31852a344a58db18526^
+head_commit: 7fb6216a13ff228be67bd31852a344a58db18526
+fix_commit: 7fb6216a13ff228be67bd31852a344a58db18526
 category: logic
-difficulty: hard
-severity: high
+difficulty: medium
+severity: medium
 language: rust
 pr_size: small
-description: The SSA pass incorrectly folded ternary expressions when handling early
-  return statements with guard conditions. The guard matching logic in rename_program.rs
-  failed to properly combine expression and accumulator values when a guard was present,
-  producing incorrect SSA output. The fix corrects the match arms for Some(guard)
-  cases and adds parentheses to ternary Display to prevent precedence issues in nested
-  ternaries.
+description: The Leo parser's lexer incorrectly handled block comments, producing
+  malformed token output. The bug was in the block comment length calculation logic
+  in lexer.rs around line 396, where the end-of-line (eol) detection within block
+  comments led to incorrect span computation. The fix corrects the length calculation
+  and updates test expectations for proper block comment parsing.
 expected_findings:
-- file: compiler/passes/src/static_single_assignment/rename_program.rs
-  line: 56
-  summary: 'Incorrect ternary folding: the match arm for Some(guard) does not correctly
-    combine expr and acc when constructing the ternary for early return guards'
-- file: compiler/passes/src/static_single_assignment/rename_program.rs
-  line: 78
-  summary: Same incorrect guard-matching logic for ternary folding in a second code
-    path handling early returns
-- file: compiler/ast/src/expressions/ternary.rs
-  line: 31
-  summary: Missing parentheses in ternary Display impl causes incorrect parsing/precedence
-    when ternaries are nested during SSA folding
+- file: parser/src/tokenizer/lexer.rs
+  line: 396
+  summary: 'Block comment length calculation is incorrect: the `let len = if let Some(eol)
+    = eol` logic computes wrong span length for block comments, likely miscounting
+    characters when newlines are present within /* */ comments'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

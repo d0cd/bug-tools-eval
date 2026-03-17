@@ -1,0 +1,32 @@
+id: cal.com-053
+repo: calcom/cal.com
+base_commit: c496801655bb12845ecd12daa3937ec9b6c09d92^
+head_commit: c496801655bb12845ecd12daa3937ec9b6c09d92
+fix_commit: c496801655bb12845ecd12daa3937ec9b6c09d92
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: small
+description: Norwegian translation corrections in the i18n locale file. The PR updates
+  several Norwegian terms to be more contextually accurate for booking and cancellation
+  flows, such as replacing 'Hendelse' with 'Booking' and 'Avbestilling' with 'Kansellering'.
+  These are cosmetic language improvements with no logic or security implications.
+expected_findings:
+- file: packages/i18n/locales/no/common.json
+  line: 84
+  summary: 'Translation inaccuracy: Norwegian terms for cancellation reason, rescheduling,
+    and booking concepts use incorrect or less precise words (e.g., ''Årsak'' instead
+    of ''Grunn'', ''Avbestilling'' instead of ''Kansellering'')'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

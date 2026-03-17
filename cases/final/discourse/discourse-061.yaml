@@ -1,24 +1,37 @@
 id: discourse-061
 repo: discourse/discourse
-base_commit: d2176ac67b93fed2a877691213a1957982f4e7ea^
-head_commit: d2176ac67b93fed2a877691213a1957982f4e7ea
-fix_commit: d2176ac67b93fed2a877691213a1957982f4e7ea
+base_commit: 855fe26066362fc9b415eabfb227a76b90ae8f01^
+head_commit: 855fe26066362fc9b415eabfb227a76b90ae8f01
+fix_commit: 855fe26066362fc9b415eabfb227a76b90ae8f01
 category: logic
-difficulty: easy
-severity: low
-language: unknown
-pr_size: tiny
-description: 'The `enable_auto_grid_images` site setting was visible in the admin
-  site settings UI while simultaneously being listed in the upcoming changes list.
-  The fix hides the setting in site_settings.yml (likely adding `hidden: true`) so
-  it only appears through the upcoming changes mechanism.'
+difficulty: medium
+severity: medium
+language: ruby
+pr_size: small
+description: The localized (translated) name of the light color scheme was being cached,
+  causing it to return a stale value when the locale changed between calls. This produced
+  flaky test failures depending on test execution order. The fix ensures the translated
+  name is resolved on every access rather than being memoized.
 expected_findings:
-- file: config/site_settings.yml
+- file: app/models/color_scheme.rb
   line: 1
-  summary: "Missing `hidden: true` on `enable_auto_grid_images` setting \u2014 it\
-    \ should not be visible in site settings while it is listed in upcoming changes"
+  summary: 'Locale-dependent string is being cached/memoized: localized color scheme
+    names depend on the current locale and must not be stored in a class-level or
+    instance-level cache that persists across locale changes'
+  line_side: pre_fix
+- file: lib/stylesheet/manager.rb
+  line: 1
+  summary: References to cached localized color scheme name should use the dynamically-resolved
+    name to avoid stale locale values
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 38317
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

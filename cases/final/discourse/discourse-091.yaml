@@ -1,0 +1,43 @@
+id: discourse-091
+repo: discourse/discourse
+base_commit: cdb7094692571f1074ec60fa15e0b73f630720ad^
+head_commit: cdb7094692571f1074ec60fa15e0b73f630720ad
+fix_commit: cdb7094692571f1074ec60fa15e0b73f630720ad
+category: api-misuse
+difficulty: easy
+severity: high
+language: ruby
+pr_size: small
+description: 'The `reload` method overrides in `User`, `ReactionUser`, and `Poll`
+  did not accept an `options` parameter, diverging from the `ActiveRecord::Base#reload(options
+  = nil)` signature. This caused `ArgumentError` when any caller passed options such
+  as `reload(lock: true)`, which ActiveRecord internally does during pessimistic locking.'
+expected_findings:
+- file: app/models/user.rb
+  line: 636
+  summary: 'Method signature mismatch: `def reload` does not accept `options` parameter,
+    diverging from `ActiveRecord::Base#reload(options = nil)`. Will raise `ArgumentError`
+    when called with options like `lock: true`.'
+  line_side: pre_fix
+- file: plugins/discourse-reactions/app/models/discourse_reactions/reaction_user.rb
+  line: 44
+  summary: 'Same signature mismatch: `def reload` missing `options = nil` parameter,
+    will raise `ArgumentError` when ActiveRecord or application code passes reload
+    options.'
+  line_side: pre_fix
+- file: plugins/poll/app/models/poll.rb
+  line: 25
+  summary: 'Same signature mismatch: `def reload` missing `options = nil` parameter,
+    inconsistent with `ActiveRecord::Base#reload(options = nil)`.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

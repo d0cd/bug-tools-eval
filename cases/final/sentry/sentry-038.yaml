@@ -1,26 +1,33 @@
 id: sentry-038
 repo: getsentry/sentry
-base_commit: 7dc50fb58a934692bbacac5cf3a62f9195d05e12^
-head_commit: 7dc50fb58a934692bbacac5cf3a62f9195d05e12
-fix_commit: 7dc50fb58a934692bbacac5cf3a62f9195d05e12
-category: api
-difficulty: easy
-severity: low
+base_commit: 2cfb039beaf19b7b731228709c7fd0a1b04034c7^
+head_commit: 2cfb039beaf19b7b731228709c7fd0a1b04034c7
+fix_commit: 2cfb039beaf19b7b731228709c7fd0a1b04034c7
+category: logic
+difficulty: medium
+severity: medium
 language: python
 pr_size: small
-description: Debug log calls in the rollout utility were formatting extra fields incorrectly,
-  likely passing them as positional arguments or using incorrect string formatting
-  instead of properly using the logging `extra` keyword parameter. The fix corrects
-  the debug log calls to pass fields via the `extra` dict so they are included in
-  structured log output.
+description: is_installable_artifact() failed to check for a valid code signature,
+  only verifying installable_app_file_id and build_number. This caused XCARCHIVE artifacts
+  without valid code signatures to be incorrectly treated as installable, resulting
+  in spurious PR comments on Cocoa SDK PRs. The fix moves the existing code signature
+  check from get_artifact_install_info() into is_installable_artifact().
 expected_findings:
-- file: src/sentry/utils/rollout.py
-  line: 178
-  summary: 'Incorrect logging call: extra fields are not passed correctly to the logger.
-    Should use `extra={...}` keyword argument rather than embedding fields in the
-    format string or passing them as positional args.'
+- file: src/sentry/preprod/build_distribution_utils.py
+  line: 1
+  summary: "is_installable_artifact() is missing a code signature validity check \u2014\
+    \ artifacts without a valid code signature will be incorrectly reported as installable,\
+    \ since the function only checks installable_app_file_id and build_number"
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110194
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

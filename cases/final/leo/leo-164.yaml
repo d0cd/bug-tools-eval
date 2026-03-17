@@ -1,23 +1,41 @@
 id: leo-164
 repo: ProvableHQ/leo
-base_commit: ba23ea3832180ce5cc36f7305332da21a1765a82^
-head_commit: ba23ea3832180ce5cc36f7305332da21a1765a82
-fix_commit: ba23ea3832180ce5cc36f7305332da21a1765a82
+base_commit: a852fa3c2e279d6b14205a6db9e2131055cda390^
+head_commit: a852fa3c2e279d6b14205a6db9e2131055cda390
+fix_commit: a852fa3c2e279d6b14205a6db9e2131055cda390
 category: logic
 difficulty: easy
 severity: medium
-language: leo
+language: rust
 pr_size: small
-description: The Leo parser's PEG grammar did not enforce a valid address format,
-  allowing empty or malformed addresses like `address()` to be accepted. The fix adds
-  a strict PEG rule requiring addresses to match the pattern `aleo` + 1 ASCII digit
-  + 58 alphanumeric characters, and adds corresponding error messages and tests for
-  invalid prefix, invalid length, and empty addresses.
+description: Console statement code generation produced incorrect newlines in the
+  generated Aleo instructions. The bug was in how operand instructions were concatenated
+  when generating code for console.assert, console.log, and similar statements — newlines
+  were either missing or duplicated, leading to malformed output.
 expected_findings:
-- file: ast/src/leo.pest
-  line: 206
-  summary: "Address grammar rule is missing or too permissive\u2014does not enforce\
-    \ the required `aleo1...` format with exact length and character constraints."
+- file: compiler/passes/src/code_generation/visit_statements.rs
+  line: 40
+  summary: Incorrect newline handling when assigning operand instructions for console
+    statement code generation; the instructions string needs proper newline concatenation
+  line_side: pre_fix
+- file: compiler/passes/src/code_generation/visit_statements.rs
+  line: 87
+  summary: Incorrect newline handling when assigning operand instructions for console
+    statement code generation; the instructions string needs proper newline concatenation
+  line_side: pre_fix
+- file: compiler/passes/src/code_generation/visit_statements.rs
+  line: 99
+  summary: Incorrect newline handling when assigning operand instructions for console
+    statement code generation; the instructions string needs proper newline concatenation
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

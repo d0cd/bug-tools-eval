@@ -1,24 +1,34 @@
 id: leo-245
 repo: ProvableHQ/leo
-base_commit: 84e972c9ad48e6f36bfa73268ee7ec425a985f6a^
-head_commit: 84e972c9ad48e6f36bfa73268ee7ec425a985f6a
-fix_commit: 84e972c9ad48e6f36bfa73268ee7ec425a985f6a
+base_commit: f841f2e348affa7ccd2849d1013db141da58a0bc^
+head_commit: 1217e98
+fix_commit: f841f2e348affa7ccd2849d1013db141da58a0bc
 category: logic
-difficulty: medium
+difficulty: easy
 severity: high
 language: rust
 pr_size: small
-description: The ternary expression type-checking in the Leo compiler's ASG incorrectly
-  handled the propagation of expected types to the if_false branch. When expected_type
-  was None (implicit/unknown), the false branch did not correctly infer its type from
-  the true branch or context, causing spurious type mismatch errors for valid ternary
-  expressions.
+description: The `get_inner_mut()` method on `ConstrainedValue` only unwrapped a single
+  layer of `Mutable()` wrapper. When a mutable variable was assigned to another mutable
+  variable (`let mut y = x`), the result was `Mutable(Mutable(value))`, causing a
+  'no implementation' error on subsequent operations. The fix adds a recursive call
+  to fully strip all nested `Mutable` wrappers before cloning.
 expected_findings:
-- file: asg/src/expression/ternary.rs
-  line: 87
-  summary: 'Incorrect type propagation for ternary false branch: when expected_type
-    is None, the if_false expression should still be able to infer its type from the
-    if_true branch rather than failing with a type mismatch'
+- file: compiler/src/value/value.rs
+  line: 229
+  summary: 'Missing recursive unwrap: `get_inner_mut()` only strips one `Mutable()`
+    layer. When mutable values are assigned to mutable variables, nested `Mutable(Mutable(value))`
+    is left partially wrapped, causing ''no implementation'' errors on arithmetic.
+    Add `inner.get_inner_mut()` before the clone.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

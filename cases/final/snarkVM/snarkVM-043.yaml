@@ -1,24 +1,37 @@
 id: snarkVM-043
 repo: ProvableHQ/snarkVM
-base_commit: 710b12db9fd2569e02985c23b367c58774299b70^
-head_commit: 710b12db9fd2569e02985c23b367c58774299b70
-fix_commit: 710b12db9fd2569e02985c23b367c58774299b70
-category: logic
-difficulty: medium
-severity: critical
+base_commit: 2a6aac56355f8bbd07835f9d5dc53c3bd1ef339c^
+head_commit: 2a6aac56355f8bbd07835f9d5dc53c3bd1ef339c
+fix_commit: 2a6aac56355f8bbd07835f9d5dc53c3bd1ef339c
+category: constraint
+difficulty: hard
+severity: high
 language: rust
-pr_size: tiny
-description: Block validation in verify.rs had an incorrect ratification count check,
-  allowing blocks with fewer than the required minimum number of ratifications to
-  pass verification. The fix corrects the ensure! macro condition at line 221 to properly
-  enforce that blocks must contain at least 2 ratifications. This was identified during
-  an NCC Group security audit (JBV finding).
+pr_size: xl
+description: WIP prototype of a constraint system for snarkVM circuits. As a large
+  additive-only change (1337+ lines, 0 deletions) with no diff available and a 'WIP'
+  title, this appears to be initial feature scaffolding rather than a targeted bug
+  fix. The changed files span boolean constraints, field arithmetic (add, equal, zero,
+  one), and circuit traits.
 expected_findings:
-- file: ledger/block/src/verify.rs
-  line: 221
-  summary: 'Incorrect ratification count validation: the ensure! check has a wrong
-    boundary condition, allowing blocks with insufficient ratifications to pass verification.
-    Should enforce `self.ratifications.len() >= 2`.'
+- file: circuits/src/field/equal.rs
+  line: 1
+  summary: Field equality constraint implementation may under-constrain the equality
+    check in the prototype circuit system
+  line_side: pre_fix
+- file: circuits/src/field/add.rs
+  line: 1
+  summary: Field addition constraint may have incorrect arithmetic or missing enforcement
+    of field modular reduction
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

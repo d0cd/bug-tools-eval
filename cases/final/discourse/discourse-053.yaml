@@ -1,26 +1,35 @@
 id: discourse-053
 repo: discourse/discourse
-base_commit: e3491e63ddb3358bd383fea097e9d8371c448806^
-head_commit: e8287d22b08587fa77dbb72c1c8f2d56304b184d
-fix_commit: e3491e63ddb3358bd383fea097e9d8371c448806
-category: api
-difficulty: easy
+base_commit: 6a17f541b86b8e458f4aa768b7c3b420abd385ca^
+head_commit: 9dad3615
+fix_commit: 6a17f541b86b8e458f4aa768b7c3b420abd385ca
+category: api-misuse
+difficulty: medium
 severity: medium
 language: ruby
-pr_size: medium
-description: The previous commit (e8287d2) that renamed the Data Explorer plugin routes
-  from /admin/plugins/explorer to /admin/plugins/discourse-data-explorer failed to
-  add redirects for non-GET API endpoints (POST, PUT, DELETE). This meant API consumers
-  hitting legacy URLs for creating, updating, deleting, or running queries would get
-  404s. The fix adds the missing legacy route mappings for all HTTP methods.
+pr_size: tiny
+description: The `has_templates?` page object method used Capybara's `all(...).count`
+  to verify template counts, which evaluates immediately without waiting for the DOM
+  to settle. This causes flaky system tests when the DOM re-renders after filtering,
+  as the element count is checked before new elements appear. The fix replaces the
+  eager `all(...).count` pattern with Capybara's built-in waiting matcher `has_css?(...,
+  count:)` which retries until the expected count is found or the wait timeout expires.
 expected_findings:
-- file: plugins/discourse-data-explorer/config/routes.rb
-  line: 32
-  summary: 'Missing legacy route redirects: POST/PUT/DELETE endpoints under /admin/plugins/explorer/
-    are not redirected to the new /admin/plugins/discourse-data-explorer/ paths, breaking
-    API consumers using the old URLs'
+- file: plugins/discourse-templates/spec/system/page_objects/components/d_templates_panel.rb
+  line: 16
+  summary: 'Stale element race condition: `all(selector).count` does not use Capybara''s
+    implicit wait and will return immediately, causing flaky tests when the DOM is
+    mid-render. Use `has_css?(selector, count: n)` instead, which retries with Capybara''s
+    wait mechanism.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

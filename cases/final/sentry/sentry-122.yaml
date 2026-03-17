@@ -1,0 +1,38 @@
+id: sentry-122
+repo: getsentry/sentry
+base_commit: 9b23ae8728be2ad0ceef2f55fd6bc95c48758b31^
+head_commit: 9b23ae8728be2ad0ceef2f55fd6bc95c48758b31
+fix_commit: 9b23ae8728be2ad0ceef2f55fd6bc95c48758b31
+category: api-misuse
+difficulty: easy
+severity: high
+language: python
+pr_size: medium
+description: Group.objects.get() calls in _serialize_rpc_issue() did not handle Group.DoesNotExist
+  exceptions. When a group referenced by a trace event was missing from the database,
+  the unhandled exception would propagate up and break the entire trace view instead
+  of gracefully degrading. The fix catches DoesNotExist, returns None, and filters
+  out None values from the serialized results.
+expected_findings:
+- file: src/sentry/snuba/trace.py
+  line: 130
+  summary: 'Unhandled Group.DoesNotExist: Group.objects.get() will raise if the group
+    has been deleted, crashing the entire trace serialization. Wrap in try/except
+    and handle the missing group gracefully.'
+  line_side: pre_fix
+- file: src/sentry/snuba/trace.py
+  line: 157
+  summary: 'Same unhandled Group.DoesNotExist issue: second call site for Group.objects.get()
+    also lacks exception handling for missing groups.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

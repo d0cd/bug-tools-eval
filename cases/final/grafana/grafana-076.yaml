@@ -1,0 +1,33 @@
+id: grafana-076
+repo: grafana/grafana
+base_commit: a566edf41d5baaf88c81f1108a61ba6c802bf337^
+head_commit: a566edf41d5baaf88c81f1108a61ba6c802bf337
+fix_commit: a566edf41d5baaf88c81f1108a61ba6c802bf337
+category: style
+difficulty: easy
+severity: low
+language: go
+pr_size: tiny
+description: The display name of the `fixed:alerting.provisioning:writer` role was
+  misleading — it read 'Access to alert rules provisioning API' which didn't distinguish
+  it from the read role and didn't convey that it grants write access. The fix renames
+  it to 'Write via Provisioning API' to match the naming pattern of the corresponding
+  read role.
+expected_findings:
+- file: pkg/services/ngalert/accesscontrol/roles.go
+  line: 350
+  summary: 'Misleading DisplayName: ''Access to alert rules provisioning API'' does
+    not indicate write access and is inconsistent with the read role''s naming convention.
+    Should be ''Write via Provisioning API''.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

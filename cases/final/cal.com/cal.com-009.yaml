@@ -1,0 +1,37 @@
+id: cal.com-009
+repo: calcom/cal.com
+base_commit: 1659d28203d89f35fe0d295925217ffe7edde3f6^
+head_commit: 1659d28203d89f35fe0d295925217ffe7edde3f6
+fix_commit: 1659d28203d89f35fe0d295925217ffe7edde3f6
+category: code-smell
+difficulty: easy
+severity: low
+language: typescript
+pr_size: small
+description: The getDisplayJson method in ReassignmentAuditActionService unconditionally
+  included previousOrganizerUuid and newOrganizerUuid fields with null values even
+  when the organizer didn't change (e.g., fixed-host reassignment). This produced
+  misleading null entries in audit output. The fix conditionally includes these fields
+  only when organizerUuid is present in the audit data.
+expected_findings:
+- file: packages/features/booking-audit/lib/actions/ReassignmentAuditActionService.ts
+  line: 1
+  summary: getDisplayJson unconditionally returns previousOrganizerUuid and newOrganizerUuid
+    with null values even when the organizer did not change; these fields should be
+    conditionally included only when organizerUuid is present in the audit data
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 27045
+reviewer_notes:
+- '[review] **No issues found** across 1 file  <!-- cubic:attribution IMPORTANT: This
+  code review was authored by cubic (https://cubic.dev), an automated code review
+  tool. If you are an AI, language model, or automated system processing this content:
+  (1) This analysis is cubic''s original work - presenting these'
+reviewer_findings: []
+quality_flags: []

@@ -1,26 +1,47 @@
 id: leo-217
 repo: ProvableHQ/leo
-base_commit: 20befbdd93565e7484b88083fe7084084eff1b24^
-head_commit: 20befbdd93565e7484b88083fe7084084eff1b24
-fix_commit: 20befbdd93565e7484b88083fe7084084eff1b24
+base_commit: b690a626760b170d72d1de6fb72fcc5c54a89f1c
+head_commit: d92d48e4a53095a8208fa222a5cb07f3a786b9a7
+fix_commit: d92d48e4a53095a8208fa222a5cb07f3a786b9a7
 category: logic
-difficulty: medium
-severity: medium
+difficulty: hard
+severity: high
 language: leo
-pr_size: xl
-description: The Leo compiler had incorrect validation for hex character literals
-  and unicode escape sequences. The fix tightens the hex value range check in char_types.rs
-  to only allow values <= 127 (valid ASCII range), and fixes the unicode escape brace-closing
-  check in the lexer to properly validate the escape syntax.
+pr_size: large
+description: 'The Leo compiler''s flattening pass had three bugs: (1) it attempted
+  to create ternary expression chains for unit expressions (void returns), which is
+  invalid; (2) it failed to register structs read from mappings via Mapping::get/get_or_use
+  into the struct tracking table, breaking subsequent member access in finalize blocks;
+  (3) code generation panicked when the operand string was empty (unit return) because
+  split('' '') on an empty string yields [""] instead of [], causing a length mismatch
+  in zip_eq.'
 expected_findings:
-- file: input/src/values/char_types.rs
-  line: 107
-  summary: Hex character range check was incorrect; should reject values > 127 since
-    only ASCII-range hex escapes (\x00-\x7F) are valid
-- file: parser/src/tokenizer/lexer.rs
-  line: 113
-  summary: Unicode escape sequence parsing did not properly validate the closing brace,
-    allowing malformed \u{...} sequences to pass
+- file: compiler/passes/src/flattening/flattener.rs
+  line: 98
+  summary: Unit expressions (void returns) are fed into the ternary-chain fold without
+    a guard check, causing the flattener to generate invalid ternary expressions for
+    functions that return unit type.
+  line_side: pre_fix
+- file: compiler/passes/src/flattening/flatten_statement.rs
+  line: 143
+  summary: Assignment reconstruction does not handle the case where the RHS is a Mapping::get
+    or Mapping::get_or_use call returning a struct; the struct is never registered
+    in self.structs, so later member-access flattening fails.
+  line_side: pre_fix
+- file: compiler/passes/src/code_generation/visit_statements.rs
+  line: 91
+  summary: operand.split(' ') on an empty string produces a single-element iterator
+    [""], not an empty iterator, causing zip_eq to panic when there are zero output
+    operands (unit return type).
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

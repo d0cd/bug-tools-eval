@@ -1,29 +1,43 @@
 id: snarkVM-121
 repo: ProvableHQ/snarkVM
-base_commit: 70ee49d7e642cd1629d85211a6ef8c14dfea01a3^
-head_commit: 70ee49d7e642cd1629d85211a6ef8c14dfea01a3
-fix_commit: 70ee49d7e642cd1629d85211a6ef8c14dfea01a3
+base_commit: c76a95a74d5d540523989bd781c69054848b1399
+head_commit: 8b2dff9e9ecf58a75947f225959cead15a68af0c
+fix_commit: 90cd02c5736ebdba68fdde3424ca0971566e9c78
 category: logic
-difficulty: medium
-severity: high
+difficulty: hard
+severity: critical
 language: rust
-pr_size: small
-description: The deploy request was using the address associated with the program
-  instead of the developer/owner's address. The fix retrieves the address from the
-  manifest file and uses that in the deploy request body sent to the explorer.
+pr_size: medium
+description: 'PR #2615 added additional subdag verification logic with committee lookback
+  calculations in `check_next_block.rs` and `advance.rs` that was too strict or incorrect,
+  breaking consensus in snarkOS (at least in --dev mode). The fix was a full revert
+  of the problematic verification, as the snarkVM test suite did not cover this consensus-breaking
+  edge case.'
 expected_findings:
-- file: vm/package/deploy.rs
-  line: 26
-  summary: 'Wrong address used in DeployRequest serialization: uses the program-derived
-    address instead of the owner/developer address from the manifest file.'
-- file: vm/package/deploy.rs
-  line: 56
-  summary: 'Wrong address used in DeployRequest serialization: uses the program-derived
-    address instead of the owner/developer address from the manifest file.'
-- file: vm/package/deploy.rs
-  line: 129
-  summary: 'Wrong address used in DeployRequest serialization: uses the program-derived
-    address instead of the owner/developer address from the manifest file.'
+- file: ledger/src/check_next_block.rs
+  line: 81
+  summary: 'Incorrect committee_lookback verification logic breaks consensus: the
+    added subdag verification computes committee lookback incorrectly, causing valid
+    blocks to be rejected'
+  line_side: pre_fix
+- file: ledger/src/check_next_block.rs
+  line: 125
+  summary: Additional committee_lookback block duplicates flawed verification logic
+    that rejects valid subdags during consensus
+  line_side: pre_fix
+- file: ledger/src/advance.rs
+  line: 257
+  summary: Committee lookback round calculation (subtracting 2 from odd rounds) introduces
+    incorrect verification that breaks block advancement during consensus
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: c76a95a74d5d540523989bd781c69054848b1399
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

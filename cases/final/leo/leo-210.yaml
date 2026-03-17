@@ -1,31 +1,39 @@
 id: leo-210
 repo: ProvableHQ/leo
-base_commit: d8511d34c1ff7b23430716c7057ce562e3331f35^
-head_commit: d8511d34c1ff7b23430716c7057ce562e3331f35
-fix_commit: d8511d34c1ff7b23430716c7057ce562e3331f35
-category: logic
-difficulty: hard
-severity: high
+base_commit: d32918199951584c079da84a940e5bb445416cc2^
+head_commit: d32918199951584c079da84a940e5bb445416cc2
+fix_commit: d32918199951584c079da84a940e5bb445416cc2
+category: api-misuse
+difficulty: medium
+severity: medium
 language: rust
-pr_size: xl
-description: The SSA (Static Single Assignment) reconstruction pass did not correctly
-  handle early return statements that return tuples. When a function contained an
-  early return with a tuple value, the SSA renaming logic failed to properly decompose
-  and reconstruct the tuple elements, leading to incorrect compiled output. The fix
-  updates the return statement transformation in the SSA pass to properly handle tuple
-  returns by decomposing them into individual element assignments.
+pr_size: medium
+description: The compiler's type checker produced unhelpful error messages when function
+  calls had mistyped arguments. The span field on FunctionSymbol was prefixed with
+  underscore (_span), making it inaccessible for error reporting. The fix exposes
+  the span and uses it in the type checker to point error messages at the specific
+  mistyped parameter location.
 expected_findings:
-- file: compiler/passes/src/static_single_assignment/rename_statement.rs
-  line: 26
-  summary: "ReturnStatement handling does not account for tuple return values \u2014\
-    \ when a return expression is a tuple, each element needs to be individually assigned\
-    \ and tracked in SSA, but the original code treats the entire tuple as a single\
-    \ value."
-- file: compiler/passes/src/static_single_assignment/rename_program.rs
-  line: 50
-  summary: "SSA reconstruction at function level does not properly merge tuple return\
-    \ values from different control flow paths \u2014 tuple elements need individual\
-    \ phi-like ternary reconstruction, requiring iteration over tuple components (itertools)."
+- file: compiler/passes/src/symbol_table/function_symbol.rs
+  line: 38
+  summary: 'Field `_span: Span` is prefixed with underscore, suppressing its use —
+    but span information is needed by the type checker to produce precise error messages
+    for mistyped function call arguments.'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_expressions.rs
+  line: 455
+  summary: Type mismatch error on function call arguments does not include the expected
+    parameter's source location, producing a generic error instead of pointing to
+    the specific parameter definition.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

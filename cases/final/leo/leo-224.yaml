@@ -1,23 +1,44 @@
 id: leo-224
 repo: ProvableHQ/leo
-base_commit: c16c7bf72ac04622b822db834c4d80da4a48f225^
-head_commit: c16c7bf72ac04622b822db834c4d80da4a48f225
-fix_commit: c16c7bf72ac04622b822db834c4d80da4a48f225
-category: logic
-difficulty: medium
-severity: high
+base_commit: de2b2a263bcd442bfd74b0f9faf3bebdb5cdf25b^
+head_commit: de2b2a263bcd442bfd74b0f9faf3bebdb5cdf25b
+fix_commit: de2b2a263bcd442bfd74b0f9faf3bebdb5cdf25b
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: xl
-description: The parser used an incorrect Span for ProgramId::network, resulting in
-  wrong source locations in error messages and potential panics when compiling multiple
-  source files. The fix ensures the correct span is captured during parsing of the
-  network component of a ProgramId, using the proper Symbol/sym imports from leo_span.
+pr_size: medium
+description: This PR addresses multiple Clippy linter warnings across the Leo compiler
+  codebase. The fixes include removing redundant `.into_iter()` calls where the type
+  already implements `IntoIterator`, simplifying `&Some(x.clone())` patterns, and
+  cleaning up unnecessary intermediate references in iterator chains and symbol table
+  lookups.
 expected_findings:
-- file: compiler/parser/src/parser/file.rs
-  line: 106
-  summary: "Incorrect Span used for ProgramId::network \u2014 the span does not correspond\
-    \ to the actual network token location, causing wrong error positions and panics\
-    \ with multiple source files."
+- file: compiler/passes/src/function_inlining/inline_statement.rs
+  line: 38
+  summary: 'Redundant `into_iter()`: `left.elements.into_iter().zip(right.elements)`
+    — Clippy warns that `.into_iter()` is unnecessary when the receiver already implements
+    `IntoIterator` via a `for` loop or `.zip()` consumer'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_expressions.rs
+  line: 520
+  summary: 'Clippy `needless_borrow` or `manual_map`: `&Some(input.type_.clone())`
+    creates an unnecessary reference to a freshly constructed `Some`; should pass
+    `Some(...)` directly or use `.as_ref()`'
+  line_side: pre_fix
+- file: compiler/passes/src/flattening/flatten_expression.rs
+  line: 130
+  summary: Redundant `.into_iter()` before `.zip_eq(second.elements)` — iterator adaptor
+    already consumes the collection, so explicit `into_iter()` is unnecessary
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

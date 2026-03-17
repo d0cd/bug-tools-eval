@@ -1,5 +1,6 @@
 """Tests for agent_cli_runner."""
 
+import json
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -7,6 +8,7 @@ from unittest.mock import MagicMock, patch
 from bugeval.agent_cli_runner import (
     _parse_cli_findings,
     _parse_cli_token_count,
+    _parse_stream_json_output,
     run_claude_cli,
     run_claude_cli_docker,
     run_codex_cli,
@@ -14,11 +16,45 @@ from bugeval.agent_cli_runner import (
 )
 
 
+def _make_stream_jsonl(
+    result_text: str,
+    turns: int = 1,
+    cost: float = 0.0,
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+    cache_creation: int = 0,
+    cache_read: int = 0,
+) -> str:
+    """Build a minimal valid stream-json JSONL string for use in tests."""
+    lines = [
+        json.dumps(
+            {"type": "assistant", "message": {"content": [{"type": "text", "text": result_text}]}}
+        ),
+        json.dumps(
+            {
+                "type": "result",
+                "subtype": "success",
+                "num_turns": turns,
+                "result": result_text,
+                "total_cost_usd": cost,
+                "usage": {
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "cache_creation_input_tokens": cache_creation,
+                    "cache_read_input_tokens": cache_read,
+                },
+            }
+        ),
+    ]
+    return "\n".join(lines)
+
+
 def test_run_claude_cli_success(tmp_path: Path) -> None:
     findings_json = '[{"file": "src/main.rs", "line": 10, "summary": "bug"}]'
+    result_text = f"Some output\n```json\n{findings_json}\n```\n"
     mock_result = MagicMock()
     mock_result.returncode = 0
-    mock_result.stdout = f"Some output\n```json\n{findings_json}\n```\n"
+    mock_result.stdout = _make_stream_jsonl(result_text)
     mock_result.stderr = ""
 
     with patch("subprocess.run", return_value=mock_result):
@@ -81,9 +117,10 @@ def test_run_claude_cli_passes_max_turns(tmp_path: Path) -> None:
 
 def test_run_claude_cli_docker_calls_docker(tmp_path: Path) -> None:
     """Verify docker run command is constructed correctly."""
+    findings_json = '[{"file": "a.rs", "line": 1, "summary": "bug"}]'
     mock_result = MagicMock()
     mock_result.returncode = 0
-    mock_result.stdout = '[{"file": "a.rs", "line": 1, "summary": "bug"}]'
+    mock_result.stdout = _make_stream_jsonl(f"```json\n{findings_json}\n```")
     mock_result.stderr = ""
 
     with patch("subprocess.run", return_value=mock_result) as mock_run:
@@ -251,16 +288,203 @@ def test_parse_cli_token_count_returns_zero_on_empty() -> None:
 
 
 def test_run_claude_cli_includes_token_count_from_output() -> None:
-    """run_claude_cli populates token_count when the CLI outputs token info."""
+    """run_claude_cli populates token_count from the stream-json result event."""
     mock_result = MagicMock()
     mock_result.returncode = 0
-    mock_result.stdout = "[]"
-    mock_result.stderr = "Total tokens: 500"
+    mock_result.stdout = _make_stream_jsonl(
+        "Some reasoning text", turns=3, cost=0.05, input_tokens=300, output_tokens=200
+    )
+    mock_result.stderr = ""
 
     with patch("subprocess.run", return_value=mock_result):
         result = run_claude_cli(Path("/tmp"), "review")
 
     assert result.token_count == 500
+    assert result.turns == 3
+    assert result.cost_usd == 0.05
+    assert result.response_text == "Some reasoning text"
+
+
+def test_run_claude_cli_extracts_envelope_metadata(tmp_path: Path) -> None:
+    """run_claude_cli extracts turns, cost, tokens, response_text from stream-json result event."""
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = _make_stream_jsonl(
+        "Here is my analysis of the patch.",
+        turns=2,
+        cost=0.012,
+        input_tokens=800,
+        output_tokens=150,
+    )
+    mock_result.stderr = ""
+
+    with patch("subprocess.run", return_value=mock_result):
+        result = run_claude_cli(tmp_path, "prompt")
+
+    assert result.turns == 2
+    assert result.cost_usd == 0.012
+    assert result.token_count == 950
+    assert result.response_text == "Here is my analysis of the patch."
+
+
+def test_run_claude_cli_missing_result_event_defaults_to_zero(tmp_path: Path) -> None:
+    """When stdout has no type=result event, cost/turns/tokens all default to 0."""
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = json.dumps(
+        {"type": "assistant", "message": {"content": [{"type": "text", "text": "hello"}]}}
+    )
+    mock_result.stderr = ""
+
+    with patch("subprocess.run", return_value=mock_result):
+        result = run_claude_cli(tmp_path, "prompt")
+
+    assert result.turns == 0
+    assert result.cost_usd == 0.0
+    assert result.token_count == 0
+    assert result.response_text == ""
+
+
+def test_run_claude_cli_malformed_stdout_gives_empty_findings(tmp_path: Path) -> None:
+    """When stdout is not valid stream-json, no findings or metadata are extracted."""
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = "not json at all"
+    mock_result.stderr = ""
+
+    with patch("subprocess.run", return_value=mock_result):
+        result = run_claude_cli(tmp_path, "prompt")
+
+    assert result.error is None
+    assert result.findings == []
+    assert result.response_text == ""
+    assert result.token_count == 0
+
+
+# ---------------------------------------------------------------------------
+# _parse_stream_json_output
+# ---------------------------------------------------------------------------
+
+
+def test_parse_stream_json_output_extracts_result() -> None:
+    """Parses result text, turns, cost, and tokens from type=result event."""
+    stdout = _make_stream_jsonl(
+        "hello world", turns=2, cost=0.05, input_tokens=100, output_tokens=50
+    )
+    conv, result_text, tokens, cost, turns = _parse_stream_json_output(stdout)
+    assert result_text == "hello world"
+    assert turns == 2
+    assert cost == 0.05
+    assert tokens == 150
+
+
+def test_parse_stream_json_output_includes_cache_tokens() -> None:
+    """Token count includes cache_creation + cache_read tokens."""
+    stdout = _make_stream_jsonl(
+        "x", input_tokens=10, output_tokens=5, cache_creation=200, cache_read=50
+    )
+    _, _, tokens, _, _ = _parse_stream_json_output(stdout)
+    assert tokens == 265
+
+
+def test_parse_stream_json_output_builds_conversation() -> None:
+    """type=assistant events are included in conversation."""
+    stdout = _make_stream_jsonl("my analysis")
+    conv, _, _, _, _ = _parse_stream_json_output(stdout)
+    assert len(conv) == 1
+    assert conv[0]["role"] == "assistant"
+    assert conv[0]["content"][0]["text"] == "my analysis"
+
+
+def test_parse_stream_json_output_includes_tool_use_in_conversation() -> None:
+    """tool_use content blocks in assistant messages appear in conversation."""
+    lines = [
+        json.dumps({"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "toolu_1", "name": "Read",
+             "input": {"file_path": "src/main.rs"}}
+        ]}}),
+        json.dumps({"type": "user", "message": {"content": [
+            {"type": "tool_result", "tool_use_id": "toolu_1", "content": "fn main() {}"}
+        ]}}),
+        json.dumps({"type": "assistant", "message": {"content": [
+            {"type": "text", "text": "```json\n[]\n```"}
+        ]}}),
+        json.dumps({"type": "result", "num_turns": 2, "result": "```json\n[]\n```",
+                    "total_cost_usd": 0.01, "usage": {"input_tokens": 0, "output_tokens": 0,
+                    "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}}),
+    ]
+    stdout = "\n".join(lines)
+    conv, _, _, _, turns = _parse_stream_json_output(stdout)
+    assert turns == 2
+    assert len(conv) == 3
+    assert conv[0]["role"] == "assistant"
+    assert conv[0]["content"][0]["type"] == "tool_use"
+    assert conv[1]["role"] == "user"
+    assert conv[1]["content"][0]["type"] == "tool_result"
+
+
+def test_parse_stream_json_output_ignores_noise_events() -> None:
+    """system and stream_event types are ignored."""
+    lines = [
+        json.dumps({"type": "system", "subtype": "init", "data": "ignored"}),
+        json.dumps({"type": "stream_event", "event": {"type": "content_block_delta"}}),
+        json.dumps({"type": "rate_limit_event", "rate_limit_info": {}}),
+        json.dumps({"type": "assistant", "message": {"content": [{"type": "text", "text": "hi"}]}}),
+        json.dumps({"type": "result", "num_turns": 1, "result": "hi", "total_cost_usd": 0.0,
+                    "usage": {"input_tokens": 0, "output_tokens": 0,
+                    "cache_creation_input_tokens": 0, "cache_read_input_tokens": 0}}),
+    ]
+    conv, result_text, _, _, _ = _parse_stream_json_output("\n".join(lines))
+    assert len(conv) == 1
+    assert result_text == "hi"
+
+
+def test_run_claude_cli_populates_conversation(tmp_path: Path) -> None:
+    """run_claude_cli populates AgentResult.conversation from stream-json assistant events."""
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = _make_stream_jsonl("analysis text")
+    mock_result.stderr = ""
+
+    with patch("subprocess.run", return_value=mock_result):
+        result = run_claude_cli(tmp_path, "prompt")
+
+    assert len(result.conversation) == 1
+    assert result.conversation[0]["role"] == "assistant"
+
+
+def test_run_claude_cli_uses_stream_json_format(tmp_path: Path) -> None:
+    """run_claude_cli passes --output-format stream-json --verbose to the subprocess."""
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = _make_stream_jsonl("")
+    mock_result.stderr = ""
+
+    with patch("subprocess.run", return_value=mock_result) as mock_run:
+        run_claude_cli(tmp_path, "prompt")
+
+    call_args = mock_run.call_args[0][0]
+    assert "stream-json" in call_args
+    assert "--verbose" in call_args
+    # --output-format value should be stream-json, not bare json
+    fmt_idx = call_args.index("--output-format")
+    assert call_args[fmt_idx + 1] == "stream-json"
+
+
+def test_run_claude_cli_disables_user_settings(tmp_path: Path) -> None:
+    """run_claude_cli passes --setting-sources project,local to skip user hooks."""
+    mock_result = MagicMock()
+    mock_result.returncode = 0
+    mock_result.stdout = _make_stream_jsonl("")
+    mock_result.stderr = ""
+
+    with patch("subprocess.run", return_value=mock_result) as mock_run:
+        run_claude_cli(tmp_path, "prompt")
+
+    call_args = mock_run.call_args[0][0]
+    assert "--setting-sources" in call_args
+    src_idx = call_args.index("--setting-sources")
+    assert call_args[src_idx + 1] == "project,local"
 
 
 def test_run_codex_cli_passes_model(tmp_path: Path) -> None:

@@ -1,0 +1,47 @@
+id: discourse-076
+repo: discourse/discourse
+base_commit: b1a9f00bbd804c18bf2cc64f489c9634aee85bb4^
+head_commit: b1a9f00bbd804c18bf2cc64f489c9634aee85bb4
+fix_commit: b1a9f00bbd804c18bf2cc64f489c9634aee85bb4
+category: type
+difficulty: medium
+severity: medium
+language: ruby
+pr_size: medium
+description: 'Category custom field boolean values were incorrectly round-tripped:
+  ''true'' stored as a string in the DB was converted to a boolean for FormKit checkboxes,
+  but on save was converted back to ''t'' instead of ''true'', breaking downstream
+  checks that expected the string ''true''. The fix makes the checkbox component accept
+  multiple truthy representations and ensures the server-side controller normalizes
+  booleans back to string form for category custom fields.'
+expected_findings:
+- file: app/controllers/categories_controller.rb
+  line: 206
+  summary: Category custom field values that are booleans are not being converted
+    back to their string representation ('true'/'false') before storage — a boolean
+    `true` will be persisted as 't' by ActiveRecord, breaking code that checks for
+    the string 'true'.
+  line_side: pre_fix
+- file: frontend/discourse/app/form-kit/components/fk/control/checkbox.gjs
+  line: 4
+  summary: Checkbox checked state uses strict equality (`eq`) against boolean `true`
+    only. Values like the string 'true' or 't' will not be treated as checked, causing
+    the checkbox to appear unchecked for truthy string values loaded from the database.
+  line_side: pre_fix
+- file: frontend/discourse/admin/controllers/edit-category/tabs.js
+  line: 111
+  summary: Custom field values loaded from the server are strings ('true'), but after
+    a save round-trip they may become 't' — this controller does not normalize the
+    value before passing it to the form, propagating the type mismatch.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

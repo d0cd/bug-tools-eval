@@ -1,37 +1,41 @@
 id: snarkOS-177
 repo: ProvableHQ/snarkOS
-base_commit: 40a2459ff0782d7065066583d9a377932ea75b55^
-head_commit: 40a2459ff0782d7065066583d9a377932ea75b55
-fix_commit: 40a2459ff0782d7065066583d9a377932ea75b55
-category: concurrency
-difficulty: hard
+base_commit: eb1ef083ce42f17a13f7242a839d17a4f3640f88^
+head_commit: eb1ef083ce42f17a13f7242a839d17a4f3640f88
+fix_commit: eb1ef083ce42f17a13f7242a839d17a4f3640f88
+category: logic
+difficulty: medium
 severity: high
 language: rust
-pr_size: medium
-description: Peers were promoted from 'connecting' to 'connected' status during the
-  handshake, before the lower-level networking layer had finished its connection setup.
-  This race condition could cause the higher-level layer to treat a peer as fully
-  connected while the lower-level TCP layer was still finalizing. The fix delays peer
-  promotion to only occur via the OnConnect callback, which fires after the lower-level
-  layer has completed all its work, and persists the Peer object (not just the address)
-  in connecting_peers.
+pr_size: small
+description: 'The TCP node failed to detect self-connections in two ways: (1) inbound
+  connections were never checked for self-connects, allowing the node to accept a
+  connection from itself, and (2) outbound self-connect detection only handled the
+  loopback case (matching ports on 127.0.0.1) but missed the case where the node connects
+  to its own non-loopback IP. A new `is_self_connect()` method centralizes the logic,
+  checking ports on loopback and IPs otherwise.'
 expected_findings:
-- file: node/router/src/handshake.rs
-  line: 108
-  summary: Peer is promoted from 'connecting' to 'connected' during the handshake,
-    before the lower-level TCP layer has finished its setup. This promotion should
-    be deferred to the OnConnect callback to avoid a race condition between the two
-    networking layers.
-- file: node/router/src/lib.rs
-  line: 87
-  summary: The connecting_peers collection stores only addresses (HashSet) instead
-    of Peer objects (HashMap). Storing Peer objects is needed so that the OnConnect
-    handler can retrieve the peer data and complete the promotion at the correct time.
-- file: node/src/client/router.rs
-  line: 69
-  summary: The on_connect handler does not promote the peer from 'connecting' to 'connected';
-    this promotion was incorrectly happening earlier in the handshake instead of here
-    where the lower-level layer has confirmed the connection is ready.
+- file: node/tcp/src/tcp.rs
+  line: 171
+  summary: 'Missing self-connect check on inbound connections: `can_add_connection()`
+    is checked but the node never verifies if the incoming connection is from itself,
+    allowing self-connects through the accept handler.'
+  line_side: pre_fix
+- file: node/tcp/src/tcp.rs
+  line: 289
+  summary: 'Incomplete self-connect detection: `addr.ip().is_loopback() && addr.port()
+    == listening_addr.port()` only catches self-connects on loopback addresses. When
+    the node''s listening address is a non-loopback IP, connecting to that same IP
+    is not detected as a self-connect.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

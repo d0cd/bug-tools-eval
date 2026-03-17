@@ -1,28 +1,37 @@
 id: grafana-011
 repo: grafana/grafana
-base_commit: 7a73baf4fa557cfc8d490eed988a9b22b9e302d3^
-head_commit: 7a73baf4fa557cfc8d490eed988a9b22b9e302d3
-fix_commit: 7a73baf4fa557cfc8d490eed988a9b22b9e302d3
-category: api
+base_commit: 219e4b3907ddec33735bc72d6e7bfd2c8d09b814^
+head_commit: 219e4b3907ddec33735bc72d6e7bfd2c8d09b814
+fix_commit: 219e4b3907ddec33735bc72d6e7bfd2c8d09b814
+category: security
 difficulty: easy
-severity: low
+severity: high
 language: unknown
-pr_size: small
-description: The Makefile was not forwarding LDFLAGS correctly during the build process,
-  and documentation was unclear about the SQLite recommendation and CGO_ENABLED requirements.
-  The fix ensures LDFLAGS are properly passed through in build targets and clarifies
-  docs around CGO and SQLite usage.
+pr_size: medium
+description: The project depended on @grafana/llm@1.0.2, which transitively pulled
+  in @modelcontextprotocol/sdk < 1.26.0, a version affected by CVE-2026-25536 (cross-client
+  data leak via shared server/transport reuse, CVSS 7.1). The fix bumps @grafana/llm
+  to 1.0.3, which declares @modelcontextprotocol/sdk@^1.26.0.
 expected_findings:
-- file: Makefile
-  line: 23
-  summary: LDFLAGS not being forwarded to build commands; CGO_ENABLED not explicitly
-    set, leading to inconsistent build behavior
-- file: Makefile
-  line: 286
-  summary: Second build target also missing LDFLAGS forwarding, inconsistent with
-    intended build configuration
+- file: package.json
+  line: 299
+  summary: 'Vulnerable dependency: @grafana/llm@1.0.2 transitively includes @modelcontextprotocol/sdk
+    < 1.26.0, affected by CVE-2026-25536 (cross-client data leak). Upgrade to @grafana/llm@1.0.3.'
+  line_side: pre_fix
+- file: public/app/plugins/datasource/loki/package.json
+  line: 7
+  summary: 'Duplicate vulnerable dependency declaration: @grafana/llm version here
+    must also be bumped to 1.0.3 to ensure the Loki plugin resolves the patched transitive
+    dependency.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

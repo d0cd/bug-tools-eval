@@ -1,28 +1,34 @@
 id: grafana-010
 repo: grafana/grafana
-base_commit: 3fa7cdf7e0ce4ae3e2d3d89553f994aa7428668e^
-head_commit: 3fa7cdf7e0ce4ae3e2d3d89553f994aa7428668e
-fix_commit: 3fa7cdf7e0ce4ae3e2d3d89553f994aa7428668e
-category: logic
-difficulty: easy
-severity: low
+base_commit: 2145c70a0a03ac2350bc04e4d5268205c70b6ee8^
+head_commit: 2145c70a0a03ac2350bc04e4d5268205c70b6ee8
+fix_commit: 2145c70a0a03ac2350bc04e4d5268205c70b6ee8
+category: api-misuse
+difficulty: medium
+severity: high
 language: typescript
-pr_size: small
-description: Long text values such as URLs in alert rule annotations overflowed horizontally
-  in the rule details sidebar, causing unwanted horizontal scrollbars. The fix adds
-  CSS word-wrapping properties (overflow-wrap/word-break) to the DetailText component
-  and the Details panel so that long strings wrap instead of overflowing.
+pr_size: medium
+description: getFolderByUidFacade throws a generic `new Error('One of the folder responses
+  is undefined')` when parallel folder API calls return 403, discarding the original
+  FetchError that carries the HTTP status code. Callers rely on `getStatusFromError(e)`
+  to detect 403 and gracefully degrade, but it returns undefined for plain Error instances,
+  causing dashboard load to fail entirely for users with dashboard-level but no folder-level
+  access.
 expected_findings:
-- file: public/app/features/alerting/unified/components/common/DetailText.tsx
-  line: 28
-  summary: "Missing overflow-wrap/word-break CSS on text container \u2014 long unbroken\
-    \ strings (e.g. URLs) will overflow horizontally instead of wrapping"
-- file: public/app/features/alerting/unified/components/rule-viewer/Details.tsx
-  line: 354
-  summary: "Detail values lack overflowWrap: 'break-word' \u2014 long annotation text\
-    \ causes horizontal scrollbar on the entire sidebar panel"
+- file: public/app/api/clients/folder/v1beta1/hooks.ts
+  line: 150
+  summary: Throwing a plain `Error` instead of the original `FetchError` strips the
+    HTTP status. `getStatusFromError` cannot extract 403 from a generic Error, breaking
+    the graceful fallback path for permission-denied responses.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,23 +1,39 @@
 id: leo-032
 repo: ProvableHQ/leo
-base_commit: dac17f376812db87d379a83b52ffce4b8b48c59e^
-head_commit: dac17f376812db87d379a83b52ffce4b8b48c59e
-fix_commit: dac17f376812db87d379a83b52ffce4b8b48c59e
+base_commit: 1e7a6bf4ca58c64f170b698329e2f0e9ddf37e33^
+head_commit: 1e7a6bf4ca58c64f170b698329e2f0e9ddf37e33
+fix_commit: 1e7a6bf4ca58c64f170b698329e2f0e9ddf37e33
 category: logic
-difficulty: easy
-severity: low
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: A missing or misplaced `println!();` newline in the Leo CLI command output
-  caused incorrect formatting. The fix moves or adds a bare `println!();` call in
-  build.rs and/or run.rs to ensure proper newline separation in console output.
+pr_size: medium
+description: The `leo test` command reused a single `TestConstraintSystem` instance
+  across all test functions, causing constraint pollution between tests. Constraints
+  accumulated from earlier tests would leak into later ones, producing incorrect pass/fail
+  results. The fix creates a fresh `TestConstraintSystem` before each test function
+  runs.
 expected_findings:
-- file: leo/commands/build.rs
-  line: 182
-  summary: Missing `println!();` for proper newline formatting in build command output
-- file: leo/commands/run.rs
-  line: 86
-  summary: Extraneous or misplaced `println!();` newline in run command output
+- file: compiler/src/constraints/constraints.rs
+  line: 42
+  summary: 'Shared TestConstraintSystem: a single constraint system is created and
+    reused across multiple test invocations, causing constraints from one test to
+    leak into subsequent tests. Each test should get its own fresh TestConstraintSystem.'
+  line_side: pre_fix
+- file: leo/commands/test.rs
+  line: 12
+  summary: compile_test_constraints() is called without ensuring test isolation —
+    the compiler should create a new constraint system per test rather than accepting/reusing
+    an external one.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

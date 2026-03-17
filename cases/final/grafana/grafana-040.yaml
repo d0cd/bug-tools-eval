@@ -1,26 +1,33 @@
 id: grafana-040
 repo: grafana/grafana
-base_commit: 0a75d43f324311a61dfdc4e82ea52423b093b1c4^
-head_commit: 0a75d43f324311a61dfdc4e82ea52423b093b1c4
-fix_commit: 0a75d43f324311a61dfdc4e82ea52423b093b1c4
-category: logic
-difficulty: easy
-severity: medium
+base_commit: 50d08f2fb8e87fb80600b0727c51497c36c25da3^
+head_commit: 50d08f2fb8e87fb80600b0727c51497c36c25da3
+fix_commit: 50d08f2fb8e87fb80600b0727c51497c36c25da3
+category: api-misuse
+difficulty: medium
+severity: high
 language: typescript
-pr_size: tiny
-description: The segmented toggle button in the QueryEditor sidebar derived its state
-  from the specific cardType, which included transformations and expressions. When
-  clicking on a transformation or expression card, the toggle state became incorrect.
-  The fix simplifies the toggle value to only distinguish between Alert and Query
-  views, ignoring other card types.
+pr_size: medium
+description: Graphite metric name variable queries running through the backend mode
+  incorrectly set the 'text' and 'value' fields when constructing data frames. The
+  data frame construction API changed, requiring the use of 'displayNameFromDS' to
+  correctly populate series names, but the code was still using the old field access
+  pattern, causing variable queries to return wrong or empty metric names.
 expected_findings:
-- file: public/app/features/dashboard-scene/panel-edit/PanelEditNext/QueryEditor/Sidebar/QueryEditorSidebar.tsx
-  line: 32
-  summary: Toggle value derived from cardType does not account for transformation/expression
-    card types, causing the segmented toggle to enter an invalid state when those
-    cards are selected. Should map all non-Alert types to QueryEditorType.Query.
+- file: public/app/plugins/datasource/graphite/datasource.ts
+  line: 768
+  summary: In the graphiteBackendMode branch, metric name variable query results are
+    not using 'displayNameFromDS' to extract the series name. The text/value fields
+    will be incorrect because the data frame field naming convention changed.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

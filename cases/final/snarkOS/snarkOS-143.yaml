@@ -3,32 +3,52 @@ repo: ProvableHQ/snarkOS
 base_commit: b74fdcff5f4ae4465198f65f7bd28675552245b0^
 head_commit: b74fdcff5f4ae4465198f65f7bd28675552245b0
 fix_commit: b74fdcff5f4ae4465198f65f7bd28675552245b0
-category: perf
+category: performance
 difficulty: hard
 severity: high
 language: rust
 pr_size: xl
-description: 'The network sync process was inefficient: it randomly requested each
-  novel sync block from a random peer in a cyclical fashion, leading to poor sync
-  performance and missed forks. The fix replaces the sync algorithm with an aggressive
-  continuous approach that broadcasts back each peer''s highest sync hash and requests
-  all missing blocks, eliminating cyclical bottlenecks and ensuring distant forks
-  are fully pulled.'
+description: The old block sync process used a cyclical request-response pattern with
+  random peer selection, leading to poor sync performance and missed forks. The new
+  'aggro sync' continuously requests all missing blocks from each responding peer
+  and repeats until no responses arrive, dramatically improving throughput at the
+  cost of increased duplicate block reception.
 expected_findings:
-- file: network/src/sync/blocks/batched.rs
-  line: 14
-  summary: Old batched sync strategy randomly selects peers for each block, causing
-    inefficient round-trips and cyclical performance; should be replaced with aggressive
-    continuous sync that requests all missing blocks from each responding peer.
 - file: network/src/sync/blocks/interface.rs
   line: 30
-  summary: Sync interface does not re-request blocks from peers after initial response,
-    missing opportunity for continuous sync and allowing distant forks to go unconsidered.
-- file: network/src/sync/mod.rs
-  line: 26
-  summary: Sync module structure lacks the aggressive sync mode needed for continuous
-    block fetching; the old approach resets the full sync cycle instead of iterating
-    on peer responses.
+  summary: Old sync block interface uses random peer selection and one-block-at-a-time
+    requests, causing suboptimal sync throughput and missed forks
+  line_side: pre_fix
+- file: network/src/sync/blocks/batched.rs
+  line: 14
+  summary: Batched sync implementation lacks continuous re-requesting loop — stops
+    after one round instead of repeating until peers stop responding
+  line_side: pre_fix
+- file: network/src/peers/peers.rs
+  line: 287
+  summary: Sync hash response handling does not broadcast back the highest sync hash
+    to the responding peer, missing the opportunity for aggressive block fetching
+  line_side: pre_fix
+- file: network/src/sync/blocks/aggro.rs
+  line: 1
+  summary: New aggressive sync strategy requests all missing blocks from every responding
+    peer, causing duplicate block receipt scaling linearly with peer count — review
+    whether there is backpressure or deduplication to bound memory/bandwidth usage
+  line_side: pre_fix
+- file: network/src/peers/peer/outbound_handler.rs
+  line: 208
+  summary: Trace-level log for unexpected/late sync blocks may now fire frequently
+    under aggressive sync due to increased duplicate blocks — consider whether this
+    should be rate-limited or if duplicates are silently dropped before reaching consensus
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

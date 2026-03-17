@@ -1,24 +1,33 @@
 id: leo-125
 repo: ProvableHQ/leo
-base_commit: b967c3a39ff09127ee2a73b8df34098a2d6dd1a0^
-head_commit: b967c3a39ff09127ee2a73b8df34098a2d6dd1a0
-fix_commit: b967c3a39ff09127ee2a73b8df34098a2d6dd1a0
+base_commit: 817b7e01572f2290d71082f5a2c94229116eec8b^
+head_commit: 817b7e01572f2290d71082f5a2c94229116eec8b
+fix_commit: 817b7e01572f2290d71082f5a2c94229116eec8b
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: small
-description: Bug in the SSA (Static Single Assignment) pass where the order of renaming
-  in assignment statements was incorrect. The left-hand side was being renamed before
-  the right-hand side, causing the RHS to reference the wrong SSA variable version.
-  The fix ensures the RHS is reconstructed first, then the LHS is assigned a new SSA
-  name.
+pr_size: xl
+description: When canonicalizing compound assignments (e.g. `a.x += 1` → `a.x = a.x
+  + 1`), the access chain (field/tuple member accesses) on the assignee was being
+  incorrectly reversed. This caused the generated right-hand-side expression to have
+  accesses in the wrong order, producing incorrect semantics. The fix removes the
+  erroneous reversal and adds tests for compound assignments involving nested accesses.
 expected_findings:
-- file: compiler/passes/src/static_single_assignment/rename_statement.rs
-  line: 79
-  summary: 'Incorrect ordering in SSA renaming: the RHS of the assignment must be
-    reconstructed before the LHS is renamed to a new SSA version, otherwise the RHS
-    picks up the wrong variable version.'
+- file: ast/src/reducer/canonicalization.rs
+  line: 472
+  summary: Access chain iteration order is reversed when building the RHS of a compound
+    assignment canonicalization; accesses should not be reversed here, causing incorrect
+    field/tuple access ordering in the desugared expression
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

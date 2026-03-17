@@ -1,30 +1,43 @@
 id: snarkOS-179
 repo: ProvableHQ/snarkOS
-base_commit: 98f4bee343077247ff7d2db6158fea935205e24e^
-head_commit: 98f4bee343077247ff7d2db6158fea935205e24e
-fix_commit: 98f4bee343077247ff7d2db6158fea935205e24e
-category: api
-difficulty: easy
-severity: medium
+base_commit: ee03c500f96b20cedb4bfcf673bffa15e0535c34^
+head_commit: ee03c500f96b20cedb4bfcf673bffa15e0535c34
+fix_commit: ee03c500f96b20cedb4bfcf673bffa15e0535c34
+category: logic
+difficulty: medium
+severity: high
 language: rust
 pr_size: medium
-description: 'Test configurations and imports were out of sync with upstream snarkVM
-  API changes (PR #2386). The fix updates the snarkVM dependency revision in Cargo.toml/Cargo.lock
-  and adjusts test code to use the updated API signatures, including changed imports
-  (e.g., MIN_VALIDATOR_STAKE, Network trait) and constants (e.g., Committee::MAX_COMMITTEE_SIZE).'
+description: The MineContext struct captured block_height and canon_header once at
+  construction time, causing the miner to use stale canonical chain state across multiple
+  mining iterations. The fix removes these cached fields and instead fetches fresh
+  canonical information from storage at the start of each mine_block() call, passing
+  the block number explicitly through establish_block() and add_coinbase_transaction().
 expected_findings:
-- file: Cargo.toml
-  line: 46
-  summary: snarkVM dependency pinned to outdated revision that no longer matches the
-    expected API used by test code
-- file: node/bft/tests/components/mod.rs
-  line: 22
-  summary: Imports reference outdated snarkVM API symbols (e.g., MIN_VALIDATOR_STAKE
-    path or missing Network import) that changed in upstream
-- file: node/bft/src/worker.rs
-  line: 554
-  summary: NUM_NODES constant uses Committee::MAX_COMMITTEE_SIZE which changed in
-    the new snarkVM revision
+- file: consensus/src/miner.rs
+  line: 44
+  summary: MineContext stores block_height and canon_header as struct fields set once
+    during prepare(), causing stale chain state when the canonical chain advances
+    between mining iterations
+  line_side: pre_fix
+- file: consensus/src/miner.rs
+  line: 75
+  summary: establish_block() reads self.block_height which was cached at construction
+    time rather than fetching the current canonical block height from storage
+  line_side: pre_fix
+- file: consensus/src/miner.rs
+  line: 95
+  summary: add_coinbase_transaction() uses self.block_height from stale cached state
+    instead of the current chain tip height
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,25 +1,42 @@
 id: sentry-001
 repo: getsentry/sentry
-base_commit: d688904646fb181a18c099dd8e570c3d86cf859a^
-head_commit: d688904646fb181a18c099dd8e570c3d86cf859a
-fix_commit: d688904646fb181a18c099dd8e570c3d86cf859a
-category: type
-difficulty: easy
-severity: high
+base_commit: 01db71e59a227bc131a05e22cefe328f43e03659^
+head_commit: 01db71e59a227bc131a05e22cefe328f43e03659
+fix_commit: 01db71e59a227bc131a05e22cefe328f43e03659
+category: security
+difficulty: medium
+severity: critical
 language: python
-pr_size: small
-description: ProjectRedirect model had a hardcoded max_length of 50 for its slug field,
-  while Project allows slugs up to PROJECT_SLUG_MAX_LENGTH (which is larger). This
-  mismatch caused errors when redirecting projects with slugs longer than 50 characters.
-  The fix unifies both models to use the same PROJECT_SLUG_MAX_LENGTH constant.
+pr_size: medium
+description: Impersonated superuser sessions bypass data secrecy enforcement because
+  `is_active_superuser()` returns False during impersonation, skipping the `get_superuser_scopes()`
+  path that checks data secrecy. This allows impersonating users to access organizations
+  that have data secrecy enabled, defeating the access control. The fix adds explicit
+  guards in both `from_request_org_and_scopes()` and `from_request()` to detect impersonation
+  via `request.actual_user` and raise `DataSecrecyError`.
 expected_findings:
-- file: src/sentry/models/projectredirect.py
-  line: 2
-  summary: Slug field max_length is hardcoded to 50 (the Django default) instead of
-    using PROJECT_SLUG_MAX_LENGTH, causing truncation/errors for projects with longer
-    slugs
+- file: src/sentry/auth/access.py
+  line: 916
+  summary: 'Missing impersonation guard: when `is_active_superuser()` is False due
+    to impersonation, the data secrecy check in `get_superuser_scopes()` is skipped,
+    allowing impersonated sessions to access data-secrecy-protected orgs. Need to
+    check `request.actual_user` and call `should_allow_superuser_access()` before
+    proceeding.'
+  line_side: pre_fix
+- file: src/sentry/auth/access.py
+  line: 1015
+  summary: 'Same missing impersonation guard in `from_request()`: impersonated sessions
+    bypass data secrecy check on this code path as well. Need to add `request.actual_user`
+    check with `DataSecrecyError` here too.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -180,3 +180,75 @@ class TestWriteRunMetadata:
         write_run_metadata(tmp_path, ["tool-a"], "diff-only", cases_dir)
         data = json.loads((tmp_path / "run_metadata.json").read_text())
         assert data["limit"] == 0
+
+    def test_context_level_specific_prompt_resolved(self, tmp_path: Path) -> None:
+        """agent_prompt_hash should reflect the context-level-specific file, not the generic one."""
+        cases_dir = tmp_path / "cases"
+        cases_dir.mkdir()
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        (config_dir / "agent_prompt.md").write_text("generic prompt")
+        (config_dir / "agent_prompt_diff+repo.md").write_text("diff+repo prompt")
+
+        orig = Path.cwd()
+        import os
+        os.chdir(tmp_path)
+        try:
+            write_run_metadata(tmp_path, ["tool-a"], "diff+repo", cases_dir)
+        finally:
+            os.chdir(orig)
+
+        data = json.loads((tmp_path / "run_metadata.json").read_text())
+        assert data["agent_prompt_file"].endswith("agent_prompt_diff+repo.md")
+        assert data["agent_prompt_hash"].startswith("sha256:")
+        # Snapshot should contain the context-specific content
+        snapshot = (tmp_path / "agent_prompt_snapshot.md").read_text()
+        assert snapshot == "diff+repo prompt"
+
+    def test_generic_prompt_fallback_when_no_context_specific(self, tmp_path: Path) -> None:
+        """Falls back to agent_prompt.md when no context-level-specific file exists."""
+        cases_dir = tmp_path / "cases"
+        cases_dir.mkdir()
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        (config_dir / "agent_prompt.md").write_text("generic prompt")
+
+        import os
+        orig = Path.cwd()
+        os.chdir(tmp_path)
+        try:
+            write_run_metadata(tmp_path, ["tool-a"], "diff+repo", cases_dir)
+        finally:
+            os.chdir(orig)
+
+        data = json.loads((tmp_path / "run_metadata.json").read_text())
+        assert data["agent_prompt_file"].endswith("agent_prompt.md")
+        snapshot = (tmp_path / "agent_prompt_snapshot.md").read_text()
+        assert snapshot == "generic prompt"
+
+    def test_no_prompt_file_graceful(self, tmp_path: Path) -> None:
+        """No config dir at all: hash is empty string, no snapshot written."""
+        cases_dir = tmp_path / "cases"
+        cases_dir.mkdir()
+
+        import os
+        orig = Path.cwd()
+        os.chdir(tmp_path)
+        try:
+            write_run_metadata(tmp_path, ["tool-a"], "diff-only", cases_dir)
+        finally:
+            os.chdir(orig)
+
+        data = json.loads((tmp_path / "run_metadata.json").read_text())
+        assert data["agent_prompt_hash"] == ""
+        assert data["agent_prompt_file"] == ""
+        assert not (tmp_path / "agent_prompt_snapshot.md").exists()
+
+    def test_agent_prompt_file_in_metadata(self, tmp_path: Path) -> None:
+        """agent_prompt_file key is always present in metadata."""
+        cases_dir = tmp_path / "cases"
+        cases_dir.mkdir()
+        write_run_metadata(tmp_path, ["tool-a"], "diff-only", cases_dir)
+        data = json.loads((tmp_path / "run_metadata.json").read_text())
+        assert "agent_prompt_file" in data
+        assert "agent_prompt_hash" in data

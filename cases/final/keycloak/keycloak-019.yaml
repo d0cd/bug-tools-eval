@@ -1,37 +1,40 @@
 id: keycloak-019
 repo: keycloak/keycloak
-base_commit: 5823af9d9420e233e2d82fc2d461eab409ea3900^
-head_commit: 5823af9d9420e233e2d82fc2d461eab409ea3900
-fix_commit: 5823af9d9420e233e2d82fc2d461eab409ea3900
-category: api
+base_commit: 3aa5ab007297db2059ae5e8633a7d105e02e70e2^
+head_commit: 3aa5ab007297db2059ae5e8633a7d105e02e70e2
+fix_commit: 3aa5ab007297db2059ae5e8633a7d105e02e70e2
+category: api-misuse
 difficulty: easy
-severity: high
-language: java
-pr_size: medium
-description: The `byteArrayToResolverProviderId` method in `ArtifactBindingUtils`
-  accesses byte array indices 0-3 without first verifying the array has at least 4
-  elements, causing an `ArrayIndexOutOfBoundsException` when a short or malformed
-  SAML artifact is received. The fix adds a minimum length check of 4 bytes (for the
-  mandatory type code and endpoint index) and the callers in `SamlService` now also
-  catch `IllegalArgumentException` to handle the validation failure gracefully.
+severity: medium
+language: unknown
+pr_size: small
+description: Docker image builds for the Keycloak operator were slow or failing because
+  the `--ulimit nofile` flag was not passed to `docker build` commands. A previous
+  fix (#44233) tried to work around this by embedding `ulimit` calls inside Dockerfile
+  `RUN` commands, which was fragile. This PR moves the ulimit setting to the build
+  command level via `--ulimit nofile=1024000` in scripts and `quarkus.docker.additional-args`
+  in application.properties, and also fixes an incorrect script path and missing `--cpus=max`
+  in the README.
 expected_findings:
-- file: server-spi-private/src/main/java/org/keycloak/protocol/saml/util/ArtifactBindingUtils.java
-  line: 11
-  summary: "Missing bounds check: byteArrayToResolverProviderId accesses ar[0]\u2013\
-    ar[3] without verifying ar.length >= 4, causing ArrayIndexOutOfBoundsException\
-    \ on short input"
-- file: services/src/main/java/org/keycloak/protocol/saml/SamlService.java
-  line: 387
-  summary: Catch block only catches ArtifactResolverProcessingException but not IllegalArgumentException,
-    so a malformed artifact with too-short byte array will propagate as an unhandled
-    exception
-- file: services/src/main/java/org/keycloak/protocol/saml/SamlService.java
-  line: 1218
-  summary: "Same missing IllegalArgumentException catch as the other SAML artifact\
-    \ handling path \u2014 malformed artifacts crash instead of returning an error\
-    \ response"
+- file: operator/scripts/olm-testing.sh
+  line: 20
+  summary: docker build command missing `--ulimit nofile=1024000` flag, causing potentially
+    very slow `dnf install` steps due to low default file descriptor limits
+  line_side: pre_fix
+- file: operator/src/main/resources/application.properties
+  line: 31
+  summary: Missing `quarkus.docker.additional-args=--ulimit,nofile=1024000` property
+    — operator image builds inherit the Docker daemon's default ulimit which may be
+    too low, causing slow dnf operations
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

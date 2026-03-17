@@ -1,0 +1,41 @@
+id: cal.com-020
+repo: calcom/cal.com
+base_commit: 3e874917ec369bdd31a8ae73e8dbe02b02ca21d3^
+head_commit: 3e874917ec369bdd31a8ae73e8dbe02b02ca21d3
+fix_commit: 3e874917ec369bdd31a8ae73e8dbe02b02ca21d3
+category: incomplete
+difficulty: medium
+severity: low
+language: typescript
+pr_size: medium
+description: The sidebar's Routing tab used a Next.js <Link> to /routing, but no client-side
+  page file existed at that path. Navigation was handled entirely by server-side beforeFiles
+  rewrites (/routing → /routing/forms → /apps/routing-forms/forms), causing <Link>
+  to fall back to a full page refresh instead of client-side navigation. The fix adds
+  an actual page.tsx and layout.tsx at the /routing path so Next.js can resolve the
+  route client-side.
+expected_findings:
+- file: apps/web/next.config.ts
+  line: 273
+  summary: Server-side rewrite from /routing to /routing/forms has no corresponding
+    client-side page file, so Next.js <Link> cannot resolve the route and falls back
+    to a full page load. A page.tsx at app/(use-page-wrapper)/routing/ is needed for
+    client-side navigation to work.
+  line_side: pre_fix
+- file: apps/web/next.config.ts
+  line: 331
+  summary: The /routing/:path* → /apps/routing-forms/:path* rewrite is server-only;
+    any sidebar <Link> targeting these paths will trigger a hard refresh unless matching
+    Next.js page files also exist.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

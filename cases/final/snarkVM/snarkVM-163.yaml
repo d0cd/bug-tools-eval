@@ -1,29 +1,46 @@
 id: snarkVM-163
 repo: ProvableHQ/snarkVM
-base_commit: d6443ba4240f45f260057f952fe20eacec696d18^
-head_commit: d6443ba4240f45f260057f952fe20eacec696d18
-fix_commit: d6443ba4240f45f260057f952fe20eacec696d18
-category: logic
+base_commit: dc5d6978becdee47e7ed2e6bc4c6e64e4ad1124f^
+head_commit: dc5d6978becdee47e7ed2e6bc4c6e64e4ad1124f
+fix_commit: dc5d6978becdee47e7ed2e6bc4c6e64e4ad1124f
+category: cryptographic
 difficulty: hard
-severity: high
+severity: medium
 language: rust
-pr_size: large
-description: Multiple bug fixes across snarkVM's compiler and VM execution pipeline,
-  touching process management, stack handling, transition logic, function parsing,
-  call instruction operations, and request validation. The changes span 7 files in
-  core VM components, suggesting interrelated logic errors in program compilation
-  and execution.
+pr_size: xl
+description: The `ToBytes` trait for account signature public keys serialized both
+  x and y coordinates of an elliptic curve point, whereas `CanonicalSerialize` only
+  kept the x coordinate plus a flag bit. This caused a 64-byte transaction size regression.
+  The fix introduces a SchnorrCompressed signature variant that compresses the public
+  key in `ToBytes` by discarding the y coordinate, which is safe specifically for
+  twisted Edwards curves where y can be recovered from x.
 expected_findings:
-- file: console/program/src/request/mod.rs
-  line: 1
-  summary: "Bug in request validation logic (exact line unknown \u2014 diff unavailable)"
-- file: vm/compiler/src/program/instruction/operation/call.rs
-  line: 1
-  summary: "Incorrect handling in call instruction operation (exact line unknown \u2014\
-    \ diff unavailable)"
-- file: vm/compiler/src/process/mod.rs
-  line: 1
-  summary: "Logic error in VM process execution (exact line unknown \u2014 diff unavailable)"
+- file: algorithms/src/traits/signature.rs
+  line: 24
+  summary: SignatureScheme trait uses ToBytes/FromBytes bounds that serialize both
+    x and y coordinates of the public key point, causing 64-byte size bloat in serial
+    numbers compared to CanonicalSerialize which only keeps x + flag
+  line_side: pre_fix
+- file: dpc/src/circuits/inner_circuit.rs
+  line: 152
+  summary: Inner circuit signature verification uses uncompressed point representation
+    for serial number computation, resulting in unnecessarily large constraint count
+    and transaction size
+  line_side: pre_fix
+- file: gadgets/src/algorithms/signature/schnorr.rs
+  line: 352
+  summary: Schnorr signature verification gadget processes full uncompressed prover
+    response bytes; a compressed variant should be used to reduce constraint count
+    and match the compressed serialization format
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

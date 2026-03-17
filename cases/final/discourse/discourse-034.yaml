@@ -1,28 +1,37 @@
 id: discourse-034
 repo: discourse/discourse
-base_commit: 313108a209d9969bf6d5f83c03cb94438d0a9598^
-head_commit: 313108a209d9969bf6d5f83c03cb94438d0a9598
-fix_commit: 313108a209d9969bf6d5f83c03cb94438d0a9598
-category: memory
-difficulty: medium
-severity: low
-language: javascript
+base_commit: 330b50a89881f7e10f60a5cc0d7b402818f135c0^
+head_commit: 790dc4a5ed16a7ef146bfe2cd1d218239d007c58
+fix_commit: 330b50a89881f7e10f60a5cc0d7b402818f135c0
+category: concurrency
+difficulty: hard
+severity: high
+language: ruby
 pr_size: medium
-description: 'The search page''s autocomplete menus (triggered by @ or #) are not
-  destroyed when navigating away because their instances are never stored. The fix
-  tracks autocomplete modifier instances returned by applySearchAutocomplete so they
-  can be properly cleaned up in the willDestroyElement lifecycle hook.'
+description: 'The original PR #36853 added support for running `multisite:migrate`
+  concurrently, but this introduced stability and performance issues in production.
+  This revert undoes the concurrent migration support in `db/fixtures/600_themes.rb`
+  and `lib/tasks/db.rake` while the team investigates the root cause.'
 expected_findings:
-- file: frontend/discourse/app/components/search-text-field.js
-  line: 20
-  summary: 'Resource leak: applySearchAutocomplete() creates autocomplete menus but
-    the returned instances are not stored, so they cannot be destroyed on navigation'
-- file: frontend/discourse/app/lib/search.js
-  line: 244
-  summary: applySearchAutocomplete does not return the created modifier instances,
-    preventing callers from tracking and cleaning them up
+- file: lib/tasks/db.rake
+  line: 1
+  summary: Concurrent multisite migration logic introduced race conditions or resource
+    contention causing stability and performance degradation; concurrent database
+    migrations risk deadlocks, lock contention, and inconsistent schema state
+  line_side: pre_fix
+- file: db/fixtures/600_themes.rb
+  line: 1
+  summary: Theme fixture loading modified to support concurrency but likely not safe
+    under parallel execution, risking duplicate or corrupt theme data
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 38367
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

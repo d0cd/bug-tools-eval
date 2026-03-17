@@ -1,25 +1,38 @@
 id: leo-009
 repo: ProvableHQ/leo
-base_commit: bd7ec477c9f17289b13975bebd88382a7b70a429^
-head_commit: bd7ec477c9f17289b13975bebd88382a7b70a429
-fix_commit: bd7ec477c9f17289b13975bebd88382a7b70a429
-category: logic
+base_commit: 0bc0ee4b564294b5dee68c61b24966e2c3a666c6^
+head_commit: 0bc0ee4b564294b5dee68c61b24966e2c3a666c6
+fix_commit: 0bc0ee4b564294b5dee68c61b24966e2c3a666c6
+category: style
 difficulty: easy
-severity: high
+severity: low
 language: rust
-pr_size: small
-description: The compiler did not check for duplicate function definitions. When a
-  function (e.g., `main`) was defined more than once with different signatures, instead
-  of reporting an error, it silently proceeded, causing confusing return type mismatch
-  errors. The fix adds a duplicate function definition check at the ASG level and
-  emits a clear error.
+pr_size: tiny
+description: The `LeoAst` struct in the `leo_ast` crate was renamed to `Ast`, but
+  the symbol table tests still imported and used the old name `LeoAst`. This PR updates
+  the import and usages in `symbol-table/tests/mod.rs` to use the new `Ast` name.
 expected_findings:
-- file: asg/src/program/mod.rs
-  line: 266
-  summary: 'Missing duplicate function definition check: when inserting a function
-    into the program scope, there is no guard to detect if a function with the same
-    name has already been defined, allowing silent overwrites and downstream type
-    mismatches.'
+- file: symbol-table/tests/mod.rs
+  line: 16
+  summary: Import uses old struct name `LeoAst` which was renamed to `Ast`; should
+    be `use leo_ast::{Ast, Input};`
+  line_side: pre_fix
+- file: symbol-table/tests/mod.rs
+  line: 27
+  summary: Usage of `LeoAst` should be updated to `Ast` to match the renamed struct
+  line_side: pre_fix
+- file: symbol-table/tests/mod.rs
+  line: 45
+  summary: Usage of `LeoAst` should be updated to `Ast` to match the renamed struct
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

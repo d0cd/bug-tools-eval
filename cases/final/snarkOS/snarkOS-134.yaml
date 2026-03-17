@@ -1,22 +1,40 @@
 id: snarkOS-134
 repo: ProvableHQ/snarkOS
-base_commit: 47993e40442bc3932e7b58c97378490c00527fa5^
-head_commit: b05f5e06fbad748f6dcfcde9178b79885a943129
-fix_commit: 47993e40442bc3932e7b58c97378490c00527fa5
-category: logic
-difficulty: easy
+base_commit: b163f68ad2f1074d4d600a772cf7d8e5059563aa^
+head_commit: b163f68ad2f1074d4d600a772cf7d8e5059563aa
+fix_commit: b163f68ad2f1074d4d600a772cf7d8e5059563aa
+category: incomplete
+difficulty: hard
 severity: medium
 language: rust
-pr_size: tiny
-description: A commit (b05f5e06) introduced an incorrect or unnecessary minimum peers
-  check in the network peers module. This check was preventing correct peer connection
-  behavior. The fix reverts that change by removing the minimum peers check, restoring
-  the original logic.
+pr_size: xl
+description: This is an XL-sized migration/refactoring PR that moves modules from
+  snarkVM into snarkOS, modularizes node logic by node type, and introduces prover
+  logic. No diff is available for inspection, making it impossible to identify specific
+  code-level issues. Large structural migrations like this commonly harbor incomplete
+  changes such as stale imports, missed configuration updates, or partially migrated
+  APIs.
 expected_findings:
-- file: src/network/peers.rs
-  line: 0
-  summary: 'Incorrect minimum peers check: this guard condition either blocks valid
-    peer connections or enforces a wrong minimum threshold, and should be removed.'
+- file: cli/src/commands/start.rs
+  line: 1
+  summary: 'Large migration PR: verify that all node-type-specific logic has been
+    fully extracted and that the start command correctly dispatches to the new modular
+    node implementations rather than retaining any legacy monolithic paths'
+  line_side: pre_fix
+- file: Cargo.toml
+  line: 6
+  summary: Workspace member list and dependency versions should be audited to ensure
+    migrated crates (ledger, snarkvm-rest) are correctly declared and no circular
+    or stale dependencies remain after the migration
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 1992
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

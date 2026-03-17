@@ -1,33 +1,37 @@
 id: snarkVM-157
 repo: ProvableHQ/snarkVM
-base_commit: 53837e52421736029422a0c4cc8e608cb781c088^
-head_commit: 53837e52421736029422a0c4cc8e608cb781c088
-fix_commit: 53837e52421736029422a0c4cc8e608cb781c088
+base_commit: d414a75a4841abe6cdff5027ba59ec4d01c562f5^
+head_commit: d414a75a4841abe6cdff5027ba59ec4d01c562f5
+fix_commit: d414a75a4841abe6cdff5027ba59ec4d01c562f5
 category: logic
-difficulty: hard
-severity: critical
+difficulty: easy
+severity: medium
 language: rust
-pr_size: large
-description: The `snarkvm run` command was not checking constraints during execution,
-  meaning programs could run successfully even with unsatisfied constraints. The fix
-  introduces a new `CallStack::PackageRun` variant that enforces constraint checking
-  (like `Execute` mode) without interfering with `CheckDeployment`/`verify_deployment`,
-  and updates `package::run` to use this new call stack mode.
+pr_size: small
+description: The `ensure_equals` macro accepts variadic format arguments `$(, $format_args:tt)*`
+  but does not forward them to the underlying `format!()` call, causing log messages
+  to display raw format placeholders instead of interpolated values. The fix wraps
+  `$message` in `format!($message $(, $format_args)*)` so arguments are properly interpolated.
 expected_findings:
-- file: vm/package/run.rs
-  line: 51
-  summary: 'Wrong CallStack variant used for `snarkvm run`: constraints are not being
-    checked during package run, allowing programs with unsatisfied constraints to
-    pass silently. Should use a mode that enforces constraint checking.'
-- file: synthesizer/process/src/stack/execute.rs
-  line: 380
-  summary: Constraint satisfaction check only applies to `Execute` mode but should
-    also apply when running a package (`PackageRun`), otherwise `snarkvm run` silently
-    skips constraint verification.
-- file: synthesizer/process/src/stack/execute.rs
-  line: 456
-  summary: Second constraint satisfaction check also missing `PackageRun` mode coverage,
-    allowing unchecked constraints during package runs.
+- file: utilities/src/errors.rs
+  line: 62
+  summary: Macro arm captures `$format_args:tt` but drops them — `$message` is passed
+    directly to `anyhow::bail!` without `format!()`, so any caller-supplied format
+    arguments are silently ignored
+  line_side: pre_fix
+- file: utilities/src/errors.rs
+  line: 197
+  summary: 'Same bug in the second (halt) variant of `ensure_equals`: format arguments
+    captured but never forwarded to the message string'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,31 @@
+id: cal.com-064
+repo: calcom/cal.com
+base_commit: d630556daeb28d121a9a7e4ab7b281bf8e11c560^
+head_commit: d630556daeb28d121a9a7e4ab7b281bf8e11c560
+fix_commit: d630556daeb28d121a9a7e4ab7b281bf8e11c560
+category: code-smell
+difficulty: easy
+severity: low
+language: typescript
+pr_size: tiny
+description: The `deleteDomain` function contains an unreachable `return false;` statement
+  after the actual return statement `return isDomainDeleted && isDnsRecordDeleted;`.
+  This is dead code that can never execute and adds confusion about the function's
+  intended behavior.
+expected_findings:
+- file: packages/lib/domainManager/organization.ts
+  line: 24
+  summary: 'Unreachable code: `return false;` after a preceding `return` statement
+    can never execute and should be removed'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

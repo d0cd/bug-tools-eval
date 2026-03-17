@@ -1,24 +1,44 @@
 id: leo-059
 repo: ProvableHQ/leo
-base_commit: f841f2e348affa7ccd2849d1013db141da58a0bc^
-head_commit: f841f2e348affa7ccd2849d1013db141da58a0bc
-fix_commit: f841f2e348affa7ccd2849d1013db141da58a0bc
-category: logic
+base_commit: 3e9b963d5b99bf3bcd17910e3e241f4b7f25a097^
+head_commit: 3e9b963d5b99bf3bcd17910e3e241f4b7f25a097
+fix_commit: 3e9b963d5b99bf3bcd17910e3e241f4b7f25a097
+category: cryptographic
 difficulty: medium
 severity: high
 language: rust
-pr_size: small
-description: The Leo compiler's value assignment logic in value.rs did not handle
-  the case of assigning a mutable variable to another mutable variable. This caused
-  incorrect behavior for nested mutable let bindings. The fix adds the missing case
-  handling around line 229 in value.rs to properly propagate mutability during variable-to-variable
-  assignment.
+pr_size: medium
+description: The Pedersen hash example initialized its generator parameters with `[0group;
+  256]` (the group identity/zero element), making the hash trivially degenerate since
+  all commitments would collapse to zero. The fix adds `1group` syntax to the Leo
+  compiler (via the `One` trait on `EdwardsGroupType`) to expose the curve's affine
+  generator point, and updates the example to use `[1group; 256]`.
 expected_findings:
-- file: compiler/src/value/value.rs
-  line: 229
-  summary: 'Missing match arm or condition for mutable-to-mutable variable assignment:
-    when both source and target are mutable, the value/mutability is not properly
-    propagated during assignment.'
+- file: examples/pedersen_hash/src/main.leo
+  line: 19
+  summary: Pedersen hash parameters initialized with `[0group; 256]` (identity element)
+    instead of generator points — this makes the hash function cryptographically degenerate,
+    producing zero for all inputs
+  line_side: pre_fix
+- file: compiler/src/group/edwards_bls12.rs
+  line: 33
+  summary: Missing `One` trait implementation for `EdwardsGroupType` — the group type
+    has no way to produce the affine generator point, preventing `1group` literal
+    syntax
+  line_side: pre_fix
+- file: compiler/src/group/mod.rs
+  line: 25
+  summary: The `GroupType<F>` trait bound does not require `One`, so group implementations
+    are not required to provide a generator/identity-one element
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

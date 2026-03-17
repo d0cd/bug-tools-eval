@@ -1,30 +1,48 @@
 id: leo-104
 repo: ProvableHQ/leo
-base_commit: de2b2a263bcd442bfd74b0f9faf3bebdb5cdf25b^
-head_commit: de2b2a263bcd442bfd74b0f9faf3bebdb5cdf25b
-fix_commit: de2b2a263bcd442bfd74b0f9faf3bebdb5cdf25b
+base_commit: 641f9f925b323d8d8bdfdcd207c4f0c13e860293^
+head_commit: 641f9f925b323d8d8bdfdcd207c4f0c13e860293
+fix_commit: 641f9f925b323d8d8bdfdcd207c4f0c13e860293
 category: logic
-difficulty: easy
-severity: low
+difficulty: medium
+severity: high
 language: rust
-pr_size: medium
-description: Fixes multiple Rust clippy warnings across compiler passes. Changes include
-  removing unnecessary `.into_iter()` calls (useless_conversion), removing needless
-  borrows on symbol table lookups, simplifying iterator chains, and removing redundant
-  `Some()` wrapping. These are code quality improvements with no behavioral change.
+pr_size: large
+description: The Leo compiler's circuit expression resolver only searched for circuit
+  definitions at file/program scope. When code inside a circuit function (a nested
+  scope) referenced another circuit type, the lookup failed because the scoping logic
+  did not propagate a reference back to the enclosing program scope where circuit
+  definitions live. The fix threads a `declared_circuit_reference` parameter through
+  the compiler's function, statement, and expression enforcement so the resolver can
+  find circuit definitions from any nested scope.
 expected_findings:
-- file: compiler/passes/src/flattening/flatten_expression.rs
-  line: 130
-  summary: 'Clippy useless_conversion: `.into_iter()` is unnecessary before `.zip_eq()`
-    since the value is already an iterator or implements IntoIterator implicitly'
-- file: compiler/passes/src/function_inlining/inline_statement.rs
-  line: 38
-  summary: "Clippy useless_conversion: `elements.into_iter()` is redundant when chaining\
-    \ with `.zip()` \u2014 the into_iter call is implicit"
-- file: compiler/passes/src/type_checking/check_expressions.rs
-  line: 520
-  summary: 'Clippy redundant wrapping: passing `&Some(input.type_.clone())` is unnecessary;
-    the function likely accepts the inner type directly or the Some wrapper is redundant'
+- file: compiler/src/expression/circuit/circuit.rs
+  line: 39
+  summary: Circuit definition lookup is hard-coded to file scope only; when invoked
+    from within a circuit function's nested scope, the lookup fails to find sibling
+    circuit definitions. Needs to accept and use a scope reference that resolves back
+    to the program-level definitions.
+  line_side: pre_fix
+- file: compiler/src/function/function.rs
+  line: 47
+  summary: enforce_function does not accept or propagate a declared_circuit_reference
+    parameter, so circuit-scoped calls cannot resolve circuit types defined at program
+    level.
+  line_side: pre_fix
+- file: compiler/src/statement/branch/branch.rs
+  line: 44
+  summary: Branch statement enforcement passes an empty string ("".to_owned()) where
+    a circuit reference is needed, meaning circuit definitions are unresolvable inside
+    conditional branches within circuit functions.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

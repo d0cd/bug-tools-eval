@@ -1,25 +1,40 @@
 id: grafana-045
 repo: grafana/grafana
-base_commit: a7c9417dfe03b8b6c0b9f34d8669f80aebc4a2d2^
-head_commit: a7c9417dfe03b8b6c0b9f34d8669f80aebc4a2d2
-fix_commit: a7c9417dfe03b8b6c0b9f34d8669f80aebc4a2d2
-category: api
-difficulty: easy
+base_commit: 59e6176a233d4441e6dfe460b4098bbdfabd0a80^
+head_commit: 59e6176a233d4441e6dfe460b4098bbdfabd0a80
+fix_commit: 59e6176a233d4441e6dfe460b4098bbdfabd0a80
+category: logic
+difficulty: medium
 severity: high
-language: typescript
+language: go
 pr_size: medium
-description: 'PR #117275 renamed the ''namespace'' property to ''scope'' in LiveChannelAddress
-  parsing, but this was a breaking change for plugins that construct addresses using
-  the ''namespace'' key directly. The fix updates parseLiveChannelAddress to accept
-  both ''scope'' and ''namespace'' for backward compatibility.'
+description: The quota change check was only performed at the status-patching step
+  (line 624), but the switch statement that gates whether reconciliation proceeds
+  at all (line 600-608) had no case for quota changes. When only the quota changed
+  (no spec change, not blocked, no token generation), the controller fell through
+  to `default` and returned nil, silently skipping the quota update. The fix hoists
+  the comparison before the switch and adds a `hasQuotaChanged` case so quota-only
+  changes trigger reconciliation.
 expected_findings:
-- file: packages/grafana-data/src/types/live.ts
-  line: 125
-  summary: parseLiveChannelAddress only accepts 'scope' after rename from 'namespace',
-    breaking plugins that still use the old property name. Should accept both 'scope'
-    and 'namespace' for backward compatibility.
+- file: pkg/registry/apis/provisioning/controller/repository.go
+  line: 606
+  summary: 'Missing switch case for quota changes: if only quota changed (no spec
+    change, not blocked, no token needed), the default case returns nil and the quota
+    patch at line 624 is never reached'
+  line_side: pre_fix
+- file: pkg/registry/apis/provisioning/controller/repository.go
+  line: 624
+  summary: 'Dead code path: the quota comparison here is unreachable when quota is
+    the only thing that changed, because the switch above already exits at default'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

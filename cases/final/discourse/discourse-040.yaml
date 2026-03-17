@@ -1,34 +1,33 @@
 id: discourse-040
 repo: discourse/discourse
-base_commit: 0873467ce4494c81e0854e6136140cfb30d08563^
-head_commit: 0873467ce4494c81e0854e6136140cfb30d08563
-fix_commit: 0873467ce4494c81e0854e6136140cfb30d08563
-category: logic
-difficulty: easy
-severity: low
-language: javascript
+base_commit: 490bf4470b5e7f6e315f23805f53743fdcb2e49b^
+head_commit: 490bf4470b5e7f6e315f23805f53743fdcb2e49b
+fix_commit: 490bf4470b5e7f6e315f23805f53743fdcb2e49b
+category: security
+difficulty: medium
+severity: critical
+language: ruby
 pr_size: small
-description: 'Multiple visual inconsistencies in the foundation theme: the composer
-  actions dropdown button lacked a custom CSS class for proper styling, profile tab
-  buttons had incorrect selector grouping affecting timeline back button and language
-  selector appearance, and category/tag text colors in the header were not correctly
-  overridden. The fix adds the missing ''composer-actions-btn'' class and corrects
-  CSS selector scoping for profile tab buttons and header text colors.'
+description: The `pg_function` attribute on `EmbeddingDefinition` was not validated,
+  allowing an admin to set it to an arbitrary SQL fragment. This value was then string-interpolated
+  into raw SQL queries in `DiscourseAi::Embeddings::Schema`, creating a SQL injection
+  vector. The fix adds input validation to restrict `pg_function` to safe, known PostgreSQL
+  function names.
 expected_findings:
-- file: frontend/discourse/select-kit/components/composer-actions.js
-  line: 37
-  summary: Missing custom CSS class on composer actions button; 'btnCustomClasses'
-    property needed to apply 'composer-actions-btn' for correct dropdown styling
-- file: app/assets/stylesheets/common/base/uc-modernize-foundation-theme.scss
-  line: 63
-  summary: Incorrect or missing '.profile-tab-btn' selector grouping causes visual
-    inconsistencies with timeline back button and related UI elements
-- file: app/assets/stylesheets/common/base/uc-modernize-foundation-theme.scss
-  line: 85
-  summary: CSS selector for category and tag text colors in header not properly scoped,
-    causing incorrect color inheritance
+- file: plugins/discourse-ai/app/models/embedding_definition.rb
+  line: 129
+  summary: Missing validation on `pg_function` field allows arbitrary SQL fragments
+    to be stored; this value is later string-interpolated into raw SQL queries, enabling
+    SQL injection by an admin user
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

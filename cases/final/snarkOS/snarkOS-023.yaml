@@ -1,32 +1,33 @@
 id: snarkOS-023
 repo: ProvableHQ/snarkOS
-base_commit: 78228bfa58232d267f8e0941a1e2eb8b215159be^
-head_commit: 78228bfa58232d267f8e0941a1e2eb8b215159be
-fix_commit: 78228bfa58232d267f8e0941a1e2eb8b215159be
+base_commit: 261221bbd27460d9b9223db6f250eade85ca35a7^
+head_commit: 261221bbd27460d9b9223db6f250eade85ca35a7
+fix_commit: 261221bbd27460d9b9223db6f250eade85ca35a7
 category: logic
-difficulty: easy
-severity: low
+difficulty: medium
+severity: high
 language: rust
 pr_size: tiny
-description: Three comments contained incorrect or misleading information. In handshake.rs,
-  the comment described wrong logic for the trusted-peer/allow_external_peers check.
-  In gateway.rs, a vestigial reference to 'router' remained instead of 'gateway'.
-  In start.rs, the doc comment failed to clarify that Client and Prover nodes ignore
-  the allow_external_peers flag.
+description: The fork point check used the parent hash instead of the latest received
+  block hash when scanning for forks to revert. This caused the node to revert and
+  end up on the same chain in fresh-fork scenarios off old canonical blocks, effectively
+  making fork resolution ineffective. The fix changes the fork path lookup to use
+  the correct hash.
 expected_findings:
-- file: node/router/src/handshake.rs
-  line: 318
-  summary: 'Comment states incorrect logic: the condition description for peer trust
-    and allow_external_peers does not match the actual code behavior.'
-- file: node/bft/src/gateway.rs
-  line: 904
-  summary: Vestigial comment references 'router' instead of 'gateway'; should read
-    'Process a heartbeat in the gateway.'
-- file: cli/src/commands/start.rs
-  line: 110
-  summary: 'Doc comment is misleading: only says validators respect allow_external_peers,
-    but should clarify that Client and Prover nodes always allow untrusted peers regardless
-    of this flag.'
+- file: consensus/src/consensus/inner/commit.rs
+  line: 56
+  summary: Fork path lookup uses wrong hash (parent hash instead of latest received
+    block hash), causing reversion to land on the same chain in fresh-fork scenarios
+    off old canon blocks
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

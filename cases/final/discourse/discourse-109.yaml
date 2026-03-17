@@ -1,0 +1,34 @@
+id: discourse-109
+repo: discourse/discourse
+base_commit: e986ed884390a84494ee43b31538928b4a176a21^
+head_commit: e986ed884390a84494ee43b31538928b4a176a21
+fix_commit: e986ed884390a84494ee43b31538928b4a176a21
+category: incomplete
+difficulty: easy
+severity: medium
+language: ruby
+pr_size: medium
+description: The email styling code in Discourse handled various onebox types but
+  did not convert user profile oneboxes to a table-based layout compatible with email
+  clients. Email clients have limited CSS support (no flexbox/grid), causing user
+  profile cards to render poorly. The fix adds a dedicated conversion step that restructures
+  user oneboxes into an HTML table layout with inline styles.
+expected_findings:
+- file: lib/email/styles.rb
+  line: 159
+  summary: 'User onebox styling is missing from onebox_styles: other onebox types
+    get email-compatible transformations (inline avatars, GitHub excerpts, quote blocks),
+    but .user-onebox elements are not converted to a table layout, causing broken
+    rendering in email clients that lack CSS flexbox/grid support.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

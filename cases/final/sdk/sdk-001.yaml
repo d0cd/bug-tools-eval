@@ -1,30 +1,31 @@
 id: sdk-001
 repo: ProvableHQ/sdk
-base_commit: 786939b2fa467771e72ad078578c8cb48e217238^
-head_commit: 786939b2fa467771e72ad078578c8cb48e217238
-fix_commit: 786939b2fa467771e72ad078578c8cb48e217238
-category: api
+base_commit: 012a10db496f884ecbbb385a50617cd5dd3049b1^
+head_commit: 012a10db496f884ecbbb385a50617cd5dd3049b1
+fix_commit: 012a10db496f884ecbbb385a50617cd5dd3049b1
+category: api-misuse
 difficulty: easy
-severity: medium
+severity: low
 language: javascript
 pr_size: small
-description: The Amplitude API key environment variable was not being passed through
-  to the webpack build. Webpack does not automatically expose process.env variables
-  like Vite does, so the key was undefined at runtime. The fix adds the dotenv package
-  and uses webpack.DefinePlugin to inject VITE_AMPLITUDE_API_KEY into the bundle.
+description: Automated Dependabot PR bumping snarkvm-utilities from 0.0.5 to 0.0.6.
+  The change updates the dependency version in Cargo.toml and rust/account/Cargo.toml,
+  with corresponding Cargo.lock changes. No actual bug fix or code change is involved
+  — this is a routine dependency version bump.
 expected_findings:
-- file: website/webpack.config.js
-  line: 1
-  summary: 'Missing webpack import and DefinePlugin configuration: environment variables
-    like VITE_AMPLITUDE_API_KEY are not injected into the bundle, so process.env references
-    will be undefined at runtime.'
-- file: website/src/index.jsx
-  line: 8
-  summary: Reading process.env.VITE_AMPLITUDE_API_KEY without ensuring webpack DefinePlugin
-    injects it; this will be undefined in the webpack build.
-- file: website/package.json
-  line: 42
-  summary: Missing dotenv dependency needed to load .env files for webpack builds.
+- file: Cargo.toml
+  line: 39
+  summary: Dependency version bump for snarkvm-utilities from 0.0.5 to 0.0.6; reviewer
+    should verify compatibility with other snarkvm-* crates still pinned at 0.0.5
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

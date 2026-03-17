@@ -1,31 +1,39 @@
 id: snarkVM-010
 repo: ProvableHQ/snarkVM
-base_commit: 7787e6e694ec25758b4b7f4fcae9be87fd5e77fa^
-head_commit: 8b13264de6bf97c00103973245c8b54f91be75e9
-fix_commit: 7787e6e694ec25758b4b7f4fcae9be87fd5e77fa
+base_commit: 0cb76e24472e46862f05f419b28a37b5b3f352bf^
+head_commit: 0cb76e24472e46862f05f419b28a37b5b3f352bf
+fix_commit: 0cb76e24472e46862f05f419b28a37b5b3f352bf
 category: logic
 difficulty: easy
-severity: high
+severity: low
 language: rust
-pr_size: medium
-description: The REST query client automatically detected and appended an API version
-  string (e.g., '/v2') to the base URL, forcing all queries to use v2 even when not
-  intended. After backwards compatibility was added to REST API v1, this automatic
-  version appending became incorrect. The fix removes the version-detection-and-append
-  logic from the constructors, letting users control the base URL directly.
+pr_size: large
+description: This PR introduces the ModChecked and ModWrapped traits along with console
+  and circuit implementations for mod and mod.w instructions on unsigned integers.
+  It is a pure feature addition (210+ lines added, 1 removed) with no discernible
+  bug fix — the single removed line is likely a minor adjustment to accommodate the
+  new module declarations.
 expected_findings:
-- file: ledger/query/src/query/rest.rs
-  line: 33
-  summary: Constructor automatically appends API version to base_url before storing
-    it, forcing all queries to target v2 regardless of user intent
-- file: ledger/query/src/query/rest.rs
-  line: 154
-  summary: "Same automatic API version appending in FromStr/From constructor \u2014\
-    \ base_url is modified before being stored"
-- file: ledger/query/src/query/rest.rs
-  line: 185
-  summary: "Same automatic API version appending in another constructor path \u2014\
-    \ base_url is modified before being stored"
+- file: console/types/integers/src/arithmetic.rs
+  line: 296
+  summary: New Modulo trait implementation for integers — verify division-by-zero
+    handling and that floored remainder semantics are correct for all unsigned integer
+    widths
+  line_side: pre_fix
+- file: circuit/types/integers/src/modulo.rs
+  line: 1
+  summary: 'Circuit-level modulo constraints — verify soundness: the witness computation
+    must be fully constrained to prevent a malicious prover from providing arbitrary
+    results'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

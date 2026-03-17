@@ -1,21 +1,30 @@
 id: snarkOS-079
 repo: ProvableHQ/snarkOS
-base_commit: 9724521cc0c52d4acc3e13cbaabf20c530c34c00^
-head_commit: 9724521cc0c52d4acc3e13cbaabf20c530c34c00
-fix_commit: 9724521cc0c52d4acc3e13cbaabf20c530c34c00
-category: api
+base_commit: 6c27ecf29ea12676d369c244aa727c57ed0d1a83^
+head_commit: 6c27ecf29ea12676d369c244aa727c57ed0d1a83
+fix_commit: 6c27ecf29ea12676d369c244aa727c57ed0d1a83
+category: style
 difficulty: easy
 severity: low
 language: rust
 pr_size: tiny
-description: A test module in src/rpc/rpc.rs had an incorrect or outdated import statement,
-  likely referencing a moved or renamed symbol. The fix corrected the import path
-  so that the test module compiles and runs properly.
+description: The startup prompt message in the node initialization was updated. The
+  println! macro displaying the node type and network name was modified, likely to
+  correct or improve the user-facing startup message text.
 expected_findings:
-- file: src/rpc/rpc.rs
-  line: 0
-  summary: 'Incorrect import in test module: references a wrong or outdated path/symbol
-    that should be updated to match the current module structure'
+- file: src/node.rs
+  line: 140
+  summary: Startup println! message uses incorrect or outdated format string for displaying
+    node type and network name
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,22 +1,32 @@
 id: snarkOS-078
 repo: ProvableHQ/snarkOS
-base_commit: 06bf60fac42824fc487ee9ab096149b242fc01b1^
-head_commit: 06bf60fac42824fc487ee9ab096149b242fc01b1
-fix_commit: 06bf60fac42824fc487ee9ab096149b242fc01b1
-category: logic
-difficulty: hard
-severity: medium
+base_commit: 6bfce605ba610dd732fc2790f4f98830da36cdb1^
+head_commit: 6bfce605ba610dd732fc2790f4f98830da36cdb1
+fix_commit: 6bfce605ba610dd732fc2790f4f98830da36cdb1
+category: api-misuse
+difficulty: medium
+severity: high
 language: rust
-pr_size: xl
-description: Large refactoring PR that migrates modules from snarkVM, modularizes
-  node logic for node types, and introduces prover logic. No diff is available and
-  the PR description does not describe a specific bug fix, making classification unreliable.
-  The 'fix' keyword signal may refer to incidental fixes within the broader refactor.
+pr_size: small
+description: The GroupEncryption PublicKey FromBytes implementation incorrectly read
+  the affine x-coordinate when deserializing. The fix corrects the deserialization
+  logic to properly read the x-coordinate and reconstruct the affine point, ensuring
+  round-trip serialization consistency.
 expected_findings:
-- file: cli/src/commands/start.rs
-  line: 1
-  summary: "Unable to identify specific bug location \u2014 no diff available and\
-    \ PR is a large-scale refactor/migration rather than a targeted bug fix"
+- file: algorithms/src/encryption/group.rs
+  line: 29
+  summary: 'Incorrect FromBytes deserialization: from_x_coordinate is called on raw
+    bytes without properly reading the affine x-coordinate first, breaking round-trip
+    serialization of the public key'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

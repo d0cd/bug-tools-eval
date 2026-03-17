@@ -1,22 +1,42 @@
 id: leo-076
 repo: ProvableHQ/leo
-base_commit: 1096a751b7ff66af5b0fc71a2d40cab877b6e61b^
-head_commit: 1096a751b7ff66af5b0fc71a2d40cab877b6e61b
-fix_commit: 1096a751b7ff66af5b0fc71a2d40cab877b6e61b
-category: perf
+base_commit: 4ac6cbc662945eed5c56e1b8b656e37e07c48522^
+head_commit: 4ac6cbc662945eed5c56e1b8b656e37e07c48522
+fix_commit: 4ac6cbc662945eed5c56e1b8b656e37e07c48522
+category: style
 difficulty: easy
 severity: low
 language: rust
-pr_size: tiny
-description: The block reconstruction pipeline in `remove_unreachable.rs` applied
-  `.filter_map(Some)` after `.scan(...)`, which is a no-op since `scan` already yields
-  only `Some` values (stopping at the first `None`). The fix removes the redundant
-  `filter_map(Some)` call, eliminating an unnecessary extra iteration over the stream.
+pr_size: small
+description: 'Documentation-only fix: corrects typos in errors/README.md and span
+  source files, and moves a misplaced doc comment (''The content of the file between
+  the above boundaries.'') that was attached to the wrong struct fields in span.rs.
+  The same incorrect doc comment was duplicated across multiple locations.'
 expected_findings:
-- file: compiler/passes/src/remove_unreachable.rs
-  line: 110
-  summary: Redundant `.filter_map(Some)` after `.scan()` is a no-op that adds an unnecessary
-    iteration pass; `scan` already strips `None` values.
+- file: span/src/span.rs
+  line: 38
+  summary: 'Misplaced doc comment: ''/// The content of the file between the above
+    boundaries.'' does not accurately describe this field; it belongs on a different
+    field or should be removed.'
+  line_side: pre_fix
+- file: span/src/span.rs
+  line: 96
+  summary: 'Duplicate misplaced doc comment: same incorrect ''/// The content of the
+    file between the above boundaries.'' attached to wrong field.'
+  line_side: pre_fix
+- file: span/src/span_json.rs
+  line: 23
+  summary: Doc comment about tuple-like enum variants containing spans is misplaced
+    or inaccurate for this location.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

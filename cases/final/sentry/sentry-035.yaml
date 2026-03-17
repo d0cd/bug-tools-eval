@@ -1,26 +1,45 @@
 id: sentry-035
 repo: getsentry/sentry
-base_commit: 14fab614013c03320888d19e160781c9e8c7f817^
-head_commit: 14fab614013c03320888d19e160781c9e8c7f817
-fix_commit: 14fab614013c03320888d19e160781c9e8c7f817
-category: logic
+base_commit: 2a2ebfe0e9b1fa477fbdedc27b6b0b9cf37eb844^
+head_commit: 2a2ebfe0e9b1fa477fbdedc27b6b0b9cf37eb844
+fix_commit: 2a2ebfe0e9b1fa477fbdedc27b6b0b9cf37eb844
+category: api-misuse
 difficulty: medium
 severity: high
 language: typescript
 pr_size: medium
-description: 'Widget layouts created via external tools (e.g. LLMs) could have dimensions
-  exceeding the 6-column grid maximum (e.g. w: 12). These out-of-bounds values caused
-  an infinite re-render loop in react-grid-layout when entering edit mode, crashing
-  the browser. The fix adds a clampWidgetLayout() function to normalize dimensions
-  before they reach the grid library.'
+description: Duration formatting functions in the alerts chart code assumed all duration
+  values were in milliseconds, but metrics can report durations in other units (days,
+  weeks, etc.). This caused incorrect rendering of y-axis labels and tooltips. The
+  fix normalizes the incoming duration to milliseconds before passing it to the formatting
+  helpers that expect ms input.
 expected_findings:
-- file: static/app/views/dashboards/layoutUtils.tsx
-  line: 67
-  summary: 'Missing bounds validation: widget layout dimensions (w, x) are passed
-    to react-grid-layout without clamping to the NUM_DESKTOP_COLS maximum, allowing
-    values like w:12 on a 6-column grid which triggers an infinite re-render loop'
+- file: static/app/utils/discover/charts.tsx
+  line: 59
+  summary: Duration value passed to formatting helper without normalizing to milliseconds
+    first — if the data unit is not 'millisecond', the formatter will misinterpret
+    the value, producing wildly incorrect labels
+  line_side: pre_fix
+- file: static/app/views/alerts/rules/metric/triggers/chart/thresholdsChart.tsx
+  line: 246
+  summary: dataUnit is read from timeseriesResultsUnits but not used to convert the
+    duration to ms before formatting — tooltip will display incorrect duration when
+    unit is not milliseconds
+  line_side: pre_fix
+- file: static/app/views/alerts/rules/metric/triggers/chart/thresholdsChart.tsx
+  line: 346
+  summary: 'Same unit-normalization gap: yAxis formatter receives raw value in the
+    original unit but downstream helper assumes milliseconds, causing incorrect axis
+    labels'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

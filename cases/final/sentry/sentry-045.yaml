@@ -1,25 +1,34 @@
 id: sentry-045
 repo: getsentry/sentry
-base_commit: 3512adc453b0458d22d2e9a98bf9742aececeba7^
-head_commit: 3512adc453b0458d22d2e9a98bf9742aececeba7
-fix_commit: 3512adc453b0458d22d2e9a98bf9742aececeba7
+base_commit: 3894ee581ea20d71961cc565c67e5132cb6f3f15^
+head_commit: 3894ee581ea20d71961cc565c67e5132cb6f3f15
+fix_commit: 3894ee581ea20d71961cc565c67e5132cb6f3f15
 category: logic
 difficulty: easy
-severity: medium
-language: python
+severity: high
+language: typescript
 pr_size: tiny
-description: The `get_autofix_explorer_status` function returned `False` when the
-  create-PR step had not been started, but `False` was already used to mean 'started
-  but not finished.' This caused callers to misinterpret the state. The fix changes
-  the not-started return value to `None` to correctly distinguish the two states.
+description: The comparison data download query fires as soon as metric IDs are available,
+  without waiting for the async comparison task to reach SUCCESS state. This causes
+  the query to hit a 404, cache the error via React Query, and never re-fire when
+  the comparison actually completes — leaving the user with a permanent 'Comparison
+  not found' error. The fix gates the download query's `enabled` flag on `mainArtifactComparison?.state
+  === SizeAnalysisComparisonState.SUCCESS`.
 expected_findings:
-- file: src/sentry/seer/entrypoints/operator.py
-  line: 583
-  summary: 'Wrong return value: returns False (meaning ''started but not finished'')
-    when the create-PR step was never started; should return None to indicate ''not
-    started'''
+- file: static/app/views/preprod/buildComparison/main/sizeCompareMainContent.tsx
+  line: 109
+  summary: 'Missing state guard: download query `enabled` condition checks only for
+    baseArtifactId presence but does not verify comparison state is SUCCESS, causing
+    premature fetch that caches a 404 error'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

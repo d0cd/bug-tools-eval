@@ -1,21 +1,44 @@
 id: leo-197
 repo: ProvableHQ/leo
-base_commit: 465499529abb51d75e2d1cb825a0d3d8a0d3d901^
-head_commit: 465499529abb51d75e2d1cb825a0d3d8a0d3d901
-fix_commit: 465499529abb51d75e2d1cb825a0d3d8a0d3d901
-category: api
-difficulty: easy
-severity: medium
+base_commit: c6ea9ad06109f30e20503e665f8b71f828b7edfc^
+head_commit: c6ea9ad06109f30e20503e665f8b71f828b7edfc
+fix_commit: c6ea9ad06109f30e20503e665f8b71f828b7edfc
+category: logic
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: The committee query command used an incorrect API endpoint string. The
-  fix corrects the endpoint path in the committee query handler to point to the proper
-  route (e.g., fixing the path from an incorrect string to 'committee/latest').
+pr_size: medium
+description: Comparing two values with mismatched types in relational operators (eq,
+  ge, gt, le, lt) caused a stack overflow. The error formatting used `{:?}` (Debug
+  trait) on synthesis errors, which triggered infinite recursion. The fix changes
+  error formatting from `{:?}` to `{}` (Display trait) across all error types and
+  adds a proper type-mismatch error path in relational operators.
 expected_findings:
-- file: leo/cli/commands/query/committee.rs
-  line: 35
-  summary: 'Incorrect API endpoint string: the committee query endpoint path is wrong,
-    causing the query to hit a non-existent or incorrect route.'
+- file: compiler/src/expression/relational/eq.rs
+  line: 102
+  summary: map_err formats the synthesis error with Debug (`{:?}`), which causes infinite
+    recursion (stack overflow) when the constraint system produces an error from mismatched
+    types. Should use Display (`{}`) or return a dedicated type-mismatch error instead.
+  line_side: pre_fix
+- file: compiler/src/expression/relational/ge.rs
+  line: 52
+  summary: 'Same stack overflow pattern: map_err uses ExpressionError::cannot_evaluate
+    which formats with `{:?}`, causing infinite recursion on synthesis errors from
+    mismatched types.'
+  line_side: pre_fix
+- file: compiler/src/errors/value/boolean.rs
+  line: 38
+  summary: Error message formats synthesis error with `{:?}` (Debug), which can trigger
+    recursive formatting and stack overflow. Should use `{}` (Display).
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

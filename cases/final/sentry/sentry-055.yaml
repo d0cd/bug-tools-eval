@@ -1,30 +1,33 @@
 id: sentry-055
 repo: getsentry/sentry
-base_commit: 927fddeb8a471181b823292b014c4580b2a2b753^
-head_commit: 927fddeb8a471181b823292b014c4580b2a2b753
-fix_commit: 927fddeb8a471181b823292b014c4580b2a2b753
-category: logic
-difficulty: medium
+base_commit: 43316928197488059feaaaf5aaeabebc4003017b^
+head_commit: 43316928197488059feaaaf5aaeabebc4003017b
+fix_commit: 43316928197488059feaaaf5aaeabebc4003017b
+category: api-misuse
+difficulty: easy
 severity: high
 language: python
-pr_size: small
-description: The IPv6 regex pattern used for message parameterization in grouping
-  was too permissive, matching `::` syntax from C++, Rust, and Ruby (e.g., `SomeClass::someMethod`)
-  as valid IPv6 addresses. The fix adds negative lookbehind and lookahead assertions
-  around IPv6 patterns to ensure only valid IPv6 characters can appear adjacent to
-  matches.
+pr_size: tiny
+description: The frontend defines `DisplayType.AGENTS_TRACES_TABLE = 'agents_traces_table'`
+  but the backend `DashboardWidgetDisplayTypes` enum lacks this value. Since the DRF
+  serializer validates against `as_text_choices()`, any attempt to save a widget with
+  display type `agents_traces_table` is rejected as an invalid choice, breaking the
+  AI Agents Overview dashboard.
 expected_findings:
-- file: src/sentry/grouping/parameterization.py
-  line: 57
-  summary: 'IPv6 regex pattern missing boundary guards: `::` alone is valid IPv6,
-    so patterns like `SomeClass::someMethod` falsely match as IP addresses. Needs
-    negative lookbehind/lookahead to reject non-IPv6 characters adjacent to the match.'
-- file: src/sentry/grouping/parameterization.py
-  line: 78
-  summary: Second IPv6 regex pattern also lacks boundary guards, causing the same
-    false-positive parameterization of language-level `::` syntax as IP addresses.
+- file: src/sentry/models/dashboard_widget.py
+  line: 1
+  summary: Missing `AGENTS_TRACES_TABLE` entry in `DashboardWidgetDisplayTypes` enum
+    causes serializer to reject the `agents_traces_table` display type that the frontend
+    already sends
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110365
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

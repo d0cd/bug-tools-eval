@@ -1,24 +1,40 @@
 id: snarkOS-022
 repo: ProvableHQ/snarkOS
-base_commit: 2a08aa75069abfd7252748b036ac17bdf99be4df^
-head_commit: 2a08aa75069abfd7252748b036ac17bdf99be4df
-fix_commit: 2a08aa75069abfd7252748b036ac17bdf99be4df
-category: logic
-difficulty: medium
-severity: high
+base_commit: 24940b4bee42c9b4d0b3f25f8ada343a6415f0c3^
+head_commit: 24940b4bee42c9b4d0b3f25f8ada343a6415f0c3
+fix_commit: 24940b4bee42c9b4d0b3f25f8ada343a6415f0c3
+category: style
+difficulty: easy
+severity: low
 language: rust
 pr_size: small
-description: The quorum check for BFT round advancement was using the current (next)
-  round instead of the previous round. When deciding whether to advance from round
-  R to R+1, the code checked for a quorum of certificates at round R+1 (which doesn't
-  exist yet) instead of round R. The bug was partially masked because validators have
-  multiple code paths for round advancement.
+description: Documentation comments in the BFT sync module contained incorrect references
+  (e.g., referring to 'blocks' where 'certificates' or 'DAG' terminology was appropriate)
+  and lacked sufficient explanation of the DAG-based block syncing complexity. The
+  fix corrects these references and extends the documentation.
 expected_findings:
-- file: node/bft/src/primary.rs
-  line: 1360
-  summary: 'Wrong round used for quorum check: `current_round` refers to the round
-    being advanced TO (R+1), but the quorum of certificates should be checked at the
-    previous round (R). Should use `current_round - 1` or equivalent.'
+- file: node/bft/src/sync/mod.rs
+  line: 61
+  summary: Documentation comment uses incorrect terminology or is missing explanation
+    for DAG-based sync behavior
+  line_side: pre_fix
+- file: node/bft/src/sync/mod.rs
+  line: 417
+  summary: Documentation comment contains incorrect reference to 'blocks' where DAG/certificate
+    terminology is appropriate
+  line_side: pre_fix
+- file: node/bft/src/sync/mod.rs
+  line: 483
+  summary: Documentation comment has incorrect or incomplete description of sync logic
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

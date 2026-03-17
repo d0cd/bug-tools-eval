@@ -1,23 +1,44 @@
 id: leo-091
 repo: ProvableHQ/leo
-base_commit: 913edb322dba0a49ddc0551a28aada7090f46ee9^
-head_commit: 913edb322dba0a49ddc0551a28aada7090f46ee9
-fix_commit: 913edb322dba0a49ddc0551a28aada7090f46ee9
-category: logic
-difficulty: easy
-severity: medium
+base_commit: 5cc6a06e2d97ae995e5fdc1e3b7f41601bb16b35^
+head_commit: 5cc6a06e2d97ae995e5fdc1e3b7f41601bb16b35
+fix_commit: 5cc6a06e2d97ae995e5fdc1e3b7f41601bb16b35
+category: api-misuse
+difficulty: medium
+severity: critical
 language: rust
-pr_size: tiny
-description: An extra leading slash in the stateRoot URL path caused double-slash
-  URLs like `http://localhost:3030/testnet//stateRoot/latest`, resulting in 404 errors.
-  The fix removes the leading slash from the path string to be consistent with other
-  query endpoints.
+pr_size: medium
+description: The compiler panicked with 'called Option::unwrap() on a Err value' when
+  a loop iteration bound literal was too large for its integer type (e.g., a value
+  exceeding u8::MAX used as a u8 bound). The Literal::Integer to Value conversion
+  used .unwrap() on an integer parse result without handling the error case. The fix
+  adds proper error propagation via ParseIntError in the value conversion and validates
+  iteration bound literals in the type checker before attempting conversion.
 expected_findings:
-- file: leo/cli/commands/query/state_root.rs
-  line: 35
-  summary: 'Extra leading slash in URL path: `"/stateRoot/latest"` produces a double-slash
-    when concatenated with the base URL. Should be `"stateRoot/latest"` to match other
-    query endpoints.'
+- file: compiler/ast/src/value/mod.rs
+  line: 865
+  summary: Unsafe .unwrap() on integer parse result in Literal::Integer to Value conversion.
+    If the literal string is too large for the target integer type, this panics instead
+    of returning a proper error.
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_statements.rs
+  line: 349
+  summary: Missing validation that iteration start-bound literal value fits within
+    the declared integer type before converting Literal to Value.
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_statements.rs
+  line: 366
+  summary: Missing validation that iteration stop-bound literal value fits within
+    the declared integer type before converting Literal to Value.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

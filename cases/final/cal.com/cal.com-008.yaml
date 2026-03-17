@@ -1,0 +1,32 @@
+id: cal.com-008
+repo: calcom/cal.com
+base_commit: 13840764fb5897b926afa14f0067b2c6cb0562ce^
+head_commit: 13840764fb5897b926afa14f0067b2c6cb0562ce
+fix_commit: 13840764fb5897b926afa14f0067b2c6cb0562ce
+category: api-misuse
+difficulty: easy
+severity: medium
+language: unknown
+pr_size: tiny
+description: 'PR #27248 changed the draft-release workflow to use `gh auth login`
+  with a token for the commit step, but this approach did not work correctly in the
+  GitHub Actions CI environment. This revert removes the problematic authentication
+  change, restoring the previous working method.'
+expected_findings:
+- file: .github/workflows/draft-release.yml
+  line: 94
+  summary: Incorrect use of `gh auth login` with token for the commit step; this authentication
+    method does not work as expected in this CI context and should be reverted to
+    the previous approach
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

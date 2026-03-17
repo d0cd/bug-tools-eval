@@ -1,30 +1,33 @@
 id: leo-044
 repo: ProvableHQ/leo
-base_commit: 4ac6cbc662945eed5c56e1b8b656e37e07c48522^
-head_commit: 4ac6cbc662945eed5c56e1b8b656e37e07c48522
-fix_commit: 4ac6cbc662945eed5c56e1b8b656e37e07c48522
-category: logic
-difficulty: easy
-severity: low
+base_commit: 29fa7cf19ee3ebb451791c0ed3c38cba436f89ad^
+head_commit: 29fa7cf19ee3ebb451791c0ed3c38cba436f89ad
+fix_commit: 29fa7cf19ee3ebb451791c0ed3c38cba436f89ad
+category: type
+difficulty: medium
+severity: high
 language: rust
 pr_size: small
-description: Several doc comments in span.rs were misplaced, describing 'the content
-  of the file between the above boundaries' on the wrong struct fields. Additionally,
-  typos in errors/README.md (incorrect path) and span_json.rs (misplaced doc comment)
-  were corrected.
+description: The ASG binary expression type-checking for the Add operator incorrectly
+  handled Field and Group types, preventing valid field+field and group+group addition
+  from compiling. The pattern match in the type-resolution logic likely fell through
+  or returned an incorrect partial type, causing type errors on legal arithmetic expressions.
 expected_findings:
-- file: span/src/span.rs
-  line: 38
-  summary: 'Misplaced doc comment: ''/// The content of the file between the above
-    boundaries.'' is attached to the wrong field or is inaccurate for the item it
-    documents.'
-- file: span/src/span_json.rs
-  line: 23
-  summary: 'Misplaced doc comment: comment about tuple-like enum variants containing
-    spans is on the wrong item.'
-- file: errors/README.md
-  line: 13
-  summary: 'Typo in path reference: incorrect relative path to the span module file.'
+- file: asg/src/expression/binary.rs
+  line: 134
+  summary: 'Type resolution for Add on Field/Group types is incorrect: the pattern
+    match arm `Some(x @ PartialType::Type(Type::Field)) => Some(x)` does not properly
+    handle field and group addition, causing valid additions to be rejected by the
+    type checker.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

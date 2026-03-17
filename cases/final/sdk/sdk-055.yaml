@@ -1,28 +1,36 @@
 id: sdk-055
 repo: ProvableHQ/sdk
-base_commit: dbe60ca6b879b9439fa8f48e2e2c22e218ce7113^
-head_commit: dbe60ca6b879b9439fa8f48e2e2c22e218ce7113
-fix_commit: dbe60ca6b879b9439fa8f48e2e2c22e218ce7113
-category: api
+base_commit: fbd1b92a442b9334ea8d2b3b62390411ecc817c4^
+head_commit: fbd1b92a442b9334ea8d2b3b62390411ecc817c4
+fix_commit: fbd1b92a442b9334ea8d2b3b62390411ecc817c4
+category: incomplete
 difficulty: easy
-severity: high
-language: typescript
+severity: medium
+language: rust
 pr_size: medium
-description: The AleoNetworkClient automatically adds a default `X-Aleo-SDK-Version`
-  header on initialization with no way to remove or override it. When ProgramManager
-  constructs the network client, this non-standard header triggers CORS preflight
-  failures in browser environments. The fix adds setHeader/removeHeader methods and
-  an optional headers parameter to ProgramManager's constructor.
+description: A prior change removed benchmark files from the Rust SDK but did not
+  update the benchmark CI workflow, causing CI failures. This PR restores the benchmark
+  source files (account.rs, private_key_encryption.rs) and their Cargo.toml declarations
+  to fix the broken benchmark collection step in GitHub Actions.
 expected_findings:
-- file: sdk/src/network-client.ts
-  line: 37
-  summary: Constructor sets default `X-Aleo-SDK-Version` header with no mechanism
-    to remove or override it after construction, causing CORS issues in browser contexts.
-- file: sdk/src/program-manager.ts
-  line: 90
-  summary: ProgramManager constructor creates AleoNetworkClient without exposing header
-    configuration, propagating the CORS-triggering default header with no way for
-    callers to control it.
+- file: rust/Cargo.toml
+  line: 17
+  summary: 'Missing [[bench]] declarations: benchmark targets were removed from Cargo.toml
+    but CI still expects to collect and run benchmarks, causing CI failure'
+  line_side: pre_fix
+- file: rust/benches/account.rs
+  line: 1
+  summary: Benchmark source file was deleted in a prior commit but is still referenced
+    by CI benchmark collection workflow
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

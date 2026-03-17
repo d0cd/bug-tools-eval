@@ -1,23 +1,42 @@
 id: leo-047
 repo: ProvableHQ/leo
-base_commit: 9af730e8ee917e4cb04307b7532d846fc3b47b5a^
-head_commit: 9af730e8ee917e4cb04307b7532d846fc3b47b5a
-fix_commit: 9af730e8ee917e4cb04307b7532d846fc3b47b5a
-category: logic
+base_commit: 2ddb474dce042b730538d2e0029998e3a9a11de2^
+head_commit: 2ddb474dce042b730538d2e0029998e3a9a11de2
+fix_commit: 2ddb474dce042b730538d2e0029998e3a9a11de2
+category: incomplete
 difficulty: medium
 severity: medium
-language: rust
-pr_size: small
-description: "Function input types were only partially canonicalized \u2014 the `Self`\
-  \ type replacement in function inputs did not recurse into compound types like arrays\
-  \ (`[Self; 3]`) or tuples (`(Self)`). The fix ensures `canonicalize_self_type` properly\
-  \ handles these nested type constructs for function parameters."
+language: leo
+pr_size: xl
+description: The Leo circuit grammar did not enforce member variable ordering before
+  member functions, and lacked support for semicolons/commas after member variables.
+  The fix updates the parser grammar but the author explicitly notes a 'hacky fix'
+  for optional trailing commas and that semicolons and commas can be mixed, suggesting
+  the grammar change is not fully rigorous.
 expected_findings:
-- file: ast-passes/src/canonicalization/canonicalizer.rs
-  line: 470
-  summary: 'Incomplete canonicalization: `canonicalize_self_type` is called on the
-    function input''s type but does not recurse into array or tuple type variants,
-    leaving `Self` references unresolved in compound types.'
+- file: asg/tests/pass/form_ast.rs
+  line: 58
+  summary: Circuit member variable syntax changed from comma-separated to semicolon-terminated;
+    verify the AST formation test covers both delimiters and rejects invalid mixes
+  line_side: pre_fix
+- file: asg/tests/pass/circuits/member_variable_and_function.leo
+  line: 1
+  summary: Circuit grammar now requires member variables before member functions —
+    verify parser enforces ordering and rejects interleaved declarations
+  line_side: pre_fix
+- file: asg/tests/pass/circuits/pedersen_mock.leo
+  line: 1
+  summary: Array-typed member variable with new semicolon syntax — confirm parser
+    handles complex types with the new delimiter correctly
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

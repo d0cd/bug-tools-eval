@@ -1,24 +1,32 @@
 id: leo-136
 repo: ProvableHQ/leo
-base_commit: 1667447d1a97f3c74bf0d0e81e844896964b45a4^
-head_commit: 1667447d1a97f3c74bf0d0e81e844896964b45a4
-fix_commit: 1667447d1a97f3c74bf0d0e81e844896964b45a4
+base_commit: 8ac669f71d52808114a415dcbbd002aa2e5a590f^
+head_commit: 8ac669f71d52808114a415dcbbd002aa2e5a590f
+fix_commit: 8ac669f71d52808114a415dcbbd002aa2e5a590f
 category: logic
 difficulty: medium
-severity: medium
-language: leo
-pr_size: small
-description: The Leo parser's import path resolution used `expect_ident()` which only
-  accepted standard identifiers without dashes. This caused imports from directories
-  or files containing dashes in their names to fail. The fix extends the member access
-  parsing in `file.rs` to consume dash-separated tokens and concatenate them into
-  a valid path segment.
+severity: high
+language: rust
+pr_size: tiny
+description: When recursively parsing imports, the parser used `Self::default()` to
+  create a fresh import parser, losing track of already-visited imports. This caused
+  infinite recursion on circular import graphs. The fix changes it to `self.clone()`
+  so the parser carries forward the set of already-seen imports and can detect cycles.
 expected_findings:
-- file: parser/src/parser/file.rs
-  line: 173
-  summary: Parser uses expect_ident() for import path segments, which rejects dashes.
-    Should be extended to consume and concatenate dash-separated tokens (e.g., 'c-d')
-    to support folder/file names with dashes.
+- file: imports/src/parser/import_parser.rs
+  line: 55
+  summary: Using `Self::default()` here discards the set of already-visited imports,
+    so circular/recursive imports will recurse infinitely. Should use `self.clone()`
+    to propagate visited-import state and detect cycles.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

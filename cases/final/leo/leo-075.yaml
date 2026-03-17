@@ -1,32 +1,43 @@
 id: leo-075
 repo: ProvableHQ/leo
-base_commit: 3933fa805efb239f10fad68455b56fab75bdcc2b^
-head_commit: 3933fa805efb239f10fad68455b56fab75bdcc2b
-fix_commit: 3933fa805efb239f10fad68455b56fab75bdcc2b
-category: api
+base_commit: 4a7b0621754206b6aba859fcf6f710b24eb29ebb^
+head_commit: 4a7b0621754206b6aba859fcf6f710b24eb29ebb
+fix_commit: 4a7b0621754206b6aba859fcf6f710b24eb29ebb
+category: type
 difficulty: medium
 severity: high
 language: rust
-pr_size: small
-description: Duplicate `#[clap(flatten)]` of `EnvOptions` in both the parent `LeoDevnode`
-  command and its `Start`/`Advance` subcommands. Because `EnvOptions` fields use `global
-  = true`, clap's debug assertions detected duplicate global arg registration, crashing
-  `leo devnode start` in debug builds. The fix removes the redundant flatten from
-  the subcommands and threads the private key from the parent's `EnvOptions` through
-  the `Input` associated type.
+pr_size: medium
+description: The Leo compiler's type checking used strict equality (`eq_flat`) for
+  type comparisons, which failed when futures appeared inside tuples. The fix introduces
+  `eq_flat_relaxed`, a relaxed type equality method that properly handles non-explicit
+  futures and structs with differing program origins, and applies it across the type
+  checker, flattening pass, and symbol table.
 expected_findings:
-- file: leo/cli/commands/devnode/start.rs
-  line: 41
-  summary: Duplicate `#[clap(flatten)]` of `EnvOptions` here conflicts with the same
-    flatten in the parent `LeoDevnode` command, since `EnvOptions` fields are marked
-    `global = true`. This causes clap to panic on duplicate global arg registration
-    in debug builds.
-- file: leo/cli/commands/devnode/advance.rs
-  line: 24
-  summary: "Duplicate `#[clap(flatten)]` of `EnvOptions` \u2014 same issue as in `start.rs`.\
-    \ The `EnvOptions` is already flattened in the parent `LeoDevnode` struct with\
-    \ `global = true` fields, so flattening again in the subcommand triggers clap's\
-    \ duplicate global arg assertion."
+- file: compiler/passes/src/type_checking/checker.rs
+  line: 174
+  summary: Type equality check uses strict comparison that fails for futures in tuples;
+    should use eq_flat_relaxed to handle non-explicit futures and cross-program struct
+    matching.
+  line_side: pre_fix
+- file: compiler/passes/src/flattening/flatten_expression.rs
+  line: 84
+  summary: Assertion uses strict type equality (eq_flat) which will panic when future
+    types appear in tuples; needs eq_flat_relaxed for relaxed future/struct comparison.
+  line_side: pre_fix
+- file: compiler/passes/src/common/symbol_table/mod.rs
+  line: 119
+  summary: Struct member type comparison uses strict equality that rejects valid future
+    types in tuple members; should use eq_flat_relaxed.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

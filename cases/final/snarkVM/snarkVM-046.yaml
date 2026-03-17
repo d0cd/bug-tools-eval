@@ -1,23 +1,39 @@
 id: snarkVM-046
 repo: ProvableHQ/snarkVM
-base_commit: 6417f781aa791b5ca4c2d549b382c803eb470a39^
-head_commit: 6417f781aa791b5ca4c2d549b382c803eb470a39
-fix_commit: 6417f781aa791b5ca4c2d549b382c803eb470a39
-category: type
-difficulty: easy
-severity: medium
+base_commit: 2eb1d44aec25ff298f6a418dec143a8a50bed0d4^
+head_commit: 2eb1d44aec25ff298f6a418dec143a8a50bed0d4
+fix_commit: 2eb1d44aec25ff298f6a418dec143a8a50bed0d4
+category: security
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: The finalize cost calculation in cost.rs used `.sum()` which does not
-  guard against integer overflow, potentially wrapping around and producing an incorrect
-  (lower) cost value. The fix replaces `.sum()` with `try_fold` combined with `checked_add`
-  to detect and propagate overflow errors instead of silently wrapping.
+pr_size: medium
+description: The `Identifier::from_bits_le` deserialization path in both the console
+  and circuit layers was missing string sanity checks, allowing potentially invalid
+  or malformed identifiers to be constructed by bypassing normal validation. The fix
+  adds UTF-8 and identifier-character validation during bit-level deserialization
+  to match the checks already enforced on other construction paths.
 expected_findings:
-- file: synthesizer/src/vm/helpers/cost.rs
-  line: 199
-  summary: Using `.sum()` on finalize operation costs does not guard against integer
-    overflow; should use `try_fold` with `checked_add` to detect and handle overflow
-    safely.
+- file: console/program/src/data/identifier/from_bits.rs
+  line: 24
+  summary: 'Missing validation: bytes parsed from bits are converted to a string without
+    checking that all characters are valid identifier characters (ASCII alphanumeric/underscore),
+    allowing malformed identifiers through deserialization'
+  line_side: pre_fix
+- file: circuit/program/src/data/identifier/from_bits.rs
+  line: 29
+  summary: 'Missing validation in circuit-level from_bits_le: bits are ejected and
+    converted to bytes without enforcing string sanity constraints, creating a mismatch
+    between construction-time and deserialization-time validation'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

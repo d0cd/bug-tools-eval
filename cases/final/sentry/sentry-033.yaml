@@ -1,28 +1,34 @@
 id: sentry-033
 repo: getsentry/sentry
-base_commit: b7c6f55a9f94bc93828c04f5450e4e9d227191f9^
-head_commit: b7c6f55a9f94bc93828c04f5450e4e9d227191f9
-fix_commit: b7c6f55a9f94bc93828c04f5450e4e9d227191f9
+base_commit: 29ed1dca227d5ebffca53f5fbcbac6c530624483^
+head_commit: 29ed1dca227d5ebffca53f5fbcbac6c530624483
+fix_commit: 29ed1dca227d5ebffca53f5fbcbac6c530624483
 category: logic
-difficulty: easy
+difficulty: medium
 severity: medium
-language: typescript
+language: python
 pr_size: small
-description: Derived grouping enhancement rules were hidden from regular users, likely
-  gated behind a superuser or internal visibility check. The fix removes the conditional
-  hiding so that derived rules are visible to all users in the project issue grouping
-  settings, reducing confusion.
+description: The `resolve_fingerprint_variable` helper unconditionally parameterizes
+  the `{{ message }}` variable value, but this parameterization should only apply
+  when the variable is used for fingerprinting/grouping, not when it's used to build
+  custom event titles via `expand_title_template`. This causes custom titles to display
+  parameterized (sanitized) messages instead of the original human-readable values.
 expected_findings:
-- file: static/app/views/settings/projectIssueGrouping/index.tsx
-  line: 55
-  summary: Derived grouping enhancements section is conditionally hidden from non-superusers;
-    this visibility restriction should be removed so all users can see derived rules
-- file: static/app/data/forms/projectIssueGrouping.tsx
-  line: 101
-  summary: Form field definition for 'Derived Grouping Enhancements' may have a visibility
-    or 'visible' property restricting it to superusers
+- file: src/sentry/grouping/fingerprinting/utils.py
+  line: 338
+  summary: 'Missing parameterize_message guard: `resolve_fingerprint_variable` always
+    parameterizes the message value, but callers building display titles (expand_title_template)
+    need the raw unparameterized message. Should accept and respect a flag to skip
+    parameterization.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

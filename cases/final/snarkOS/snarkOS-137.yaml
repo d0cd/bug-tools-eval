@@ -1,21 +1,33 @@
 id: snarkOS-137
 repo: ProvableHQ/snarkOS
-base_commit: 63d9d3c6942529d06b927e9094152f5664f8fffb^
-head_commit: 63d9d3c6942529d06b927e9094152f5664f8fffb
-fix_commit: 63d9d3c6942529d06b927e9094152f5664f8fffb
-category: logic
+base_commit: b2ac620f4a07947c9e7f5541dfa6874b26e3d624^
+head_commit: 01903406406ba0ac71eb9480bd73d0ad6d0474e5
+fix_commit: b2ac620f4a07947c9e7f5541dfa6874b26e3d624
+category: api-misuse
 difficulty: easy
-severity: medium
+severity: high
 language: rust
-pr_size: tiny
-description: The peer expiry logic in src/network/peers.rs had an incorrect condition
-  or value for determining when peers should be expired. The fix corrected the expiry
-  comparison or timeout calculation to properly remove stale peers.
+pr_size: medium
+description: The logger setup in snarkOS opens a log file via File::options().append(true).create(true).open(logfile)
+  without first ensuring parent directories exist. If the --logfile path contains
+  non-existent intermediate directories, the process panics with 'No such file or
+  directory'. The fix adds std::fs::create_dir_all for the parent directory before
+  opening the file.
 expected_findings:
-- file: src/network/peers.rs
-  line: 0
-  summary: Incorrect expiry condition or timeout value for peer connections causing
-    peers to be expired too early or not expired at all
+- file: cli/src/helpers/logger.rs
+  line: 51
+  summary: 'Missing create_dir_all before File::options().open(): if the logfile path
+    has non-existent parent directories, this will panic. Need to call std::fs::create_dir_all(logfile.parent())
+    first.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

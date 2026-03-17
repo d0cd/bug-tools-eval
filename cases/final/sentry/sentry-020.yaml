@@ -1,28 +1,37 @@
 id: sentry-020
 repo: getsentry/sentry
-base_commit: c86b78c45b65126ebe2eba39177f60b4d3a82565^
-head_commit: c86b78c45b65126ebe2eba39177f60b4d3a82565
-fix_commit: c86b78c45b65126ebe2eba39177f60b4d3a82565
-category: logic
+base_commit: 1b50c3f4dbf805872f18a1320ec47da1743d6df3^
+head_commit: 1b50c3f4dbf805872f18a1320ec47da1743d6df3
+fix_commit: 1b50c3f4dbf805872f18a1320ec47da1743d6df3
+category: style
 difficulty: easy
 severity: medium
 language: typescript
-pr_size: small
-description: The deprecated TOP_N display type used a legacy rendering path that didn't
-  abbreviate y-axis values, causing large numbers to display unformatted. The fix
-  maps TOP_N to AREA in the widget builder (for gradual migration on re-save) and
-  in the widget card (for immediate correct rendering).
+pr_size: tiny
+description: The DiffImageDisplay component used `height="100%"` instead of proper
+  flex properties (`flex="1" minHeight="0"`), causing the outer container to compete
+  for the full parent height and clip the SegmentedControl buttons on small viewports.
+  The fix also adds `flexShrink={0}` to the button wrapper to prevent it from being
+  compressed away.
 expected_findings:
-- file: static/app/views/dashboards/widgetCard/index.tsx
-  line: 43
-  summary: TOP_N display type falls through to a legacy rendering path that lacks
-    y-axis value abbreviation; should be mapped to AREA
-- file: static/app/views/dashboards/widgetBuilder/hooks/useWidgetBuilderState.tsx
-  line: 1232
-  summary: deserializeDisplayType does not convert deprecated TOP_N to AREA, allowing
-    the obsolete type to persist when users re-save widgets
+- file: static/app/views/preprod/snapshots/main/imageDisplay/diffImageDisplay.tsx
+  line: 1
+  summary: Flex container uses `height="100%"` instead of `flex="1" minHeight="0"`,
+    causing overflow clipping when parent has other children consuming space
+  line_side: pre_fix
+- file: static/app/views/preprod/snapshots/main/imageDisplay/diffImageDisplay.tsx
+  line: 1
+  summary: SegmentedControl wrapper lacks `flexShrink={0}`, allowing buttons to be
+    compressed to zero height on small viewports
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110221
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

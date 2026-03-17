@@ -1,0 +1,35 @@
+id: sentry-084
+repo: getsentry/sentry
+base_commit: 68e86e69ac0edbf2bf5b636552a0b5bcf090c49f^
+head_commit: 68e86e69ac0edbf2bf5b636552a0b5bcf090c49f
+fix_commit: 68e86e69ac0edbf2bf5b636552a0b5bcf090c49f
+category: logic
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: small
+description: The issue details actions component conditionally hides the unarchive
+  button based on whether resolving/unresolving is allowed for the issue type. Crons,
+  uptime, and metric issues disallow resolve/unresolve, which incorrectly also hides
+  the unarchive button. The fix separates the unarchive visibility check from the
+  resolve/unresolve permission check so archived issues of these types can always
+  be unarchived.
+expected_findings:
+- file: static/app/views/issueDetails/actions/index.tsx
+  line: 1
+  summary: 'Logic error: the condition guarding the unarchive button is coupled to
+    the resolve/unresolve permission check. Archived issues should always show the
+    unarchive option regardless of whether resolve/unresolve is allowed for that issue
+    type.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110230
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

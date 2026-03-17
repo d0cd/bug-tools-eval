@@ -1,26 +1,41 @@
 id: snarkVM-001
 repo: ProvableHQ/snarkVM
-base_commit: 0b391d2a0fad8c1ee49b3fc64e6a64d4b801ad2d^
-head_commit: 0b391d2a0fad8c1ee49b3fc64e6a64d4b801ad2d
-fix_commit: 0b391d2a0fad8c1ee49b3fc64e6a64d4b801ad2d
-category: api
-difficulty: easy
-severity: low
+base_commit: 03b2f6c462a95f1847095b9ce077a9c50e7c23e8^
+head_commit: 03b2f6c462a95f1847095b9ce077a9c50e7c23e8
+fix_commit: 03b2f6c462a95f1847095b9ce077a9c50e7c23e8
+category: logic
+difficulty: medium
+severity: high
 language: rust
-pr_size: small
-description: Minor compilation and clippy fixes across two files. In cost.rs, the
-  wrong cost function variant (cost_in_microcredits_v1) was being called, causing
-  a compilation error. In lib.rs, duplicate or incorrectly-scoped sample_metadata()
-  test helper functions triggered clippy warnings.
+pr_size: medium
+description: In `VM::atomic_speculate`, `enumerate` was used to assign indices to
+  `ConfirmedTransaction`s, producing sequential indices (0, 1, 2…) that don't account
+  for aborted transactions creating gaps. This caused `VM::check_speculate` to fail
+  with mismatched transaction indices. The fix replaces `enumerate` with an explicit
+  counter that only increments for confirmed (non-aborted) transactions.
 expected_findings:
-- file: synthesizer/process/src/cost.rs
-  line: 87
-  summary: 'Incorrect function call: `cost_in_microcredits_v1` may reference a wrong
-    or outdated cost function variant, causing compilation failure.'
-- file: ledger/block/src/lib.rs
-  line: 707
-  summary: 'Clippy warning: `pub(crate) fn sample_metadata()` has visibility or duplication
-    issues that trigger clippy lint warnings (e.g., dead_code or duplicate definitions).'
+- file: synthesizer/src/vm/finalize.rs
+  line: 207
+  summary: 'Using `enumerate` to derive ConfirmedTransaction indices is incorrect:
+    when a transaction is aborted and skipped, `enumerate` still advances, causing
+    subsequent confirmed transactions to receive wrong indices. Replace with an explicit
+    counter that increments only on successful confirmation.'
+  line_side: pre_fix
+- file: synthesizer/src/vm/finalize.rs
+  line: 301
+  summary: The confirmed transaction index from `enumerate` is used without adjustment
+    when a transaction succeeds, but no compensating increment/skip logic exists for
+    aborted transactions, so all indices after an abort are off by the number of prior
+    aborts.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

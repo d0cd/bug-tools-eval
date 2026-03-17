@@ -1,35 +1,31 @@
 id: leo-215
 repo: ProvableHQ/leo
-base_commit: 64ad6a67f31edb5a876d57e96bb9d38759c42401^
-head_commit: 64ad6a67f31edb5a876d57e96bb9d38759c42401
-fix_commit: 64ad6a67f31edb5a876d57e96bb9d38759c42401
-category: logic
-difficulty: medium
-severity: medium
+base_commit: d811f62559c06b34dd89984b9ea3bffb28706ac5^
+head_commit: d811f62559c06b34dd89984b9ea3bffb28706ac5
+fix_commit: d811f62559c06b34dd89984b9ea3bffb28706ac5
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: large
-description: 'Multiple bugs in the Leo compiler: (1) Display/fmt implementations for
-  Field and Group values failed or produced incorrect output when printing constraint
-  values, (2) constant inputs were not properly validated against non-constant declarations
-  and vice versa, causing silent type mismatches, and (3) Windows-specific warnings
-  from logger/main setup. Fixes include correcting Display trait implementations,
-  adding integer type mismatch checks for constant inputs, and cleaning up platform-specific
-  code.'
+pr_size: small
+description: The custom panic hook in leo/main.rs prints panic messages to stdout
+  via `println!` instead of stderr via `eprintln!`. This violates the Unix convention
+  that diagnostic/error output should go to stderr, and can corrupt structured stdout
+  output (e.g., when piping Leo's output to another program).
 expected_findings:
-- file: compiler/src/value/field/field_type.rs
-  line: 247
-  summary: Display impl uses get_value().ok_or(std::fmt::Error) which fails for allocated
-    (non-constant) field values, preventing correct output printing
-- file: compiler/src/value/integer/integer.rs
-  line: 160
-  summary: "Integer type mismatch error not raised correctly for constant inputs \u2014\
-    \ should validate that input integer type matches declared type to prevent silent\
-    \ mismatches"
-- file: compiler/src/value/value.rs
-  line: 96
-  summary: ConstrainedValue::Field Display implementation delegates to field value's
-    fmt but does not handle the case where the underlying value is not yet resolved,
-    leading to printing failures
+- file: leo/main.rs
+  line: 180
+  summary: Panic hook uses `println!` (stdout) instead of `eprintln!` (stderr) — diagnostic/error
+    output should go to stderr to avoid corrupting structured stdout output
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,55 @@
+id: sentry-145
+repo: getsentry/sentry
+base_commit: b4b6bf4a65791b5c6865b04979bd0d5cdc478e0b^
+head_commit: b4b6bf4a65791b5c6865b04979bd0d5cdc478e0b
+fix_commit: b4b6bf4a65791b5c6865b04979bd0d5cdc478e0b
+category: api-misuse
+difficulty: hard
+severity: medium
+language: typescript
+pr_size: medium
+description: 'Two issues broke HMR in the Scraps storybook: (1) circular dependencies
+  from barrel self-imports in storybook.tsx created a cycle that crashed rspack HMR
+  with a TypeError on reload; (2) `useMemo` with an empty dependency array in `useStoryBookFiles`
+  captured a stale webpack/rspack context reference, preventing subsequent hot reloads
+  from registering accept handlers and updating the story list.'
+expected_findings:
+- file: static/app/stories/storybook.tsx
+  line: 1
+  summary: "Circular dependency: barrel self-import (`import * from './'`) creates\
+    \ a cycle (barrel \u2192 storybook \u2192 barrel) that crashes rspack HMR with\
+    \ a TypeError on module reload. Replace with direct imports from the specific\
+    \ modules needed."
+  line_side: pre_fix
+- file: static/app/stories/view/useStoriesLoader.tsx
+  line: 41
+  summary: 'Stale HMR context: `useMemo` with an empty dependency array captures the
+    webpack/rspack context only once, so after the first HMR cycle the reference is
+    stale and no new accept handler is registered. The context or its keys should
+    be a dependency, or a mutable ref pattern should be used.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 109630
+reviewer_notes:
+- '[inline] **Bug:** The `useStoryBookFiles` hook uses `useMemo` with an empty dependency
+  array, causing it to return a stale list of stories after an HMR update. <sub>Severity:
+  MEDIUM</sub> <!-- BUG_PREDICTION -->  <details> <summary><b title="Reference ID:
+  `10922337/0`">Suggested Fix</b></summary>  Add the `h'
+reviewer_findings:
+- file: static/app/stories/view/useStoriesLoader.tsx
+  line: 41
+  summary: '**Bug:** The `useStoryBookFiles` hook uses `useMemo` with an empty dependency
+    array, causing it to return a stale list o'
+  line_side: pre_fix
+- file: static/app/stories/view/useStoriesLoader.tsx
+  line: 41
+  summary: 'conflates two different scenarios: file modification (what HMR handles)
+    vs. file addition/deletion (what requires a full'
+  line_side: pre_fix
+quality_flags: []

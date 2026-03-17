@@ -1,29 +1,38 @@
 id: leo-211
 repo: ProvableHQ/leo
-base_commit: e8bff31356562ac2ec5d62c143667115c292dae3^
-head_commit: e8bff31356562ac2ec5d62c143667115c292dae3
-fix_commit: e8bff31356562ac2ec5d62c143667115c292dae3
+base_commit: d3fcd19506aa85c4ff4666c5ebb2150cb874991d^
+head_commit: d3fcd19506aa85c4ff4666c5ebb2150cb874991d
+fix_commit: d3fcd19506aa85c4ff4666c5ebb2150cb874991d
 category: logic
 difficulty: medium
-severity: medium
-language: leo
-pr_size: xl
-description: 'Multiple bugs in the Leo compiler: (1) shadowing error spans pointed
-  to the shadowed definition rather than the shadowing one (#1858), (2) token parsing
-  failed to consume all characters until `;` or whitespace (#1840), (3) the `Const`
-  enum variant in FunctionInput didn''t match the actual syntax (#1828), and (4) the
-  ABNF grammar and parser keyword lists were out of sync (#1806). Fixes correct the
-  error span target, token consumption logic, enum variant naming, and keyword list
-  alignment.'
+severity: high
+language: rust
+pr_size: medium
+description: The Leo compiler did not validate that the return type of a function
+  matched the declared output register type. This allowed programs to compile and
+  produce incorrect output when there was a type mismatch between the function's return
+  statement and the output register declaration. The fix adds a type check in the
+  output bytes module and introduces a corresponding error variant.
 expected_findings:
-- file: compiler/ast/src/functions/input/function_input.rs
-  line: 22
-  summary: Enum variant `Const` is misnamed and does not match the language syntax;
-    should be renamed to match the actual keyword used in Leo source code.
-- file: compiler/ast/src/functions/input/function_input.rs
-  line: 32
-  summary: Serialized form of the `Const` variant in the second enum occurrence also
-    needs renaming to stay consistent with the syntax.
+- file: compiler/src/output/output_bytes.rs
+  line: 63
+  summary: 'Missing type check: output register values are written without verifying
+    the return type matches the declared register type, allowing type-mismatched programs
+    to silently produce wrong output'
+  line_side: pre_fix
+- file: compiler/src/errors/output_bytes.rs
+  line: 45
+  summary: No error variant exists for return-type/register-type mismatch, so the
+    compiler cannot report this class of error to the user
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

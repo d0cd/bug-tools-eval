@@ -1,33 +1,31 @@
 id: sentry-054
 repo: getsentry/sentry
-base_commit: 3dfc1604372155fd118b79ff2c474a6e6ea3e865^
-head_commit: 3dfc1604372155fd118b79ff2c474a6e6ea3e865
-fix_commit: 3dfc1604372155fd118b79ff2c474a6e6ea3e865
-category: api
+base_commit: 3fa3ee73cf4e78bb6d9b681aacc53dc8c360e281^
+head_commit: 3fa3ee73cf4e78bb6d9b681aacc53dc8c360e281
+fix_commit: 3fa3ee73cf4e78bb6d9b681aacc53dc8c360e281
+category: style
 difficulty: easy
 severity: low
 language: python
-pr_size: medium
-description: Seer API wrapper functions accepted an optional viewer_context parameter
-  (added in a prior PR) but none of the autofix call sites were passing it, meaning
-  all Seer requests lacked organization and user context for access control. The fix
-  propagates SeerViewerContext with organization_id and user_id to every autofix-related
-  Seer API call site.
+pr_size: tiny
+description: A file in the sentry SCM module was renamed to apps.py to follow Django's
+  app configuration convention. Django expects an AppConfig subclass in a file named
+  apps.py within each app package; an incorrectly named file would prevent Django
+  from discovering the app configuration.
 expected_findings:
-- file: src/sentry/seer/autofix/autofix.py
-  line: 466
-  summary: "Missing viewer_context argument in _call_autofix() Seer API call \u2014\
-    \ should pass SeerViewerContext with organization_id and user_id for access control"
-- file: src/sentry/seer/autofix/issue_summary.py
-  line: 257
-  summary: "Missing viewer_context argument in _call_seer() \u2014 should pass SeerViewerContext\
-    \ with organization_id from group.organization.id"
-- file: src/sentry/seer/autofix/utils.py
-  line: 461
-  summary: "Missing viewer_context argument in get_autofix_state() Seer API call \u2014\
-    \ should pass SeerViewerContext with organization_id"
+- file: src/sentry/scm/apps.py
+  line: 1
+  summary: File was incorrectly named and needed to be renamed to apps.py to match
+    Django's AppConfig discovery convention
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110682
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

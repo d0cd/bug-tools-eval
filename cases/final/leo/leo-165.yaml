@@ -1,26 +1,33 @@
 id: leo-165
 repo: ProvableHQ/leo
-base_commit: 1e7a6bf4ca58c64f170b698329e2f0e9ddf37e33^
-head_commit: 1e7a6bf4ca58c64f170b698329e2f0e9ddf37e33
-fix_commit: 1e7a6bf4ca58c64f170b698329e2f0e9ddf37e33
-category: logic
+base_commit: a8c4c2b36ddc614f347ee17a65a11aa4a1645740^
+head_commit: a8c4c2b36ddc614f347ee17a65a11aa4a1645740
+fix_commit: a8c4c2b36ddc614f347ee17a65a11aa4a1645740
+category: api-misuse
 difficulty: medium
-severity: high
-language: rust
-pr_size: medium
-description: The `leo test` command reused a single `TestConstraintSystem` object
-  across all test cases instead of creating a new one per test, causing constraint
-  state to leak between tests. The fix moves the `TestConstraintSystem::new()` call
-  inside the per-test loop so each test runs with a fresh constraint system in isolation.
+severity: medium
+language: leo
+pr_size: xl
+description: The Leo parser accepted arbitrary tokens as package names in import statements
+  instead of requiring valid identifiers. This allowed invalid characters and keywords
+  in package names, which could cause downstream failures or confusing error messages.
+  The fix changes the parser to use identifier parsing for package names and adds
+  proper rejection of invalid inputs.
 expected_findings:
-- file: compiler/src/constraints/constraints.rs
-  line: 42
-  summary: TestConstraintSystem is created once and shared across multiple tests;
-    it should be re-instantiated before each test to ensure isolation
-- file: leo/commands/test.rs
-  line: 12
-  summary: compile_test_constraints is called with a shared constraint system that
-    accumulates state across tests, leading to non-isolated test execution
+- file: parser/src/parser/file.rs
+  line: 149
+  summary: Package name parsed with loose/permissive token matching instead of requiring
+    a valid identifier; should use expect_identifier() or equivalent to reject invalid
+    package names (special chars, keywords)
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

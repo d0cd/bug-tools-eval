@@ -1,27 +1,37 @@
 id: sdk-053
 repo: ProvableHQ/sdk
-base_commit: 342482a77cef8c15ff026f505cdce31eefc185a6^
-head_commit: 342482a77cef8c15ff026f505cdce31eefc185a6
-fix_commit: 342482a77cef8c15ff026f505cdce31eefc185a6
-category: api
-difficulty: medium
+base_commit: dc53a87666cc2bdd79ee3d37aca5ab7a49f987a7^
+head_commit: dc53a87666cc2bdd79ee3d37aca5ab7a49f987a7
+fix_commit: dc53a87666cc2bdd79ee3d37aca5ab7a49f987a7
+category: logic
+difficulty: easy
 severity: high
-language: typescript
-pr_size: large
-description: Network requests in the SDK's network client would fail permanently on
-  transient errors without any retry mechanism. The fix introduces a `retryWithBackoff`
-  utility function in utils.ts and wraps network calls (e.g., fetchData, submitTransaction)
-  in network-client.ts with this retry logic, providing exponential backoff on transient
-  network failures.
+language: rust
+pr_size: medium
+description: The Execute.js component guards program execution with `if (!!inputs)`,
+  which prevents programs with zero inputs from running — a valid use case in Aleo.
+  Additionally, the CLI updater references the wrong repository name (`"sdk"` instead
+  of the correct repo), causing the self-update mechanism to fail.
 expected_findings:
-- file: sdk/src/network-client.ts
-  line: 98
-  summary: 'Network request lacks retry logic: transient failures (timeouts, 5xx errors)
-    will propagate immediately without retrying, causing unnecessary user-facing errors.'
-- file: sdk/src/network-client.ts
-  line: 117
-  summary: 'Network request lacks retry logic: transient failures on this call path
-    will fail permanently without any backoff or retry attempt.'
+- file: website/src/tabs/develop/Execute.js
+  line: 125
+  summary: 'Logic error: `if (!!inputs)` blocks execution for programs with no inputs.
+    Empty/zero inputs is a valid case and should be allowed through.'
+  line_side: pre_fix
+- file: cli/helpers/updater.rs
+  line: 26
+  summary: 'Incorrect repo name constant `ALEO_REPO_NAME: &str = "sdk"` will cause
+    the CLI updater to look for releases in the wrong GitHub repository, breaking
+    self-update.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

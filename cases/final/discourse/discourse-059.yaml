@@ -1,29 +1,33 @@
 id: discourse-059
 repo: discourse/discourse
-base_commit: fcccb3ac825e1382487f2e362b0fe803c1ac6498^
-head_commit: fcccb3ac825e1382487f2e362b0fe803c1ac6498
-fix_commit: fcccb3ac825e1382487f2e362b0fe803c1ac6498
-category: logic
-difficulty: easy
+base_commit: 8225d94bb31fc7f53f8c6bdaff184c2f5017eeaf^
+head_commit: 8225d94bb31fc7f53f8c6bdaff184c2f5017eeaf
+fix_commit: 8225d94bb31fc7f53f8c6bdaff184c2f5017eeaf
+category: security
+difficulty: medium
 severity: medium
 language: ruby
-pr_size: medium
-description: "The channel settings page used an `isOpen`/`else` conditional to render\
-  \ the close/open channel toggle, causing archived and read-only channels to incorrectly\
-  \ show an active 'Open channel' button. Clicking it would trigger the 'Close channel'\
-  \ modal, which then failed with a server error because the guardian only permits\
-  \ `closed \u2192 open` transitions. The fix replaces the `else` branch with an explicit\
-  \ `isClosed` check and renders a disabled button with a tooltip for archived and\
-  \ read-only channels."
+pr_size: small
+description: The destroy post action endpoint leaked post content to users who no
+  longer had access. By calling the undo/destroy post action within the `post_undo_action_window_mins`
+  window after a post was made inaccessible, an attacker could retrieve the post's
+  content from the response. The fix adds an access check before returning the post
+  data.
 expected_findings:
-- file: plugins/chat/assets/javascripts/discourse/components/chat/routes/channel-info-settings.gjs
-  line: 1
-  summary: 'Logic error: the `else` branch of the `isOpen` check matches all non-open
-    statuses (closed, archived, read-only), but only closed channels should get an
-    active ''Open channel'' button. Should use explicit `isClosed` check instead of
-    a catch-all `else`.'
+- file: app/controllers/post_actions_controller.rb
+  line: 30
+  summary: 'Missing access control: destroy action returns post content without verifying
+    the user still has permission to view the post, leaking content of inaccessible
+    posts'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

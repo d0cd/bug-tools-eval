@@ -1,26 +1,30 @@
 id: leo-065
 repo: ProvableHQ/leo
-base_commit: 4736a8f724c9358608cf47ec640996c8680ae1b3^
-head_commit: 4736a8f724c9358608cf47ec640996c8680ae1b3
-fix_commit: 4736a8f724c9358608cf47ec640996c8680ae1b3
-category: logic
+base_commit: 465499529abb51d75e2d1cb825a0d3d8a0d3d901^
+head_commit: 465499529abb51d75e2d1cb825a0d3d8a0d3d901
+fix_commit: 465499529abb51d75e2d1cb825a0d3d8a0d3d901
+category: api-misuse
 difficulty: easy
 severity: medium
 language: rust
 pr_size: tiny
-description: The Leo config file was named 'leo.config' instead of 'config.toml',
-  using a non-standard naming convention that didn't reflect the TOML file format.
-  The fix updates the LEO_CONFIG_FILE constant (defined in two places) to 'config.toml'
-  for proper file format identification.
+description: The leo query committee command used an incorrect REST API endpoint string,
+  causing the committee query to hit a broken/non-existent route. The fix corrects
+  the endpoint path so that committee queries reach the proper API endpoint.
 expected_findings:
-- file: leo/config.rs
-  line: 29
-  summary: 'Incorrect config filename: LEO_CONFIG_FILE uses ''leo.config'' instead
-    of ''config.toml'', misrepresenting the file format'
-- file: leo/config.rs
-  line: 61
-  summary: Duplicate config filename constant also uses wrong name 'leo.config' instead
-    of 'config.toml'
+- file: leo/cli/commands/query/committee.rs
+  line: 35
+  summary: 'Incorrect API endpoint string in committee query: the endpoint path does
+    not match the actual REST API route, causing queries to fail'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

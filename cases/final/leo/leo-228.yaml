@@ -1,27 +1,43 @@
 id: leo-228
 repo: ProvableHQ/leo
-base_commit: 47c00c30c652291a647461afc1ae0a3c54825fa3^
-head_commit: 47c00c30c652291a647461afc1ae0a3c54825fa3
-fix_commit: 47c00c30c652291a647461afc1ae0a3c54825fa3
+base_commit: e7f1833d5395414fb8c215857840266a075ff584^
+head_commit: e7f1833d5395414fb8c215857840266a075ff584
+fix_commit: e7f1833d5395414fb8c215857840266a075ff584
 category: logic
-difficulty: easy
-severity: medium
-language: leo
-pr_size: medium
-description: The `examples/import_point/` example was causing flaky CI failures, likely
-  due to intermittent build failures related to Leo's import functionality. The fix
-  removed the problematic example directory entirely and updated the CI script `.circleci/leo-new.sh`
-  to no longer attempt to build it.
+difficulty: hard
+severity: high
+language: rust
+pr_size: small
+description: The SSA pass incorrectly folded ternary expressions when handling early
+  return statements with guard conditions. The guard matching logic in rename_program.rs
+  failed to properly combine expression and accumulator values when a guard was present,
+  producing incorrect SSA output. The fix corrects the match arms for Some(guard)
+  cases and adds parentheses to ternary Display to prevent precedence issues in nested
+  ternaries.
 expected_findings:
-- file: .circleci/leo-new.sh
-  line: 3
-  summary: CI script attempts to build an example (`import_point`) that can fail intermittently,
-    causing flaky CI. The build step should either be made resilient or the problematic
-    example should be excluded.
-- file: examples/import_point/src/main.leo
-  line: 1
-  summary: The import_point example relies on import functionality that causes intermittent
-    CI failures; this example should be removed or fixed to prevent flaky builds.
+- file: compiler/passes/src/static_single_assignment/rename_program.rs
+  line: 56
+  summary: 'Incorrect ternary folding: the match arm for Some(guard) does not correctly
+    combine expr and acc when constructing the ternary for early return guards'
+  line_side: pre_fix
+- file: compiler/passes/src/static_single_assignment/rename_program.rs
+  line: 78
+  summary: Same incorrect guard-matching logic for ternary folding in a second code
+    path handling early returns
+  line_side: pre_fix
+- file: compiler/ast/src/expressions/ternary.rs
+  line: 31
+  summary: Missing parentheses in ternary Display impl causes incorrect parsing/precedence
+    when ternaries are nested during SSA folding
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,27 +1,38 @@
 id: leo-109
 repo: ProvableHQ/leo
-base_commit: c74772cfac6f26ec80d1388d9f6b19dd1241c86b^
-head_commit: c74772cfac6f26ec80d1388d9f6b19dd1241c86b
-fix_commit: c74772cfac6f26ec80d1388d9f6b19dd1241c86b
-category: api
+base_commit: 6a4aca5c68a4d37e1d8c1c280eb8afb56390d6cb^
+head_commit: 6a4aca5c68a4d37e1d8c1c280eb8afb56390d6cb
+fix_commit: 6a4aca5c68a4d37e1d8c1c280eb8afb56390d6cb
+category: logic
 difficulty: medium
-severity: critical
+severity: high
 language: rust
-pr_size: small
-description: The type checker in `visit_function` called `.unwrap()` on `lookup_struct`
-  without verifying the type exists first, causing a panic (crash) when a function
-  references an undefined data type. The fix introduces an `assert_type_is_defined`
-  helper in the checker that validates type existence before the lookup, converting
-  the panic into a proper compiler error.
+pr_size: medium
+description: 'When constructing function stubs in the AST, the `program` symbol was
+  not being passed through, causing external struct references inside async functions
+  to lose their originating program context. The fix adds a `program: Symbol` parameter
+  to the relevant stub construction methods so that external structs can be correctly
+  resolved to their source program.'
 expected_findings:
-- file: compiler/passes/src/type_checking/check_program.rs
-  line: 243
-  summary: 'Missing existence check before unwrapping `lookup_struct` result: undefined
-    types cause an unwrap panic instead of a compiler error'
-- file: compiler/passes/src/type_checking/check_statements.rs
-  line: 201
-  summary: Unreachable arm for Type::Err does not account for undefined types that
-    could now flow through after the type-existence check
+- file: compiler/ast/src/stub/function_stub.rs
+  line: 258
+  summary: 'Missing `program: Symbol` parameter: function stub construction does not
+    track which program an external struct belongs to, causing resolution failures
+    in async functions.'
+  line_side: pre_fix
+- file: compiler/ast/src/stub/function_stub.rs
+  line: 274
+  summary: 'Missing `program: Symbol` parameter in second stub construction path:
+    same issue as line 258, external struct program context is lost.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

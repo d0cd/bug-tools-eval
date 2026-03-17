@@ -1,36 +1,40 @@
 id: leo-252
 repo: ProvableHQ/leo
-base_commit: 647b25dc2d5032673f4769801ecd8889c47ba0eb^
-head_commit: 647b25dc2d5032673f4769801ecd8889c47ba0eb
-fix_commit: 647b25dc2d5032673f4769801ecd8889c47ba0eb
+base_commit: ff915151aa973bb1119c49248b67a0dab24b7742^
+head_commit: ff915151aa973bb1119c49248b67a0dab24b7742
+fix_commit: ff915151aa973bb1119c49248b67a0dab24b7742
 category: logic
 difficulty: medium
 severity: high
-language: leo
-pr_size: xl
-description: 'Multiple parser bugs in the Leo compiler: the lexer panicked or produced
-  incorrect errors on unexpected EOF after special characters (backslash, dollar,
-  escape sequences, etc.), array dimension parsing incorrectly handled single-dimension
-  cases, and variable definition statements with parenthesized names were parsed incorrectly.
-  Fixes include proper EOF boundary checks in the lexer, corrected array dimension
-  logic in the type parser, and updated definition parsing in the statement parser
-  and AST.'
+language: rust
+pr_size: medium
+description: The disassembler incorrectly used the locator's program name (`loc.name()`)
+  instead of the locator's resource name (`loc.resource()`) when building record identifiers
+  for nested stubs. This caused a panic when compiling programs with nested records
+  as function inputs/outputs, because the record name resolved to the wrong identifier.
+  The fix corrects the identifier source and updates the type checker to properly
+  handle nested records as function I/O.
 expected_findings:
-- file: compiler/parser/src/tokenizer/lexer.rs
-  line: 46
-  summary: Lexer does not properly guard against EOF when processing escape sequences,
-    causing panics on inputs like a trailing backslash, dollar sign, or incomplete
-    unicode escape at end of file.
-- file: compiler/parser/src/parser/type_.rs
-  line: 75
-  summary: Array dimension handling has incorrect logic for single-dimension arrays
-    (e.g., wrong branch condition `dims.len() == 1`), leading to malformed array types
-    or incorrect error messages.
-- file: compiler/parser/src/parser/statement.rs
-  line: 295
-  summary: Definition statement parsing with `peek_is_left_par()` incorrectly handles
-    parenthesized variable names, producing wrong AST nodes for let/const declarations
-    with tuple destructuring.
+- file: compiler/ast/src/stub/function_stub.rs
+  line: 240
+  summary: 'Wrong method called on locator: `loc.name()` returns the program name,
+    but `loc.resource()` should be used to get the actual record type name for the
+    stub identifier.'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/checker.rs
+  line: 1186
+  summary: Type checker overly restricts record types as function inputs — nested
+    records from external programs should be allowed as inputs to non-transition functions,
+    not just transitions.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

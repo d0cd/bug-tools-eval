@@ -1,30 +1,39 @@
 id: leo-173
 repo: ProvableHQ/leo
-base_commit: c2bbe7508cc0c9deb0a5bb5d9ff90c07c2c17c68^
-head_commit: c2bbe7508cc0c9deb0a5bb5d9ff90c07c2c17c68
-fix_commit: c2bbe7508cc0c9deb0a5bb5d9ff90c07c2c17c68
-category: logic
+base_commit: b6c5f4d60f51b0950465327afc3ce289e2cf3388^
+head_commit: b6c5f4d60f51b0950465327afc3ce289e2cf3388
+fix_commit: b6c5f4d60f51b0950465327afc3ce289e2cf3388
+category: api-misuse
 difficulty: medium
-severity: medium
+severity: high
 language: rust
-pr_size: medium
-description: The Leo compiler's code generation and destructuring passes did not handle
-  the case where an array index is a const initialized with an unsuffixed integer
-  literal (e.g., `const INDEX = 0;` instead of `const INDEX = 0u32;`). The fix adds
-  handling for unsuffixed integer literals in the expression code generation pass
-  and ensures the destructuring pass correctly propagates the integer type when replacing
-  const references with their literal values.
+pr_size: tiny
+description: The zip file creation code used raw OS paths as zip entry names, which
+  on Windows produces backslash-separated paths (e.g., `package\src\main.leo`) instead
+  of the forward-slash convention required by the ZIP specification. The fix uses
+  the `zip` crate's deprecated path-sanitization method (with `#[allow(deprecated)]`)
+  to normalize path separators, making `leo publish` work correctly on Windows.
 expected_findings:
-- file: compiler/passes/src/code_generation/expression.rs
-  line: 316
-  summary: Missing match arm for unsuffixed integer literals when generating code
-    for array index expressions; an integer literal without a type suffix (e.g., `0`
-    vs `0u32`) falls through or panics instead of being handled.
-- file: compiler/passes/src/destructuring/expression.rs
-  line: 50
-  summary: Literal::integer() construction does not account for unsuffixed integer
-    constants when inlining const values into array index positions; needs to preserve
-    or infer the integer type for unsuffixed literals.
+- file: package/src/root/zip.rs
+  line: 106
+  summary: 'Zip entry path not normalized for cross-platform compatibility: on Windows,
+    OS path separators (backslashes) are used directly as zip entry names instead
+    of forward slashes, violating the ZIP spec and breaking package publishing on
+    Windows'
+  line_side: pre_fix
+- file: package/src/root/zip.rs
+  line: 117
+  summary: 'Same cross-platform path normalization issue: file entry paths passed
+    to zip writer use OS-native separators instead of normalized forward-slash paths'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

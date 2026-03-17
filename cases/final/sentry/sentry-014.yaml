@@ -1,32 +1,39 @@
 id: sentry-014
 repo: getsentry/sentry
-base_commit: ea5a376e398c6e3f9e27a71202e3361d100c0c13^
-head_commit: ea5a376e398c6e3f9e27a71202e3361d100c0c13
-fix_commit: ea5a376e398c6e3f9e27a71202e3361d100c0c13
+base_commit: 1506150f7109b6289e7b060bd33ec8d2aca3611e^
+head_commit: 1506150f7109b6289e7b060bd33ec8d2aca3611e
+fix_commit: 1506150f7109b6289e7b060bd33ec8d2aca3611e
 category: logic
 difficulty: medium
-severity: high
-language: typescript
+severity: medium
+language: python
 pr_size: medium
-description: 'A refactor of the button busy state and form SubmitButton UX (PR #109869)
-  introduced a visual/functional regression in button rendering. The changes to button
-  styles (display: ''inherit''), Flex layout wrapping, and form submission state subscription
-  broke the expected button appearance and behavior, requiring a full revert.'
+description: The autofix explorer run status was not properly computed when PRs were
+  created from Slack. The completion detection logic failed to account for the OPEN_PR
+  step, which requires special handling outside the normal block flow — specifically
+  checking that code_changes step exists and that all repo_pr_state entries are no
+  longer in 'creating' status.
 expected_findings:
-- file: static/app/components/core/button/styles.tsx
-  line: 132
-  summary: Setting display to 'inherit' on the button inner content breaks layout;
-    the original display value should be preserved
-- file: static/app/components/core/button/button.tsx
-  line: 29
-  summary: Wrapping button content in a Flex layout component introduces unintended
-    styling and spacing changes to the button's internal structure
-- file: static/app/components/core/form/scrapsForm.tsx
-  line: 69
-  summary: Form subscribe selector combining isSubmitting with isDefaultValue may
-    cause incorrect busy/disabled state on the SubmitButton
+- file: src/sentry/seer/entrypoints/operator.py
+  line: 575
+  summary: 'OPEN_PR step completion status not computed correctly: missing check that
+    repo_pr_state is non-empty and all entries have moved past ''creating'' state,
+    causing Slack-initiated PR creation to report incorrect run status'
+  line_side: pre_fix
+- file: src/sentry/seer/entrypoints/operator.py
+  line: 601
+  summary: Explorer run status logic does not handle the OPEN_PR step as a special
+    case outside normal blocks, so completed status is never reached when PRs are
+    created via Slack
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

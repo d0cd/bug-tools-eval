@@ -1,31 +1,31 @@
 id: leo-143
 repo: ProvableHQ/leo
-base_commit: cf290ed0971032974567d142ba340bdec04e43b3^
-head_commit: cf290ed0971032974567d142ba340bdec04e43b3
-fix_commit: cf290ed0971032974567d142ba340bdec04e43b3
-category: logic
-difficulty: medium
+base_commit: 913edb322dba0a49ddc0551a28aada7090f46ee9^
+head_commit: 913edb322dba0a49ddc0551a28aada7090f46ee9
+fix_commit: 913edb322dba0a49ddc0551a28aada7090f46ee9
+category: api-misuse
+difficulty: easy
 severity: medium
 language: rust
-pr_size: medium
-description: Circuit init and circuit access expressions did not implement constant
-  value propagation, causing constant folding to fail for circuit types. The fix adds
-  a Circuit variant to ConstValue and implements const_value() for circuit_access
-  and circuit_init expressions, using a map of identifier names for efficient member
-  lookups.
+pr_size: tiny
+description: The stateRoot query endpoint included a leading slash in its path segment,
+  producing a double-slash URL like `http://localhost:3030/testnet//stateRoot/latest`.
+  This caused a 404 error because the node's HTTP server does not normalize double
+  slashes. The fix removes the leading slash to be consistent with other query commands.
 expected_findings:
-- file: asg/src/expression/circuit_access.rs
-  line: 83
-  summary: const_value() for circuit access expressions returns None instead of propagating
-    the constant value of the accessed circuit member
-- file: asg/src/expression/circuit_init.rs
-  line: 70
-  summary: const_value() for circuit init expressions returns None instead of constructing
-    a ConstValue::Circuit from the member initializers
-- file: asg/src/const_value.rs
-  line: 14
-  summary: ConstValue enum is missing a Circuit variant to represent constant circuit
-    values, preventing constant folding for circuit expressions
+- file: leo/cli/commands/query/state_root.rs
+  line: 35
+  summary: 'Extra leading slash in URL path: `"/stateRoot/latest"` produces a double-slash
+    in the final URL. Should be `"stateRoot/latest"` to match other query endpoints.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

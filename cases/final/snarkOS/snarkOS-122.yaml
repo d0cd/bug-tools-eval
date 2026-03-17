@@ -1,34 +1,37 @@
 id: snarkOS-122
 repo: ProvableHQ/snarkOS
-base_commit: de5dd901bab71afba2977314cdc4a0a70f5c564b^
-head_commit: de5dd901bab71afba2977314cdc4a0a70f5c564b
-fix_commit: de5dd901bab71afba2977314cdc4a0a70f5c564b
-category: type
+base_commit: a81dd1947acd72ffcd17026da0ca0cdd51dac483^
+head_commit: a81dd1947acd72ffcd17026da0ca0cdd51dac483
+fix_commit: a81dd1947acd72ffcd17026da0ca0cdd51dac483
+category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: medium
-description: The handshake commit hash was encoded as a variable-length string, causing
-  any string starting with '?' to be treated as unknown. This led to test failures
-  when property-testing generated strings containing '?'. The fix changes the SHA
-  to always be encoded as a fixed 40-byte array and replaces the hardcoded 'unknown'
-  string with a constant `UNKNOWN_SHA`, ensuring only the exact unknown sentinel value
-  is recognized.
+pr_size: xl
+description: The sync mechanism was fast-forwarding corrupt or invalid blocks without
+  proper validation, allowing bad blocks to be accepted into the canonical chain.
+  The fix adds validation checks in the sync/master path to reject invalid blocks
+  before they are committed. This was bundled into a larger PR that replaced RocksDB
+  with SQLite storage.
 expected_findings:
-- file: node/router/messages/src/challenge_request.rs
-  line: 27
-  summary: Commit hash stored as a String and serialized with variable-length encoding;
-    should use a fixed-size [u8; 40] array to avoid ambiguous encoding/decoding of
-    the unknown sentinel value.
-- file: node/bft/events/src/challenge_request.rs
-  line: 44
-  summary: String-based SHA representation allows any '?'-prefixed string to be misinterpreted
-    as unknown; needs fixed-size array encoding with an explicit UNKNOWN_SHA constant.
-- file: node/network/src/lib.rs
+- file: network/src/sync/master.rs
   line: 79
-  summary: get_repo_commit_hash returns a raw string without length validation; should
-    return an Option or fixed-size array to prevent malformed SHA values from propagating
-    into the handshake protocol.
+  summary: Sync fast-forward logic does not validate blocks for corruption/invalidity
+    before accepting them into canon, allowing corrupt blocks to advance the chain
+  line_side: pre_fix
+- file: consensus/src/consensus/inner/agent.rs
+  line: 23
+  summary: Empty canon check may allow invalid state transitions when corrupt blocks
+    have been fast-forwarded
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

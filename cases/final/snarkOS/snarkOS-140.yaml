@@ -1,25 +1,45 @@
 id: snarkOS-140
 repo: ProvableHQ/snarkOS
-base_commit: 12fc4a07b232973d28d47779ea24b827a0a5d4e8^
-head_commit: 12fc4a07b232973d28d47779ea24b827a0a5d4e8
-fix_commit: 12fc4a07b232973d28d47779ea24b827a0a5d4e8
+base_commit: b51ba7127f5137c11b60ebf84cdc69a2a47b2f38^
+head_commit: b51ba7127f5137c11b60ebf84cdc69a2a47b2f38
+fix_commit: b51ba7127f5137c11b60ebf84cdc69a2a47b2f38
 category: logic
-difficulty: easy
-severity: low
+difficulty: medium
+severity: high
 language: rust
-pr_size: medium
-description: Clippy warnings in test/fuzzing code were fixed alongside a dependency
-  update to tokio 1.12. The Rust source changes in fuzzing.rs and sync.rs address
-  idiomatic code patterns flagged by clippy (e.g., unused imports, redundant operations).
+pr_size: small
+description: Off-by-one boundary error in ledger block loading. When the ledger contains
+  exactly n*501+1 blocks (one block past a batch boundary), the final block is not
+  loaded during validation, causing a panic due to a block hash mismatch assertion.
+  The fix corrects the loop boundary conditions in three while-loops that iterate
+  over block batches.
 expected_findings:
-- file: network/tests/fuzzing.rs
-  line: 15
-  summary: 'Clippy warning: non-idiomatic code pattern (e.g., redundant clone, unnecessary
-    conversion, or unused import) should be simplified'
-- file: testing/src/network/sync.rs
-  line: 14
-  summary: 'Clippy warning: unused or redundant import (`BlockStatus` or `VMBlock`
-    from snarkos_storage) should be cleaned up'
+- file: storage/src/state/ledger.rs
+  line: 146
+  summary: 'Off-by-one in batch loop: `while start_block_height <= latest_block_height`
+    skips the last block when it falls exactly one past a batch boundary; the loop''s
+    end-of-batch calculation excludes the final partial batch of size 1'
+  line_side: pre_fix
+- file: storage/src/state/ledger.rs
+  line: 161
+  summary: 'Same batch-boundary off-by-one: loop condition `while start_block_height
+    <= latest_block_height` fails to process the last block when ledger length is
+    n*BATCH_SIZE+1'
+  line_side: pre_fix
+- file: storage/src/state/ledger.rs
+  line: 190
+  summary: 'Same batch-boundary off-by-one in third validation loop: last block is
+    not loaded when it sits exactly at the batch boundary, leading to assertion failure
+    on block locator mismatch'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

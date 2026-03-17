@@ -1,0 +1,32 @@
+id: sentry-129
+repo: getsentry/sentry
+base_commit: a0f9582e0b8c9daa3754bc269eb0837e62c1fc27^
+head_commit: a0f9582e0b8c9daa3754bc269eb0837e62c1fc27
+fix_commit: a0f9582e0b8c9daa3754bc269eb0837e62c1fc27
+category: api-misuse
+difficulty: easy
+severity: high
+language: python
+pr_size: tiny
+description: The upload options endpoint returned an objectstore base URL with a trailing
+  slash. When the objectstore client appended its subpath (e.g. `/v1/objects:batch/...`),
+  the resulting URL contained a double slash (`//`), causing batch upload requests
+  to fail. The fix strips the trailing slash from the generated URL.
+expected_findings:
+- file: src/sentry/preprod/api/endpoints/project_preprod_upload_options.py
+  line: 1
+  summary: "Base URL returned to clients includes a trailing slash, which causes double-slash\
+    \ (`//`) in composed URLs when clients append subpaths \u2014 use `.rstrip('/')`\
+    \ or equivalent before returning"
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110409
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

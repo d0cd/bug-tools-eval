@@ -1,34 +1,42 @@
 id: keycloak-013
 repo: keycloak/keycloak
-base_commit: 84e763b472cd6a3f4550e962d694cd0016660c24^
-head_commit: 84e763b472cd6a3f4550e962d694cd0016660c24
-fix_commit: 84e763b472cd6a3f4550e962d694cd0016660c24
-category: logic
+base_commit: 23f6982587c8cf9788b83c451a40d316c4a6012a^
+head_commit: 23f6982587c8cf9788b83c451a40d316c4a6012a
+fix_commit: 23f6982587c8cf9788b83c451a40d316c4a6012a
+category: api-misuse
 difficulty: medium
 severity: medium
-language: typescript
-pr_size: large
-description: 'The KeyValueInput component did not handle empty attribute entries correctly.
-  When no attributes existed, it displayed a row with empty key/value fields instead
-  of an empty state, causing form submission issues with empty entries (issue #19254).
-  The fix adds an empty state UI, corrects the key-value conversion logic to properly
-  filter/handle empty entries, and fixes label alignment and font styling.'
+language: java
+pr_size: medium
+description: New database-related configuration options were being advertised to Quarkus
+  through the property mapping interceptor when they should have been hidden. The
+  fix ensures these options null themselves in the transformer so Quarkus does not
+  attempt to process or validate them, which could cause configuration errors or unexpected
+  behavior.
 expected_findings:
-- file: js/apps/admin-ui/src/components/key-value-form/key-value-convert.ts
-  line: 22
-  summary: Conversion function does not properly handle empty key-value entries, allowing
-    empty/undefined pairs to pass through and cause downstream form issues
-- file: js/apps/admin-ui/src/components/key-value-form/KeyValueInput.tsx
-  line: 2
-  summary: Component renders an empty input row when attributes array is empty instead
-    of showing an empty state, leading to confusing UX and empty entry submission
-    bugs
-- file: js/apps/admin-ui/src/components/multi-line-input/MultiLineInput.tsx
-  line: 85
-  summary: Multi-line input field name pattern uses incorrect indexing for value fields,
-    causing form data binding issues with key-value pairs
+- file: quarkus/runtime/src/main/java/org/keycloak/quarkus/runtime/configuration/mappers/DatabasePropertyMappers.java
+  line: 180
+  summary: Database property mapper missing null-returning transformer — Quarkus will
+    see and attempt to process this internal-only option
+  line_side: pre_fix
+- file: quarkus/runtime/src/main/java/org/keycloak/quarkus/runtime/configuration/PropertyMappingInterceptor.java
+  line: 126
+  summary: Property mapping resolution does not filter out options that should be
+    invisible to Quarkus, leaking internal keycloak-prefixed properties
+  line_side: pre_fix
+- file: quarkus/config-api/src/main/java/org/keycloak/config/DatabaseOptions.java
+  line: 166
+  summary: Database option definition missing configuration to prevent it from being
+    advertised to the Quarkus runtime layer
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,43 @@
+id: sentry-176
+repo: getsentry/sentry
+base_commit: ea5a376e398c6e3f9e27a71202e3361d100c0c13^
+head_commit: ea5a376e398c6e3f9e27a71202e3361d100c0c13
+fix_commit: ea5a376e398c6e3f9e27a71202e3361d100c0c13
+category: logic
+difficulty: medium
+severity: high
+language: typescript
+pr_size: medium
+description: 'A refactor of the button busy state and form SubmitButton UX (PR #109869)
+  introduced a visual/functional regression in button rendering. The changes wrapped
+  button content in a Flex layout, altered the display property to ''inherit'' in
+  styles, and modified the form Subscribe selector to include isDefaultValue, which
+  together broke the button''s appearance and form submission UX. The revert restores
+  correct behavior.'
+expected_findings:
+- file: static/app/components/core/button/button.tsx
+  line: 29
+  summary: Wrapping button internals in Flex layout component breaks button rendering;
+    the busy-state refactor introduces a layout regression visible in the screenshot
+  line_side: pre_fix
+- file: static/app/components/core/button/styles.tsx
+  line: 132
+  summary: Changing display to 'inherit' alters button layout behavior, contributing
+    to broken visual appearance of buttons
+  line_side: pre_fix
+- file: static/app/components/core/form/scrapsForm.tsx
+  line: 69
+  summary: Adding isDefaultValue to the Subscribe selector changes when the submit
+    button is disabled, potentially blocking form submission in valid states
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

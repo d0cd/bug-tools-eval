@@ -1,30 +1,38 @@
 id: sentry-017
 repo: getsentry/sentry
-base_commit: c86b78c45b65126ebe2eba39177f60b4d3a82565^
-head_commit: c86b78c45b65126ebe2eba39177f60b4d3a82565
-fix_commit: c86b78c45b65126ebe2eba39177f60b4d3a82565
-category: logic
-difficulty: easy
+base_commit: 18a86c23dbc14837ea0e2886722e83aa96391dee^
+head_commit: 18a86c23dbc14837ea0e2886722e83aa96391dee
+fix_commit: 18a86c23dbc14837ea0e2886722e83aa96391dee
+category: type
+difficulty: medium
 severity: medium
 language: typescript
-pr_size: small
-description: The deprecated TOP_N display type was still being used as-is in saved
-  dashboards, routing through a legacy rendering path that lacks y-axis value abbreviation.
-  This caused large numbers like 150000000 to display unformatted. The fix maps TOP_N
-  to AREA in both the widget builder (for gradual migration on re-save) and the widget
-  card (for immediate correct rendering).
+pr_size: medium
+description: The AutoSaveField component's mutationOptions prop did not thread generic
+  type parameters through to the underlying mutation callbacks (onMutate, onSuccess,
+  onError, onSettled). This caused the context type returned by onMutate and other
+  callback arguments to degrade to `unknown`, breaking type safety for consumers of
+  the component.
 expected_findings:
-- file: static/app/views/dashboards/widgetBuilder/hooks/useWidgetBuilderState.tsx
-  line: 1232
-  summary: DisplayType.TOP_N is not mapped to DisplayType.AREA in deserializeDisplayType,
-    allowing deprecated TOP_N to persist and use legacy rendering without y-axis abbreviation
-- file: static/app/views/dashboards/widgetCard/index.tsx
-  line: 43
-  summary: TOP_N display type is handled via its own legacy code path with custom
-    query manipulation instead of being treated as AREA, causing unformatted y-axis
-    values
+- file: static/app/components/core/form/field/autoSaveField.tsx
+  line: 1
+  summary: "Missing generic type parameters on AutoSaveField's mutationOptions prop\
+    \ definition causes type inference loss for mutation callbacks (onMutate, onSuccess,\
+    \ onError, onSettled) \u2014 context type and other callback arguments degrade\
+    \ to unknown"
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110413
+reviewer_notes: []
+reviewer_findings:
+- file: static/app/components/core/form/field/autoSaveField.spec.tsx
+  line: 45
+  summary: "\U0001F635\u200D\U0001F4AB"
+  line_side: pre_fix
+quality_flags: []

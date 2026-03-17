@@ -1,34 +1,41 @@
 id: snarkVM-097
 repo: ProvableHQ/snarkVM
-base_commit: 31684eeb02d598cfe7181b88ed4ae5ed8f78039d^
-head_commit: 31684eeb02d598cfe7181b88ed4ae5ed8f78039d
-fix_commit: 31684eeb02d598cfe7181b88ed4ae5ed8f78039d
-category: logic
+base_commit: 6995c5c33cedd8ee141f744cad52650b776e57b8^
+head_commit: 6995c5c33cedd8ee141f744cad52650b776e57b8
+fix_commit: 6995c5c33cedd8ee141f744cad52650b776e57b8
+category: cryptographic
 difficulty: hard
-severity: high
+severity: critical
 language: rust
 pr_size: xl
-description: The finalize type-checking and register type-checking logic enforced
-  that futures must be awaited in the exact order they were produced, which was overly
-  strict and prevented developers from dynamically ordering external function calls
-  based on on-chain state. The fix relaxes the ordering checks in both `register_types/initialize.rs`
-  and `finalize_types/initialize.rs` to allow futures to be awaited in arbitrary order
-  while still ensuring all futures are consumed.
+description: 'The CUDA implementation of MSM (Multi-Scalar Multiplication) in `blst_p1_add_affines_into_projective`
+  failed to handle edge cases in elliptic curve point addition: specifically when
+  one or both input points are the identity (zero point), or when the two points are
+  equal (requiring doubling) or inverses (resulting in identity). The fix adds proper
+  checks for these degenerate cases in the CUDA kernel and updates the compiled PTX
+  files accordingly.'
 expected_findings:
-- file: synthesizer/process/src/stack/register_types/initialize.rs
-  line: 157
-  summary: 'Overly strict ordering enforcement: futures produced before an `async`
-    call are required to be consumed in sequential order, but this prevents valid
-    programs that need to await futures in a different order based on runtime conditions.'
-- file: synthesizer/process/src/stack/finalize_types/initialize.rs
-  line: 45
-  summary: Strict sequential ordering check on future consumption in finalize type
-    validation rejects valid programs that await futures out of production order.
-- file: synthesizer/process/src/finalize.rs
-  line: 211
-  summary: Future ordering validation in finalize execution enforces sequential consumption
-    order, which is unnecessarily restrictive and breaks feature parity with other
-    blockchain ecosystems.
+- file: algorithms/src/msm/variable_base/blst_377_cuda/blst_377_ops.cu
+  line: 430
+  summary: 'Missing edge-case handling in point addition: `blst_p1_add_affines_into_projective`
+    assumes neither input point is the identity and that the two points are distinct
+    and non-inverse. Must handle P=0, Q=0, P=Q (doubling), and P=-Q (result is identity)
+    to avoid incorrect MSM results.'
+  line_side: pre_fix
+- file: algorithms/src/msm/variable_base/cuda.rs
+  line: 256
+  summary: Host-side MSM dispatch does not guard against identity points being passed
+    into the CUDA kernel, which lacks edge-case handling for zero points and point
+    doubling.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

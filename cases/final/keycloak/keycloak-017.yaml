@@ -1,31 +1,40 @@
 id: keycloak-017
 repo: keycloak/keycloak
-base_commit: 595e2e06d5a517735aad90b893d877001248435c^
-head_commit: 595e2e06d5a517735aad90b893d877001248435c
-fix_commit: 595e2e06d5a517735aad90b893d877001248435c
+base_commit: 366a7397e236c73e4414a11814fb5f35c2f65cd5^
+head_commit: 366a7397e236c73e4414a11814fb5f35c2f65cd5
+fix_commit: 366a7397e236c73e4414a11814fb5f35c2f65cd5
 category: logic
-difficulty: easy
+difficulty: medium
 severity: medium
-language: unknown
+language: typescript
 pr_size: tiny
-description: The GitHub Actions workflow for Cypress tests lacked a repository guard
-  condition, causing the tests to run on all forks on push events. This overwhelmed
-  the CI budget and added unwanted Cypress Cloud comments to PRs that did not modify
-  the front-end. The fix adds `github.repository == 'keycloak/keycloak'` conditions
-  to restrict Cypress jobs to the main repo only.
+description: The single-select typeahead resolved the displayed resource name from
+  the paginated search results (`items`) instead of from the `selected` state (fetched
+  by ID). When a user picked a resource outside the initial 10 results and the search
+  reset, the name disappeared because it was no longer in the `items` list. The fix
+  resolves the display from `selected` (always stable) and eagerly updates `selected`
+  on pick so the name is available without an async round-trip.
 expected_findings:
-- file: .github/workflows/js-ci.yml
-  line: 190
-  summary: 'Missing repository guard: Cypress test job runs on forks because the `if`
-    condition does not check `github.repository == ''keycloak/keycloak''`, causing
-    unnecessary CI runs and budget waste'
-- file: .github/workflows/js-ci.yml
-  line: 243
-  summary: 'Missing repository guard: second Cypress job also lacks `github.repository
-    == ''keycloak/keycloak''` check, allowing fork pushes to trigger expensive test
-    runs'
+- file: js/apps/admin-ui/src/clients/authorization/ResourcesPolicySelect.tsx
+  line: 284
+  summary: Display value resolved from paginated `items` list instead of `selected`
+    state; resource names outside the first page of results will not render after
+    selection.
+  line_side: pre_fix
+- file: js/apps/admin-ui/src/clients/authorization/ResourcesPolicySelect.tsx
+  line: 297
+  summary: 'Same items-vs-selected bug: the typeahead text input value is derived
+    from paginated results rather than the stable `selected` collection, causing the
+    displayed name to disappear when search results reset.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

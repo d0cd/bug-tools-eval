@@ -1,26 +1,49 @@
 id: snarkVM-108
 repo: ProvableHQ/snarkVM
-base_commit: 261504b8827d369a04fa8f358f6f4ea90bee913e^
-head_commit: 261504b8827d369a04fa8f358f6f4ea90bee913e
-fix_commit: 261504b8827d369a04fa8f358f6f4ea90bee913e
-category: logic
-difficulty: hard
-severity: high
+base_commit: 7f3ab68a1b489aae649a8fd891dfdc478cdd9123^
+head_commit: 7f3ab68a1b489aae649a8fd891dfdc478cdd9123
+fix_commit: 7f3ab68a1b489aae649a8fd891dfdc478cdd9123
+category: api-misuse
+difficulty: medium
+severity: medium
 language: rust
-pr_size: large
-description: Bug in the circuit constraint converter implementation within snarkVM.
-  The PR fixes how constraints are converted between the circuit model and the R1CS
-  (Rank-1 Constraint System) representation, likely involving incorrect linear combination
-  handling or constraint system conversion logic that could produce invalid proofs.
+pr_size: medium
+description: Multiple `serialize_struct` calls across the codebase specify an incorrect
+  number of elements, mismatching the actual number of `serialize_field` calls that
+  follow. While serde treats this count as a hint (so JSON is unaffected), binary/fixed-size
+  formats can produce corrupt output or fail to deserialize when the declared count
+  is wrong. This was a systematic error across at least 10 serialization files.
 expected_findings:
-- file: circuits/src/models/constraint_converter.rs
-  line: 0
-  summary: Constraint conversion logic may incorrectly translate circuit constraints
-    to R1CS form, producing invalid or incomplete constraint systems
-- file: circuits/src/models/linear_combination.rs
-  line: 0
-  summary: Linear combination construction or coefficient handling may be incorrect,
-    leading to malformed R1CS constraints
+- file: console/program/src/request/serialize.rs
+  line: 21
+  summary: Incorrect element count in `serializer.serialize_struct("Request", 10)`
+    — the actual number of `serialize_field` calls does not match 10. Count the fields
+    and correct the hint.
+  line_side: pre_fix
+- file: ledger/block/src/serialize.rs
+  line: 19
+  summary: Incorrect element count in `serializer.serialize_struct("Block", 7 + ...)`
+    — the base count does not match the number of fixed fields being serialized.
+  line_side: pre_fix
+- file: ledger/block/src/transition/input/serialize.rs
+  line: 20
+  summary: Incorrect element count in `serializer.serialize_struct("Input", 2 + ...)`
+    — repeated across all three Input variant arms (lines 20, 29, 38). The base count
+    should reflect the actual number of fields serialized per variant.
+  line_side: pre_fix
+- file: synthesizer/program/src/logic/finalize_operation/serialize.rs
+  line: 19
+  summary: Incorrect element count in `serializer.serialize_struct("FinalizeOperation",
+    2)` — does not match the actual number of fields serialized for each variant.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,27 +1,32 @@
 id: leo-222
 repo: ProvableHQ/leo
-base_commit: d71948f789ea07ad2e7d511d58ce5254e33ae20d^
-head_commit: d71948f789ea07ad2e7d511d58ce5254e33ae20d
-fix_commit: d71948f789ea07ad2e7d511d58ce5254e33ae20d
-category: api
+base_commit: db963aabea713fb700b4b2ef760171ad7125c942^
+head_commit: db963aabea713fb700b4b2ef760171ad7125c942
+fix_commit: db963aabea713fb700b4b2ef760171ad7125c942
+category: logic
 difficulty: medium
-severity: medium
-language: rust
-pr_size: xl
-description: The `leo devnet --storage` flag was not functioning correctly, likely
-  due to the storage directory option not being properly wired through the CLI command
-  to the underlying snarkOS process invocation. The fix corrects the flag handling
-  in the devnet command module and utilities, and adds integration tests to verify
-  the behavior.
+severity: high
+language: unknown
+pr_size: medium
+description: A critical block of code was accidentally omitted during a test-framework
+  rewrite, causing test errors to never be emitted and test expectations to never
+  be updated. The fix restored the missing code block, which caused all the .out expectation
+  files to be regenerated with correct values.
 expected_findings:
-- file: crates/leo/src/cli/commands/devnet/mod.rs
-  line: 52
-  summary: The --storage CLI flag was not correctly propagated or parsed, causing
-    the storage directory configuration to be ignored when launching the devnet.
-- file: crates/leo/src/cli/commands/devnet/utilities.rs
-  line: 73
-  summary: The storage path was not being passed to the spawned snarkOS subprocess
-    Command, so the --storage flag had no effect on the launched nodes.
+- file: tests/expectations/compiler/compiler/address/branch.leo.out
+  line: 1
+  summary: Test expectation file contains stale/incorrect values because the test
+    framework was missing the code block responsible for emitting errors and updating
+    expectations
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

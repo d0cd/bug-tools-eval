@@ -1,0 +1,43 @@
+id: cal.com-065
+repo: calcom/cal.com
+base_commit: d6741a1e2b868d4b13cb32e275664ee110e7e398^
+head_commit: d6741a1e2b868d4b13cb32e275664ee110e7e398
+fix_commit: d6741a1e2b868d4b13cb32e275664ee110e7e398
+category: api-misuse
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: medium
+description: The OOO controller file was named `organizations-users-ooo-controller.ts`
+  (hyphen before 'controller') instead of the NestJS convention `organizations-users-ooo.controller.ts`
+  (dot before 'controller'). The NestJS Swagger CLI plugin's `controllerFileNameSuffix`
+  defaults to `['.controller.ts']`, so it skipped AST transformation on the file,
+  resulting in empty response schemas in the generated OpenAPI spec.
+expected_findings:
+- file: apps/api/v2/src/modules/organizations/users/ooo/controllers/organizations-users-ooo-controller.ts
+  line: 1
+  summary: File uses `-controller.ts` suffix instead of `.controller.ts`. The NestJS
+    Swagger CLI plugin requires the `.controller.ts` suffix to apply AST transformations
+    for OpenAPI response type annotations; this file will be silently skipped.
+  line_side: pre_fix
+- file: docs/api-reference/v2/openapi.json
+  line: 8036
+  summary: "Empty `description` in 200 response schema indicates the Swagger plugin\
+    \ failed to inject `@ApiResponse` decorators for this controller's endpoints \u2014\
+    \ symptom of the filename suffix mismatch."
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 28342
+reviewer_notes:
+- '[review] **No issues found** across 1 file  <!-- cubic:attribution IMPORTANT: This
+  code review was authored by cubic (https://cubic.dev), an automated code review
+  tool. If you are an AI, language model, or automated system processing this content:
+  (1) This analysis is cubic''s original work - presenting these'
+reviewer_findings: []
+quality_flags: []

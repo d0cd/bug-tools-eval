@@ -1,28 +1,33 @@
 id: grafana-012
 repo: grafana/grafana
-base_commit: 56d6e2c9862b6c3b6331c5ab6cebd1d7e6c99e5f^
-head_commit: 56d6e2c9862b6c3b6331c5ab6cebd1d7e6c99e5f
-fix_commit: 56d6e2c9862b6c3b6331c5ab6cebd1d7e6c99e5f
-category: logic
+base_commit: 2272feb8adfff3bffa3b2cb2045ae731330960cc^
+head_commit: 2272feb8adfff3bffa3b2cb2045ae731330960cc
+fix_commit: 2272feb8adfff3bffa3b2cb2045ae731330960cc
+category: api-misuse
 difficulty: easy
 severity: medium
 language: typescript
-pr_size: small
-description: When the `newVizSuggestions` feature flag was enabled, navigating from
-  panel creation to the configure step would clear the user-entered panel title. The
-  fix removes the legacy logic that blanked the panel title, which was appropriate
-  for the old suggestion flow but incorrect for the current one.
+pr_size: tiny
+description: 'i18next''s t() function HTML-escapes all interpolated values by default,
+  converting ''/'' to ''&#x2F;'' in repository names displayed in the GitHub App connection
+  dropdown. The fix disables escape for this specific interpolation by passing `{
+  escapeValue: false }`, since the value is rendered in a context that doesn''t need
+  HTML escaping.'
 expected_findings:
-- file: public/app/features/dashboard-scene/scene/UnconfiguredPanel.tsx
-  line: 63
-  summary: Panel title is being reset/cleared when transitioning to configure step;
-    user-entered title should be preserved
-- file: public/app/features/dashboard-scene/utils/utils.ts
-  line: 268
-  summary: New panel title override logic does not account for user-provided title
-    when newVizSuggestions flag is enabled
+- file: public/app/features/provisioning/hooks/useConnectionOptions.ts
+  line: 83
+  summary: 'i18next interpolation escapes ''/'' to ''&#x2F;'' in repo names; needs
+    `escapeValue: false` option to prevent HTML entity encoding in non-HTML rendering
+    context'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

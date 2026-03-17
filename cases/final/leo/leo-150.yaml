@@ -1,31 +1,36 @@
 id: leo-150
 repo: ProvableHQ/leo
-base_commit: 878f0a8461d4c824017773729cc60b9147288418^
-head_commit: 878f0a8461d4c824017773729cc60b9147288418
-fix_commit: 878f0a8461d4c824017773729cc60b9147288418
-category: logic
-difficulty: medium
-severity: high
+base_commit: 9d247cfc54b3bca87b0a9de576e675dca3f6cf24^
+head_commit: 9d247cfc54b3bca87b0a9de576e675dca3f6cf24
+fix_commit: 9d247cfc54b3bca87b0a9de576e675dca3f6cf24
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: 'The `self` variable (declared_circuit_reference) was not passed into
-  nested scopes such as conditional branches and for loops inside circuit functions.
-  This caused accessing or mutating `self` inside an `if` block or loop within a circuit
-  method to fail. The fix threads the `declared_circuit_reference: &str` parameter
-  through the block, conditional, and iteration statement execution functions.'
+pr_size: medium
+description: This PR updates and improves parser documentation comments across several
+  files and reorders token variants in match arms for clarity. There is no functional
+  bug being fixed; the changes are purely cosmetic documentation improvements and
+  code layout adjustments.
 expected_findings:
-- file: compiler/src/statement/statement.rs
-  line: 90
-  summary: Conditional statement execution does not forward `declared_circuit_reference`,
-    so `self` is inaccessible inside `if` blocks in circuit functions.
-- file: compiler/src/statement/statement.rs
-  line: 108
-  summary: Iteration statement execution does not forward `declared_circuit_reference`,
-    so `self` is inaccessible inside `for` loops in circuit functions.
-- file: compiler/src/statement/conditional/conditional.rs
-  line: 52
-  summary: Function signature missing `declared_circuit_reference` parameter; nested
-    conditional scopes cannot resolve `self`.
+- file: compiler/parser/src/parser/statement.rs
+  line: 31
+  summary: Token variants in match arm reordered (e.g. BitXorAssign moved) for consistency
+    — cosmetic change only, verify ordering matches a consistent convention
+  line_side: pre_fix
+- file: compiler/parser/src/tokenizer/token.rs
+  line: 46
+  summary: Documentation comment rewritten — verify the updated wording accurately
+    describes the token semantics and whitespace enforcement behavior
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

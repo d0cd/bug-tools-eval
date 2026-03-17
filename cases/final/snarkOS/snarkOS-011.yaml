@@ -1,23 +1,41 @@
 id: snarkOS-011
 repo: ProvableHQ/snarkOS
-base_commit: 3a38e2a888ea357cb744d78c0e278be9f5a0523d^
-head_commit: 3a38e2a888ea357cb744d78c0e278be9f5a0523d
-fix_commit: 3a38e2a888ea357cb744d78c0e278be9f5a0523d
-category: api
+base_commit: 1199a6e27d781b0e3bf361a39ff6f0314c3435dc^
+head_commit: 1199a6e27d781b0e3bf361a39ff6f0314c3435dc
+fix_commit: 1199a6e27d781b0e3bf361a39ff6f0314c3435dc
+category: logic
 difficulty: easy
 severity: medium
 language: rust
-pr_size: small
-description: The REST API route handler for fetching blocks did not return a 404 status
-  code when a requested block was not found. The fix adds proper handling for the
-  missing-block case, returning an appropriate 404 response instead of an incorrect
-  or misleading error.
+pr_size: tiny
+description: In the wrapped MPSC sender's `try_send` method, the metric tracking sent
+  messages was incremented before calling `self.inner.try_send()`. If `try_send` failed
+  (e.g., channel full), the metric was still incremented, producing inaccurate counts
+  of queued messages. The fix reorders the operations so the metric is only incremented
+  after `try_send` succeeds.
 expected_findings:
-- file: node/rest/src/routes.rs
-  line: 139
-  summary: Missing block lookup does not return a 404 response; when the block is
-    not found, the handler should map the None/missing case to an HTTP 404 error instead
-    of falling through or returning a different status.
+- file: metrics/src/wrapped_mpsc.rs
+  line: 62
+  summary: "Metric `self.increment()` is called before `self.inner.try_send(message)`\
+    \ returns \u2014 if try_send fails, the metric still gets incremented, producing\
+    \ inaccurate message-queued counts. The increment should happen only after confirming\
+    \ try_send succeeded."
+  line_side: pre_fix
+- file: metrics/src/wrapped_mpsc.rs
+  line: 65
+  summary: "Metric `self.increment()` is called unconditionally before `self.inner.try_send(message)`\
+    \ \u2014 if try_send fails (e.g. channel full), the metric is still incremented,\
+    \ producing inaccurate message-queued counts. The increment should only happen\
+    \ after confirming try_send succeeded."
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 1185
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

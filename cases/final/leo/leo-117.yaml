@@ -1,35 +1,42 @@
 id: leo-117
 repo: ProvableHQ/leo
-base_commit: 8e586fe7d4a7d4bff275eec175bf10aea2246fbb^
-head_commit: 8e586fe7d4a7d4bff275eec175bf10aea2246fbb
-fix_commit: 8e586fe7d4a7d4bff275eec175bf10aea2246fbb
-category: logic
-difficulty: medium
-severity: high
+base_commit: 788300ef931cf550f007531f55fba624fdfafd6a^
+head_commit: 788300ef931cf550f007531f55fba624fdfafd6a
+fix_commit: 788300ef931cf550f007531f55fba624fdfafd6a
+category: code-smell
+difficulty: easy
+severity: medium
 language: rust
 pr_size: medium
-description: Leo's type checker did not enforce a restriction on nested imports (imports
-  beyond one level of nesting). Programs could import other programs that themselves
-  contained imports, leading to unexpected behavior. The fix adds an `is_imported`
-  flag to the type checker that tracks whether the current program is an import, and
-  emits a new error when a nested import is encountered, while also threading Span
-  information through the import AST for proper error location reporting.
+description: Error messages for input file and state file parsing did not include
+  the file path, making it difficult for users to identify which file caused the error.
+  The fix threads file path information through error types and uses tracing to display
+  errors with proper context. Callers of `read_from()` were already receiving a `(String,
+  PathBuf)` tuple but some discarded the path component.
 expected_findings:
-- file: compiler/passes/src/type_checking/checker.rs
-  line: 39
-  summary: 'Missing `is_imported` flag on the TypeChecker: there is no mechanism to
-    track whether we are currently inside an imported program, so nested imports cannot
-    be detected or rejected.'
-- file: compiler/passes/src/type_checking/check_program.rs
-  line: 287
-  summary: When visiting imported programs, the type checker does not check whether
-    the imported program itself contains imports (nested imports). Should set an `is_imported`
-    flag before recursing and emit an error if a nested import is found.
-- file: compiler/ast/src/program/mod.rs
-  line: 34
-  summary: The `imports` field stores `IndexMap<ProgramId, Program>` without an associated
-    `Span`, making it impossible to report the source location of an offending nested
-    import. Should be `IndexMap<ProgramId, (Program, Span)>`.
+- file: compiler/src/compiler.rs
+  line: 68
+  summary: parse_input does not propagate the file path into error messages; parsing
+    failures will show errors without indicating which input/state file caused them
+  line_side: pre_fix
+- file: package/src/inputs/pairs.rs
+  line: 57
+  summary: Discards the PathBuf from read_from() via `.0`, losing file path context
+    that should be included in downstream error messages
+  line_side: pre_fix
+- file: leo/commands/build.rs
+  line: 110
+  summary: Input file path returned by read_from() is not forwarded to the compiler's
+    parse_input, so any parse errors lack file location context
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

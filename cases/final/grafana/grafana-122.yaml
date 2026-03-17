@@ -1,0 +1,37 @@
+id: grafana-122
+repo: grafana/grafana
+base_commit: ff382201ac4816efce888571525041ddef10741c^
+head_commit: ff382201ac4816efce888571525041ddef10741c
+fix_commit: ff382201ac4816efce888571525041ddef10741c
+category: api-misuse
+difficulty: easy
+severity: high
+language: go
+pr_size: small
+description: The team_member.external database column can contain NULL values, but
+  the Go code was scanning it directly into a non-nullable type, causing a SQL scan
+  error that broke dashboard loading. The fix imports database/sql and uses sql.NullString
+  (or similar nullable types) to safely handle NULL column values during row scanning.
+expected_findings:
+- file: pkg/registry/apis/iam/legacy/team_binding.go
+  line: 119
+  summary: Scanning nullable column `team_member.external` into a non-nullable Go
+    type will panic/error on NULL rows. Use sql.NullString or a pointer type to handle
+    NULL values.
+  line_side: pre_fix
+- file: pkg/registry/apis/iam/legacy/user.go
+  line: 266
+  summary: Scanning nullable column `external` into a non-nullable Go type will fail
+    when the column is NULL. Use sql.NullString or a pointer type.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

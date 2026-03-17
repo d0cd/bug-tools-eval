@@ -1,0 +1,31 @@
+id: sentry-170
+repo: getsentry/sentry
+base_commit: e35a350e74ee9698d936dee713af290b4e3edbd8^
+head_commit: e35a350e74ee9698d936dee713af290b4e3edbd8
+fix_commit: e35a350e74ee9698d936dee713af290b4e3edbd8
+category: constraint
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: tiny
+description: The AI Agents Overview pre-built dashboard's traces table widget had
+  its limit set to 20, but the backend serializer enforces a maximum limit of 10 for
+  non-categorical-bar-chart widgets. This mismatch caused dashboard duplication to
+  fail. The fix lowers the limit from 20 to 10.
+expected_findings:
+- file: static/app/views/dashboards/utils/prebuiltConfigs/ai/aiAgentsOverview.ts
+  line: 1
+  summary: Widget limit exceeds backend-enforced maximum of 10 for non-categorical-bar-chart
+    widgets, causing dashboard duplication to fail
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110526
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

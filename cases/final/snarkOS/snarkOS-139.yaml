@@ -1,32 +1,38 @@
 id: snarkOS-139
 repo: ProvableHQ/snarkOS
-base_commit: 8df3a32c0e39226965e751f22d4a5befcf169724^
-head_commit: 8df3a32c0e39226965e751f22d4a5befcf169724
-fix_commit: 8df3a32c0e39226965e751f22d4a5befcf169724
+base_commit: b51132e00a0c8809bb07da0240115983d0b33d28^
+head_commit: b51132e00a0c8809bb07da0240115983d0b33d28
+fix_commit: b51132e00a0c8809bb07da0240115983d0b33d28
 category: logic
-difficulty: medium
+difficulty: hard
 severity: high
 language: rust
-pr_size: medium
-description: "A regression disabled chain-scanning behavior during aggressive sync,\
-  \ preventing nodes from properly scanning the chain to find sync points. Additionally,\
-  \ the block locator hash ordering was suboptimal\u2014proportional hashes should\
-  \ come first, and quadratic hashes should target blocks closer to the chain origin\
-  \ rather than the tip."
+pr_size: xl
+description: The BFT sync module failed to update the sync height after completing
+  a long-range (non-BFT) block sync, causing the node to redundantly re-request blocks
+  it had already received. Additionally, a race condition allowed premature switching
+  to BFT sync when the node was still more than GC blocks behind, if a new block arrived
+  immediately after a non-BFT sync round completed.
 expected_findings:
-- file: network/src/sync/blocks/aggro.rs
-  line: 59
-  summary: 'Regression: chain-scanning behavior is disabled in aggro sync mode, preventing
-    the node from properly discovering and syncing longer chains'
-- file: storage/src/storage/sync.rs
-  line: 246
-  summary: 'Block locator hashes are ordered incorrectly: proportional hashes should
-    come before quadratic hashes, and quadratic step should scan blocks closer to
-    chain origin rather than the tip'
-- file: network/src/sync/blocks/aggro.rs
-  line: 78
-  summary: Aggro sync round timeout is too short (15s) and includes a pointless interim
-    block locator hash update that gets discarded on restart
+- file: node/bft/src/sync/mod.rs
+  line: 161
+  summary: Sync height is not updated after non-BFT long-range sync completes, causing
+    block_sync to re-request blocks that were already received
+  line_side: pre_fix
+- file: node/bft/src/sync/mod.rs
+  line: 140
+  summary: Condition for switching from block sync to BFT sync does not properly account
+    for the node still being more than GC blocks behind, allowing premature BFT sync
+    activation
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

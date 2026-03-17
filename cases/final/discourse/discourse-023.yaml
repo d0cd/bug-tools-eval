@@ -1,28 +1,33 @@
 id: discourse-023
 repo: discourse/discourse
-base_commit: f733e7217667d8afc0c536f7655b8fbda647b2c3^
-head_commit: f733e7217667d8afc0c536f7655b8fbda647b2c3
-fix_commit: f733e7217667d8afc0c536f7655b8fbda647b2c3
-category: logic
+base_commit: 1fd259accf033ed9d9ffd24db91fda094df6cbc6^
+head_commit: 1fd259accf033ed9d9ffd24db91fda094df6cbc6
+fix_commit: 1fd259accf033ed9d9ffd24db91fda094df6cbc6
+category: style
 difficulty: easy
-severity: medium
+severity: low
 language: unknown
-pr_size: small
-description: WCAG accessibility stylesheet used hardcoded or incorrect CSS color values
-  for button states (hover, active, focus), causing buttons to not change color on
-  interaction. The fix switches to proper CSS custom properties (variables) so button
-  states correctly reflect visual changes, improving accessibility compliance.
+pr_size: tiny
+description: The description for the `hide_user_profiles_from_public` setting incorrectly
+  stated it also hides the user directory. The fix corrects the description to accurately
+  reflect that the setting only disables user cards and user profiles for anonymous
+  users, since hiding the user directory is controlled by the separate `enable_user_directory`
+  setting.
 expected_findings:
-- file: app/assets/stylesheets/wcag.scss
-  line: 12
-  summary: Button icon color variable uses incorrect value; should use a proper CSS
-    variable to ensure WCAG-compliant color contrast on state changes
-- file: app/assets/stylesheets/wcag.scss
-  line: 192
-  summary: Duplicate/overridden button color definition lacks proper variable usage,
-    causing button hover/active states to show no visible color change
+- file: config/locales/server.en.yml
+  line: 2437
+  summary: 'Misleading setting description: `hide_user_profiles_from_public` description
+    incorrectly claims it hides the user directory; it only hides user cards and profiles
+    for anonymous users'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

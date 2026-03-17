@@ -1,35 +1,46 @@
 id: snarkOS-068
 repo: ProvableHQ/snarkOS
-base_commit: 1881d68711c158401f0ddf4de43c1a1b129c1186
-head_commit: 85bd920d63a76d078499b257c1919d1965a39672
-fix_commit: 2b086093d48105c154fa331a1e5ffe4ccc67c15b
-category: concurrency
-difficulty: hard
+base_commit: 5d7d1c1bceff8139c347abe6a205c162df522d0e^
+head_commit: 5d7d1c1bceff8139c347abe6a205c162df522d0e
+fix_commit: 5d7d1c1bceff8139c347abe6a205c162df522d0e
+category: api-misuse
+difficulty: medium
 severity: high
 language: rust
-pr_size: medium
-description: Concurrent bilateral handshake attempts with a single peer caused a race
-  condition where a later duplicate handshake would invalidate a prior successful
-  one, erroneously downgrading the peer from connected status to CandidatePeer. The
-  fix changes the handshake functions to return Option<ChallengeRequest> instead of
-  treating duplicates as errors, and deduplicates outbound connection attempts to
-  trusted validators in the gateway.
+pr_size: xl
+description: The snarkOS developer CLI commands (deploy, execute) were broken and
+  did not work as expected. The ureq HTTP client library was updated with breaking
+  API changes requiring new helper functions (http_get, http_get_json) to properly
+  handle error responses with both status codes and response bodies. Additionally,
+  endpoint handling was improved by parsing URLs as http::Uri and renaming --query
+  to --endpoint.
 expected_findings:
-- file: node/router/src/handshake.rs
-  line: 93
-  summary: Handshake function returns io::Result<ChallengeRequest<N>> instead of io::Result<Option<ChallengeRequest<N>>>;
-    duplicate handshake attempts are treated as hard errors instead of being gracefully
-    handled as None, causing peer status downgrade during concurrent bilateral handshakes.
-- file: node/bft/src/gateway.rs
-  line: 421
-  summary: Missing deduplication of outbound connection attempts to trusted validators;
-    bail! on duplicate connection requests instead of silently skipping already-connected
-    peers, increasing likelihood of concurrent handshake race conditions.
-- file: node/router/src/helpers/peer.rs
-  line: 29
-  summary: Peer state enum lacks proper handling for the Connecting state transition,
-    allowing a concurrent duplicate handshake to overwrite an in-progress connection
-    and downgrade the peer to CandidatePeer.
+- file: cli/src/commands/developer/deploy.rs
+  line: 13
+  summary: Deploy command uses incorrect endpoint/broadcast handling — deploy does
+    not work as expected due to broken CLI argument wiring and missing proper HTTP
+    response handling
+  line_side: pre_fix
+- file: cli/src/commands/developer/execute.rs
+  line: 13
+  summary: Execute command uses incorrect endpoint/broadcast handling — execute does
+    not work as expected due to broken CLI argument wiring and missing proper HTTP
+    response handling
+  line_side: pre_fix
+- file: cli/src/commands/developer/mod.rs
+  line: 28
+  summary: Developer module lacks proper HTTP helper abstractions for ureq — error
+    responses lose the response body, making it impossible to diagnose server-side
+    failures
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

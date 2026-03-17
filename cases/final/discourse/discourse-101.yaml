@@ -1,0 +1,30 @@
+id: discourse-101
+repo: discourse/discourse
+base_commit: dfddeca89c0950ca3c424473a5eb5daf73f568b0^
+head_commit: dfddeca89c0950ca3c424473a5eb5daf73f568b0
+fix_commit: dfddeca89c0950ca3c424473a5eb5daf73f568b0
+category: logic
+difficulty: easy
+severity: medium
+language: javascript
+pr_size: tiny
+description: The exception page controller accessed properties on potentially undefined
+  objects, causing 'undefined is not an object' runtime errors. The fix adds null/undefined
+  guards before property access, preventing the error page itself from crashing.
+expected_findings:
+- file: app/controllers/exception.js
+  line: 1
+  summary: Property access on potentially undefined object; needs optional chaining
+    or null guard to prevent 'undefined is not an object' error
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 38349
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

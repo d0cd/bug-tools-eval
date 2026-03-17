@@ -1,32 +1,44 @@
 id: snarkVM-095
 repo: ProvableHQ/snarkVM
-base_commit: 11605425c8a631715460d006b4477da35877107b^
-head_commit: 11605425c8a631715460d006b4477da35877107b
-fix_commit: 11605425c8a631715460d006b4477da35877107b
-category: api
+base_commit: 68f4f31c15181c4f31aeed95426848c7feeb9bba^
+head_commit: 68f4f31c15181c4f31aeed95426848c7feeb9bba
+fix_commit: 68f4f31c15181c4f31aeed95426848c7feeb9bba
+category: security
 difficulty: hard
-severity: high
+severity: critical
 language: rust
-pr_size: xl
-description: The PendingBlocks API was missing or had been inadvertently removed/regressed,
-  breaking the ledger's ability to properly handle pending blocks. The fix restores
-  the PendingBlock type and its associated validation logic in check_next_block, including
-  earlier solution ID checks via ensure_equals, and adds assertions in the store helpers
-  to guard against invalid map operations.
+pr_size: large
+description: TransmissionID lacked an integrity checksum, allowing malicious validators
+  to tamper with solutions or transactions and broadcast malformed objects to honest
+  validators. The fix adds a Sha3_256-based TransmissionChecksum (truncated to u128)
+  to each TransmissionID variant and overwrites solution targets with values recalculated
+  during verification, preventing injection of malicious solutions.
 expected_findings:
-- file: ledger/src/check_next_block.rs
-  line: 15
-  summary: Missing PendingBlock type and ensure_equals-based validation checks; solution
-    ID checks should be performed earlier in the validation pipeline to fail fast
-    on invalid blocks.
-- file: ledger/src/lib.rs
-  line: 37
-  summary: PendingBlock is not exported from the ledger crate, making the PendingBlocks
-    API unavailable to consumers.
-- file: ledger/store/src/helpers/rocksdb/internal/map.rs
-  line: 117
-  summary: Missing assertions in store map operations that should guard against invalid
-    state during insert/remove, risking silent data corruption.
+- file: ledger/narwhal/transmission-id/src/lib.rs
+  line: 27
+  summary: TransmissionID::Solution variant lacks a checksum binding the ID to the
+    actual transmission content, allowing a malicious validator to substitute a different
+    solution payload while keeping the same ID.
+  line_side: pre_fix
+- file: ledger/block/src/verify.rs
+  line: 539
+  summary: Block verification prepares iterators over unconfirmed transactions without
+    verifying transmission checksums, so tampered transmissions pass validation.
+  line_side: pre_fix
+- file: ledger/src/helpers/bft.rs
+  line: 46
+  summary: BFT helper matches TransmissionID::Solution to Transmission::Solution without
+    verifying that the transmission content matches the checksum in the ID, enabling
+    silent substitution attacks.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

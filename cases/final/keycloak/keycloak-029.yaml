@@ -1,28 +1,33 @@
 id: keycloak-029
 repo: keycloak/keycloak
-base_commit: 58c4fa413909302ca851b953b673becab4816e2b^
-head_commit: 58c4fa413909302ca851b953b673becab4816e2b
-fix_commit: 58c4fa413909302ca851b953b673becab4816e2b
+base_commit: 5d37617911f44d73e6126a1be780b23166460b7d^
+head_commit: 5d37617911f44d73e6126a1be780b23166460b7d
+fix_commit: 5d37617911f44d73e6126a1be780b23166460b7d
 category: logic
-difficulty: medium
+difficulty: easy
 severity: medium
-language: typescript
-pr_size: tiny
-description: The `useFetch()` hook instantiated a new `AbortController` on every call
-  rather than inside the effect callback. This meant each render created a fresh controller,
-  so when the effect cleanup ran `controller.abort()`, it aborted the newest controller
-  (which may not yet be associated with an in-flight request) instead of the one tied
-  to the active fetch, causing requests to never be properly cancelled on unmount
-  or dependency changes.
+language: java
+pr_size: small
+description: ImmutableAttributeValidator compared email attribute values case-sensitively,
+  causing false validation errors when an external identity provider (e.g., LDAP)
+  returned the email with different casing than what was stored. The fix normalizes
+  email values to lowercase before comparison, consistent with how usernames are already
+  handled.
 expected_findings:
-- file: js/apps/admin-ui/src/context/auth/AdminClient.tsx
-  line: 38
-  summary: AbortController is instantiated outside the effect (at the call-site level
-    of useFetch), so a new controller is created on every render. It should be created
-    inside the effect so that cleanup aborts the correct controller tied to the in-flight
-    request.
+- file: services/src/main/java/org/keycloak/userprofile/validator/ImmutableAttributeValidator.java
+  line: 61
+  summary: 'Case-sensitive comparison of email attributes: emails should be lowercased
+    before comparing old and new values to avoid spurious immutability violations
+    when the source system returns a differently-cased but equivalent email address'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

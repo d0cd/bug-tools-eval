@@ -1,0 +1,30 @@
+id: discourse-095
+repo: discourse/discourse
+base_commit: d88a2a8f7f54f99cdec311eabc5f81660f0eefa5^
+head_commit: d88a2a8f7f54f99cdec311eabc5f81660f0eefa5
+fix_commit: d88a2a8f7f54f99cdec311eabc5f81660f0eefa5
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: A typo existed in the English locale string for `password_unique_characters`
+  in the client-facing localization file. The fix corrects the spelling or wording
+  so that the user-facing message reads correctly.
+expected_findings:
+- file: config/locales/client.en.yml
+  line: 1
+  summary: Typo in the `password_unique_characters` locale string — misspelled or
+    incorrect wording in user-facing text
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

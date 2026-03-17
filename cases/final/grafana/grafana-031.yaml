@@ -1,25 +1,45 @@
 id: grafana-031
 repo: grafana/grafana
-base_commit: 376238a81baec9350abc35fdf9abb5e0a858ac09^
-head_commit: 376238a81baec9350abc35fdf9abb5e0a858ac09
-fix_commit: 376238a81baec9350abc35fdf9abb5e0a858ac09
-category: logic
-difficulty: easy
-severity: low
-language: unknown
-pr_size: tiny
-description: The pyroscope auto-label in the GitHub Actions PR commands configuration
-  referenced the old label name `datasource/grafana-pyroscope` instead of the renamed
-  `datasource/Pyroscope`. This caused PRs touching pyroscope datasource code to receive
-  the wrong (stale) label. The fix updates the label string to match the new naming
-  convention.
+base_commit: 447442aa7edc4cef642b57b0138547a48026c47c^
+head_commit: 447442aa7edc4cef642b57b0138547a48026c47c
+fix_commit: 447442aa7edc4cef642b57b0138547a48026c47c
+category: api-misuse
+difficulty: medium
+severity: high
+language: go
+pr_size: medium
+description: The legacy dashboard API did not properly handle Kubernetes-style dashboard
+  payloads. When a v2 schema dashboard was saved through the legacy API path, the
+  k8s wrapper was not detected or unwrapped, and internal IDs were not correctly managed
+  via the deprecated internal ID selector, causing dashboards to fail to save or to
+  be saved incorrectly.
 expected_findings:
-- file: .github/pr-commands.json
-  line: 184
-  summary: 'Stale label reference: `datasource/grafana-pyroscope` should be `datasource/Pyroscope`
-    to match the renamed pyroscope label'
+- file: pkg/api/dashboard.go
+  line: 414
+  summary: 'Missing detection of v2 schema elements in k8s-style wrapper: legacy API
+    endpoint does not check whether the incoming payload uses k8s format before processing,
+    leading to incorrect handling of dashboard saves'
+  line_side: pre_fix
+- file: pkg/registry/apis/dashboard/legacy/sql_dashboards.go
+  line: 154
+  summary: getLegacyIDSelector does not extract the deprecated internal ID from resource
+    labels, preventing legacy API from resolving dashboards by their internal numeric
+    ID when using k8s payloads
+  line_side: pre_fix
+- file: public/app/features/dashboard-scene/serialization/transformSceneToSaveModel.ts
+  line: 174
+  summary: Internal dashboard ID is unconditionally deleted from the save model, but
+    this must be coordinated with the backend's DeprecatedInternalID support to ensure
+    updates (not creates) happen for existing dashboards via the legacy path
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,34 +1,41 @@
 id: leo-010
 repo: ProvableHQ/leo
-base_commit: 5533f85d310150d158588414b738353a400017ca^
-head_commit: 5533f85d310150d158588414b738353a400017ca
-fix_commit: 5533f85d310150d158588414b738353a400017ca
+base_commit: 0de200a6c2e21a5b91a8b239d46a2b98aa29e8b3^
+head_commit: 0de200a6c2e21a5b91a8b239d46a2b98aa29e8b3
+fix_commit: 0de200a6c2e21a5b91a8b239d46a2b98aa29e8b3
 category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: leo
-pr_size: medium
-description: Multi-dimensional array dimensions were processed in reversed order.
-  For tuple-style array types like `[bool; (2, 3)]`, the compiler incorrectly accepted
-  `[[true; 2]; 3]` (wrong nesting order) and rejected `[[true; 3]; 2]` (correct nesting
-  order). The fix reverses the dimension iteration order so that the outermost dimension
-  corresponds to the first tuple element.
+pr_size: large
+description: The Leo compiler was missing validation checks for the number of inputs
+  and outputs in transitions. The fix adds proper bounds checking in the type checker
+  to emit clear error messages when transitions exceed the maximum allowed number
+  of inputs or outputs, while correctly exempting inline functions from these limits.
 expected_findings:
-- file: compiler/src/expression/array/array.rs
-  line: 46
-  summary: Array initializer dimensions are iterated in the wrong order; the first
-    dimension in the tuple should correspond to the outermost array, but dimensions
-    are consumed front-to-back instead of back-to-front (or vice versa).
-- file: compiler/src/expression/array/array.rs
-  line: 69
-  summary: "Same reversed-dimension bug in inline array expression handling \u2014\
-    \ dimensions from the tuple type are matched against nested arrays in the wrong\
-    \ order."
-- file: typed/src/input/input_value.rs
-  line: 108
-  summary: Input value parsing checks outer array dimension against the wrong end
-    of the dimensions tuple, causing valid nested inputs to be rejected and invalid
-    ones to be accepted.
+- file: compiler/passes/src/type_checking/visitor.rs
+  line: 1431
+  summary: 'Missing check: transitions should validate that the number of input parameters
+    does not exceed the maximum allowed (16 for non-inline functions)'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/visitor.rs
+  line: 1527
+  summary: 'Missing check: transitions should validate that the number of output parameters
+    does not exceed the maximum allowed (16 for non-inline functions)'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/mod.rs
+  line: 40
+  summary: No max_outputs field tracked in type checker state, preventing output count
+    validation
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

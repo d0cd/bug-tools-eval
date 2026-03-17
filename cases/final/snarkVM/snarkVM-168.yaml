@@ -1,30 +1,42 @@
 id: snarkVM-168
 repo: ProvableHQ/snarkVM
-base_commit: 9f5246d8c28afc0aef769b723eeaa4ec4a402b9c^
-head_commit: 9f5246d8c28afc0aef769b723eeaa4ec4a402b9c
-fix_commit: 9f5246d8c28afc0aef769b723eeaa4ec4a402b9c
-category: perf
+base_commit: e3ae702f1c9955275e588ff993b497a53cc08e8a^
+head_commit: e3ae702f1c9955275e588ff993b497a53cc08e8a
+fix_commit: e3ae702f1c9955275e588ff993b497a53cc08e8a
+category: logic
 difficulty: easy
 severity: low
 language: rust
-pr_size: medium
-description: CI tests for synthesizer-program-integration used an unnecessarily high
-  iteration count (ITERATIONS = 50) for expensive cryptographic tests (commit, hash,
-  keccak), causing long CI times. The fix reduces the iteration count in test files
-  and splits out keccak tests into a separate CI job for better parallelism.
+pr_size: tiny
+description: 'The Aleo instructions parser disallowed whitespace between a struct/array
+  component value and the comma separator (e.g., `{x: 0u8 , y: 1u8}` was rejected).
+  The fix adds whitespace parsing before the comma in struct literal, record entry,
+  and record plaintext parsers, consistent with how other parts of the syntax already
+  handle optional whitespace before separators.'
 expected_findings:
-- file: synthesizer/program/tests/instruction/commit.rs
-  line: 41
-  summary: Excessive test iteration count (ITERATIONS = 50) causes unnecessarily long
-    CI times for expensive cryptographic commit tests; should be reduced.
-- file: synthesizer/program/tests/instruction/hash.rs
-  line: 50
-  summary: Excessive test iteration count (ITERATIONS = 50) causes unnecessarily long
-    CI times for expensive hash tests; should be reduced.
-- file: .circleci/config.yml
-  line: 645
-  summary: Keccak-related integration tests should be split into a separate CI job
-    to improve parallelism and reduce overall CI wall time.
+- file: console/program/src/data/plaintext/parse.rs
+  line: 30
+  summary: 'Missing whitespace consumption before comma separator in struct/array
+    parsing; valid input like `{x: 0u8 , y: 1u8}` is rejected'
+  line_side: pre_fix
+- file: console/program/src/data/record/entry/parse.rs
+  line: 47
+  summary: Missing whitespace consumption before comma separator in record entry parsing,
+    same pattern as plaintext parser
+  line_side: pre_fix
+- file: console/program/src/data/record/parse_plaintext.rs
+  line: 33
+  summary: Missing whitespace consumption before comma separator in record plaintext
+    parsing, same pattern as the other two parsers
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

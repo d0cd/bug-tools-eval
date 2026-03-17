@@ -1,22 +1,43 @@
 id: snarkVM-012
 repo: ProvableHQ/snarkVM
-base_commit: 4f1f8816d24776982f7a0f52be963c4e4252c374^
-head_commit: 4f1f8816d24776982f7a0f52be963c4e4252c374
-fix_commit: 4f1f8816d24776982f7a0f52be963c4e4252c374
+base_commit: 0dffb36ca97f1d09cd3b399884c4cdd808476b18^
+head_commit: 0dffb36ca97f1d09cd3b399884c4cdd808476b18
+fix_commit: 0dffb36ca97f1d09cd3b399884c4cdd808476b18
 category: logic
-difficulty: easy
-severity: low
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: A comment on the authorize_request function incorrectly described it
-  as authorizing a call to a 'public' function. The fix corrects the comment to accurately
-  reflect the function's actual behavior (likely authorizing a different request type).
+pr_size: medium
+description: Deployment verification randomly generates inputs to execute the program
+  and check that certificates match the assignment structure. The RNG was not deterministically
+  seeded, so the verifier could generate different random inputs than the deployer,
+  causing valid deployments to fail verification non-deterministically. The fix seeds
+  the RNG deterministically (via rand_chacha) so both sides produce identical inputs.
 expected_findings:
-- file: synthesizer/process/src/stack/authorize.rs
-  line: 127
-  summary: 'Misleading comment: states ''Authorizes a call to a public function''
-    but the function authorize_request does not specifically authorize public function
-    calls; comment should match actual semantics.'
+- file: synthesizer/process/src/stack/deploy.rs
+  line: 93
+  summary: RNG used for input generation during deployment is not deterministically
+    seeded; verifier will produce different random inputs, causing certificate mismatch
+    and spurious verification failures.
+  line_side: pre_fix
+- file: synthesizer/process/src/stack/deploy.rs
+  line: 117
+  summary: Same non-deterministic RNG issue on the verification path; must use identically-seeded
+    RNG to reproduce the deployer's random inputs.
+  line_side: pre_fix
+- file: synthesizer/process/src/stack/deploy.rs
+  line: 160
+  summary: Third RNG creation site lacking deterministic seed; all three sites must
+    share the same seeding strategy for deployment/verification consistency.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

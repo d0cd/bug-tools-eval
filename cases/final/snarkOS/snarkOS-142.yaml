@@ -1,30 +1,31 @@
 id: snarkOS-142
 repo: ProvableHQ/snarkOS
-base_commit: 2423a63695c3ac65265c16a6a2b63a1f360cf98c^
-head_commit: 2423a63695c3ac65265c16a6a2b63a1f360cf98c
-fix_commit: 2423a63695c3ac65265c16a6a2b63a1f360cf98c
-category: logic
-difficulty: medium
+base_commit: b6ac241711123568c428a4d9c6c081c33a8b1b19^
+head_commit: b6ac241711123568c428a4d9c6c081c33a8b1b19
+fix_commit: b6ac241711123568c428a4d9c6c081c33a8b1b19
+category: api-misuse
+difficulty: easy
 severity: high
 language: rust
 pr_size: medium
-description: Peers were being prematurely dropped from the peer book, causing network
-  attrition over time. The fix addresses peer event handling and connection lifecycle
-  management in the peer connector and receiver to ensure peers are properly maintained
-  and not erroneously removed.
+description: 'PR #3687 accidentally removed the ''help'' feature from the clap dependency
+  in cli/Cargo.toml, causing the --help CLI flag to stop working entirely. The fix
+  re-adds ''help'' to the clap features list and adds e2e tests to prevent regression.'
 expected_findings:
-- file: network/src/peers/peer_book.rs
-  line: 64
-  summary: Peer book management logic incorrectly handles peer lifecycle events, leading
-    to premature peer removal and network attrition
-- file: network/src/peers/peer/connector.rs
-  line: 37
-  summary: Peer connector does not properly propagate event target, causing peer connections
-    to be misrouted or dropped
-- file: network/src/peers/peer/receiver.rs
-  line: 20
-  summary: Peer receiver missing proper handling of PeerEvent/PeerHandle, causing
-    disconnection events to not be processed correctly
+- file: cli/Cargo.toml
+  line: 51
+  summary: Missing 'help' feature in clap dependency features list; without it, the
+    --help CLI flag is non-functional. Should be features = ["derive", "color", "unstable-styles",
+    "help"].
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

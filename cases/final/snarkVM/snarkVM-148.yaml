@@ -1,32 +1,55 @@
 id: snarkVM-148
 repo: ProvableHQ/snarkVM
-base_commit: 5f887554c969c68f3552e2f699d72ff5c82b9446^
-head_commit: 5f887554c969c68f3552e2f699d72ff5c82b9446
-fix_commit: 5f887554c969c68f3552e2f699d72ff5c82b9446
-category: logic
-difficulty: medium
-severity: high
+base_commit: cdc99c726b779b2780c204fe780617a6b91d50a7^
+head_commit: cdc99c726b779b2780c204fe780617a6b91d50a7
+fix_commit: cdc99c726b779b2780c204fe780617a6b91d50a7
+category: cryptographic
+difficulty: hard
+severity: critical
 language: rust
 pr_size: small
-description: The Merkle tree implementation incorrectly used `checked_next_power_of_two()`
-  on `leaves.len()` in three locations (new, append, and a helper), which mishandles
-  edge cases such as when the number of leaves is already a power of two or is zero.
-  The fix corrects the power-of-two leaf padding calculation to ensure proper tree
-  construction and proof verification.
+description: The BHP commitment setup computed random bases using WINDOW_SIZE instead
+  of NUM_SCALAR_BITS. When WINDOW_SIZE is smaller than the number of scalar bits,
+  the commitment scheme has insufficient random bases to fully randomize the output,
+  compromising the hiding property of the Pedersen-like commitment. The fix changes
+  the random base generation loop bound and the assertion to use NUM_SCALAR_BITS,
+  and updates the commit phase to iterate over all scalar bits.
 expected_findings:
-- file: console/collections/src/merkle_tree/mod.rs
-  line: 59
-  summary: "Incorrect use of `checked_next_power_of_two()` on `leaves.len()` \u2014\
-    \ does not correctly handle edge case when leaf count is already a power of two\
-    \ or zero, leading to wrong tree structure."
-- file: console/collections/src/merkle_tree/mod.rs
-  line: 118
-  summary: "Same `checked_next_power_of_two()` bug in append path \u2014 tree padding\
-    \ calculation is incorrect for power-of-two leaf counts."
-- file: console/collections/src/merkle_tree/mod.rs
-  line: 134
-  summary: "Same `checked_next_power_of_two()` bug in third call site \u2014 consistent\
-    \ misuse of the power-of-two rounding for Merkle tree leaf capacity."
+- file: algorithms/src/commitment/bhp.rs
+  line: 47
+  summary: 'Insufficient random bases: the loop generating `random_base` uses `WINDOW_SIZE`
+    as the bound but should use `NUM_SCALAR_BITS`, resulting in fewer random bases
+    than needed to cover all scalar bits of the randomness input'
+  line_side: pre_fix
+- file: algorithms/src/commitment/bhp.rs
+  line: 56
+  summary: Assertion checks `random_base.len() == WINDOW_SIZE` but should check against
+    `num_scalar_bits` to ensure the full scalar field is covered
+  line_side: pre_fix
+- file: algorithms/src/commitment/bhp.rs
+  line: 76
+  summary: Commit loop `scalar_bits.take(WINDOW_SIZE)` truncates randomness to WINDOW_SIZE
+    bits instead of iterating over all `ScalarField::size_in_bits()` bits, discarding
+    high-order randomness bits
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 703
+reviewer_notes: []
+reviewer_findings:
+- file: algorithms/src/commitment/bhp.rs
+  line: 56
+  summary: "```suggestion\r         }\r         assert_eq!(random_base.len(), num_scalar_bits);\r\
+    \ ```"
+  line_side: pre_fix
+- file: algorithms/src/commitment/bhp.rs
+  line: 76
+  summary: "```suggestion\r         for (bit, power) in scalar_bits.take(G::ScalarField::size_in_bits()).zip_eq(&self.random_base)\
+    \ {\r"
+  line_side: pre_fix
+quality_flags: []

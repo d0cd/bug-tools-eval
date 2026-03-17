@@ -1,32 +1,45 @@
 id: snarkVM-180
 repo: ProvableHQ/snarkVM
-base_commit: 67a23cb326c7aaf34ab3d9c3d5a703479dc4aea8^
-head_commit: 67a23cb326c7aaf34ab3d9c3d5a703479dc4aea8
-fix_commit: 67a23cb326c7aaf34ab3d9c3d5a703479dc4aea8
-category: api
-difficulty: easy
+base_commit: f4090a99b80f5586a3be6ea1e7f0d42d9590b7eb^
+head_commit: f4090a99b80f5586a3be6ea1e7f0d42d9590b7eb
+fix_commit: f4090a99b80f5586a3be6ea1e7f0d42d9590b7eb
+category: logic
+difficulty: hard
 severity: high
 language: rust
-pr_size: medium
-description: The `check_instruction_opcode` function incorrectly called `Identifier::from_str`
-  on instruction opcodes, which requires alphanumeric characters only. Since many
-  valid opcodes contain dots (e.g., `is.eq`, `add.w`), this caused any program using
-  dotted opcodes to fail during `Package::build`. The fix replaces the `Identifier::from_str`
-  validation with a direct `Self::is_reserved_opcode(opcode)` check.
+pr_size: large
+description: Election certificate fields were added to BatchHeader and Subdag as a
+  fix for audit finding [zksecurity 00] (Commit Flow Can Lead to Safety Violation),
+  but the approach was unnecessary and deviated from vanilla Bullshark consensus.
+  The revert removes the election certificate plumbing from batch headers and subdags,
+  restoring the original protocol behavior, as a companion fix in snarkOS addresses
+  the safety violation without requiring protocol-level changes.
 expected_findings:
-- file: vm/compiler/src/process/add_program.rs
-  line: 279
-  summary: "Incorrect use of Identifier::from_str to validate opcodes \u2014 Identifier\
-    \ requires alphanumeric characters but opcodes like 'is.eq' contain dots. Should\
-    \ use is_reserved_opcode() directly instead."
-- file: vm/compiler/src/process/add_program.rs
-  line: 436
-  summary: "Same incorrect Identifier::from_str validation on opcodes with dots \u2014\
-    \ duplicate occurrence of the same bug pattern."
-- file: vm/package/mod.rs
-  line: 178
-  summary: Call site in Package::build that triggers the faulty check_instruction_opcode
-    validation, causing build failures for programs with dotted opcodes.
+- file: ledger/narwhal/batch-header/src/lib.rs
+  line: 31
+  summary: BatchHeader includes election certificate data in batch ID computation,
+    deviating from vanilla Bullshark; this extra field is unnecessary and should be
+    removed
+  line_side: pre_fix
+- file: ledger/narwhal/subdag/src/lib.rs
+  line: 113
+  summary: Subdag::from constructor accepts and processes election certificate data
+    that is not part of the standard Bullshark protocol and is unnecessary for the
+    BFT safety fix
+  line_side: pre_fix
+- file: ledger/narwhal/batch-header/src/bytes.rs
+  line: 20
+  summary: Version check (version != 1) gates election-certificate-aware deserialization
+    path that introduces unnecessary protocol complexity
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

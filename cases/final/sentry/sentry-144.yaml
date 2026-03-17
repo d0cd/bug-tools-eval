@@ -1,0 +1,40 @@
+id: sentry-144
+repo: getsentry/sentry
+base_commit: b1808a0a3efb86ebb1d93e04002976154d5e75ea^
+head_commit: b1808a0a3efb86ebb1d93e04002976154d5e75ea
+fix_commit: b1808a0a3efb86ebb1d93e04002976154d5e75ea
+category: logic
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: tiny
+description: The `display` query parameter (derived from `activeDisplay` state) was
+  not included in the builds API query object sent to `/organizations/{org}/builds/`.
+  On initial page load, the backend never received the display value and fell back
+  to an unintended default. The parameter only appeared in subsequent requests because
+  `normalizeDateTimeParams` spread `...otherParams` from the URL once user interaction
+  added it to the query string.
+expected_findings:
+- file: static/app/views/releases/list/mobileBuilds.tsx
+  line: 48
+  summary: "Missing `display` parameter in the API query object \u2014 the `activeDisplay`\
+    \ value is not explicitly passed, so the initial request omits it and the backend\
+    \ uses an unintended default. Additionally, the spread from `normalizeDateTimeParams`\
+    \ can overwrite an explicit `display` key with a raw URL value."
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110481
+reviewer_notes: []
+reviewer_findings:
+- file: static/app/views/releases/list/mobileBuilds.tsx
+  line: 48
+  summary: '### Spread overwrites explicit `display` with raw URL value  **Medium
+    Severity**  <!-- DESCRIPTION START --> `display: a'
+  line_side: pre_fix
+quality_flags: []

@@ -1,0 +1,33 @@
+id: cal.com-062
+repo: calcom/cal.com
+base_commit: d3dad196d6019333273b7c0e8975158be0a70185^
+head_commit: d3dad196d6019333273b7c0e8975158be0a70185
+fix_commit: d3dad196d6019333273b7c0e8975158be0a70185
+category: api-misuse
+difficulty: easy
+severity: high
+language: unknown
+pr_size: tiny
+description: The internal workspace package `@calcom/i18n` was listed as a regular
+  dependency in the published `@calcom/atoms` package.json. Since `@calcom/i18n` is
+  never published to npm, the unresolved `workspace:*` protocol string causes installation
+  failures for all external consumers. The fix moves it to devDependencies where workspace
+  protocols are stripped at publish time.
+expected_findings:
+- file: packages/platform/atoms/package.json
+  line: 18
+  summary: Internal-only package `@calcom/i18n` listed as a production dependency
+    with `workspace:*` protocol — this will break external consumers since the package
+    is not published to npm. Move to devDependencies.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

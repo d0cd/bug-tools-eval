@@ -1,35 +1,41 @@
 id: keycloak-046
 repo: keycloak/keycloak
-base_commit: 68a50ddd7b1f5a4d14bfc9ecb8c756dff8f6557b^
-head_commit: 68a50ddd7b1f5a4d14bfc9ecb8c756dff8f6557b
-fix_commit: 68a50ddd7b1f5a4d14bfc9ecb8c756dff8f6557b
-category: logic
-difficulty: medium
-severity: critical
+base_commit: 8453022d09cda94ab4a336de6e1c362ba898c4d2^
+head_commit: 8453022d09cda94ab4a336de6e1c362ba898c4d2
+fix_commit: 8453022d09cda94ab4a336de6e1c362ba898c4d2
+category: security
+difficulty: easy
+severity: medium
 language: java
 pr_size: medium
-description: The Authorization header parsing in AppAuthManager.java lacked proper
-  validation when extracting Bearer tokens. Malformed or crafted Authorization headers
-  could bypass authentication checks because the code split on space without verifying
-  the scheme prefix or handling edge cases like missing/extra whitespace, enabling
-  CVE-2026-0707. The fix adds strict validation that the header starts with 'Bearer
-  ' before extracting and using the token value.
+description: The replyTo and from email addresses retrieved from configuration were
+  not validated before being used in email sending. This could allow malformed or
+  malicious email addresses to be injected into email headers. The fix adds validation
+  methods for both the replyTo and from address fields.
 expected_findings:
-- file: services/src/main/java/org/keycloak/services/managers/AppAuthManager.java
-  line: 32
-  summary: 'Missing validation: Authorization header is parsed via indexOf('' '')
-    without verifying the scheme is ''Bearer'', allowing malformed headers to bypass
-    auth checks (CVE-2026-0707)'
-- file: services/src/main/java/org/keycloak/services/managers/AppAuthManager.java
-  line: 41
-  summary: "Same insufficient Bearer token validation pattern \u2014 splits on space\
-    \ without checking prefix, vulnerable to crafted Authorization headers"
-- file: services/src/main/java/org/keycloak/services/managers/AppAuthManager.java
-  line: 62
-  summary: Third instance of unvalidated Authorization header parsing that could accept
-    non-Bearer schemes or malformed values
+- file: services/src/main/java/org/keycloak/email/DefaultEmailSenderProvider.java
+  line: 103
+  summary: replyTo address retrieved from config is used without any validation; should
+    validate email format before setting as reply-to header
+  line_side: pre_fix
+- file: services/src/main/java/org/keycloak/email/DefaultEmailSenderProvider.java
+  line: 180
+  summary: Second occurrence of unvalidated replyTo address from config being used
+    directly
+  line_side: pre_fix
+- file: services/src/main/java/org/keycloak/email/DefaultEmailSenderProvider.java
+  line: 264
+  summary: Third occurrence of unvalidated replyTo address; from address also lacks
+    validation
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

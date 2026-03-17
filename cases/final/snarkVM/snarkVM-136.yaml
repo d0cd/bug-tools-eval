@@ -1,30 +1,39 @@
 id: snarkVM-136
 repo: ProvableHQ/snarkVM
-base_commit: c1187329055312829af5fa9aed8463fc180a1f4d^
-head_commit: c1187329055312829af5fa9aed8463fc180a1f4d
-fix_commit: c1187329055312829af5fa9aed8463fc180a1f4d
-category: logic
-difficulty: hard
-severity: critical
+base_commit: b59a97cf3f41f880f0b844a49a24c7be1cac7f69^
+head_commit: b59a97cf3f41f880f0b844a49a24c7be1cac7f69
+fix_commit: b59a97cf3f41f880f0b844a49a24c7be1cac7f69
+category: security
+difficulty: medium
+severity: high
 language: rust
 pr_size: medium
-description: A prior change introduced incorrect logic in the ternary (conditional
-  select) operations for base field elements and group elements in the circuit constraint
-  system. The PR reverts these changes across ternary.rs files and group multiplication,
-  restoring correct conditional selection behavior critical for proof soundness.
+description: Identifier validation in `from_str` was too permissive, using Unicode
+  `is_alphabetic()`/`is_alphanumeric()` instead of ASCII-only equivalents. This allowed
+  Unicode homoglyph characters, identifiers starting with underscores, and empty strings
+  to pass validation, diverging from the stricter nom parser path. The fix tightens
+  all checks to ASCII-only and requires identifiers to start with a letter.
 expected_findings:
-- file: circuits/src/fields/base/ternary.rs
-  line: 1
-  summary: "Incorrect ternary/conditional-select logic in base field circuit constraints\
-    \ \u2014 wrong condition or operand ordering could produce unsound proofs"
-- file: circuits/src/group/ternary.rs
-  line: 1
-  summary: "Incorrect ternary/conditional-select logic in group element circuit constraints\
-    \ \u2014 must match the base field fix"
-- file: circuits/src/group/mul.rs
-  line: 1
-  summary: "Group scalar multiplication uses ternary select internally \u2014 incorrect\
-    \ ternary logic propagates to wrong multiplication results in circuits"
+- file: console/program/src/data/identifier/parse.rs
+  line: 37
+  summary: First-character validation uses `is_numeric()` negation which permits Unicode
+    alphabetic chars and underscores. Should use `is_ascii_alphabetic()` to require
+    an ASCII letter, matching the nom parser.
+  line_side: pre_fix
+- file: console/program/src/data/identifier/parse.rs
+  line: 40
+  summary: Remaining-character validation uses `is_alphanumeric()` (Unicode-aware)
+    instead of `is_ascii_alphanumeric()`. Allows non-ASCII Unicode letters/digits
+    through, creating a divergence with the nom parser and potential homoglyph confusion.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

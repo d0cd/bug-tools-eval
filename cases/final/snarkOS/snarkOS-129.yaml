@@ -1,33 +1,41 @@
 id: snarkOS-129
 repo: ProvableHQ/snarkOS
-base_commit: 7d6b879fdb2873f6780f273a1006ee2bc3f70dd1^
-head_commit: 7d6b879fdb2873f6780f273a1006ee2bc3f70dd1
-fix_commit: 7d6b879fdb2873f6780f273a1006ee2bc3f70dd1
-category: logic
+base_commit: af07c7f4a197e8fd766ec8c59672525c3260d09e^
+head_commit: af07c7f4a197e8fd766ec8c59672525c3260d09e
+fix_commit: af07c7f4a197e8fd766ec8c59672525c3260d09e
+category: api-misuse
 difficulty: medium
 severity: high
 language: rust
 pr_size: small
-description: The node did not validate peer IP addresses before accepting connections,
-  allowing bogon IPs (private, reserved, loopback ranges) and unspecified IPs to be
-  treated as valid peers. The fix adds `is_bogon_ip` and `is_unspecified_ip` helper
-  functions in the TCP layer and applies filtering in the gateway and router inbound
-  paths to reject connections from invalid IP addresses.
+description: The JSON-RPC request deserialization failed when the `id` field contained
+  a numerical value instead of a string. The existing code attempted to deserialize
+  directly into the target struct, but serde could not handle the polymorphic id field
+  (which per JSON-RPC spec can be a string, number, or null). The fix introduces an
+  intermediate parse step through `serde_json::Value` before converting to the final
+  request type, and updates the json-rpc-types dependency to handle `serde_json::Value`
+  string deserialization correctly.
 expected_findings:
-- file: node/bft/src/gateway.rs
-  line: 264
-  summary: 'Missing validation: peer IP addresses are accepted without checking if
-    they are bogon (private/reserved/loopback) IPs, allowing potentially malicious
-    or invalid peers to connect.'
-- file: node/router/src/lib.rs
-  line: 215
-  summary: 'Missing IP validation: connections are processed without filtering out
-    bogon or unspecified IP addresses, which could allow peers from private/reserved
-    networks.'
-- file: node/router/src/inbound.rs
-  line: 255
-  summary: 'Missing peer IP filtering in inbound message handling: no check for bogon
-    or unspecified IPs before processing incoming peer messages.'
+- file: src/rpc/rpc.rs
+  line: 141
+  summary: Direct deserialization of JSON-RPC request fails for numeric id values;
+    should first parse into serde_json::Value then convert, to handle the polymorphic
+    id field per JSON-RPC spec
+  line_side: pre_fix
+- file: Cargo.toml
+  line: 71
+  summary: json-rpc-types dependency version does not handle serde_json::Value string
+    deserialization correctly (Value-based strings require escaping and cannot be
+    borrowed as &str); needs update
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,25 +1,44 @@
 id: leo-188
 repo: ProvableHQ/leo
-base_commit: 8ac669f71d52808114a415dcbbd002aa2e5a590f^
-head_commit: 8ac669f71d52808114a415dcbbd002aa2e5a590f
-fix_commit: 8ac669f71d52808114a415dcbbd002aa2e5a590f
+base_commit: bfc995be344a5960fb4e5fe51468d8ded26a6ab0^
+head_commit: bfc995be344a5960fb4e5fe51468d8ded26a6ab0
+fix_commit: bfc995be344a5960fb4e5fe51468d8ded26a6ab0
 category: logic
 difficulty: medium
-severity: critical
+severity: high
 language: rust
-pr_size: tiny
-description: When parsing nested imports, the import parser created a fresh default
-  instance via `Self::default()` instead of cloning the current parser state with
-  `self.clone()`. This caused the parser to lose track of already-visited imports,
-  leading to infinite recursion (stack overflow) when circular import chains were
-  encountered. The fix clones the current parser so that visited-import state is preserved
-  across recursive calls.
+pr_size: large
+description: The AST canonicalization pass did not replace `Self` references in static
+  call expressions (e.g., `Self::function_name()`) with the actual circuit/type name.
+  This meant that `Self` in static call position survived into later compiler phases
+  unchanged, causing resolution failures. The fix extends the canonicalization reducer
+  to handle `Self` in static calls, analogous to the existing handling for other `Self`
+  type positions.
 expected_findings:
-- file: imports/src/parser/import_parser.rs
-  line: 55
-  summary: Using `Self::default()` to create the sub-parser discards visited-import
-    tracking state, enabling infinite recursion on circular imports. Should use `self.clone()`
-    to carry forward already-seen imports.
+- file: ast/src/reducer/canonicalization.rs
+  line: 47
+  summary: Missing canonicalization of `Self` in static call expressions — `Self::method()`
+    is not rewritten to `ActualType::method()`, causing downstream resolution failures
+  line_side: pre_fix
+- file: ast/src/reducer/reconstructing_director.rs
+  line: 50
+  summary: The reconstructing director's expression reduction does not account for
+    canonicalized static call targets, allowing un-canonicalized `Self` identifiers
+    to pass through unchanged
+  line_side: pre_fix
+- file: ast/src/types/type_.rs
+  line: 70
+  summary: Type equality check does not handle `SelfType` canonicalization, so `Self`
+    and the actual named type may compare as unequal
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

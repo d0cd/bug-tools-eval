@@ -1,0 +1,32 @@
+id: sentry-104
+repo: getsentry/sentry
+base_commit: 8819a8e9e7750dee2f8ad3ec5b0cf23541215f85^
+head_commit: 8819a8e9e7750dee2f8ad3ec5b0cf23541215f85
+fix_commit: 8819a8e9e7750dee2f8ad3ec5b0cf23541215f85
+category: type
+difficulty: easy
+severity: high
+language: typescript
+pr_size: small
+description: The `ModelName` component and `getModelPlatform` function assumed `modelId`
+  was always a string, but span data can contain null values. Calling `.toLowerCase()`
+  on a null `modelId` threw a `TypeError`, crashing the agent monitoring page via
+  React's error boundary.
+expected_findings:
+- file: static/app/views/insights/pages/agents/components/modelName.tsx
+  line: 1
+  summary: 'Missing null guard: `modelId` can be null from span data but is typed
+    as `string` and used in `.toLowerCase()` without a null check, causing a TypeError
+    crash'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110505
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

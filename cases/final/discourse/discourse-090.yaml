@@ -1,0 +1,30 @@
+id: discourse-090
+repo: discourse/discourse
+base_commit: cda941055151fb9983b6b64efbfd085dcd079bc4^
+head_commit: cda941055151fb9983b6b64efbfd085dcd079bc4
+fix_commit: cda941055151fb9983b6b64efbfd085dcd079bc4
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: The documentation for theme setting objects used an incorrect type name
+  for the upload property. The fix corrects the type name in the markdown documentation
+  to match the actual expected value.
+expected_findings:
+- file: docs/developer-guides/docs/05-themes-components/10-objects-for-theme-settings.md
+  line: 66
+  summary: Incorrect type name used for the upload property in theme setting objects
+    documentation; should use the correct upload type identifier
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

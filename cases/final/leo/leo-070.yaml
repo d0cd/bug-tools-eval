@@ -1,21 +1,37 @@
 id: leo-070
 repo: ProvableHQ/leo
-base_commit: f1d0cc37c1fac2eafc2ea15bfa056e4d98f38f93^
-head_commit: f1d0cc37c1fac2eafc2ea15bfa056e4d98f38f93
-fix_commit: f1d0cc37c1fac2eafc2ea15bfa056e4d98f38f93
-category: api
+base_commit: 47c00c30c652291a647461afc1ae0a3c54825fa3^
+head_commit: 47c00c30c652291a647461afc1ae0a3c54825fa3
+fix_commit: 47c00c30c652291a647461afc1ae0a3c54825fa3
+category: incomplete
 difficulty: easy
-severity: critical
-language: rust
-pr_size: tiny
-description: The compiler used deprecated sha2 crate functions (`input()` and `result()`)
-  that no longer exist in the updated sha2 dependency. The fix updates the calls to
-  the new API methods (`update()` and `finalize()`).
+severity: medium
+language: leo
+pr_size: medium
+description: The `import_point` example was causing flaky CI failures. The fix removes
+  the entire example directory and adjusts the CI shell script, rather than fixing
+  the underlying issue in the example. This is a deletion-based fix that removes broken
+  content instead of correcting it.
 expected_findings:
-- file: compiler/src/compiler.rs
-  line: 66
-  summary: "Deprecated sha2 API call: `hasher.input()` should be `hasher.update()`\
-    \ after sha2 crate update (0.8 \u2192 0.9+ migration)"
+- file: .circleci/leo-new.sh
+  line: 3
+  summary: CI script references or exercises examples that may be broken; the fix
+    here removes the flaky example from the test matrix rather than fixing the example
+    itself
+  line_side: pre_fix
+- file: examples/import_point/src/main.leo
+  line: 1
+  summary: "The import_point example was broken or incompatible, causing intermittent\
+    \ CI failures \u2014 the entire example is removed rather than fixed"
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 2080
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,23 +1,41 @@
 id: leo-139
 repo: ProvableHQ/leo
-base_commit: e1b6361a3f1cb09c6e1b8403d9403658d300b9c9^
-head_commit: e1b6361a3f1cb09c6e1b8403d9403658d300b9c9
-fix_commit: e1b6361a3f1cb09c6e1b8403d9403658d300b9c9
-category: logic
-difficulty: medium
-severity: high
-language: leo
+base_commit: 8d316932c6e7cbfca500fbc8f200d81120018b7f^
+head_commit: 8d316932c6e7cbfca500fbc8f200d81120018b7f
+fix_commit: 8d316932c6e7cbfca500fbc8f200d81120018b7f
+category: code-smell
+difficulty: easy
+severity: low
+language: rust
 pr_size: medium
-description: Reverse loop iteration in the Leo compiler did not correctly compute
-  the loop bound. The fix adds the range value (currently always 1) to the loop values
-  to produce the correct iteration bound, ensuring reverse loops like `for i in 9..0`
-  iterate over the proper set of values.
+description: Minor CI configuration fixes across CircleCI and GitHub Actions workflows,
+  including updates to Rust installation steps, the leo-example test script, codecov
+  coverage workflow, build.rs watch paths, and an examples submodule pointer update.
+  These are infrastructure/CI hygiene fixes rather than logic bugs.
 expected_findings:
-- file: compiler/src/statement/iteration/iteration.rs
-  line: 57
-  summary: 'Missing range addition when computing reverse loop bounds: the loop bound
-    calculation needs to add the range to produce correct iteration values for reverse
-    (descending) loops.'
+- file: .circleci/config.yml
+  line: 42
+  summary: Redundant or incorrect Rust installation step in CI job; should use a consistent
+    installation method across all jobs
+  line_side: pre_fix
+- file: .circleci/leo-example.sh
+  line: 1
+  summary: Leo example test script needs fixes (likely incorrect path alias or missing
+    error handling for local binary)
+  line_side: pre_fix
+- file: .github/workflows/codecov.yml
+  line: 55
+  summary: Codecov workflow has fragile file-globbing logic for coverage binaries
+    that may miss or mishandle files with dots in names
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

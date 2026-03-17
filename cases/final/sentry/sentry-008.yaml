@@ -1,25 +1,84 @@
 id: sentry-008
 repo: getsentry/sentry
-base_commit: 99d52ff386318c2b58a1de780287993eafd27401^
-head_commit: 99d52ff386318c2b58a1de780287993eafd27401
-fix_commit: 99d52ff386318c2b58a1de780287993eafd27401
-category: logic
-difficulty: easy
-severity: high
+base_commit: 0ecda13537f9a493d5a837fed91a9c4d0c4cc232^
+head_commit: 0ecda13537f9a493d5a837fed91a9c4d0c4cc232
+fix_commit: 0ecda13537f9a493d5a837fed91a9c4d0c4cc232
+category: security
+difficulty: medium
+severity: critical
 language: unknown
-pr_size: tiny
-description: 'The backend-with-coverage CI workflow was missing the odiff binary installation
-  step that had been added to the regular backend workflow in PR #109381. This caused
-  all backend-with-coverage runs to fail, resulting in no coverage data being uploaded.
-  The fix adds the same odiff binary download step to the coverage workflow.'
+pr_size: small
+description: The OAuth2 authorization page's Approve button was immediately clickable
+  on page load, making it vulnerable to double-clickjacking and UI redressing attacks.
+  The fix adds a delay mechanism before enabling the Approve button, but the implementation
+  uses `pointermove` as the sole trigger to start the enable timer, which blocks keyboard-only
+  and some touch users from ever approving. Additionally, the timer uses a 1-second
+  delay instead of the intended 3 seconds, and `pointerdown` could let an attacker's
+  overlaid click initiate the enable timer.
 expected_findings:
-- file: .github/workflows/backend-with-coverage.yml
-  line: 98
-  summary: 'Missing odiff binary installation step: this workflow requires the odiff
-    dependency (added to the regular backend workflow in PR #109381) but it was never
-    added here, causing all test runs to fail'
+- file: src/sentry/templates/sentry/oauth-authorize.html
+  line: 80
+  summary: "OAuth Approve button is only enabled via a `pointermove` event listener,\
+    \ making it permanently inaccessible to keyboard-only users and assistive technology\
+    \ users \u2014 needs a fallback such as `focusin` or a pure timer."
+  line_side: pre_fix
+- file: src/sentry/templates/sentry/oauth-authorize.html
+  line: 73
+  summary: setTimeout delay is 1000ms (1 second) instead of the intended 3000ms (3
+    seconds), reducing the effectiveness of the anti-clickjacking mitigation.
+  line_side: pre_fix
+- file: src/sentry/templates/sentry/oauth-authorize.html
+  line: 69
+  summary: Listening for `pointerdown` to start the enable timer allows an attacker's
+    overlaid click to begin the countdown, weakening the clickjacking protection.
+    Should use `pointerup` or a user-gesture-independent timer.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110304
+reviewer_notes:
+- '[inline] **Bug:** The OAuth "Approve" button is only enabled by a `pointermove`
+  event, making it permanently inaccessible to keyboard-only users and some touch
+  users. <sub>Severity: CRITICAL</sub> <!-- BUG_PREDICTION -->  <details> <summary><b
+  title="Reference ID: `11490057/0`">Suggested Fix</b></summary>  T'
+reviewer_findings:
+- file: src/sentry/templates/sentry/oauth-authorize.html
+  line: 80
+  summary: '**Bug:** The OAuth "Approve" button is only enabled by a `pointermove`
+    event, making it permanently inaccessible to keyb'
+  line_side: pre_fix
+- file: src/sentry/templates/sentry/oauth-authorize.html
+  line: 79
+  summary: '### Keyboard-only users can never enable the Approve button  **High Severity**  <!--
+    DESCRIPTION START --> The Approve b'
+  line_side: pre_fix
+- file: src/sentry/templates/sentry/oauth-authorize.html
+  line: 73
+  summary: '### Timer delay is 1 second instead of intended 3  **High Severity**  <!--
+    DESCRIPTION START --> The `setTimeout` delay '
+  line_side: pre_fix
+- file: src/sentry/templates/sentry/oauth-authorize.html
+  line: 59
+  summary: '### Approve button permanently disabled without JavaScript  **Low Severity**  <!--
+    DESCRIPTION START --> The Approve but'
+  line_side: pre_fix
+- file: src/sentry/templates/sentry/oauth-authorize.html
+  line: 59
+  summary: People with JavaScript disabled could approve an app with a direct API
+    call as well.
+  line_side: pre_fix
+- file: src/sentry/templates/sentry/oauth-authorize.html
+  line: 69
+  summary: '### pointerdown lets attacker''s click start enable timer  **Medium Severity**  <!--
+    DESCRIPTION START --> Listening for '
+  line_side: pre_fix
+- file: src/sentry/templates/sentry/oauth-authorize.html
+  line: 69
+  summary: iframing is forbidden for this page
+  line_side: pre_fix
+quality_flags: []

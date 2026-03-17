@@ -1,28 +1,51 @@
 id: snarkVM-030
 repo: ProvableHQ/snarkVM
-base_commit: 38e7ad8e6b5b5a78b78f8ee9f021aa052ec9ffe5^
-head_commit: 38e7ad8e6b5b5a78b78f8ee9f021aa052ec9ffe5
-fix_commit: 38e7ad8e6b5b5a78b78f8ee9f021aa052ec9ffe5
-category: logic
-difficulty: medium
+base_commit: 1db1aad86263e5db753bad3bb6ca6de551588080^
+head_commit: 1db1aad86263e5db753bad3bb6ca6de551588080
+fix_commit: 1db1aad86263e5db753bad3bb6ca6de551588080
+category: constraint
+difficulty: hard
 severity: high
 language: rust
-pr_size: medium
-description: The validator address was not being properly extracted from the `bond_validator`
-  transition's Future output, causing the MAX_COMMITTEE_SIZE check to be silently
-  bypassed. The fix corrects the argument extraction logic to properly identify the
-  validator address from the Future's arguments.
+pr_size: xl
+description: Group::new was previously unchecked, meaning injected group points were
+  not enforced to be on the curve and in the correct subgroup—a potential ZK soundness
+  issue. The fix makes Group::new checked by default, adds E::assert_neq for efficient
+  inequality constraints, and introduces Field::div_unchecked to preserve performance
+  in BHP hashing where the divisor is known non-zero.
 expected_findings:
-- file: synthesizer/src/vm/finalize.rs
-  line: 947
-  summary: "Incorrect extraction of the validator address from the bond_validator\
-    \ Future output \u2014 the wrong argument or field is used, causing the MAX_COMMITTEE_SIZE\
-    \ check to always pass or be skipped"
-- file: synthesizer/src/vm/finalize.rs
-  line: 1768
-  summary: "Same incorrect validator address extraction pattern duplicated here \u2014\
-    \ must also extract the correct argument from the Future to properly validate\
-    \ committee size"
+- file: circuit/types/group/src/lib.rs
+  line: 56
+  summary: Group::new injects points without enforcing they are on the curve and in
+    the correct subgroup; an adversary could supply an invalid group element, breaking
+    circuit soundness.
+  line_side: pre_fix
+- file: circuit/types/field/src/div.rs
+  line: 57
+  summary: Field::div implementation does not efficiently assert the divisor is non-zero
+    before computing the inverse; the clippy::suspicious_op_assign_impl allow hint
+    suggests the division logic may not match standard field division semantics.
+  line_side: pre_fix
+- file: circuit/types/group/src/helpers/from_xy_coordinates.rs
+  line: 18
+  summary: from_xy_coordinates documents that the point should be enforced on the
+    curve, but the prior implementation may not have enforced this for all modes,
+    allowing unchecked group elements into the circuit.
+  line_side: pre_fix
+- file: circuit/types/field/src/div_unchecked.rs
+  line: 1
+  summary: New div_unchecked skips the assert_neq(divisor, zero) constraint. If ever
+    called with a potentially-zero divisor outside the BHP context, the circuit becomes
+    unsound — division by zero yields an unconstrained witness.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

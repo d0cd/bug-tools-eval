@@ -1,24 +1,39 @@
 id: leo-034
 repo: ProvableHQ/leo
-base_commit: 298ab907204ad3349e2948ab416b9e74ae20129a^
-head_commit: 298ab907204ad3349e2948ab416b9e74ae20129a
-fix_commit: 298ab907204ad3349e2948ab416b9e74ae20129a
-category: api
+base_commit: 1f3240089dcbc0d50254d129441bd01be4ee6d19^
+head_commit: 1f3240089dcbc0d50254d129441bd01be4ee6d19
+fix_commit: 1f3240089dcbc0d50254d129441bd01be4ee6d19
+category: code-smell
 difficulty: easy
-severity: medium
+severity: low
 language: rust
-pr_size: tiny
-description: The `--nodeploy` flag for `leo node start` was not declared as a structopt
-  CLI option, forcing users to pass it via the raw argument separator (`-- --nodeploy`).
-  The fix adds a `#[structopt(long)]` attribute so `--nodeploy` is recognized as a
-  first-class CLI flag, and updates the aleo dependency to a revision that supports
-  it.
+pr_size: small
+description: Duplicate struct/record member error diagnostics pointed to the entire
+  struct/record span instead of the specific duplicate member's span. The code used
+  `.all()` on the iterator which could not identify which specific member was duplicated,
+  and passed `input.span()` (the whole struct) to error constructors instead of the
+  individual member's `*span`.
 expected_findings:
-- file: leo/commands/node.rs
-  line: 30
-  summary: Missing `#[structopt(long)]` attribute on the `nodeploy` field means the
-    flag is not exposed as a proper CLI option, forcing users to use `-- --nodeploy`
-    workaround.
+- file: compiler/passes/src/type_checking/program.rs
+  line: 235
+  summary: Error constructor passes `input.span()` (the whole struct/record span)
+    instead of the member's own `*span`, making the diagnostic point to the entire
+    block rather than the specific duplicate member
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/program.rs
+  line: 229
+  summary: Using `.all()` iterator pattern loses the ability to identify which specific
+    member is the duplicate; should iterate with a for-loop and check `used.insert()`
+    per member
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

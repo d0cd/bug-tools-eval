@@ -1,26 +1,40 @@
 id: discourse-057
 repo: discourse/discourse
-base_commit: e3491e63ddb3358bd383fea097e9d8371c448806^
-head_commit: e3491e63ddb3358bd383fea097e9d8371c448806
-fix_commit: e3491e63ddb3358bd383fea097e9d8371c448806
-category: api
+base_commit: 7e566786db7a8dca898523453e89a21d4eadc8d5^
+head_commit: 7e566786db7a8dca898523453e89a21d4eadc8d5
+fix_commit: 7e566786db7a8dca898523453e89a21d4eadc8d5
+category: logic
 difficulty: easy
-severity: medium
+severity: low
 language: ruby
-pr_size: medium
-description: The initial route migration from /admin/plugins/explorer to /admin/plugins/discourse-data-explorer
-  only redirected GET requests, leaving POST, PUT, and DELETE API endpoints (create,
-  update, destroy, run) still pointing to the old paths. This commit adds the missing
-  legacy route redirects and direct route mappings so all API calls work under both
-  old and new URL prefixes.
+pr_size: tiny
+description: Test specs use `freeze_time 31.days.ago` which is brittle across month
+  boundaries — months with fewer than 31 days cause the relative date to land on unexpected
+  dates, producing flaky test failures. The fix replaces the relative day offset with
+  a stable absolute date or a safer relative offset.
 expected_findings:
-- file: plugins/discourse-data-explorer/config/routes.rb
-  line: 32
-  summary: 'Missing legacy route redirects: POST/PUT/DELETE endpoints under /admin/plugins/explorer/
-    are not redirected or mapped to the new /admin/plugins/discourse-data-explorer/
-    paths, breaking API clients using the old URLs'
+- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
+  line: 440
+  summary: 'Fragile date math: `31.days.ago` crosses month boundaries unpredictably
+    in months with <31 days, causing intermittent test failures. Use a fixed absolute
+    date or a safer offset like `1.month.ago`.'
+  line_side: pre_fix
+- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
+  line: 457
+  summary: Same brittle `freeze_time 31.days.ago` pattern — will fail on short months.
+  line_side: pre_fix
+- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
+  line: 533
+  summary: Same brittle `freeze_time 31.days.ago` pattern — will fail on short months.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

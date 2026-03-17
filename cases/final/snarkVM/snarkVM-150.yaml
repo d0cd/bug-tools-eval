@@ -1,27 +1,40 @@
 id: snarkVM-150
 repo: ProvableHQ/snarkVM
-base_commit: 55c75cfea4363675027ff6090bb4a1eb5d77670f^
-head_commit: 55c75cfea4363675027ff6090bb4a1eb5d77670f
-fix_commit: 55c75cfea4363675027ff6090bb4a1eb5d77670f
+base_commit: d02f8772c217c7a046833f5c6b44a86736e35d96^
+head_commit: d02f8772c217c7a046833f5c6b44a86736e35d96
+fix_commit: d02f8772c217c7a046833f5c6b44a86736e35d96
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: small
-description: Bug in the Aleo address parser in the circuits/types/address module.
-  The parser logic for parsing address strings was incorrect, causing valid Aleo addresses
-  to fail parsing. The fix corrects the parser preparation/matching logic at two locations
-  in lib.rs where the address parser is defined.
+pr_size: medium
+description: When loading programs from storage during VM initialization, deployments
+  are iterated in lexicographical order by transaction ID. This means a program can
+  be loaded before its imports (dependencies) have been loaded, causing VM initialization
+  to fail. The fix introduces a recursive helper that resolves and loads all import
+  dependencies before loading the program itself.
 expected_findings:
-- file: circuits/types/address/src/lib.rs
-  line: 81
-  summary: "Address parser logic is incorrect \u2014 the parser preparation for Aleo\
-    \ addresses does not correctly handle the address string format, causing parse\
-    \ failures."
-- file: circuits/types/address/src/lib.rs
-  line: 149
-  summary: "Duplicate/mirrored address parser contains the same parsing bug \u2014\
-    \ parser preparation does not correctly match valid Aleo address strings."
+- file: synthesizer/src/vm/mod.rs
+  line: 77
+  summary: Programs are loaded from storage via a simple loop in lexicographical order
+    without resolving import dependencies. `process.load_deployment(&deployment)?`
+    is called directly, which will fail if the program's imports have not yet been
+    loaded into the process.
+  line_side: pre_fix
+- file: synthesizer/src/store/transaction/mod.rs
+  line: 263
+  summary: The deployment store is not publicly exposed from TransactionStore, preventing
+    callers from looking up deployment transaction IDs by program ID — a capability
+    needed to recursively resolve and pre-load import dependencies.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

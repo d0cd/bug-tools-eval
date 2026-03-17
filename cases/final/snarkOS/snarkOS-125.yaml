@@ -1,34 +1,36 @@
 id: snarkOS-125
 repo: ProvableHQ/snarkOS
-base_commit: e422b9aa8eb2684e85ee87023e1784113aef408d^
-head_commit: e422b9aa8eb2684e85ee87023e1784113aef408d
-fix_commit: e422b9aa8eb2684e85ee87023e1784113aef408d
-category: api
-difficulty: medium
-severity: medium
+base_commit: a9c532a36c5a90da08fce3cfd1b10c6f217272ca^
+head_commit: a9c532a36c5a90da08fce3cfd1b10c6f217272ca
+fix_commit: a9c532a36c5a90da08fce3cfd1b10c6f217272ca
+category: api-misuse
+difficulty: easy
+severity: high
 language: rust
 pr_size: medium
-description: The metrics feature was incorrectly configured as a default feature in
-  the `cli` crate's Cargo.toml rather than at the workspace root level, and `snarkos-node-metrics`
-  was not marked as optional. This meant the metrics feature couldn't be properly
-  toggled at the workspace level. The fix moves the feature configuration to the root
-  Cargo.toml, makes `snarkos-node-metrics` optional, and introduces a proper `metrics`
-  feature on the `cli` crate that propagates correctly.
+description: The `snarkos developer transfer` command referenced the old `transfer`
+  function in `credits.aleo`, which was renamed to `transfer_private`. Without this
+  update, the transfer CLI command would fail at execution time because the called
+  program function no longer exists under the old name.
 expected_findings:
-- file: cli/Cargo.toml
-  line: 17
-  summary: Metrics feature defined only at the cli crate level with direct default
-    enablement; should be propagated from the workspace root to allow proper feature
-    toggling across the project.
-- file: Cargo.toml
-  line: 56
-  summary: Root Cargo.toml missing default feature set for metrics; needs 'snarkos-node-metrics',
-    'snarkos-node/metrics', and 'snarkos-cli/metrics' in the default features list
-    to properly gate metrics compilation.
-- file: cli/Cargo.toml
-  line: 50
-  summary: snarkos-node-metrics dependency is not marked as optional, causing it to
-    always be compiled regardless of feature flags.
+- file: cli/src/commands/developer/transfer_private.rs
+  line: 47
+  summary: Function call references `transfer` on credits.aleo but the program renamed
+    it to `transfer_private`; execution will fail with a missing-function error
+  line_side: pre_fix
+- file: cli/src/commands/developer/mod.rs
+  line: 24
+  summary: Module and CLI subcommand still named `transfer` instead of `transfer_private`,
+    mismatching the updated credits.aleo API
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

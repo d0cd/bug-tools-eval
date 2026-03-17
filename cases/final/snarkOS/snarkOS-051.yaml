@@ -1,25 +1,32 @@
 id: snarkOS-051
 repo: ProvableHQ/snarkOS
-base_commit: 6ac2fe5fc2b85960c2fec11a9caba3819ef59b21^
-head_commit: 6ac2fe5fc2b85960c2fec11a9caba3819ef59b21
-fix_commit: 6ac2fe5fc2b85960c2fec11a9caba3819ef59b21
+base_commit: 411940b68e388254ea8121cdaedb10c093c2ed65^
+head_commit: 411940b68e388254ea8121cdaedb10c093c2ed65
+fix_commit: 411940b68e388254ea8121cdaedb10c093c2ed65
 category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: rust
 pr_size: tiny
-description: During validator bootup, nodes would call `try_block_sync` too early
-  before receiving an initial `PrimaryPing` message, causing them to incorrectly consider
-  themselves synced when they were actually far behind other validators. The fix adds
-  a grace period (sleep) before the first `try_block_sync` call to allow time for
-  the initial `PrimaryPing` to arrive, preventing premature sync status and incorrect
-  proposal/certificate processing.
+description: When a peer disconnects, the `Cache::clear_peer_entries` method fails
+  to clear the `seen_outbound_block_requests` collection for that peer. This leaves
+  stale entries that can prevent block requests from being re-sent to reconnected
+  peers or other peers, causing block synchronization to stall.
 expected_findings:
-- file: node/bft/src/sync/mod.rs
-  line: 102
-  summary: 'Missing grace period before `try_block_sync`: the sync loop starts immediately
-    on bootup without waiting for an initial `PrimaryPing`, causing nodes to incorrectly
-    determine they are synced when they are actually behind other validators.'
+- file: node/router/src/helpers/cache.rs
+  line: 196
+  summary: 'Incomplete cache invalidation: `clear_peer_entries` does not clear `seen_outbound_block_requests`
+    for the disconnected peer, leaving stale outbound block request records that prevent
+    re-requesting blocks'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

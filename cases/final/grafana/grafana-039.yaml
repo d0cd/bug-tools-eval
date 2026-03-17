@@ -1,31 +1,37 @@
 id: grafana-039
 repo: grafana/grafana
-base_commit: 9fd258566144f469d8810ed1432fb7f0f1ed983a^
-head_commit: 9fd258566144f469d8810ed1432fb7f0f1ed983a
-fix_commit: 9fd258566144f469d8810ed1432fb7f0f1ed983a
+base_commit: 50cc4f972b872d3b6bbc9b493e49994f1f351f50^
+head_commit: 50cc4f972b872d3b6bbc9b493e49994f1f351f50
+fix_commit: 50cc4f972b872d3b6bbc9b493e49994f1f351f50
 category: logic
-difficulty: medium
-severity: high
+difficulty: easy
+severity: medium
 language: typescript
-pr_size: medium
-description: Dashboard reference was stored in a local `let` variable set via `useEffectOnce`,
-  causing it to be re-declared as `undefined` on re-renders. This meant `dashboard?.events.subscribe`
-  failed silently and the event subscription was lost, breaking dashboard refresh
-  for the alert list panel. Fixed by storing the dashboard in a `useRef` and splitting
-  event subscription from data fetching into separate effects.
+pr_size: small
+description: The circular radial gauge was visually clipped/cut off due to incorrect
+  SVG foreignObject overflow handling and incorrect endcap rendering on the thresholds
+  bar. The fix adjusts the foreignObject element's overflow or dimensions in RadialArcPath.tsx
+  and corrects the barEndcaps property in ThresholdsBar.tsx to prevent the visual
+  cutoff.
 expected_findings:
-- file: public/app/plugins/panel/alertlist/UnifiedAlertList.tsx
-  line: 121
-  summary: 'Stale reference: local `let dashboard` variable is re-declared as undefined
-    on each render, so the event subscription in the effect closure captures a stale/undefined
-    value. Should use `useRef` to persist the dashboard reference across renders.'
-- file: public/app/plugins/panel/alertlist/UnifiedAlertList.tsx
-  line: 173
-  summary: Event subscription and data fetch are combined in a single effect with
-    dependencies that trigger unnecessary unsubscribe/resubscribe cycles. These should
-    be split into separate effects to avoid losing the subscription.
+- file: packages/grafana-ui/src/components/RadialGauge/RadialArcPath.tsx
+  line: 111
+  summary: foreignObject element causes circular gauge clipping — likely needs overflow:visible
+    or adjusted width/height to prevent the arc from being cut off
+  line_side: pre_fix
+- file: packages/grafana-ui/src/components/RadialGauge/ThresholdsBar.tsx
+  line: 57
+  summary: barEndcaps={false} is incorrect for this gauge type, causing visual cutoff
+    at arc endpoints; endcap rendering should match the radial arc geometry
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

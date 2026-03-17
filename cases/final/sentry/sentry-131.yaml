@@ -1,0 +1,46 @@
+id: sentry-131
+repo: getsentry/sentry
+base_commit: a3397cc3be6f2562fb4ff0ecd1ca60ba963854b0^
+head_commit: a3397cc3be6f2562fb4ff0ecd1ca60ba963854b0
+fix_commit: a3397cc3be6f2562fb4ff0ecd1ca60ba963854b0
+category: incomplete
+difficulty: medium
+severity: medium
+language: python
+pr_size: tiny
+description: The text widget validation block in the dashboard serializer was missing
+  `dataset_source` validation/conversion that other widget types already had. This
+  meant user-provided `dataset_source` values were not being translated for the backend
+  when processing text widgets, and invalid values could cause an unhandled KeyError
+  resulting in a 500 error.
+expected_findings:
+- file: src/sentry/api/serializers/rest_framework/dashboard.py
+  line: 389
+  summary: "Text widget validation path is missing `dataset_source` validation/conversion\
+    \ that exists for other widget types \u2014 user-provided values pass through\
+    \ untranslated, and invalid values will raise an unhandled KeyError (500)"
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110213
+reviewer_notes:
+- '[inline] Since the dataset source is user-provided, given what we know about AI
+  callers creating invalid dashboards, should we try to handle invalid values and
+  ideally report it to the caller somehow? Currently we''ll throw a `KeyError` which
+  I''m assuming would end up as a generic 500 error.'
+reviewer_findings:
+- file: src/sentry/api/serializers/rest_framework/dashboard.py
+  line: 389
+  summary: Since the dataset source is user-provided, given what we know about AI
+    callers creating invalid dashboards, should we tr
+  line_side: pre_fix
+- file: src/sentry/api/serializers/rest_framework/dashboard.py
+  line: 389
+  summary: ya good point i'll follow up with that
+  line_side: pre_fix
+quality_flags: []

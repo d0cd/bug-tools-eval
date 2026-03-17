@@ -1,22 +1,32 @@
 id: snarkOS-043
 repo: ProvableHQ/snarkOS
-base_commit: 617584b54840c9fc45967f09062c3f5323d4c36d^
-head_commit: 617584b54840c9fc45967f09062c3f5323d4c36d
-fix_commit: 617584b54840c9fc45967f09062c3f5323d4c36d
-category: api
+base_commit: 3a38e2a888ea357cb744d78c0e278be9f5a0523d^
+head_commit: 3a38e2a888ea357cb744d78c0e278be9f5a0523d
+fix_commit: 3a38e2a888ea357cb744d78c0e278be9f5a0523d
+category: api-misuse
 difficulty: easy
 severity: medium
 language: rust
-pr_size: tiny
-description: CLI error handling used Display formatting (`{}`) for HTTP error responses,
-  which produced uninformative error messages. The fix changes to Debug formatting
-  (`{:?}`) which includes the response status code, status text, and URL, giving users
-  actionable information when API calls fail.
+pr_size: small
+description: The REST API route handler for fetching blocks did not return a 404 status
+  code when a requested block was not found. The fix adds proper handling for the
+  missing-block case, returning an appropriate 404 response instead of an incorrect
+  or misleading error.
 expected_findings:
-- file: cli/src/commands/developer/mod.rs
-  line: 131
-  summary: Using Display formatting `{}` for HTTP error response loses useful diagnostic
-    details (status, status_text, url); should use Debug formatting `{:?}` instead.
+- file: node/rest/src/routes.rs
+  line: 139
+  summary: Missing block lookup does not return a 404 response; when the block is
+    not found, the handler should map the None/missing case to an HTTP 404 error instead
+    of falling through or returning a different status.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,45 @@
+id: grafana-052
+repo: grafana/grafana
+base_commit: 6a9016465211e00754c18af735e2539445a8db6c^
+head_commit: 6a9016465211e00754c18af735e2539445a8db6c
+fix_commit: 6a9016465211e00754c18af735e2539445a8db6c
+category: incomplete
+difficulty: medium
+severity: high
+language: typescript
+pr_size: small
+description: The internal numeric dashboard ID was removed or deprecated as part of
+  a UID migration, but the analytics/usage-insights pipeline still depended on it.
+  This caused usage insights to break because `dashboardId` was no longer propagated
+  through the analytics event flow. The fix restores the internal ID field throughout
+  the dashboard scene, serialization, and analytics processor so that usage insights
+  continue to function.
+expected_findings:
+- file: public/app/features/dashboard/state/analyticsProcessor.ts
+  line: 2
+  summary: Analytics emitDashboardViewEvent no longer receives the numeric dashboard
+    `id` field — usage insights break because dashboardId is missing from emitted
+    events
+  line_side: pre_fix
+- file: public/app/features/query/state/queryAnalytics.ts
+  line: 66
+  summary: dashboardId assignment uses `dashboard.id` which was deprecated/removed
+    from the type, so this field is now undefined in analytics events
+  line_side: pre_fix
+- file: public/app/features/dashboard-scene/scene/DashboardScene.tsx
+  line: 112
+  summary: The deprecated internal `id` field was removed from DashboardScene state
+    but is still needed downstream by analytics processors — removing it breaks the
+    analytics data pipeline
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,47 @@
+id: sentry-172
+repo: getsentry/sentry
+base_commit: e5972f221b256905daaab5dc8da1b04c5e7c3441^
+head_commit: 5996a4eee6660bc3ce3b4e41cdf23291b19c892f
+fix_commit: e5972f221b256905daaab5dc8da1b04c5e7c3441
+category: api-misuse
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: medium
+description: The issue/event formatter functions in the Seer Explorer were reading
+  fields from the wrong source object. `short_id` was destructured from tool `args`
+  instead of `resultMetadata`, causing it to always be undefined. The `linkParams`
+  parameter was misnamed (should be `resultMetadata`), and `selected_event` was referenced
+  as a tool arg despite no longer existing in the current tool API. The fix corrects
+  parameter naming, sources `short_id` and `mode` from `resultMetadata`, and replaces
+  the obsolete `selected_event` logic with the current `event_id` arg.
+expected_findings:
+- file: static/app/views/seerExplorer/utils.tsx
+  line: 70
+  summary: Parameter `linkParams` is misnamed — should be `resultMetadata`. Accessing
+    `linkParams?.mode` reads from an incorrectly named variable, likely returning
+    undefined.
+  line_side: pre_fix
+- file: static/app/views/seerExplorer/utils.tsx
+  line: 117
+  summary: '`short_id` is destructured from `args` (tool arguments) but it is actually
+    provided in result metadata, so it will always be undefined here. Should be read
+    from the third parameter (`resultMetadata`).'
+  line_side: pre_fix
+- file: static/app/views/seerExplorer/utils.tsx
+  line: 135
+  summary: '`selected_event` is destructured from `args` but this field no longer
+    exists in the current tool API. Should use `event_id` instead, and use `resultMetadata`
+    for display enrichment like `short_id`.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,24 +1,37 @@
 id: leo-027
 repo: ProvableHQ/leo
-base_commit: c712882b527f23262baaaba54eee9f03c8a9cf68^
-head_commit: c712882b527f23262baaaba54eee9f03c8a9cf68
-fix_commit: c712882b527f23262baaaba54eee9f03c8a9cf68
-category: logic
-difficulty: easy
+base_commit: 1c7fefac533d30f3d1ee1ee697a3241c4d5fe2a7^
+head_commit: 1c7fefac533d30f3d1ee1ee697a3241c4d5fe2a7
+fix_commit: 1c7fefac533d30f3d1ee1ee697a3241c4d5fe2a7
+category: type
+difficulty: medium
 severity: high
 language: rust
-pr_size: medium
-description: The `leo deploy` command used `BuildOptions::default()` which set `conditional_block_max_depth`
-  to `0`, causing a panic when building programs containing conditionals in async
-  function scope. The fix replaces the hardcoded default with a `#[clap(flatten)]`
-  BuildOptions field so users can pass (and defaults are sensible for) the conditional
-  block depth.
+pr_size: small
+description: The type checker did not properly validate member access on structs,
+  allowing invalid member accesses to pass type checking. The fix corrects the type
+  checking logic in check_expressions.rs to properly resolve and validate the type
+  of struct member accesses, and adjusts the parser span for member access expressions.
 expected_findings:
-- file: leo/cli/commands/deploy.rs
-  line: 48
-  summary: Using `BuildOptions::default()` sets `conditional_block_max_depth` to 0,
-    which will panic on any program with conditionals in async scope. Should use caller-supplied
-    or properly-defaulted build options instead.
+- file: compiler/passes/src/type_checking/check_expressions.rs
+  line: 143
+  summary: 'Incorrect type checking for struct member access: the match arm for Some(Member
+    { type_, .. }) does not properly validate or propagate the member''s type, allowing
+    invalid accesses to compile.'
+  line_side: pre_fix
+- file: compiler/parser/src/parser/expression.rs
+  line: 389
+  summary: 'Incorrect span computation for member access expression: span should cover
+    the full expression including the accessed member name.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

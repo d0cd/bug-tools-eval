@@ -1,23 +1,34 @@
 id: keycloak-035
 repo: keycloak/keycloak
-base_commit: db7c0422ab7485186f5c4a036c42406142fe25ce^
-head_commit: db7c0422ab7485186f5c4a036c42406142fe25ce
-fix_commit: db7c0422ab7485186f5c4a036c42406142fe25ce
-category: logic
+base_commit: 770c4ab5ebf4e1f1afc2245ee843fc6c1c6b73a5^
+head_commit: 770c4ab5ebf4e1f1afc2245ee843fc6c1c6b73a5
+fix_commit: 770c4ab5ebf4e1f1afc2245ee843fc6c1c6b73a5
+category: security
 difficulty: easy
-severity: low
-language: unknown
+severity: high
+language: java
 pr_size: small
-description: The Keycloak operator installation guide was missing generic upgrade
-  instructions, leaving users without documentation on how to upgrade the operator.
-  The fix adds an 'Upgrading an Operator' section to the installation guide.
+description: The TokenIntrospectionEndpoint reflects unsanitized user input from the
+  `token_type_hint` parameter directly into the error response message. This enables
+  potential log injection, header injection, or XSS in downstream systems that render
+  the error_description field. The fix replaces the dynamic string with a static error
+  message and logs the raw value server-side via event.detail().
 expected_findings:
-- file: docs/guides/operator/installation.adoc
-  line: 144
-  summary: 'Missing operator upgrade instructions: the guide lacks any section describing
-    how to upgrade the Keycloak operator, which users need when moving between versions'
+- file: services/src/main/java/org/keycloak/protocol/oidc/endpoints/TokenIntrospectionEndpoint.java
+  line: 99
+  summary: Unsanitized user input (tokenTypeHint) is interpolated directly into the
+    error response string. This reflects attacker-controlled input back to the client,
+    enabling log injection and potential XSS in consumers of the error_description
+    field. Use a static error message and log the value server-side instead.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

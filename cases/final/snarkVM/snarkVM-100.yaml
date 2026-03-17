@@ -1,34 +1,37 @@
 id: snarkVM-100
 repo: ProvableHQ/snarkVM
-base_commit: dedc4a0a8e072458880ac0256bf1c0607d031f93^
-head_commit: dedc4a0a8e072458880ac0256bf1c0607d031f93
-fix_commit: dedc4a0a8e072458880ac0256bf1c0607d031f93
-category: api
-difficulty: hard
-severity: high
+base_commit: 70908ff63050dcbd905bd694a04d012566a3cfcc^
+head_commit: 70908ff63050dcbd905bd694a04d012566a3cfcc
+fix_commit: 70908ff63050dcbd905bd694a04d012566a3cfcc
+category: style
+difficulty: easy
+severity: low
 language: rust
 pr_size: xl
-description: The WASM parameter download mechanism attempted to spawn a local async
-  task to download parameters alongside synchronous execution, which doesn't work
-  correctly in the single-threaded WebAssembly/JavaScript event loop model. The fix
-  replaces the broken async approach with a proper synchronous WASM-compatible download
-  using appropriate web APIs (likely XMLHttpRequest or similar synchronous fetch),
-  and refactors the inclusion/query modules to support WASM execution contexts.
+description: "This PR is a bulk formatting and linting cleanup: it adds `use_small_heuristics\
+  \ = \"Max\"` to rustfmt.toml to reformat code to wider lines, fixes clippy warnings\
+  \ (e.g. non-shorthand field patterns, unused imports), and enforces `-Dwarnings`\
+  \ in CI. There is no bug fix \u2014 the changes are purely cosmetic and CI-hygiene\
+  \ related."
 expected_findings:
-- file: parameters/src/macros.rs
-  line: 90
-  summary: The wasm remote_fetch function spawns a local async task to download parameters,
-    which blocks the JavaScript event loop and fails in the single-threaded WASM execution
-    model.
-- file: utilities/src/parallel.rs
-  line: 67
-  summary: Parallelism configuration does not properly account for the wasm feature
-    flag, leading to incorrect execution behavior when compiled to WebAssembly.
-- file: synthesizer/src/process/mod.rs
-  line: 159
-  summary: Process initialization lacks a path to skip downloading credits.aleo circuit
-    keys, which is needed for WASM environments where synchronous network fetching
-    is constrained.
+- file: .rustfmt.toml
+  line: 5
+  summary: Adding use_small_heuristics = "Max" changes formatting conventions across
+    the entire codebase
+  line_side: pre_fix
+- file: .github/workflows/ci.yml
+  line: 12
+  summary: 'Adding RUSTFLAGS: -Dwarnings to CI enforces zero-warning policy going
+    forward'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 631
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

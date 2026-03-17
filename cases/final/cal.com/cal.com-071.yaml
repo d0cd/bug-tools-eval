@@ -1,0 +1,33 @@
+id: cal.com-071
+repo: calcom/cal.com
+base_commit: e7a69d68dfd1f8e3dd68112bd6ef2fa9ab9916ae^
+head_commit: e7a69d68dfd1f8e3dd68112bd6ef2fa9ab9916ae
+fix_commit: e7a69d68dfd1f8e3dd68112bd6ef2fa9ab9916ae
+category: api-misuse
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: tiny
+description: The companion app's cross-origin iframe was missing the `allow="clipboard-write;
+  clipboard-read"` attribute, causing `navigator.clipboard.writeText()` to fail silently
+  or throw. The Clipboard API requires explicit Permissions Policy delegation for
+  cross-origin iframes. The fix adds the required `allow` attribute to the iframe
+  element in content.ts.
+expected_findings:
+- file: companion/extension/entrypoints/content.ts
+  line: 74
+  summary: Cross-origin iframe is missing `allow="clipboard-write; clipboard-read"`
+    attribute; navigator.clipboard.writeText() will be denied by the Permissions Policy
+    in this context
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

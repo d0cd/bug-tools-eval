@@ -1,30 +1,41 @@
 id: snarkOS-049
 repo: ProvableHQ/snarkOS
-base_commit: 23abf12f8f7612b01603cf303b79348a4c4b94c7^
-head_commit: 23abf12f8f7612b01603cf303b79348a4c4b94c7
-fix_commit: 23abf12f8f7612b01603cf303b79348a4c4b94c7
+base_commit: 3f4b5be75cb3163d154d3cdb1f250db5abc1ca4d^
+head_commit: 3f4b5be75cb3163d154d3cdb1f250db5abc1ca4d
+fix_commit: 3f4b5be75cb3163d154d3cdb1f250db5abc1ca4d
 category: logic
 difficulty: medium
-severity: medium
+severity: low
 language: rust
 pr_size: small
-description: Obsolete block requests were not being properly removed during block
-  synchronization, causing stale request entries to accumulate. The fix adds cleanup
-  logic to remove outdated block request timestamps for peers at specific heights
-  in multiple code paths within the block sync module.
+description: The initial block sync time estimate became inaccurate after a node restart
+  mid-sync because elapsed time was divided by the absolute block height (from zero)
+  rather than the number of blocks synced since restart. The fix computes average
+  ms/block using the height differential from the ledger height at restart, but introduces
+  a potential division-by-zero when height equals ledger_height.
 expected_findings:
-- file: node/sync/src/block_sync.rs
-  line: 646
-  summary: "Missing cleanup of obsolete block request timestamps \u2014 stale entries\
-    \ for peer_ip at the given height are not being removed"
-- file: node/sync/src/block_sync.rs
-  line: 666
-  summary: "Missing cleanup of obsolete block request timestamps \u2014 stale entries\
-    \ for peer_ip at the given height are not being removed"
-- file: node/sync/src/block_sync.rs
-  line: 683
-  summary: "Missing cleanup of obsolete block request timestamps \u2014 stale entries\
-    \ for peer_ip at the given height are not being removed"
+- file: snarkos/ledger/mod.rs
+  line: 264
+  summary: 'Division by absolute block height (`height as u64`) instead of blocks-synced-since-restart
+    (`height - ledger_height`): after a restart the elapsed time covers only blocks
+    synced this session, but dividing by total height produces a near-zero per-block
+    estimate and wildly inaccurate time remaining.'
+  line_side: pre_fix
+- file: snarkos/ledger/mod.rs
+  line: 264
+  summary: 'Potential division by zero: if `height == ledger_height` (first block
+    of sync), `(height - ledger_height)` is zero, causing a panic on the division
+    in the fixed code. The original code also had this risk at height 0 but it was
+    less likely in practice.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

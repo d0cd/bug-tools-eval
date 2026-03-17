@@ -1,22 +1,32 @@
 id: sdk-010
 repo: ProvableHQ/sdk
-base_commit: 27a64cacacff91d768dc8e1ed54a428d66f690ec^
-head_commit: 27a64cacacff91d768dc8e1ed54a428d66f690ec
-fix_commit: 27a64cacacff91d768dc8e1ed54a428d66f690ec
-category: logic
+base_commit: 14845183d9ecee1dbd6b157bc1217c7173ab1116^
+head_commit: 14845183d9ecee1dbd6b157bc1217c7173ab1116
+fix_commit: 14845183d9ecee1dbd6b157bc1217c7173ab1116
+category: code-smell
 difficulty: easy
-severity: high
-language: javascript
+severity: low
+language: rust
 pr_size: tiny
-description: The Split tab on aleo.tools passed the wrong variable to the `splitAmount`
-  parameter. The object property `splitAmount` was set to `amount` (the total amount)
-  instead of the correct split amount value, causing the split operation to use an
-  incorrect amount.
+description: A clippy lint warning (`clippy::unnecessary_to_owned`) was triggered
+  in the updater helper. The fix adds an `#[allow(clippy::unnecessary_to_owned)]`
+  annotation to suppress the warning, likely because the `.to_owned()` call is actually
+  needed for ownership semantics even though clippy flags it as unnecessary.
 expected_findings:
-- file: website/src/tabs/develop/Split.js
-  line: 65
-  summary: 'Wrong variable passed to `splitAmount`: uses `amount` instead of the correct
-    split amount variable, causing the split operation to receive an incorrect value.'
+- file: cli/helpers/updater.rs
+  line: 80
+  summary: Unnecessary `.to_owned()` call flagged by clippy; either remove the redundant
+    clone or suppress the lint with `#[allow(clippy::unnecessary_to_owned)]` if ownership
+    transfer is intentional
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

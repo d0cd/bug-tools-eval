@@ -1,36 +1,38 @@
 id: snarkOS-105
 repo: ProvableHQ/snarkOS
-base_commit: ddd0020de5a0973d6d57401dd720d0824793f8f9^
-head_commit: ddd0020de5a0973d6d57401dd720d0824793f8f9
-fix_commit: ddd0020de5a0973d6d57401dd720d0824793f8f9
+base_commit: 9269d27b35c878dfe93209762d251b44d2f98316^
+head_commit: 9269d27b35c878dfe93209762d251b44d2f98316
+fix_commit: 9269d27b35c878dfe93209762d251b44d2f98316
 category: logic
-difficulty: hard
-severity: critical
+difficulty: medium
+severity: high
 language: rust
-pr_size: large
-description: SchnorrParametersGadget was allocated as a witness (via AllocGadget)
-  instead of being treated as a constant in the circuit, which is incorrect for publicly-known
-  cryptographic parameters. Additionally, precomputed scalar multiplication used Rust's
-  default zip behavior which silently truncates to the shorter iterator, potentially
-  dropping group elements or scalar bits. The fix changes parameter allocation to
-  constant assignment, enforces matching lengths via itertools::zip_eq, and precomputes
-  all generator powers in Schnorr setup.
+pr_size: medium
+description: After removing `std::env::set_var` usage for Rust 2024 compatibility,
+  log filter strings were still prefixed with `RUST_LOG=`, causing filters to be parsed
+  incorrectly and suppressing all log output. Additionally, a missing `!` (negation
+  operator) caused the sync mode to be reported incorrectly to users.
 expected_findings:
-- file: models/src/gadgets/algorithms/signature.rs
-  line: 9
-  summary: ParametersGadget is bound to AllocGadget, meaning Schnorr parameters are
-    allocated as circuit witnesses instead of constants. This is incorrect for publicly-known
-    parameters and should use a constant gadget trait instead.
-- file: models/src/gadgets/curves/group.rs
-  line: 167
-  summary: Precompute scalar multiplication uses standard zip which silently truncates
-    to the shorter of scalar_bits and generator powers. Should use zip_eq (or equivalent)
-    to enforce that the number of scalar bits matches the number of group elements.
-- file: gadgets/src/algorithms/signature/schnorr.rs
-  line: 47
-  summary: SchnorrParametersGadget uses AllocGadget to allocate parameters as circuit
-    variables rather than embedding them as constants, allowing a malicious prover
-    to potentially substitute different parameters.
+- file: cli/src/helpers/logger.rs
+  line: 33
+  summary: Log filter string is prefixed with `RUST_LOG=` but the new filter setup
+    (without env vars) expects a bare filter directive. The `RUST_LOG=` prefix causes
+    the entire filter to be misinterpreted, silencing logs.
+  line_side: pre_fix
+- file: node/src/client/mod.rs
+  line: 198
+  summary: Missing negation `!` in condition causes sync mode to be reported as the
+    opposite of its actual state (e.g., reporting syncing when not syncing, or vice
+    versa).
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

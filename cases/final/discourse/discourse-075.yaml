@@ -1,0 +1,31 @@
+id: discourse-075
+repo: discourse/discourse
+base_commit: ab11d18b007749375b22c80f0853d92b0ef12e78^
+head_commit: 8ffdde5e59cb655d7f6c67cd316395807ce01df9
+fix_commit: ab11d18b007749375b22c80f0853d92b0ef12e78
+category: api-misuse
+difficulty: easy
+severity: medium
+language: javascript
+pr_size: tiny
+description: A test for the mobile sidebar slide-out was missing a pretender mock
+  for the `/categories/hierarchical_search` endpoint, causing intermittent CI failures
+  when the component issued a GET request that had no handler. The fix adds the missing
+  `hierarchical_search` mock to the test's pretender setup.
+expected_findings:
+- file: frontend/discourse/tests/acceptance/sidebar-user-categories-section-test.js
+  line: 1373
+  summary: Missing pretender mock for `/categories/hierarchical_search` endpoint causes
+    unhandled request errors in CI; needs a server stub returning an appropriate response
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

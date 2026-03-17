@@ -1,35 +1,35 @@
 id: snarkOS-104
 repo: ProvableHQ/snarkOS
-base_commit: c1a81db56474e4b845a4adec7372dbcb34097338^
-head_commit: c1a81db56474e4b845a4adec7372dbcb34097338
-fix_commit: c1a81db56474e4b845a4adec7372dbcb34097338
-category: concurrency
-difficulty: hard
-severity: critical
+base_commit: 9212a177808b3c757dec301a353d93e41465707c^
+head_commit: 9212a177808b3c757dec301a353d93e41465707c
+fix_commit: 9212a177808b3c757dec301a353d93e41465707c
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: large
-description: 'PR #457 wrapped blocking network operations into individual spawned
-  tasks, which broke synchronization invariants. Operations that previously ran sequentially
-  under shared locks (e.g., sync_handler_lock via try_lock()) were split across independent
-  tasks, introducing race conditions in the sync protocol, message handling, and connection
-  management. The revert restores the original sequential execution model.'
+pr_size: tiny
+description: Two documentation comments in the BFT sync and block sync modules contained
+  incorrect or misleading text. The PR corrects the wording of these doc comments
+  to accurately describe the behavior of the associated functions/fields.
 expected_findings:
-- file: network/src/internal/message_handler.rs
-  line: 37
-  summary: 'Wrapping message handler logic in a spawned task while using try_lock()
-    on sync_handler_lock can cause races: the lock may be acquired in parallel tasks
-    that should have been sequential, leading to missed sync updates or inconsistent
-    state.'
-- file: network/src/server.rs
-  line: 30
-  summary: Spawning server operations as independent tasks breaks the assumption that
-    sync_handler_lock.try_lock() serializes access; concurrent tasks may simultaneously
-    fail to acquire the lock or acquire it out of order, corrupting sync state.
-- file: network/src/external/protocol/sync/sync.rs
-  line: 74
-  summary: clear_pending() requires &mut self, implying exclusive access to sync state.
-    When callers are spawned as independent tasks, multiple tasks may attempt to clear
-    pending state concurrently, causing data races or lost updates.
+- file: node/bft/src/sync/mod.rs
+  line: 296
+  summary: 'Doc comment is inaccurate: description does not match the actual behavior
+    of the function it documents'
+  line_side: pre_fix
+- file: node/sync/src/block_sync.rs
+  line: 78
+  summary: Doc comment incorrectly describes the behavior of the `responses` map insertion
+    logic
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

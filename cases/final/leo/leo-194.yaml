@@ -1,31 +1,44 @@
 id: leo-194
 repo: ProvableHQ/leo
-base_commit: a704eddb5119b4994936b2f5a367a769cf7e06bb^
-head_commit: a704eddb5119b4994936b2f5a367a769cf7e06bb
-fix_commit: a704eddb5119b4994936b2f5a367a769cf7e06bb
+base_commit: c55ec9894e740e9bc5df14aada4ba90e4fff0cc3^
+head_commit: c55ec9894e740e9bc5df14aada4ba90e4fff0cc3
+fix_commit: c55ec9894e740e9bc5df14aada4ba90e4fff0cc3
 category: logic
-difficulty: medium
+difficulty: hard
 severity: high
 language: rust
-pr_size: small
-description: The Leo compiler did not parse definitions for imported files, causing
-  nested imports (imports within imported files) to be unrecognized. The fix ensures
-  that all import definitions are parsed by default when processing an import, so
-  transitive dependencies are properly resolved.
+pr_size: medium
+description: The return indicator for function statements was stored as Option<Boolean>,
+  allowing None values that caused incorrect return propagation in functions with
+  multiple return paths or conditional returns. When all indicators were None, the
+  compiler silently returned the last result, masking multiple-return errors and producing
+  incorrect circuit constraints for inlined functions with conditional branches.
 expected_findings:
-- file: compiler/src/import/store/import.rs
-  line: 10
-  summary: 'Missing call to parse definitions for imported files: when fetching dependencies
-    for an import, the definitions of the imported program are not being parsed, causing
-    nested imports to fail.'
-- file: compiler/src/definition/definitions.rs
-  line: 13
-  summary: "Definitions are not being collected for imported programs \u2014 the definition\
-    \ pass should be invoked for all imports, not just the top-level program."
-- file: compiler/src/import/store/symbol.rs
-  line: 11
-  summary: When storing an imported symbol, the import's own definitions (including
-    its nested imports) are not being processed before symbol resolution.
+- file: compiler/src/statement/statement.rs
+  line: 25
+  summary: IndicatorAndConstrainedValue type alias uses Option<Boolean> instead of
+    Boolean, allowing None indicators that break return propagation in multi-return
+    and inlined functions
+  line_side: pre_fix
+- file: compiler/src/function/function.rs
+  line: 97
+  summary: Passes None as the indicator to enforce_statement instead of Boolean::constant(true),
+    losing track of branch conditions at function entry
+  line_side: pre_fix
+- file: compiler/src/function/result/result.rs
+  line: 42
+  summary: conditionally_select_result silently returns last result when all indicators
+    are None ('no branch conditions'), masking multiple-return errors and producing
+    incorrect constraint selection
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

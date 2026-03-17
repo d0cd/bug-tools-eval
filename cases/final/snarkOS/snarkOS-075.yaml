@@ -1,27 +1,27 @@
 id: snarkOS-075
 repo: ProvableHQ/snarkOS
-base_commit: 5334258f658ba0ef6f53dd5a25cd808143d35379^
-head_commit: 5334258f658ba0ef6f53dd5a25cd808143d35379
-fix_commit: 5334258f658ba0ef6f53dd5a25cd808143d35379
-category: api
+base_commit: 6a95401f39413258f8a87728465667f283bcaa04^
+head_commit: 6a95401f39413258f8a87728465667f283bcaa04
+fix_commit: 6a95401f39413258f8a87728465667f283bcaa04
+category: code-smell
 difficulty: medium
-severity: high
+severity: low
 language: rust
-pr_size: medium
-description: The snarkVM `store` operation on `credits.aleo` was broken, causing the
-  REST API's program endpoint to fail or return incorrect results when querying the
-  credits program. The fix updates the snarkVM dependency to a hotfix revision and
-  adjusts the REST route handler to use the correct program retrieval method via `rest.ledger.get_program(id)`
-  with proper `ConsensusStorage` type constraints.
-expected_findings:
-- file: node/rest/src/routes.rs
-  line: 137
-  summary: Program retrieval route may fail or return incorrect data for credits.aleo
-    due to incorrect store access pattern; should use ledger.get_program(id) directly
-- file: node/rest/src/lib.rs
-  line: 28
-  summary: Missing ConsensusStorage import needed for correct type constraints on
-    program store access
+pr_size: xl
+description: This PR is a large-scale architectural refactoring that separates the
+  ledger module from the consensus module in the snarkOS node. It extracts consensus-related
+  code (memory pool, solutions, transactions) into its own crate and reorganizes dependencies
+  accordingly. No specific bug is being fixed; this is a structural improvement to
+  reduce coupling.
+expected_findings: []
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: null
+valid_for_code_review: false
+introducing_commit: null
+pr_number: 2003
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,30 +1,37 @@
 id: sdk-004
 repo: ProvableHQ/sdk
-base_commit: e1d3dd5718538df4cd9166c2c7e65ddac5d8ea03^
-head_commit: e1d3dd5718538df4cd9166c2c7e65ddac5d8ea03
-fix_commit: e1d3dd5718538df4cd9166c2c7e65ddac5d8ea03
+base_commit: 0604a41ab479ae3afec093d1214d761a40d3533e^
+head_commit: 0604a41ab479ae3afec093d1214d761a40d3533e
+fix_commit: 0604a41ab479ae3afec093d1214d761a40d3533e
 category: logic
-difficulty: easy
-severity: low
-language: javascript
+difficulty: medium
+severity: medium
+language: rust
 pr_size: small
-description: Incorrect anchor link formatting in the SDK README table of contents
-  and outdated explorer URLs in template apps. The fix corrects the markdown anchor
-  links to properly reference their target sections and updates explorer links to
-  point to the correct domain (explorer.provable.com).
+description: The getFunctionInputs method in the WASM bindings omitted the `_nonce`
+  field when serializing record-type function inputs. This caused tools consuming
+  the SDK (e.g., aleo.tools) to display incomplete record schemas, missing the mandatory
+  nonce field that is part of every Aleo record.
 expected_findings:
-- file: sdk/README.md
-  line: 34
-  summary: "Malformed markdown anchor link in table of contents \u2014 anchor fragment\
-    \ does not match the target heading, causing broken internal navigation."
-- file: create-leo-app/template-react-leo/src/App.jsx
-  line: 34
-  summary: "Incorrect explorer URL \u2014 hardcoded explorer link points to wrong\
-    \ domain, should be updated to the current explorer.provable.com."
-- file: create-leo-app/template-react-ts/src/App.tsx
-  line: 34
-  summary: "Incorrect explorer URL \u2014 same stale explorer domain as the JSX template,\
-    \ should point to explorer.provable.com."
+- file: wasm/src/programs/program.rs
+  line: 313
+  summary: Record input serialization omits the `_nonce` field — all Aleo records
+    contain a nonce and it should be included in the function input schema returned
+    to callers
+  line_side: pre_fix
+- file: wasm/src/programs/program.rs
+  line: 683
+  summary: Same missing nonce issue in a second code path that constructs function
+    input representations for records
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

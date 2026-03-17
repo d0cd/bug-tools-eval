@@ -1,0 +1,37 @@
+id: sentry-083
+repo: getsentry/sentry
+base_commit: 68cf39d202f4138659b11c94fd69ffa23ece49f6^
+head_commit: 68cf39d202f4138659b11c94fd69ffa23ece49f6
+fix_commit: 68cf39d202f4138659b11c94fd69ffa23ece49f6
+category: style
+difficulty: easy
+severity: low
+language: typescript
+pr_size: tiny
+description: The ContinuousProfilingBillingRequirementBanner was rendered as a sibling
+  outside DescriptionWrapper instead of inside it, breaking the intended layout. The
+  CSS selector `:not(:last-child)` also applied bottom margin to empty wrappers, fixed
+  by adding `:has(*)` to skip empty containers.
+expected_findings:
+- file: static/app/views/profiling/onboarding.tsx
+  line: 313
+  summary: BillingRequirementBanner is placed outside DescriptionWrapper; it should
+    be moved inside so it renders in the same layout container as the introduction
+    text.
+  line_side: pre_fix
+- file: static/app/views/profiling/onboarding.tsx
+  line: 467
+  summary: CSS selector `:not(:last-child)` on DescriptionWrapper adds unnecessary
+    bottom margin when the wrapper is empty; needs `:has(*)` guard to skip empty containers.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

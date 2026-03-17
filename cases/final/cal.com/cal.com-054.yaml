@@ -1,0 +1,31 @@
+id: cal.com-054
+repo: calcom/cal.com
+base_commit: c589399700875addf0be85f348dac69fbb3d69a2^
+head_commit: c589399700875addf0be85f348dac69fbb3d69a2
+fix_commit: c589399700875addf0be85f348dac69fbb3d69a2
+category: type
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: tiny
+description: The variable `app` was annotated with `AppMetaSchema`, which is a Zod
+  runtime schema object, not a TypeScript type. This causes type errors because a
+  Zod schema cannot be used as a type annotation. The fix imports the inferred type
+  `AppMetaType` and uses `Partial<AppMetaType>` as the correct annotation.
+expected_findings:
+- file: packages/app-store-cli/src/build.ts
+  line: 81
+  summary: Type annotation uses Zod schema object `AppMetaSchema` instead of its inferred
+    TypeScript type `AppMetaType`; should be `Partial<AppMetaType>`
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

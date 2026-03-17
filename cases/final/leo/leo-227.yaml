@@ -1,30 +1,32 @@
 id: leo-227
 repo: ProvableHQ/leo
-base_commit: cc23fb0bea5c88354c821ae9d84274edd689b674^
-head_commit: cc23fb0bea5c88354c821ae9d84274edd689b674
-fix_commit: cc23fb0bea5c88354c821ae9d84274edd689b674
+base_commit: e2082fbef6ad9a77221ddb9ed633f2881d4d7e68^
+head_commit: e2082fbef6ad9a77221ddb9ed633f2881d4d7e68
+fix_commit: e2082fbef6ad9a77221ddb9ed633f2881d4d7e68
 category: logic
-difficulty: easy
-severity: medium
+difficulty: medium
+severity: high
 language: rust
-pr_size: xl
-description: CircleCI test scripts did not execute all examples and failed to propagate
-  errors when an example errored, silently passing CI. The fix adds proper error handling
-  (`|| exit`) to shell scripts, corrects the EXAMPLES path in the CI config, and ensures
-  all example run scripts use consistent error-checked invocations.
+pr_size: small
+description: ArrayAccess in the interpreter popped the array and index values from
+  the stack in the wrong order. Since the index is pushed onto the stack after the
+  array, it sits on top and must be popped first. The fix swaps the pop order so the
+  index is retrieved before the array, producing correct array element lookups.
 expected_findings:
-- file: .circleci/test-examples.sh
-  line: 1
-  summary: "Test script does not iterate over all examples and lacks error propagation\
-    \ \u2014 CI passes even when examples fail."
-- file: .circleci/config.yml
-  line: 131
-  summary: EXAMPLES path is incorrect (`/home/circleci/project/project/examples` has
-    duplicated `project` segment), causing example tests to not be found.
-- file: .circleci/leo-clean.sh
-  line: 1
-  summary: Shell script commands lack `|| exit` error guards, so failures in `leo
-    new` or `leo clean` are silently ignored.
+- file: interpreter/src/cursor.rs
+  line: 654
+  summary: 'Stack pop order bug: `let array = self.pop_value()?` pops the index (top
+    of stack) instead of the array. The index should be popped first since it was
+    pushed last (LIFO), then the array. Swapped operands cause incorrect array access.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,29 +1,40 @@
 id: snarkVM-138
 repo: ProvableHQ/snarkVM
-base_commit: 53ced4fb4d72dd2eb0a546909501906016bbed6c^
-head_commit: 53ced4fb4d72dd2eb0a546909501906016bbed6c
-fix_commit: 53ced4fb4d72dd2eb0a546909501906016bbed6c
+base_commit: b8566935de1e56e84251e94cbaaf614df8cccb45^
+head_commit: b8566935de1e56e84251e94cbaaf614df8cccb45
+fix_commit: b8566935de1e56e84251e94cbaaf614df8cccb45
 category: logic
 difficulty: medium
-severity: medium
+severity: high
 language: rust
-pr_size: medium
-description: The Display trait implementation for BigInteger was not producing a correct
-  radix-10 decimal string representation. Instead of converting the multi-limb integer
-  to a proper base-10 string, it likely output raw limb data or an incorrect format.
-  The fix adds the num-bigint crate as a dependency and rewrites the Display implementation
-  to properly convert the internal limb representation to a decimal string.
+pr_size: large
+description: The `get_map_and_key` function in the RocksDB nested map implementation
+  used unsafe direct indexing when deserializing composite keys from the database.
+  This could panic on out-of-bounds access when neighboring non-nested maps stored
+  keys that didn't match the expected nested key format. The fix replaces direct indexing
+  with bounds-checked `.get()` calls that return proper errors, and adds `break` statements
+  in DB iterators to stop when encountering keys from adjacent non-nested maps.
 expected_findings:
-- file: utilities/src/biginteger/macros.rs
-  line: 26
-  summary: BigInteger Display trait implementation outputs incorrect representation
-    instead of radix-10 decimal string. The fmt::Display impl needs to convert limbs
-    to a proper base-10 integer string using a big-integer library.
-- file: utilities/src/biginteger/biginteger.rs
-  line: 57
-  summary: BigInteger trait lacks NUM_LIMBS constant needed for proper Display conversion;
-    the Display implementation on the concrete types cannot correctly iterate limbs
-    for decimal conversion.
+- file: ledger/store/src/helpers/rocksdb/internal/nested_map.rs
+  line: 80
+  summary: 'Unsafe direct indexing in get_map_and_key: uses array index operator instead
+    of bounds-checked .get(), which will panic if the serialized key bytes are shorter
+    than expected — should use .get() with proper error propagation.'
+  line_side: pre_fix
+- file: ledger/store/src/helpers/rocksdb/internal/nested_map.rs
+  line: 150
+  summary: DB iterator lacks a break condition when encountering keys belonging to
+    a different (non-nested) map sharing the same RocksDB column family, causing get_map_and_key
+    to be called on incompatible key formats.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

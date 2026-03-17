@@ -1,31 +1,30 @@
 id: snarkOS-159
 repo: ProvableHQ/snarkOS
-base_commit: ac5fdb813e62d547353bbc2c612a4b52608719d4^
-head_commit: ac5fdb813e62d547353bbc2c612a4b52608719d4
-fix_commit: ac5fdb813e62d547353bbc2c612a4b52608719d4
-category: concurrency
-difficulty: hard
-severity: critical
+base_commit: d72307161381698fcf6cc91d3994c61ea29594dc^
+head_commit: d72307161381698fcf6cc91d3994c61ea29594dc
+fix_commit: d72307161381698fcf6cc91d3994c61ea29594dc
+category: logic
+difficulty: easy
+severity: high
 language: rust
-pr_size: large
-description: Async locks (RwLock/Mutex) were held across await points or for unnecessarily
-  long durations, causing node halting (deadlocks). The fix narrows lock scopes using
-  explicit blocks, reduces lock granularity in the peer book, message handler, connection
-  handler, and server modules to prevent holding locks while awaiting async operations.
+pr_size: small
+description: Testnet1 bootnode IP addresses were accidentally commented out in a previous
+  PR, preventing nodes from discovering the network via bootnodes. This fix uncomments
+  the hardcoded bootnode IPs in the configuration file to restore network connectivity.
 expected_findings:
-- file: network/src/server/message_handler.rs
-  line: 171
-  summary: 'Lock held across await point or too broad scope: async lock acquisition
-    should be scoped to a narrower block to avoid holding the lock during async operations,
-    which can cause deadlock/node halt.'
-- file: network/src/server/mod.rs
-  line: 75
-  summary: 'peer_book.read().await lock held too long: the read lock on peer_book
-    spans more code than necessary, risking deadlock when other tasks need write access.'
-- file: network/src/message/channel.rs
-  line: 105
-  summary: self.writer.lock().await held across an await point or for too long a scope,
-    blocking other tasks from writing and potentially causing node halt.
+- file: snarkos/config.rs
+  line: 35
+  summary: Bootnode IP '46.101.144.133:4131' is commented out, preventing testnet1
+    nodes from bootstrapping to the network
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

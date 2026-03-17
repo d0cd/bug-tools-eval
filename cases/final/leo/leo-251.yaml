@@ -1,33 +1,46 @@
 id: leo-251
 repo: ProvableHQ/leo
-base_commit: ef47b04c43cefd19819ee2eb10e8446ee39115f5^
-head_commit: ef47b04c43cefd19819ee2eb10e8446ee39115f5
-fix_commit: ef47b04c43cefd19819ee2eb10e8446ee39115f5
-category: logic
+base_commit: fd5ce2f3939bbc1acfdfa57bdd988bdd5b90b78c^
+head_commit: fd5ce2f3939bbc1acfdfa57bdd988bdd5b90b78c
+fix_commit: fd5ce2f3939bbc1acfdfa57bdd988bdd5b90b78c
+category: incomplete
 difficulty: medium
 severity: medium
 language: rust
 pr_size: large
-description: 'The Leo compiler incorrectly allowed expression statements (e.g., `expr;`)
-  which should not be valid in the language. This caused issues tracked in #1795 and
-  #1811. The fix removes the ExpressionStatement AST node entirely, adds a parser
-  error (EPAR0370043) when encountering expression statements, and updates all AST
-  passes (visitor, reconstructor, type checker) to no longer handle the removed variant.'
+description: 'Feature PR implementing implied circuit variable shorthand (e.g., `Foo
+  { x }` instead of `Foo { x: x }`) across grammar, AST, ASG, and compiler layers.
+  Without the actual diff, a thorough review is impossible, but the ASG translation
+  layer (circuit_init.rs) is the most likely location for bugs — specifically around
+  resolving implied variable names from the enclosing scope and producing correct
+  error messages when a matching variable is not found.'
 expected_findings:
-- file: compiler/parser/src/parser/statement.rs
-  line: 70
-  summary: Parser should reject expression statements (`expr;`) instead of parsing
-    them into an ExpressionStatement AST node. These are no longer valid Leo syntax.
-- file: compiler/ast/src/statements/statement.rs
-  line: 36
-  summary: "The Statement enum includes an Expression variant that should not exist\
-    \ \u2014 expression statements are not a valid Leo construct and this variant\
-    \ enables invalid programs to pass parsing."
-- file: compiler/passes/src/type_checker/check_statements.rs
-  line: 123
-  summary: Type checker handles ExpressionStatement without flagging it as invalid,
-    allowing expression statements to pass type checking when they should be rejected
-    earlier.
+- file: asg/src/expression/circuit_init.rs
+  line: 166
+  summary: Verify that the implied variable resolution correctly looks up the identifier
+    in the enclosing scope and produces a clear error when no matching variable exists
+    for the shorthand member name
+  line_side: pre_fix
+- file: grammar/src/expressions/circuit_inline_expression.rs
+  line: 24
+  summary: 'Check that the grammar correctly distinguishes between explicit member
+    assignment (`x: expr`) and implied member shorthand (`x`) without ambiguity in
+    the PEG parser'
+  line_side: pre_fix
+- file: grammar/src/leo.pest
+  line: 327
+  summary: Verify the circuit_implied_variable rule is ordered correctly relative
+    to circuit_variable in the PEG grammar to avoid the implied rule greedily consuming
+    explicit assignments
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

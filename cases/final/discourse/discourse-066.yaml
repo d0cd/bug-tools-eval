@@ -1,30 +1,36 @@
 id: discourse-066
 repo: discourse/discourse
-base_commit: 267db265b3c8446988a695c2d0809a2ae3e8c142^
-head_commit: 267db265b3c8446988a695c2d0809a2ae3e8c142
-fix_commit: 267db265b3c8446988a695c2d0809a2ae3e8c142
-category: api
-difficulty: medium
-severity: high
+base_commit: 9681c6d3fb632d1d843c4cf302643a639614cb55^
+head_commit: 9681c6d3fb632d1d843c4cf302643a639614cb55
+fix_commit: 9681c6d3fb632d1d843c4cf302643a639614cb55
+category: security
+difficulty: easy
+severity: medium
 language: ruby
-pr_size: medium
-description: The accepted and not_accepted endpoints in the policy controller lacked
-  proper authorization checks, exposing user lists for private policies to any logged-in
-  user who could see group members. The fix extracts a shared `ensure_can_see_policy_users`
-  before_action that enforces private policy visibility restrictions consistent with
-  the serializer behavior.
+pr_size: small
+description: The chat LookupThread service did not check whether the thread's original
+  message had been deleted, allowing deleted threads to remain accessible via the
+  API. The fix adds an `original_message_not_deleted` policy check in the service
+  and a corresponding failure handler in the controller that raises NotFound.
 expected_findings:
-- file: plugins/discourse-policy/app/controllers/discourse_policy/policy_controller.rb
-  line: 1
-  summary: 'Missing authorization check: accepted/not_accepted actions do not verify
-    the requesting user has permission to view private policy user lists, allowing
-    any logged-in user with group member visibility to access them'
-- file: plugins/discourse-policy/app/controllers/discourse_policy/policy_controller.rb
-  line: 1
-  summary: 'Inconsistent access control: serializer enforces private policy restrictions
-    but the controller endpoints bypass those checks, creating an authorization gap'
+- file: plugins/chat/app/services/chat/lookup_thread.rb
+  line: 27
+  summary: 'Missing policy check: service does not verify that the thread''s original
+    message is not deleted, allowing API access to deleted threads'
+  line_side: pre_fix
+- file: plugins/chat/app/controllers/chat/api/channel_threads_controller.rb
+  line: 44
+  summary: Missing failure handler for deleted original message — controller should
+    return 404 when the thread's original message has been deleted
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

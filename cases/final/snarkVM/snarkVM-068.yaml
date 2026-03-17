@@ -1,32 +1,31 @@
 id: snarkVM-068
 repo: ProvableHQ/snarkVM
-base_commit: 36b4ef4b593182998d9cf20c6c9179ddfd7191d5^
-head_commit: 36b4ef4b593182998d9cf20c6c9179ddfd7191d5
-fix_commit: 36b4ef4b593182998d9cf20c6c9179ddfd7191d5
-category: logic
-difficulty: medium
-severity: medium
+base_commit: 4f1f8816d24776982f7a0f52be963c4e4252c374^
+head_commit: 4f1f8816d24776982f7a0f52be963c4e4252c374
+fix_commit: 4f1f8816d24776982f7a0f52be963c4e4252c374
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: Trail of Bits audit found that the `to_checksum` function lacked sanity
-  checks and unit tests (TOB-CHCK-1), and that aborted candidate solutions could contain
-  both mutated and unmutated solutions without documentation clarifying this behavior
-  (TOB-CHCK-2). The fix adds unit tests for checksum validation and clarifying documentation
-  for the mixed-solution behavior.
+pr_size: tiny
+description: A doc comment on the `authorize_request` method incorrectly described
+  it as authorizing a call to a 'public function' when the function actually authorizes
+  a request. The fix corrects the misleading comment to accurately reflect the method's
+  purpose.
 expected_findings:
-- file: ledger/narwhal/data/src/lib.rs
-  line: 237
-  summary: "Missing unit tests and sanity checks for the `to_checksum` function \u2014\
-    \ checksum correctness is unverified"
-- file: ledger/src/advance.rs
-  line: 169
-  summary: Aborted candidate solutions can contain both verified (mutated) and unverified
-    (unmutated) solutions without any documentation or guard clarifying this mixed
-    state
-- file: synthesizer/process/src/stack/execute.rs
-  line: 429
-  summary: "Code quality issue flagged by audit \u2014 logic around CallStack matching\
-    \ for Synthesize/Execute paths needs clarification"
+- file: synthesizer/process/src/stack/authorize.rs
+  line: 127
+  summary: 'Misleading doc comment: says ''Authorizes a call to a public function''
+    but the method authorizes a request, not specifically a public function call'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

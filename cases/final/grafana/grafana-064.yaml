@@ -1,0 +1,31 @@
+id: grafana-064
+repo: grafana/grafana
+base_commit: 839fda7a0a4cf602efe24de6a55213a156fc8985^
+head_commit: 839fda7a0a4cf602efe24de6a55213a156fc8985
+fix_commit: 839fda7a0a4cf602efe24de6a55213a156fc8985
+category: logic
+difficulty: easy
+severity: high
+language: typescript
+pr_size: small
+description: The heatmap panel's prepareHeatmapData function does not filter out empty
+  data frames before processing, causing a crash when the panel receives no data.
+  The fix adds a filter to exclude empty frames early in the pipeline.
+expected_findings:
+- file: public/app/plugins/panel/heatmap/fields.ts
+  line: 89
+  summary: 'Missing guard for empty frames: prepareHeatmapData processes all frames
+    without checking if they contain data, causing a crash when a frame has no fields
+    or zero-length fields. Should filter out empty frames before further processing.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

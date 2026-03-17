@@ -1,23 +1,43 @@
 id: snarkOS-060
 repo: ProvableHQ/snarkOS
-base_commit: d54b866db3714035c1ba368733939f345febf2a6^
-head_commit: d54b866db3714035c1ba368733939f345febf2a6
-fix_commit: d54b866db3714035c1ba368733939f345febf2a6
-category: logic
-difficulty: easy
-severity: low
+base_commit: 5334258f658ba0ef6f53dd5a25cd808143d35379^
+head_commit: 5334258f658ba0ef6f53dd5a25cd808143d35379
+fix_commit: 5334258f658ba0ef6f53dd5a25cd808143d35379
+category: api-misuse
+difficulty: medium
+severity: high
 language: rust
-pr_size: small
-description: An error log message was being emitted unconditionally during CDN block
-  sync, even when no sync progress had been made. This misled callers into thinking
-  something was wrong. The fix adds a condition to only log the error when the sync
-  actually made progress.
+pr_size: medium
+description: The snarkVM `store` function had a bug affecting `credits.aleo` program
+  retrieval. The fix updates the snarkVM dependency to a new revision containing the
+  hotfix and adjusts the REST API layer (removing `ConsensusStorage` type parameters
+  and changing program retrieval in routes.rs) to work with the corrected store behavior.
 expected_findings:
-- file: node/cdn/src/blocks.rs
-  line: 55
-  summary: Error log is emitted unconditionally after sync integrity check; it should
-    only be logged when the sync has actually made progress, otherwise it misleads
-    callers.
+- file: node/rest/src/routes.rs
+  line: 137
+  summary: Program retrieval via `rest.ledger.get_program(id)?` uses a store path
+    that returns incorrect or stale data for `credits.aleo`; needs to use the corrected
+    snarkVM store API
+  line_side: pre_fix
+- file: node/rest/src/lib.rs
+  line: 28
+  summary: ConsensusStorage type constraint may be overly specific or outdated after
+    snarkVM store refactor, causing type mismatch or preventing use of the corrected
+    code path
+  line_side: pre_fix
+- file: Cargo.toml
+  line: 44
+  summary: snarkVM pinned to rev 481b701 which contains the credits.aleo store bug;
+    must be updated to the hotfix revision
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

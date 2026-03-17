@@ -1,33 +1,32 @@
 id: snarkVM-099
 repo: ProvableHQ/snarkVM
-base_commit: e9c435dba7108291fa419d1e9fa5382c0d28cf13^
-head_commit: e9c435dba7108291fa419d1e9fa5382c0d28cf13
-fix_commit: e9c435dba7108291fa419d1e9fa5382c0d28cf13
-category: logic
-difficulty: hard
-severity: critical
+base_commit: 705cfdce06f14451e09e199b620d9d012dcdc144^
+head_commit: 705cfdce06f14451e09e199b620d9d012dcdc144
+fix_commit: 705cfdce06f14451e09e199b620d9d012dcdc144
+category: constraint
+difficulty: easy
+severity: high
 language: rust
-pr_size: xl
-description: The block reward fee computation was incorrect, and a required fee validation
-  check was missing from transaction verification. The fix corrects the fee calculation
-  logic in the block reward path and adds the missing fee sufficiency check, propagating
-  an expected block reward parameter through the speculate/verify/check call chains.
+pr_size: tiny
+description: The keyword `signature` was missing from the reserved keywords list in
+  the snarkVM program synthesizer. This omission could allow users to use `signature`
+  as an identifier (e.g., variable or function name), potentially causing parsing
+  ambiguities or conflicts with the language's built-in signature type/functionality.
 expected_findings:
-- file: ledger/block/src/helpers/target.rs
-  line: 17
-  summary: "Block reward calculation is incorrect \u2014 the fee computation formula\
-    \ for block rewards does not properly account for all fee components, leading\
-    \ to wrong reward values."
-- file: synthesizer/src/vm/verify.rs
-  line: 32
-  summary: 'Missing fee validation check: transaction fee verification does not validate
-    against the expected block reward, allowing transactions with insufficient fees
-    to pass verification.'
-- file: ledger/block/src/transaction/fee/mod.rs
-  line: 90
-  summary: "Fee amount computation returns an incorrect value \u2014 the fee calculation\
-    \ does not incorporate the block reward component, yielding wrong fee amounts\
-    \ for reward transactions."
+- file: synthesizer/program/src/lib.rs
+  line: 575
+  summary: "Missing `signature` in reserved keywords list \u2014 `signature` is a\
+    \ language-level type/concept but was not reserved, allowing it to be used as\
+    \ an identifier which could cause parsing conflicts or soundness issues"
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 2238
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

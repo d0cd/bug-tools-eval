@@ -1,25 +1,47 @@
 id: leo-180
 repo: ProvableHQ/leo
-base_commit: edcf90580eb72a3d74c8e15bc3b5538ad9476b3c^
-head_commit: edcf90580eb72a3d74c8e15bc3b5538ad9476b3c
-fix_commit: edcf90580eb72a3d74c8e15bc3b5538ad9476b3c
-category: logic
+base_commit: ba9d1b276a364b7dd36921c3e2b46f420d90d1ae^
+head_commit: ba9d1b276a364b7dd36921c3e2b46f420d90d1ae
+fix_commit: ba9d1b276a364b7dd36921c3e2b46f420d90d1ae
+category: type
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: medium
-description: The AST reconstructor pass failed to properly rename variables in certain
-  expression contexts during function inlining. This caused incorrect variable references
-  after inlining, potentially leading to wrong program behavior. The fix corrects
-  the renaming logic in the reconstructor to handle these cases (such as struct init
-  expressions and tuple returns from inlined functions).
+pr_size: xl
+description: The CallExpression AST node stored its function target as a generic Expression,
+  but Leo only supports calling named functions (not arbitrary expressions). This
+  overly permissive type allowed the parser to accept invalid call expressions and
+  forced every compiler pass to pattern-match or destructure the Expression to extract
+  the function name, risking panics or silent mishandling if a non-Identifier expression
+  appeared. The fix narrows the field to Identifier, enforcing the invariant at the
+  type level.
 expected_findings:
-- file: compiler/ast/src/passes/reconstructor.rs
-  line: 114
-  summary: 'Variable renaming during function inlining is incomplete: certain expression
-    forms (e.g., struct init shorthand, tuple expressions) are not having their identifiers
-    properly renamed when reconstructing the AST after inlining, leading to stale/incorrect
-    variable references.'
+- file: compiler/ast/src/expressions/call.rs
+  line: 24
+  summary: CallExpression.function is typed as Expression but should be Identifier
+    — the overly broad type defeats static guarantees and forces every consumer to
+    destructure/match to get the function name
+  line_side: pre_fix
+- file: compiler/parser/src/parser/expression.rs
+  line: 441
+  summary: CallExpression is constructed with a general Expression for the function
+    field; should directly use the parsed Identifier to enforce that only named function
+    calls are representable
+  line_side: pre_fix
+- file: interpreter/src/cursor.rs
+  line: 815
+  summary: Interpreter must destructure the Expression to extract the function name
+    and program — fragile pattern that would break or panic on unexpected expression
+    variants
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,33 +1,42 @@
 id: discourse-008
 repo: discourse/discourse
-base_commit: 1a68535ffb86e462bba86d2e43cd3820a870b3a0^
-head_commit: 1a68535ffb86e462bba86d2e43cd3820a870b3a0
-fix_commit: 1a68535ffb86e462bba86d2e43cd3820a870b3a0
-category: logic
+base_commit: 0873467ce4494c81e0854e6136140cfb30d08563^
+head_commit: 0873467ce4494c81e0854e6136140cfb30d08563
+fix_commit: 0873467ce4494c81e0854e6136140cfb30d08563
+category: style
 difficulty: easy
 severity: low
-language: ruby
-pr_size: tiny
-description: Test specs used imprecise relative date expressions (likely `1.month.ago`)
-  in `freeze_time` calls, which produce different results depending on the current
-  calendar date due to variable month lengths. The fix replaces these with the explicit
-  `31.days.ago` to ensure deterministic behavior regardless of when the tests run.
+language: javascript
+pr_size: small
+description: 'Multiple visual inconsistencies in the foundation theme: composer actions
+  dropdown button styling, timeline back button, language selector for AI translations,
+  and category/tag text colors in the header. The CSS fixes target repeated `.profile-tab-btn`
+  selectors and the JS change adjusts custom class assignment on the composer actions
+  button.'
 expected_findings:
-- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
-  line: 440
-  summary: 'Flaky date math: `freeze_time` uses ambiguous month-relative duration
-    (e.g. `1.month.ago`) that varies by calendar date; should use exact day count
-    like `31.days.ago`'
-- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
-  line: 457
-  summary: Same imprecise date expression in `freeze_time`; will produce inconsistent
-    frozen times on months with different day counts
-- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
-  line: 533
-  summary: Same imprecise date expression in `freeze_time`; causes intermittent spec
-    failures near month boundaries
+- file: app/assets/stylesheets/common/base/uc-modernize-foundation-theme.scss
+  line: 63
+  summary: Incorrect or missing CSS selector/rule for .profile-tab-btn causing visual
+    inconsistency in the foundation theme
+  line_side: pre_fix
+- file: app/assets/stylesheets/common/base/uc-modernize-foundation-theme.scss
+  line: 75
+  summary: Duplicate or incorrect .profile-tab-btn selector block — same styling issue
+    repeated across multiple rule groups
+  line_side: pre_fix
+- file: frontend/discourse/select-kit/components/composer-actions.js
+  line: 37
+  summary: Incorrect btnCustomClasses value for composer-actions-btn causing visual
+    inconsistency in the dropdown button
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

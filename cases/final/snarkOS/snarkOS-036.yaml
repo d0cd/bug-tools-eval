@@ -1,25 +1,46 @@
 id: snarkOS-036
 repo: ProvableHQ/snarkOS
-base_commit: 9212a177808b3c757dec301a353d93e41465707c^
-head_commit: 9212a177808b3c757dec301a353d93e41465707c
-fix_commit: 9212a177808b3c757dec301a353d93e41465707c
-category: logic
-difficulty: easy
-severity: low
+base_commit: 3146b7385031e672006363c9de4a361a42f94967^
+head_commit: 3146b7385031e672006363c9de4a361a42f94967
+fix_commit: 3146b7385031e672006363c9de4a361a42f94967
+category: cryptographic
+difficulty: hard
+severity: critical
 language: rust
-pr_size: tiny
-description: Two documentation comments in the BFT sync and block sync modules contained
-  incorrect or misleading descriptions. The fix corrects the doc comment text to accurately
-  reflect the behavior of the functions they document.
+pr_size: xl
+description: PedersenCRH was hashing elliptic curve points using projective coordinates
+  instead of affine coordinates, which are non-unique representations and produce
+  incorrect/non-deterministic hash outputs. Additionally, the Merkle tree used hardcoded
+  `[0u8; 128]` buffers instead of proper serialization via `ToBytes`, causing incorrect
+  padding and potential hash collisions. The fix also migrates the tree parameterization
+  from HEIGHT to DEPTH convention for correctness.
 expected_findings:
-- file: node/bft/src/sync/mod.rs
-  line: 296
-  summary: Doc comment inaccurately describes the function behavior; text does not
-    match what the method actually does.
-- file: node/sync/src/block_sync.rs
-  line: 78
-  summary: Doc comment incorrectly describes the responses map insertion behavior;
-    misleading documentation for maintainers.
+- file: algorithms/src/crh/pedersen.rs
+  line: 47
+  summary: PedersenCRH hashes elliptic curve points in projective coordinates, which
+    are not unique representations — two equal points can have different projective
+    coords, producing different hashes. Must convert to affine before hashing.
+  line_side: pre_fix
+- file: algorithms/src/merkle_tree/merkle_tree.rs
+  line: 73
+  summary: Merkle tree node hashing uses hardcoded `[0u8; 128]` buffer instead of
+    proper `ToBytes` serialization, causing incorrect padding and potential hash collisions
+    for inputs shorter or longer than 128 bytes.
+  line_side: pre_fix
+- file: algorithms/src/merkle_tree/merkle_path.rs
+  line: 54
+  summary: Merkle path verification uses the same hardcoded `[0u8; 128]` buffer pattern
+    for hashing, inconsistent with actual node sizes and causing incorrect proof verification
+    for certain inputs.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,31 @@
+id: cal.com-016
+repo: calcom/cal.com
+base_commit: 2ccff0aead1f5a90f25c163260caec43997fe872^
+head_commit: 2ccff0aead1f5a90f25c163260caec43997fe872
+fix_commit: 2ccff0aead1f5a90f25c163260caec43997fe872
+category: code-smell
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: The local development documentation contained an incorrect `cp` command
+  that referenced a non-existent path `apps/api/.env.example`. The actual `.env.example`
+  files live inside version subdirectories (`apps/api/v1/` and `apps/api/v2/`), so
+  the source path was corrected to `apps/api/{version}/.env.example`.
+expected_findings:
+- file: docs/developing/local-development.mdx
+  line: 141
+  summary: 'Incorrect source path in cp command: `apps/api/.env.example` does not
+    exist; should be `apps/api/{version}/.env.example`'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

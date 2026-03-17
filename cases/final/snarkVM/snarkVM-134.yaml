@@ -1,32 +1,36 @@
 id: snarkVM-134
 repo: ProvableHQ/snarkVM
-base_commit: a02dcdbf20edc525aacb04920841c981baffc26f^
-head_commit: a02dcdbf20edc525aacb04920841c981baffc26f
-fix_commit: a02dcdbf20edc525aacb04920841c981baffc26f
+base_commit: ab0532e87de1d43961dfbc06be0ae307bbb707d4^
+head_commit: ab0532e87de1d43961dfbc06be0ae307bbb707d4
+fix_commit: ab0532e87de1d43961dfbc06be0ae307bbb707d4
 category: logic
-difficulty: hard
-severity: high
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: The `shl_checked` circuit incorrectly rejected valid signed integer shift-left
-  operations. For signed integers like `-1i8 << 7u8`, the intermediate value `2^7
-  = 128` overflows i8, but the final result `-128i8` is valid. The fix adds signed/unsigned
-  branching to allow the minimum signed value as a valid shift result and updates
-  the checked_shl trait implementation to handle this edge case correctly.
+pr_size: tiny
+description: The rewards module was missing a `#[cfg(feature = "locktick")]` annotation
+  (and its associated instrumentation counterpart), meaning the locktick profiling/lock-tracking
+  feature was incompletely applied. The fix adds the missing locktick feature gate
+  and its corresponding instrumentation call to ensure consistent lock profiling coverage.
 expected_findings:
-- file: circuit/types/integers/src/shl_checked.rs
-  line: 69
-  summary: 'Missing signed/unsigned distinction: shl_checked does not account for
-    the case where a signed shift-left produces the minimum value (e.g., -128i8),
-    which is valid but whose intermediate power-of-two overflows'
-- file: console/types/integers/src/bitwise.rs
-  line: 154
-  summary: checked_shl implementation does not handle signed integer edge case where
-    the shift result is the minimum signed value (e.g., -1i8 << 7 = -128i8 is valid)
-- file: vm/compiler/src/program/instruction/operation/macros.rs
-  line: 707
-  summary: shift_exceeds_bitwidth check in VM compiler macro does not properly handle
-    signed integer shift-left edge cases, rejecting valid operations
+- file: synthesizer/src/vm/helpers/rewards.rs
+  line: 18
+  summary: Missing `#[cfg(feature = "locktick")]` annotation — locktick instrumentation
+    is not applied here, inconsistent with other similar code paths
+  line_side: pre_fix
+- file: synthesizer/src/vm/helpers/rewards.rs
+  line: 77
+  summary: Missing locktick counterpart — this lock-acquiring code path lacks the
+    corresponding locktick profiling call present in analogous locations
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

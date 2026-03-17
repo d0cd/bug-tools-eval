@@ -1,27 +1,32 @@
 id: snarkVM-161
 repo: ProvableHQ/snarkVM
-base_commit: 6995c5c33cedd8ee141f744cad52650b776e57b8^
-head_commit: 6995c5c33cedd8ee141f744cad52650b776e57b8
-fix_commit: 6995c5c33cedd8ee141f744cad52650b776e57b8
-category: logic
-difficulty: hard
-severity: high
+base_commit: dac95b8ef63a36397ca2afb6a8ff0cb644fc1251^
+head_commit: dac95b8ef63a36397ca2afb6a8ff0cb644fc1251
+fix_commit: dac95b8ef63a36397ca2afb6a8ff0cb644fc1251
+category: api-misuse
+difficulty: easy
+severity: low
 language: rust
-pr_size: xl
-description: The CUDA implementation of MSM (Multi-Scalar Multiplication) in `blst_p1_add_affines_into_projective`
-  did not handle edge cases in elliptic curve point addition, such as adding zero/identity
-  points or adding a point to itself (doubling). The fix adds proper checks for these
-  edge cases in the CUDA kernel and includes corresponding tests.
+pr_size: tiny
+description: A constant `POWERS_OF_ROOTS_OF_UNITY` in `curves/src/edwards_bls12/fr.rs`
+  is defined with `unimplemented!()` as its value. While this doesn't affect runtime
+  tests (the constant is never evaluated in test paths), `cargo doc` attempts to evaluate
+  all constants during documentation generation, causing a compilation failure. The
+  fix adds `#[doc(hidden)]` to exclude this constant from documentation.
 expected_findings:
-- file: algorithms/src/msm/variable_base/blst_377_cuda/blst_377_ops.cu
-  line: 430
-  summary: 'Missing edge case handling in affine-to-projective point addition: does
-    not account for zero/identity points or point doubling cases, which can produce
-    incorrect MSM results on GPU'
-- file: algorithms/src/msm/variable_base/cuda.rs
-  line: 256
-  summary: Rust-side MSM CUDA wrapper may not properly handle edge cases where input
-    points are zero or where point doubling is required during accumulation
+- file: curves/src/edwards_bls12/fr.rs
+  line: 33
+  summary: Constant defined with `unimplemented!()` will cause `cargo doc` to fail
+    at compile time; needs `#[doc(hidden)]` attribute or an actual implementation
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

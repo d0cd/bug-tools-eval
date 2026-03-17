@@ -1,26 +1,47 @@
 id: grafana-046
 repo: grafana/grafana
-base_commit: 2cec25bade21b1c2951aaa785163f5e2ea65695e^
-head_commit: 2cec25bade21b1c2951aaa785163f5e2ea65695e
-fix_commit: 2cec25bade21b1c2951aaa785163f5e2ea65695e
-category: logic
+base_commit: 5bb1d42c0290e9642b0f0f66e188bdd9b63b7823^
+head_commit: 5bb1d42c0290e9642b0f0f66e188bdd9b63b7823
+fix_commit: 5bb1d42c0290e9642b0f0f66e188bdd9b63b7823
+category: api-misuse
 difficulty: medium
-severity: medium
-language: typescript
-pr_size: medium
-description: "The panel editor failed to automatically switch back from Mixed datasource\
-  \ mode to a single datasource when all non-expression queries ended up targeting\
-  \ the same datasource. The fix adds a helper to detect uniform datasources across\
-  \ queries and hooks resolution logic into updateQueries(), deleteQuery(), and changeDataSource()\
-  \ \u2014 the three operations where the query set can become uniform."
+severity: high
+language: go
+pr_size: small
+description: The `team_member.external` database column is nullable, but the Go code
+  scans it directly into a `bool`. When the column value is NULL, `sql.Scan` returns
+  an error because a nil value cannot be assigned to a non-pointer bool. The fix replaces
+  the `bool` scan target with `sql.NullBool` and extracts `.Bool` after scanning,
+  matching the existing pattern used for `is_provisioned` in team.go.
 expected_findings:
-- file: public/app/features/dashboard-scene/panel-edit/PanelEditNext/PanelDataPaneNext.tsx
-  line: 217
-  summary: 'Missing resolution logic: after modifying queries (update/delete/changeDataSource),
-    the component never checks whether all non-expression queries now share the same
-    datasource and should exit Mixed mode'
+- file: pkg/registry/apis/iam/legacy/team_binding.go
+  line: 5
+  summary: "Scanning nullable DB column `external` directly into Go `bool` \u2014\
+    \ `sql.Scan` will error on NULL values. Use `sql.NullBool` and extract `.Bool`\
+    \ after scan, matching the pattern used for `is_provisioned` in team.go."
+  line_side: pre_fix
+- file: pkg/registry/apis/iam/legacy/user.go
+  line: 0
+  summary: "Scanning nullable `team_member.external` column into a plain `bool` \u2014\
+    \ `sql.Scan` returns an error on NULL values. Should use `sql.NullBool` to handle\
+    \ the nullable column safely."
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119895
+reviewer_notes: []
+reviewer_findings:
+- file: pkg/registry/apis/iam/legacy/team_binding.go
+  line: 5
+  summary: 'question:   what was the reason of having the alias?'
+  line_side: pre_fix
+- file: pkg/registry/apis/iam/legacy/team_binding.go
+  line: 5
+  summary: There's a local var `sql` in ListTeamBindings() `sql, err := s.sql(ctx)`
+  line_side: pre_fix
+quality_flags: []

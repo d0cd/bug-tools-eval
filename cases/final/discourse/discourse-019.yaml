@@ -1,26 +1,26 @@
 id: discourse-019
 repo: discourse/discourse
-base_commit: ea0c186d04737daa10c864b5c2c1b3468667f498^
-head_commit: ea0c186d04737daa10c864b5c2c1b3468667f498
-fix_commit: ea0c186d04737daa10c864b5c2c1b3468667f498
-category: logic
-difficulty: medium
-severity: medium
-language: ruby
-pr_size: small
-description: NavItem's active getter called router.isActive(route) without passing
-  the routeParam dynamic segment value, causing all nav items sharing the same route
-  but with different params to appear active simultaneously. The fix passes routeParam
-  to router.isActive(route, routeParam) when routeParam is present so the active check
-  correctly distinguishes between different dynamic segment values.
-expected_findings:
-- file: frontend/discourse/app/components/nav-item.gjs
-  line: 65
-  summary: "router.isActive(route) does not pass routeParam \u2014 should be router.isActive(route,\
-    \ routeParam) when routeParam is present, otherwise all nav items on the same\
-    \ route show as active regardless of dynamic segment value"
+base_commit: 1a6615107255951c2fc669126749ab53892e7d30^
+head_commit: 1a6615107255951c2fc669126749ab53892e7d30
+fix_commit: 1a6615107255951c2fc669126749ab53892e7d30
+category: style
+difficulty: easy
+severity: low
+language: javascript
+pr_size: tiny
+description: This PR moves data-explorer admin assets (adapter and templates) into
+  the correct admin bundle directory structure. It is a follow-up file reorganization
+  with no visible code changes in the diff, making it a structural/build correctness
+  fix rather than a logic or security issue.
+expected_findings: []
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
 verified_by: null
+valid_for_code_review: false
+introducing_commit: null
+pr_number: 38064
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

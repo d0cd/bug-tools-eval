@@ -1,0 +1,32 @@
+id: discourse-097
+repo: discourse/discourse
+base_commit: dba79d31a7e05fccf21cdf262a3dc6176cd4961a^
+head_commit: dba79d31a7e05fccf21cdf262a3dc6176cd4961a
+fix_commit: dba79d31a7e05fccf21cdf262a3dc6176cd4961a
+category: logic
+difficulty: easy
+severity: medium
+language: unknown
+pr_size: tiny
+description: The reviewable-claimed-topic component used a deprecated site-setting-based
+  guard instead of a user-based guard to control visibility of claim/unclaim UI. This
+  caused the claim and unclaim text to be incorrectly suppressed even when the old
+  reviewable UI was not forced, because the guard referenced a stale site setting
+  from a prior strategy change.
+expected_findings:
+- file: app/components/reviewable-claimed-topic.gjs
+  line: 1
+  summary: 'Wrong guard condition: uses deprecated site-setting check instead of user-based
+    guard, causing claim/unclaim UI to be suppressed incorrectly'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 38034
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

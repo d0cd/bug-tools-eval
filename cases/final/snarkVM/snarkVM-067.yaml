@@ -3,32 +3,38 @@ repo: ProvableHQ/snarkVM
 base_commit: 4adf1705397c119fbba61a7af745b7c5f10c50ab^
 head_commit: 4adf1705397c119fbba61a7af745b7c5f10c50ab
 fix_commit: 4adf1705397c119fbba61a7af745b7c5f10c50ab
-category: logic
+category: style
 difficulty: easy
 severity: low
 language: rust
 pr_size: small
-description: Typos in code comments across multiple files were corrected. The fixes
-  are purely cosmetic, affecting only comment text in source files related to cryptographic
-  hashing, R1CS circuit helpers, field trait tests, and ledger block checking.
+description: This PR fixes several typos in code comments across multiple files including
+  poseidon.rs, r1cs.rs, tests_field.rs, check_next_block.rs, and tests.rs. The changes
+  are purely cosmetic corrections to documentation and inline comments with no functional
+  impact.
 expected_findings:
 - file: algorithms/src/crypto_hash/poseidon.rs
   line: 483
-  summary: 'Typo in comment: review comment text for misspelling'
+  summary: 'Typo in comment: minor spelling/grammar error in documentation comment'
+  line_side: pre_fix
 - file: circuit/environment/src/helpers/r1cs.rs
   line: 52
-  summary: 'Typo in doc comment: review for misspelling in description of conversion
-    to Assignment stage'
+  summary: 'Typo in comment: minor spelling/grammar error in doc comment describing
+    conversion to Assignment stage'
+  line_side: pre_fix
 - file: ledger/src/check_next_block.rs
   line: 137
-  summary: 'Typo in doc comment: incomplete/misspelled word at end of comment (''th''
-    should be ''the'')'
-- file: curves/src/traits/tests_field.rs
-  line: 103
-  summary: 'Typo in comment: review comment text for misspelling'
-- file: ledger/src/tests.rs
-  line: 68
-  summary: 'Typo in doc comment: review helper function documentation for misspelling'
+  summary: 'Typo in comment: truncated or misspelled word in doc comment about previous
+    round checks'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

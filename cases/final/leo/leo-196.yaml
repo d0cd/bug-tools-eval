@@ -1,33 +1,37 @@
 id: leo-196
 repo: ProvableHQ/leo
-base_commit: 6d277a73e42aa1c8be534ede72bf694057da131d^
-head_commit: 6d277a73e42aa1c8be534ede72bf694057da131d
-fix_commit: 6d277a73e42aa1c8be534ede72bf694057da131d
+base_commit: c67ef6a3b50c5bccb7e913bdd0e437242d95cf67^
+head_commit: c67ef6a3b50c5bccb7e913bdd0e437242d95cf67
+fix_commit: c67ef6a3b50c5bccb7e913bdd0e437242d95cf67
 category: logic
-difficulty: medium
+difficulty: easy
 severity: medium
 language: rust
-pr_size: large
-description: The `leo upgrade` command was missing a `--skip` option that allows skipping
-  upgrades for programs containing specified strings. The fix adds a `skip` field
-  (Vec<String>) to the Upgrade, UpgradeImported, and UpgradeAll command structs, and
-  threads it through the upgrade logic. Additionally, CLI compile output lacked spacing
-  between sections making logs hard to parse, and integration tests used hardcoded
-  ports causing flaky failures.
+pr_size: small
+description: The Leo lexer and compiler did not reject unicode escape sequences missing
+  curly braces (e.g., `\u123` instead of `\u{123}`). This allowed syntactically invalid
+  unicode escapes to be silently accepted by the parser and compiler, producing incorrect
+  behavior. The fix adds stricter validation to require the `\u{...}` format.
 expected_findings:
-- file: leo/cli/commands/upgrade.rs
-  line: 61
-  summary: 'Missing `--skip` CLI option on Upgrade struct: the upgrade command lacks
-    the ability to skip programs matching given strings, which is needed for managing
-    partner program deployments.'
-- file: leo/cli/commands/build.rs
-  line: 263
-  summary: Missing newline/spacing in compile output makes CLI logs difficult to visually
-    parse between compilation stages.
-- file: leo/tests/integration.rs
-  line: 41
-  summary: Integration tests use hardcoded ports instead of dynamically finding available
-    TCP ports, causing flaky test failures when ports are already in use.
+- file: parser/src/tokenizer/lexer.rs
+  line: 299
+  summary: 'Missing error path: when `\u` is encountered and the next character is
+    NOT `{`, the lexer falls through silently instead of emitting a parse error for
+    malformed unicode escape syntax.'
+  line_side: pre_fix
+- file: compiler/src/value/char/char.rs
+  line: 162
+  summary: Display implementation for char values does not use the canonical `\u{...}`
+    escape format, potentially round-tripping invalid representations.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

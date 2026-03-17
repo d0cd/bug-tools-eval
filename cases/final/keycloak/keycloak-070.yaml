@@ -1,0 +1,41 @@
+id: keycloak-070
+repo: keycloak/keycloak
+base_commit: d7eff01d33be1906023836006fbc3e178f773952^
+head_commit: 0853d484ece8f8c19f7310d90781c42cb8938fc9
+fix_commit: d7eff01d33be1906023836006fbc3e178f773952
+category: api-misuse
+difficulty: hard
+severity: high
+language: java
+pr_size: medium
+description: The `remove()` method in both `InfinispanSingleUseObjectProvider` and
+  `RemoteInfinispanSingleUseObjectProvider` relied on the return value of Infinispan's
+  `cache.remove(key)` to retrieve the previous entry. During Infinispan cluster state
+  transfers (topology changes), this return value can be silently lost, causing Keycloak
+  to incorrectly report OAuth2 authorization codes as already consumed ('Code already
+  used' error). The fix replaces the pattern with a get-before-remove approach that
+  captures the value first.
+expected_findings:
+- file: model/infinispan/src/main/java/org/keycloak/models/sessions/infinispan/InfinispanSingleUseObjectProvider.java
+  line: 95
+  summary: 'Unsafe reliance on `cache.remove(key)` return value: Infinispan does not
+    guarantee returning the previous value during state transfers, causing legitimate
+    single-use tokens to appear already consumed. Use get-before-remove instead.'
+  line_side: pre_fix
+- file: model/infinispan/src/main/java/org/keycloak/models/sessions/infinispan/remote/RemoteInfinispanSingleUseObjectProvider.java
+  line: 66
+  summary: 'Same unsafe pattern in remote provider: `withReturnValue().remove(key)`
+    can lose the return value during Infinispan state transfers. Should use `getWithMetadata`
+    followed by `removeWithVersion` for reliable value retrieval.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 46365
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

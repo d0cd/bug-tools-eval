@@ -1,29 +1,39 @@
 id: snarkVM-051
 repo: ProvableHQ/snarkVM
-base_commit: 9f605e838099f63191cd7b3693e70395fdc80bae^
-head_commit: 9f605e838099f63191cd7b3693e70395fdc80bae
-fix_commit: 9f605e838099f63191cd7b3693e70395fdc80bae
+base_commit: 382198c0b96171bc79da60269d877f485e60167e^
+head_commit: 382198c0b96171bc79da60269d877f485e60167e
+fix_commit: 382198c0b96171bc79da60269d877f485e60167e
 category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: rust
 pr_size: small
-description: The `contains_transaction_id` check in the ledger was incorrectly implemented,
-  likely querying the wrong store or using flawed lookup logic. The fix corrects the
-  check in `contains.rs` to properly delegate to a new `contains_transaction_id` abstraction
-  added to `BlockStore`, and updates the verification path in `verify.rs` to use the
-  corrected method.
+description: Ledger::check_next_block did not verify that the given block's height
+  was the direct successor of the latest block. Height was only checked later in Metadata::verify,
+  leading to confusing error messages like 'invalid previous state root' when a block
+  with a non-sequential height was submitted. Additionally, no guard existed in advance_to_next_block
+  against race conditions between checking and advancing.
 expected_findings:
-- file: ledger/src/contains.rs
-  line: 58
-  summary: 'Incorrect `contains_transaction_id` implementation: the check queries
-    the wrong store or uses incorrect logic to look up transaction IDs, potentially
-    returning wrong results for transaction existence checks.'
-- file: synthesizer/src/vm/verify.rs
-  line: 40
-  summary: Transaction ID existence check in verification logic uses an incorrect
-    or missing `contains_transaction_id` on block_store, which could allow duplicate
-    transactions or reject valid ones.
+- file: ledger/src/check_next_block.rs
+  line: 21
+  summary: 'Missing early height validation: check_next_block retrieves latest_block
+    but does not verify that the incoming block''s height equals latest_block.height()
+    + 1 before proceeding with expensive checks.'
+  line_side: pre_fix
+- file: ledger/src/advance.rs
+  line: 91
+  summary: 'Missing height re-check before advancing: advance_to_next_block should
+    verify the block height still matches the expected next height to guard against
+    race conditions between check_next_block and advance_to_next_block.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

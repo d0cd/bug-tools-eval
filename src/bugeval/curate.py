@@ -27,21 +27,26 @@ _CHECKPOINT_FILE = ".curate_checkpoint.json"
 
 # Default system prompt (overridable by config/curate_prompt.md)
 _DEFAULT_SYSTEM_PROMPT = """\
-You are a software bug analyst classifying bug-fix PRs for an evaluation framework.
+You are a code review analyst classifying PRs for an evaluation framework.
+The framework tests AI tools on all code review issues: bugs, code smells,
+security vulnerabilities, incomplete changes, and anything a competent reviewer would flag.
 
 Given a PR's metadata and diff, return a JSON object:
 {
-  "category": "<logic|memory|concurrency|api|type|perf>",
+  "category": "<logic|memory|concurrency|api-misuse|type|cryptographic|constraint"
+             "|code-smell|security|performance|style|incomplete>",
   "difficulty": "<easy|medium|hard>",
   "severity": "<low|medium|high|critical>",
-  "description": "<2-3 sentences on the bug and fix>",
+  "description": "<2-3 sentences describing the issue and fix>",
   "expected_findings": [{"file": "<path>", "line": <int>, "summary": "<what to flag>"}],
-  "head_commit": "<bug-introducing SHA or null>",
+  "head_commit": "<SHA of the introducing commit or null>",
   "base_commit": "<parent of head_commit or null>",
-  "needs_manual_review": <true/false>
+  "needs_manual_review": <true/false>,
+  "valid_for_code_review": <true/false>,
+  "review_invalidity_reason": "<empty if valid>"
 }
 
-expected_findings should identify WHERE THE BUG IS (not the fix).
+expected_findings should identify WHERE THE ISSUE IS in the pre-fix code (not the fix itself).
 Return ONLY the JSON object.\
 """
 
@@ -98,7 +103,37 @@ def build_curation_prompt(candidate: Candidate, diff_context: str, git_log: str 
             ]
         )
 
-    lines.extend(["", "Classify this bug-fix PR and return the JSON."])
+    if candidate.reviewer_notes:
+        lines.extend(
+            [
+                "",
+                "### Human Reviewer Comments (verbatim excerpts)",
+                "These are actual reviewer comments from the PR"
+                " — treat as high-confidence signals:",
+                *[f"- {note}" for note in candidate.reviewer_notes[:5]],
+            ]
+        )
+
+    if candidate.reviewer_findings:
+        findings_yaml = yaml.dump(
+            [f.model_dump() for f in candidate.reviewer_findings],
+            default_flow_style=False,
+        )
+        lines.extend(
+            [
+                "",
+                "### Reviewer-Anchored Findings (file + line from inline review comments)",
+                "Use these to anchor expected_findings — reviewer explicitly flagged these"
+                " locations:",
+                findings_yaml,
+            ]
+        )
+
+    lines.extend([
+        "",
+        "Analyze this PR and return the JSON. Look for bugs, code smells,"
+        " security issues, incomplete changes — anything a good reviewer would flag.",
+    ])
     return "\n".join(lines)
 
 
@@ -161,6 +196,9 @@ def parse_llm_response(
         expected_findings=findings,
         stats=None,
         needs_manual_review=bool(data.get("needs_manual_review", False)),
+        pr_number=candidate.pr_number,
+        reviewer_notes=candidate.reviewer_notes,
+        reviewer_findings=candidate.reviewer_findings,
     )
 
 
@@ -202,19 +240,22 @@ def curate_candidate(
     system_prompt: str,
     model: str = "claude-opus-4-6",
     timeout_seconds: int = 300,
+    max_turns: int = 5,
+    allowed_tools: str = "WebSearch,WebFetch",
 ) -> TestCase | None:
     """Curate a single candidate via the claude CLI (uses run_claude_cli backend)."""
     full_prompt = f"{system_prompt}\n\n{build_curation_prompt(candidate, diff_context, git_log)}"
     agent_result = run_claude_cli(
         Path("."),
         full_prompt,
-        max_turns=1,
+        max_turns=max_turns,
         timeout_seconds=timeout_seconds,
         model=model,
+        allowed_tools=allowed_tools,
     )
     if agent_result.error:
         raise RuntimeError(agent_result.error)
-    data = _extract_json_from_text(agent_result.stdout or "")
+    data = _extract_json_from_text(agent_result.response_text or "")
     if data is None:
         return None
     try:
@@ -259,6 +300,19 @@ def curate_candidate(
 )
 @click.option("--dry-run", is_flag=True, help="Print prompts without calling the API.")
 @click.option(
+    "--max-turns",
+    default=5,
+    show_default=True,
+    type=int,
+    help="Max agentic turns (>1 allows tool calls like WebSearch).",
+)
+@click.option(
+    "--allowed-tools",
+    default="WebSearch,WebFetch",
+    show_default=True,
+    help="Comma-separated tools the curator agent may use.",
+)
+@click.option(
     "--limit",
     default=0,
     show_default=True,
@@ -292,6 +346,8 @@ def curate(
     min_confidence: float,
     api_delay: float,
     dry_run: bool,
+    max_turns: int,
+    allowed_tools: str,
     limit: int,
     fail_after: int,
     no_checkpoint: bool,
@@ -369,6 +425,8 @@ def curate(
                 git_log=git_log,
                 case_id=case_id,
                 system_prompt=system_prompt,
+                max_turns=max_turns,
+                allowed_tools=allowed_tools,
             )
             consecutive_errors = 0  # reset on any non-exception response
         except Exception as e:

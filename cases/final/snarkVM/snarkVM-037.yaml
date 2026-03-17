@@ -1,23 +1,44 @@
 id: snarkVM-037
 repo: ProvableHQ/snarkVM
-base_commit: 13268a3dc8ba3c6d5e63b655ce781ada4e370b8a^
-head_commit: 13268a3dc8ba3c6d5e63b655ce781ada4e370b8a
-fix_commit: 13268a3dc8ba3c6d5e63b655ce781ada4e370b8a
-category: logic
+base_commit: 894417cd75ddf8bf0c805ff2bdbf5ac196223af4
+head_commit: 22bbb3b5c02cc6f61a79d638ceb8c797353c4931
+fix_commit: 22bbb3b5c02cc6f61a79d638ceb8c797353c4931
+category: constraint
 difficulty: medium
 severity: high
 language: rust
 pr_size: medium
-description: The `prepare_for_speculate` function returned valid and aborted transactions
-  in verification order rather than preserving the original transaction list ordering.
-  The fix sorts the output transactions based on their position in the original transaction
-  list to maintain deterministic ordering.
+description: The block verification logic only checked that transaction IDs from the
+  subdag existed in the ledger but failed to verify that puzzle solution commitments
+  (solution IDs) also existed. This allowed blocks to reference non-existent solutions
+  without detection, undermining ledger integrity. The fix extends all verification
+  methods to return and check both solution commitments and transaction IDs.
 expected_findings:
-- file: synthesizer/src/vm/finalize.rs
-  line: 834
-  summary: 'Missing sort: valid and aborted transactions are returned in verification
-    order instead of being sorted by their position in the original transaction list,
-    breaking ordering guarantees for speculation'
+- file: ledger/block/src/verify.rs
+  line: 534
+  summary: check_subdag_transmissions only returns existing transaction IDs but discards
+    existing solution IDs — solution commitments from the subdag that should already
+    exist in the ledger are never propagated for validation
+  line_side: pre_fix
+- file: ledger/src/check_next_block.rs
+  line: 83
+  summary: 'Missing ledger existence check for solution IDs: only transaction IDs
+    are verified against the ledger, but puzzle commitments from the subdag are silently
+    ignored, allowing blocks to reference non-existent solutions'
+  line_side: pre_fix
+- file: ledger/block/src/verify.rs
+  line: 35
+  summary: verify() return type is Vec<TransactionID> — it should also return Vec<PuzzleCommitment>
+    so callers can check solution existence in the ledger
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

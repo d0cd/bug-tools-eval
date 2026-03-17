@@ -1,0 +1,32 @@
+id: sentry-098
+repo: getsentry/sentry
+base_commit: 7dc50fb58a934692bbacac5cf3a62f9195d05e12^
+head_commit: 7dc50fb58a934692bbacac5cf3a62f9195d05e12
+fix_commit: 7dc50fb58a934692bbacac5cf3a62f9195d05e12
+category: api-misuse
+difficulty: easy
+severity: low
+language: python
+pr_size: small
+description: Debug log calls in the rollout utility passed extra fields incorrectly,
+  likely embedding them via string formatting or misplacing the `extra` dict argument
+  instead of using Python's logging API correctly (e.g., `logger.debug("message",
+  extra={...})`). The fix corrects the log formatting to pass structured fields properly.
+expected_findings:
+- file: src/sentry/utils/rollout.py
+  line: 178
+  summary: 'Incorrect debug log formatting: extra fields are not passed correctly
+    to the logger. Use the `extra` keyword argument to `logger.debug()` instead of
+    inlining the dict in the message string.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

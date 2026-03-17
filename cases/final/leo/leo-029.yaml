@@ -1,23 +1,36 @@
 id: leo-029
 repo: ProvableHQ/leo
-base_commit: 35a913327c9e1dab7ff0c16fae0f70ee94891586^
-head_commit: 35a913327c9e1dab7ff0c16fae0f70ee94891586
-fix_commit: 35a913327c9e1dab7ff0c16fae0f70ee94891586
-category: logic
+base_commit: 1d15dbd3d9982d5c9226169ff1ddd69d1e22ea4f^
+head_commit: 1d15dbd3d9982d5c9226169ff1ddd69d1e22ea4f
+fix_commit: 1d15dbd3d9982d5c9226169ff1ddd69d1e22ea4f
+category: style
 difficulty: easy
-severity: high
+severity: low
 language: rust
-pr_size: tiny
-description: The code generation pass for Leo programs incorrectly iterated over the
-  futures collection in visit_program.rs, producing incompatible codegen output. The
-  fix corrected the iteration pattern at line 225, changing how futures are drained
-  and destructured during code generation to properly extract the future type.
+pr_size: medium
+description: PR improves documentation comments and reorganizes token definitions
+  in the parser's tokenizer module. The author explicitly states 'This changes no
+  functionality.' It clarifies the relationship between implementation tokens and
+  the ABNF grammar, and regroups/recharacterizes certain tokens.
 expected_findings:
-- file: compiler/passes/src/code_generation/visit_program.rs
-  line: 225
-  summary: 'Incorrect iteration/destructuring of self.futures during code generation:
-    the loop pattern does not correctly extract the future type, producing incompatible
-    codegen output for futures.'
+- file: compiler/parser/src/tokenizer/token.rs
+  line: 14
+  summary: Token grouping and characterization could be improved to better match the
+    ABNF grammar structure
+  line_side: pre_fix
+- file: compiler/parser/src/tokenizer/mod.rs
+  line: 16
+  summary: Module-level documentation is unclear about the relationship between tokenizer
+    output and the ABNF grammar
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

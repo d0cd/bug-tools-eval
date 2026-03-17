@@ -1,28 +1,47 @@
 id: discourse-025
 repo: discourse/discourse
-base_commit: dada61dc89c62bce0ddcf66dc59576e967aac320^
-head_commit: dada61dc89c62bce0ddcf66dc59576e967aac320
-fix_commit: dada61dc89c62bce0ddcf66dc59576e967aac320
-category: api
+base_commit: 20d47338b2351b040ec722174eef5dae6fb079d5^
+head_commit: 20d47338b2351b040ec722174eef5dae6fb079d5
+fix_commit: 20d47338b2351b040ec722174eef5dae6fb079d5
+category: api-misuse
 difficulty: easy
-severity: low
-language: ruby
-pr_size: small
-description: The HighlightedCode component was scoped under the admin namespace (discourse/admin/components/highlighted-code),
-  preventing clean usage from non-admin contexts like the styleguide. The fix moves
-  it to the core app namespace (discourse/components/highlighted-code) and updates
-  all import paths, leaving a deprecated re-export at the old location.
+severity: medium
+language: unknown
+pr_size: tiny
+description: The `model.tags` property can be null or undefined for topics without
+  tags, but the code at line 30 calls `.some()` on it without a null guard. This causes
+  a runtime TypeError when processing topics that have no tags. The fix adds a fallback
+  to an empty array (e.g., `?? []`) or uses optional chaining (`tags?.some(...)`)
+  to safely handle the missing property.
 expected_findings:
-- file: frontend/discourse/admin/templates/admin-embedding/index.gjs
-  line: 2
-  summary: Import path references admin-scoped component; should import from core
-    namespace 'discourse/components/highlighted-code' instead of admin path
-- file: frontend/discourse/app/components/modal/customize-form-template-view.gjs
-  line: 3
-  summary: Import path references admin-scoped component; should import from core
-    namespace 'discourse/components/highlighted-code'
+- file: plugins/discourse-solved/assets/javascripts/discourse/initializers/solved-category-change-confirmation.gjs
+  line: 30
+  summary: 'Missing null/undefined guard on `tags`: calling `.some()` on a potentially
+    null/undefined value will throw a TypeError. Use optional chaining (`tags?.some(...)`)
+    or fallback to an empty array (`tags ?? []`).'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 37938
+reviewer_notes: []
+reviewer_findings:
+- file: plugins/discourse-solved/assets/javascripts/discourse/initializers/solved-category-change-confirmation.gjs
+  line: 30
+  summary: "```suggestion\r               return tags?.some((t) => solvedTags.includes(t.name));\r\
+    \ ```\r \r <img width=\"220\" height=\"139"
+  line_side: pre_fix
+- file: plugins/discourse-solved/assets/javascripts/discourse/initializers/solved-category-change-confirmation.gjs
+  line: 30
+  summary: I did consider this but it would potentially return undefined in some cases,
+    which is falsey and would work in this case
+  line_side: pre_fix
+- file: plugins/discourse-solved/assets/javascripts/discourse/initializers/solved-category-change-confirmation.gjs
+  line: 30
+  summary: Ah yeah, makes sense. Thank you for explanation :)
+  line_side: pre_fix
+quality_flags: []

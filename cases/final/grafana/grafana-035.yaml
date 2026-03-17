@@ -1,38 +1,31 @@
 id: grafana-035
 repo: grafana/grafana
-base_commit: c4d7be272ee4bc561671bbbcd49292aba8e5cecd^
-head_commit: c4d7be272ee4bc561671bbbcd49292aba8e5cecd
-fix_commit: c4d7be272ee4bc561671bbbcd49292aba8e5cecd
-category: logic
-difficulty: medium
-severity: high
-language: typescript
-pr_size: small
-description: 'Two bugs: (1) `getPrevRepeatValues` in both RowItemRepeater and TabItemRepeater
-  returned an empty array `[]` when repeatedRows/repeatedTabs was uninitialized, causing
-  `isEqual([], [])` to be true when `$__all` resolved to empty options, which skipped
-  initialization and left an infinite spinner. The fix returns `undefined` instead.
-  (2) The v2-to-v1 response transformer accessed `spec.query.spec.datasource` and
-  `spec.query.spec.group` instead of the correct `spec.query.datasource` and `spec.query.group`,
-  silently dropping datasource references.'
+base_commit: 4cb372c41906ee0aa77b3f47ae49604a19ae78e8^
+head_commit: 4cb372c41906ee0aa77b3f47ae49604a19ae78e8
+fix_commit: 4cb372c41906ee0aa77b3f47ae49604a19ae78e8
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: A documentation link for 'Anonymous authentication' in the Grafana v11
+  breaking changes page pointed to the wrong target. The fix corrects the hyperlink
+  to point to the actual Anonymous authentication documentation page.
 expected_findings:
-- file: public/app/features/dashboard-scene/scene/layout-rows/RowItemRepeater.tsx
-  line: 125
-  summary: getPrevRepeatValues returns `[]` when repeatedRows is uninitialized; this
-    matches `$__all` resolving to empty options via `isEqual([], [])`, preventing
-    initialization and causing infinite spinner. Should return `undefined` instead.
-- file: public/app/features/dashboard-scene/scene/layout-tabs/TabItemRepeater.tsx
-  line: 104
-  summary: 'Same bug as RowItemRepeater: getPrevRepeatValues returns `[]` instead
-    of `undefined` for uninitialized repeatedTabs, causing identical infinite spinner
-    when `$__all` resolves to empty options.'
-- file: public/app/features/dashboard/api/ResponseTransformers.ts
-  line: 989
-  summary: 'Incorrect property path: accesses `spec.query.spec.datasource` and `spec.query.spec.group`
-    instead of `spec.query.datasource` and `spec.query.group`, causing datasource
-    references to be silently lost during v2-to-v1 dashboard conversion.'
+- file: docs/sources/breaking-changes/breaking-changes-v11-0.md
+  line: 1
+  summary: 'Incorrect documentation link: the ''Anonymous authentication'' hyperlink
+    points to the wrong page and should be updated to reference the correct anonymous
+    authentication docs'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

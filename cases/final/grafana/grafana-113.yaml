@@ -1,0 +1,32 @@
+id: grafana-113
+repo: grafana/grafana
+base_commit: ec1da7c5746f210b680c4be5227a752d4d4cd6db^
+head_commit: ec1da7c5746f210b680c4be5227a752d4d4cd6db
+fix_commit: ec1da7c5746f210b680c4be5227a752d4d4cd6db
+category: api-misuse
+difficulty: medium
+severity: high
+language: typescript
+pr_size: medium
+description: Graphite metric name variable queries running through the backend mode
+  incorrectly extracted the series name from data frames. After data frame construction
+  changed, the code needed to use `displayNameFromDS` to correctly populate the `text`
+  and `value` fields of variable query results, but was reading the wrong property.
+expected_findings:
+- file: public/app/plugins/datasource/graphite/datasource.ts
+  line: 768
+  summary: In the graphiteBackendMode branch for metric name variable queries, the
+    series name is not read from `displayNameFromDS`, causing variable queries to
+    return incorrect or empty values after data frame construction changes.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

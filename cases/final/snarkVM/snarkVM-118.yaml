@@ -1,30 +1,36 @@
 id: snarkVM-118
 repo: ProvableHQ/snarkVM
-base_commit: fdd7b0818c27a111e569d3be65eeba057b3d24ef^
-head_commit: fdd7b0818c27a111e569d3be65eeba057b3d24ef
-fix_commit: fdd7b0818c27a111e569d3be65eeba057b3d24ef
-category: perf
+base_commit: 8daeaba8fa34d5561c546c49f1f3088e56dc5aa4^
+head_commit: 8daeaba8fa34d5561c546c49f1f3088e56dc5aa4
+fix_commit: 8daeaba8fa34d5561c546c49f1f3088e56dc5aa4
+category: code-smell
 difficulty: easy
 severity: low
 language: rust
-pr_size: medium
-description: The project was using nightly clippy and suppressing the `clippy::redundant_clone`
-  lint in `rest/src/routes.rs` instead of fixing the unnecessary clone. The fix updates
-  the CI and git-hook configuration to use stable clippy and removes the redundant
-  clone suppression, eliminating the unnecessary allocation.
+pr_size: tiny
+description: 'Debug println! statements were added to test code in assert and is operation
+  files, likely left over from investigating issues #985/#986. The is_build_required.rs
+  change appears to adjust the logic for when package rebuilds are skipped. These
+  debug prints should not be committed to production code.'
 expected_findings:
-- file: rest/src/routes.rs
-  line: 25
-  summary: "Unnecessary `#[allow(clippy::redundant_clone)]` suppresses a valid lint\
-    \ \u2014 the clone here is redundant and should be removed rather than silenced"
-- file: .rusty-hook.toml
-  line: 1
-  summary: Pre-commit hook uses `cargo +nightly clippy` instead of stable clippy,
-    masking lints that stable clippy would catch
-- file: .circleci/config.yml
-  line: 127
-  summary: CI clippy job uses an outdated Rust image (cimg/rust:1.64) and nightly
-    toolchain; should use stable clippy for consistent lint coverage
+- file: vm/compiler/src/program/instruction/operation/assert.rs
+  line: 348
+  summary: Debug println! left in test code — should use tracing/log macro or be removed
+    before merge
+  line_side: pre_fix
+- file: vm/compiler/src/program/instruction/operation/is.rs
+  line: 364
+  summary: Debug println! left in test code — should use tracing/log macro or be removed
+    before merge
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

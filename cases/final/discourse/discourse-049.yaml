@@ -1,25 +1,32 @@
 id: discourse-049
 repo: discourse/discourse
-base_commit: 58564c50cca31aac30bfeaee2274ea3e35053a8b^
-head_commit: 7d42b006a8234809bbd04b2d5753644ec6ec53cb
-fix_commit: 58564c50cca31aac30bfeaee2274ea3e35053a8b
-category: api
+base_commit: 61fac8a6a8a088dc27257a90d5c19ede7feb5d1e^
+head_commit: 61fac8a6a8a088dc27257a90d5c19ede7feb5d1e
+fix_commit: 61fac8a6a8a088dc27257a90d5c19ede7feb5d1e
+category: api-misuse
 difficulty: easy
-severity: low
-language: ruby
+severity: medium
+language: javascript
 pr_size: tiny
-description: The page object component for the composer used an outdated CSS selector
-  class for the post language selector trigger. The fix updates the selector constant
-  in the spec helper to match the renamed class in the actual UI component, restoring
-  system test reliability.
+description: The user card cloak (overlay) did not disappear on mobile because the
+  component listened for `mousedown` events, which do not fire on touch interactions.
+  The fix replaces `mousedown` with `pointerdown`, which fires for both mouse and
+  touch input, resolving the issue on mobile devices.
 expected_findings:
-- file: spec/system/page_objects/components/composer.rb
-  line: 8
-  summary: 'Stale CSS selector: POST_LANGUAGE_SELECTOR constant references an outdated
-    class name that no longer matches the rendered DOM element after the UI change
-    in 7d42b006'
+- file: app/assets/javascripts/discourse/app/components/card-contents-base.js
+  line: 1
+  summary: Event listener uses `mousedown` which does not fire on touch devices; should
+    use `pointerdown` to handle both mouse and touch input for dismissing the user
+    card cloak
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 37973
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,44 @@
+id: cal.com-073
+repo: calcom/cal.com
+base_commit: ea15474edf677b409f955840b344e571a0005fd8^
+head_commit: ea15474edf677b409f955840b344e571a0005fd8
+fix_commit: ea15474edf677b409f955840b344e571a0005fd8
+category: incomplete
+difficulty: easy
+severity: low
+language: typescript
+pr_size: medium
+description: 'The opt-in feature system lacked display-location granularity: features
+  were shown in both the settings page and the notification banner with no way to
+  restrict visibility. The bookings-v3 feature was appearing in the banner when it
+  should only appear in settings. The fix adds a displayLocations property to the
+  config and filters features at each call site.'
+expected_findings:
+- file: packages/features/feature-opt-in/config.ts
+  line: 20
+  summary: OptInFeatureConfig interface is missing a displayLocations property to
+    control where each feature is rendered (settings vs banner), causing all features
+    to appear everywhere by default.
+  line_side: pre_fix
+- file: apps/web/modules/feature-opt-in/hooks/useFeatureOptInBanner.ts
+  line: 122
+  summary: Banner hook fetches all opt-in features without filtering by display location,
+    so features intended only for settings (like bookings-v3) incorrectly appear in
+    the banner.
+  line_side: pre_fix
+- file: packages/features/feature-opt-in/services/FeatureOptInService.ts
+  line: 244
+  summary: getOptInFeaturesForScope does not accept or apply a displayLocation filter,
+    returning all scoped features regardless of intended display context.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

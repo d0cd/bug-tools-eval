@@ -1,31 +1,43 @@
 id: snarkOS-101
 repo: ProvableHQ/snarkOS
-base_commit: b0a80c3bb231d30d9ffb44eeb4b1b43d97f14f34^
-head_commit: b0a80c3bb231d30d9ffb44eeb4b1b43d97f14f34
-fix_commit: b0a80c3bb231d30d9ffb44eeb4b1b43d97f14f34
+base_commit: 8f7f6d99d96e6dda3d825885d35017d0633da368^
+head_commit: 8f7f6d99d96e6dda3d825885d35017d0633da368
+fix_commit: 8f7f6d99d96e6dda3d825885d35017d0633da368
 category: logic
-difficulty: hard
-severity: critical
+difficulty: medium
+severity: medium
 language: rust
 pr_size: xl
-description: TransmissionID lacked a checksum field, allowing malicious validators
-  to perform malformed solution/transaction attacks by sending transmissions that
-  could not be integrity-verified. The fix adds a TransmissionChecksum to TransmissionID
-  variants (Solution and Transaction) and enforces checksum validation on all incoming
-  peer transmissions across the BFT consensus layer.
+description: The Router's connect logic had duplicated connection-attempt code paths
+  (at least three locations in lib.rs) with inconsistent or missing restricted-peer
+  checks. The fix consolidates the connect and insert_restricted_peer logic so that
+  restricted peers are properly rejected before a TCP connection is attempted, and
+  adds a test framework to verify connect/disconnect behavior.
 expected_findings:
-- file: node/bft/src/worker.rs
-  line: 31
-  summary: Missing checksum validation on incoming peer transmissions allows malicious
-    validators to send malformed solutions/transactions without detection
-- file: node/bft/src/primary.rs
-  line: 522
-  summary: "TransmissionID::Solution destructuring lacks checksum field \u2014 transmissions\
-    \ are processed without verifying integrity via checksum"
-- file: node/bft/src/helpers/storage.rs
-  line: 691
-  summary: TransmissionID::Solution pattern match does not extract or verify a checksum,
-    allowing unvalidated transmissions to be stored
+- file: node/router/src/lib.rs
+  line: 129
+  summary: 'Duplicated tcp.connect call: connect logic appears in multiple places
+    with potentially inconsistent restricted-peer gating; should consolidate or ensure
+    all paths check restricted status before attempting connection'
+  line_side: pre_fix
+- file: node/router/src/lib.rs
+  line: 184
+  summary: Second duplicated tcp.connect call path — same pattern as line 129 without
+    consistent restricted-peer pre-check
+  line_side: pre_fix
+- file: node/router/src/lib.rs
+  line: 389
+  summary: Third duplicated tcp.connect call path — restricted peer insertion logic
+    may not correctly prevent reconnection attempts to peers that should be blocked
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

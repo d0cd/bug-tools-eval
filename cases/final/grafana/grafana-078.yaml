@@ -1,0 +1,38 @@
+id: grafana-078
+repo: grafana/grafana
+base_commit: a7d36cbe97b24b8d49b8a8b86c5eae3419b8f4da^
+head_commit: a7d36cbe97b24b8d49b8a8b86c5eae3419b8f4da
+fix_commit: a7d36cbe97b24b8d49b8a8b86c5eae3419b8f4da
+category: code-smell
+difficulty: easy
+severity: medium
+language: unknown
+pr_size: small
+description: Two GitHub Actions digest workflows contained a hardcoded ALLOWED_TEAMS
+  allowlist (e.g. 'alerting dashboard') used to validate the team_filter input. This
+  list was out of sync with the actual runtime config, blocking workflow_dispatch
+  triggers for newly onboarded teams like 'dataviz'. The fix removes the static allowlist
+  since team validity is already enforced at runtime by the config file.
+expected_findings:
+- file: .github/workflows/external-fr-weekly-digest.yml
+  line: 1
+  summary: Hardcoded ALLOWED_TEAMS validation is redundant — team validity is already
+    enforced by the runtime config file, and this static list drifts out of sync when
+    new teams are onboarded
+  line_side: pre_fix
+- file: .github/workflows/external-pr-weekly-digest.yml
+  line: 1
+  summary: Same hardcoded ALLOWED_TEAMS allowlist duplicated here; both instances
+    must be removed together to avoid inconsistency
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,30 @@
+id: discourse-100
+repo: discourse/discourse
+base_commit: dfcc81f68e4e6369b5ca25f6d73bbf2e09f1115c^
+head_commit: dfcc81f68e4e6369b5ca25f6d73bbf2e09f1115c
+fix_commit: dfcc81f68e4e6369b5ca25f6d73bbf2e09f1115c
+category: api-misuse
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: A code example in the transformers documentation used an incorrect service
+  lookup string. The fix corrects the lookup call so that developers copying the example
+  get working code.
+expected_findings:
+- file: docs/developer-guides/docs/03-code-internals/23-transformers.md
+  line: 31
+  summary: Incorrect service lookup string in code example; the container.lookup call
+    references the wrong service name
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

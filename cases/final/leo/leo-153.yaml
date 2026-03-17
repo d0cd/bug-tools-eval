@@ -1,30 +1,42 @@
 id: leo-153
 repo: ProvableHQ/leo
-base_commit: 14cc19b926f70e68df03afc0d96b5ea238080dc0^
-head_commit: 14cc19b926f70e68df03afc0d96b5ea238080dc0
-fix_commit: 14cc19b926f70e68df03afc0d96b5ea238080dc0
-category: api
-difficulty: easy
-severity: low
+base_commit: a0cdafce4b1232e0806e9ceb7a15c8b9b6f24179^
+head_commit: a0cdafce4b1232e0806e9ceb7a15c8b9b6f24179
+fix_commit: a0cdafce4b1232e0806e9ceb7a15c8b9b6f24179
+category: incomplete
+difficulty: medium
+severity: medium
 language: rust
-pr_size: medium
-description: Imported type aliases from the `ast` module used inconsistent naming
-  conventions (e.g., `RecordAst` instead of `AstRecord`, `InputAst` instead of `AstInput`).
-  The fix renames these aliases to follow a consistent `Ast*` prefix pattern and adds
-  missing documentation for state module utility methods.
+pr_size: xl
+description: The `leo build` command was writing a generic `main.leo` instead of the
+  actual program being built, and `leo add` allowed adding local dependencies with
+  duplicate paths without detecting or resolving the conflict. The fix writes the
+  correct program name during build and overwrites old dependencies when duplicate
+  paths are detected.
 expected_findings:
-- file: state/src/record_commitment/dpc_record_values.rs
-  line: 15
-  summary: 'Inconsistent type alias naming: `Record as RecordAst` should follow `Ast*`
-    prefix convention (`Record as AstRecord`).'
-- file: state/src/local_data_commitment/local_data_commitment.rs
-  line: 15
-  summary: 'Inconsistent type alias naming: `Input as InputAst` should be renamed
-    to `Input as AstInput` for consistency.'
-- file: state/src/utilities/input_value.rs
-  line: 19
-  summary: Missing documentation on public utility functions (`find_input`, `input_to_bytes`,
-    `input_to_integer_string`).
+- file: leo/cli/commands/build.rs
+  line: 193
+  summary: Build output references generic `program_name` clone instead of the specific
+    program being built, causing incorrect file to be written
+  line_side: pre_fix
+- file: leo/cli/commands/add.rs
+  line: 50
+  summary: No duplicate-path detection when adding local dependencies — allows multiple
+    dependencies pointing to the same path without warning or deduplication
+  line_side: pre_fix
+- file: utils/retriever/src/retriever/mod.rs
+  line: 508
+  summary: Error handling uses `Default::default()` for span in `UtilError::failed_to_retrieve_from_endpoint`,
+    losing error location context
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

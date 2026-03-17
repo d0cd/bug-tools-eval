@@ -1,30 +1,44 @@
 id: leo-074
 repo: ProvableHQ/leo
-base_commit: dae45d91071ce50be72904ed29c70a1e55894459^
-head_commit: dae45d91071ce50be72904ed29c70a1e55894459
-fix_commit: dae45d91071ce50be72904ed29c70a1e55894459
-category: api
-difficulty: easy
-severity: medium
+base_commit: 4a41ff2681e81776cb1e091df4c64e692dca64a2^
+head_commit: 4a41ff2681e81776cb1e091df4c64e692dca64a2
+fix_commit: 4a41ff2681e81776cb1e091df4c64e692dca64a2
+category: logic
+difficulty: medium
+severity: high
 language: rust
-pr_size: small
-description: The `leo login` and `leo add` CLI commands lacked error handling for
-  the case when a JWT token was not created, causing failures for non-authorized users.
-  The fix adds proper error variants and checks to handle missing JWT gracefully,
-  along with improved CLI output messages.
+pr_size: medium
+description: The Leo compiler's type checker panics when an unknown/undefined variable
+  is passed as a function argument. The code uses `.for_each()` with `.unwrap()` on
+  the result of `visit_expression()`, which returns `None` for unknown variables.
+  The fix converts the closure to a `for` loop with the `?` operator for early return,
+  replacing `.unwrap()` calls with direct use of the already-unwrapped value.
 expected_findings:
-- file: leo/commands/login.rs
-  line: 76
-  summary: 'Missing error handling: no check for absent JWT token after login attempt;
-    non-authorized users will hit an unhandled error path'
-- file: leo/commands/add.rs
-  line: 111
-  summary: 'Missing error handling: the add command does not verify that a valid JWT
-    exists before proceeding, causing failure for unauthenticated users'
-- file: leo/errors/commands/add.rs
-  line: 18
-  summary: 'New error variant needed: ConnectionUnavailable error was missing to properly
-    surface JWT/auth failures to the user'
+- file: compiler/passes/src/type_checking/check_expressions.rs
+  line: 677
+  summary: Closure with `.for_each()` prevents use of `?` for error propagation; `visit_expression`
+    can return `None` for unknown variables, and downstream `.unwrap()` calls will
+    panic instead of emitting a compiler error.
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_expressions.rs
+  line: 691
+  summary: Calling `.unwrap()` on the result of `visit_expression` — panics when the
+    expression contains an unknown variable. Should propagate the `None` as a type-checking
+    error.
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_expressions.rs
+  line: 709
+  summary: Same `.unwrap()` on `ty` in the else branch — panics on unknown variables
+    instead of gracefully handling the error.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

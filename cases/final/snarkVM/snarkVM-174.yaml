@@ -1,24 +1,34 @@
 id: snarkVM-174
 repo: ProvableHQ/snarkVM
-base_commit: c35d395d5f286388f395a0b2b248bbc60506fc0c^
-head_commit: c35d395d5f286388f395a0b2b248bbc60506fc0c
-fix_commit: c35d395d5f286388f395a0b2b248bbc60506fc0c
+base_commit: ed20562d6f97ef593f051ce3cc848644e785f817^
+head_commit: ed20562d6f97ef593f051ce3cc848644e785f817
+fix_commit: ed20562d6f97ef593f051ce3cc848644e785f817
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: tiny
-description: The `output_type` method for the `commit` instruction incorrectly returned
-  the same output type for Pedersen variants as for BHP variants. Pedersen commitments
-  produce a Group element, but the match arms grouped all variants together, returning
-  the wrong type (likely Field instead of Group). The fix separates the Pedersen variant
-  match arms to return the correct output type.
+pr_size: medium
+description: The block verification logic used the current block's cumulative proof
+  target instead of the previous block's cumulative proof target. This caused an asymmetry
+  between block production and verification, meaning blocks that were correctly produced
+  could fail verification (or vice versa). The fix changes the proof target lookup
+  in verify.rs to use `previous_block.cumulative_proof_target()` instead of the current
+  block's value.
 expected_findings:
-- file: synthesizer/src/program/instruction/operation/commit.rs
-  line: 175
-  summary: Match arm incorrectly groups Pedersen commit variants (e.g., Pedersen64,
-    Pedersen128) with BHP variants, causing them to return the wrong output type.
-    Pedersen commitments should return Group, not Field.
+- file: ledger/block/src/verify.rs
+  line: 373
+  summary: 'Wrong block used for proof target: should use `previous_block.cumulative_proof_target()`
+    instead of the current block''s cumulative proof target to ensure symmetry between
+    block production and verification.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,26 +1,31 @@
 id: snarkVM-054
 repo: ProvableHQ/snarkVM
-base_commit: ca4e9b2c4be4a5e0fb9ba61023fc4c8d4dd50686^
-head_commit: ca4e9b2c4be4a5e0fb9ba61023fc4c8d4dd50686
-fix_commit: ca4e9b2c4be4a5e0fb9ba61023fc4c8d4dd50686
-category: logic
-difficulty: medium
-severity: high
+base_commit: 3b413c02545d8da0c1037ad1beff127f974d4b79^
+head_commit: 3b413c02545d8da0c1037ad1beff127f974d4b79
+fix_commit: 3b413c02545d8da0c1037ad1beff127f974d4b79
+category: constraint
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: The call graph used in `verify_execution` incorrectly included calls
-  to closures, which do not produce separate transitions in an `Execution`. This caused
-  the traversal stack to have extra entries, leading to 'Invalid traversal - traversal
-  stack is not empty' errors. The fix excludes closure calls when building the call
-  graph, so only function-to-function calls (which correspond to actual transitions)
-  are tracked.
+pr_size: small
+description: The deployment variable and constraint limits were set to 1M, which was
+  too restrictive for programs with richer circuit logic. The PR doubles both limits
+  to 2M (from 1<<20 to 1<<21) in preparation for the 4.0.0 release, along with corresponding
+  CI resource adjustments and updated test fixtures.
 expected_findings:
-- file: synthesizer/src/process/verify_execution.rs
-  line: 324
-  summary: Call graph construction does not distinguish between closure calls and
-    function calls. Closure calls should be excluded since closures are inlined and
-    do not produce separate transitions, causing the traversal stack to be inconsistent
-    with the actual Execution transitions.
+- file: console/network/src/lib.rs
+  line: 137
+  summary: MAX_DEPLOYMENT_VARIABLES constant is 1<<20 (1M); should be doubled to 1<<21
+    (2M) to support more complex deployed programs
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

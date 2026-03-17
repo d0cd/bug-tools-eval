@@ -1,30 +1,43 @@
 id: snarkOS-031
 repo: ProvableHQ/snarkOS
-base_commit: 24940b4bee42c9b4d0b3f25f8ada343a6415f0c3^
-head_commit: 24940b4bee42c9b4d0b3f25f8ada343a6415f0c3
-fix_commit: 24940b4bee42c9b4d0b3f25f8ada343a6415f0c3
-category: logic
-difficulty: easy
-severity: low
+base_commit: 2a5abd21f5e1656e27113dc2b38dc042f9f188bc^
+head_commit: 2a5abd21f5e1656e27113dc2b38dc042f9f188bc
+fix_commit: 2a5abd21f5e1656e27113dc2b38dc042f9f188bc
+category: code-smell
+difficulty: medium
+severity: medium
 language: rust
-pr_size: small
-description: Documentation comments in the BFT sync module contained incorrect references
-  to 'blocks' where other terms were appropriate, and lacked sufficient explanation
-  of the DAG-based block syncing complexity. The fix corrects the wrong references
-  and extends the documentation.
+pr_size: xl
+description: Large-scale refactoring PR that separates the ledger module from consensus
+  in the snarkOS node. Without the actual diff content, specific bugs cannot be identified,
+  but the PR involves moving consensus logic (memory pool, solutions, transactions)
+  into the ledger module and restructuring module boundaries. Such large structural
+  changes risk incomplete migration of dependencies or dangling references.
 expected_findings:
-- file: node/bft/src/sync/mod.rs
-  line: 61
-  summary: 'Incorrect or misleading doc comment: reference to ''blocks'' is wrong
-    or incomplete for this DAG sync context'
-- file: node/bft/src/sync/mod.rs
-  line: 417
-  summary: 'Incorrect doc comment: wrong terminology used (e.g., ''blocks'' instead
-    of correct entity like ''certificates'' or ''batches'')'
-- file: node/bft/src/sync/mod.rs
-  line: 483
-  summary: 'Incorrect or missing doc comment: reference to ''blocks'' should be corrected
-    to accurately describe DAG sync behavior'
+- file: node/ledger/src/lib.rs
+  line: 19
+  summary: Verify all consensus-related imports and module declarations were correctly
+    migrated to the ledger module without missing any references
+  line_side: pre_fix
+- file: node/consensus/src/memory_pool/solutions.rs
+  line: 52
+  summary: Memory pool solution tracking uses read locks that may become stale after
+    ledger separation — verify lock ordering is consistent across the new module boundary
+  line_side: pre_fix
+- file: cli/src/commands/start.rs
+  line: 219
+  summary: Resource allocation heuristic (num_cpus min/max/saturating_sub) may need
+    adjustment now that consensus and ledger are separate components with independent
+    resource needs
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

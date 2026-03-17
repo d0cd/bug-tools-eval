@@ -1,29 +1,32 @@
 id: snarkVM-115
 repo: ProvableHQ/snarkVM
-base_commit: 13461a140b2049756626cc2c37c07a3efe37f329^
-head_commit: 13461a140b2049756626cc2c37c07a3efe37f329
-fix_commit: 13461a140b2049756626cc2c37c07a3efe37f329
-category: logic
-difficulty: medium
-severity: critical
+base_commit: 8b7f59e37ee945854847f8500ab419d42e1d5c0b^
+head_commit: 8b7f59e37ee945854847f8500ab419d42e1d5c0b
+fix_commit: 8b7f59e37ee945854847f8500ab419d42e1d5c0b
+category: api-misuse
+difficulty: easy
+severity: medium
 language: rust
 pr_size: tiny
-description: The boolean well-formedness check for linear combinations in the ZK circuit
-  environment had an incorrect condition. The check was supposed to verify that every
-  term in the linear combination is either zero or one, but the logic was inverted
-  or used wrong operators, allowing malformed booleans to pass validation. The fix
-  corrected the conditional at two branch points to properly detect when ANY term
-  is not zero or one.
+description: The `Serialize` implementation for `Transition` passes an incorrect number
+  of struct fields to `serialize_struct`. The field count literal does not match the
+  actual number of fields being serialized, which can cause serialization issues with
+  formats that rely on the length hint.
 expected_findings:
-- file: circuit/environment/src/helpers/linear_combination.rs
-  line: 87
-  summary: 'Incorrect boolean well-formedness condition: the check for whether a linear
-    combination term is a valid boolean (zero or one) uses wrong logic, allowing non-boolean
-    values to pass.'
-- file: circuit/environment/src/helpers/linear_combination.rs
-  line: 95
-  summary: 'Incorrect boolean well-formedness condition: the second branch of the
-    check also has the same inverted/wrong logic for detecting non-boolean terms.'
+- file: ledger/block/src/transition/serialize.rs
+  line: 19
+  summary: 'Incorrect struct field count passed to serialize_struct("Transition",
+    8): the actual number of serialized fields does not match the length hint, which
+    can break length-prefixed serialization formats'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

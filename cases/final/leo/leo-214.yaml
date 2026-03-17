@@ -1,32 +1,30 @@
 id: leo-214
 repo: ProvableHQ/leo
-base_commit: ba306a15caff6e97fb526b0ccef2c13c89c5f6aa^
-head_commit: ba306a15caff6e97fb526b0ccef2c13c89c5f6aa
-fix_commit: ba306a15caff6e97fb526b0ccef2c13c89c5f6aa
-category: logic
-difficulty: medium
-severity: high
-language: leo
-pr_size: xl
-description: The Leo compiler failed to detect namespace conflicts between circuits,
-  functions, aliases, and global constants, and also allowed illegal variable shadowing
-  of parameters and global constants. The fix adds cross-namespace collision checks
-  in the ASG scope/program resolution and cleans up import resolution to properly
-  track and validate global constant definitions.
+base_commit: d598f1f72bdaa3a52157ecee35c653d23115ecad^
+head_commit: d598f1f72bdaa3a52157ecee35c653d23115ecad
+fix_commit: d598f1f72bdaa3a52157ecee35c653d23115ecad
+category: style
+difficulty: easy
+severity: low
+language: rust
+pr_size: tiny
+description: The Leo CLI help message contained an incorrect or outdated description
+  string in the .about() call. The fix updates the about text to accurately describe
+  Leo's purpose.
 expected_findings:
-- file: asg/src/program/mod.rs
-  line: 130
-  summary: 'Missing cross-namespace conflict check: defining a circuit/function/alias/global_const
-    should verify the name is not already used in any other global namespace (circuits,
-    functions, aliases, global consts).'
-- file: asg/src/statement/definition.rs
-  line: 110
-  summary: 'Missing shadowing check: variable definitions should verify the name does
-    not shadow a function parameter or a global constant, and raise an error if so.'
-- file: asg/src/program/function.rs
-  line: 141
-  summary: 'Missing check: function parameter names should be validated against global
-    constants to prevent illegal shadowing of global consts by function inputs.'
+- file: leo/main.rs
+  line: 22
+  summary: CLI .about() string is inaccurate or outdated — should be updated to correctly
+    describe Leo
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

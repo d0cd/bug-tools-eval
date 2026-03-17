@@ -1,0 +1,47 @@
+id: discourse-104
+repo: discourse/discourse
+base_commit: e46946151cc123fb1f25f3b551fd842a105ef838^
+head_commit: e46946151cc123fb1f25f3b551fd842a105ef838
+fix_commit: e46946151cc123fb1f25f3b551fd842a105ef838
+category: logic
+difficulty: medium
+severity: medium
+language: javascript
+pr_size: medium
+description: 'User cards were incorrectly positioned due to multiple issues: an unnecessary
+  `schedule(''afterRender'')` nested inside `next()` caused timing problems, the `autoUpdate`
+  option for floating-ui lacked configurability (preventing `layoutShift: false`),
+  and a missing type check on `maxWidth` produced the invalid CSS value ''unsetpx''.
+  The fix refactors autoUpdate to accept an options object, applies `layoutShift:
+  false` for user cards triggered from chat avatars, and adds a guard on maxWidth.'
+expected_findings:
+- file: frontend/discourse/app/components/card-contents-base.js
+  line: 194
+  summary: Unnecessary `schedule('afterRender')` inside `next()` callback causes double-deferred
+    positioning — the outer `next()` already runs after the current runloop, so the
+    inner schedule adds a redundant delay that can leave cards mispositioned.
+  line_side: pre_fix
+- file: frontend/discourse/float-kit/modifiers/apply-floating-ui.js
+  line: 16
+  summary: 'The `autoUpdate` call passes a boolean but should accept an options object
+    to allow callers to configure floating-ui behavior (e.g. `layoutShift: false`).
+    Also missing a type check on `maxWidth` before string concatenation, producing
+    the invalid CSS value ''unsetpx'' when maxWidth is undefined.'
+  line_side: pre_fix
+- file: frontend/discourse/float-kit/lib/constants.js
+  line: 46
+  summary: 'Default `autoUpdate` configuration uses `{ ancestorScroll: false }` but
+    lacks `layoutShift: false` for contexts like chat-triggered user cards, causing
+    cards to jump around on scroll.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

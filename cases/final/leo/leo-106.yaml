@@ -1,29 +1,45 @@
 id: leo-106
 repo: ProvableHQ/leo
-base_commit: c55ec9894e740e9bc5df14aada4ba90e4fff0cc3^
-head_commit: c55ec9894e740e9bc5df14aada4ba90e4fff0cc3
-fix_commit: c55ec9894e740e9bc5df14aada4ba90e4fff0cc3
+base_commit: 64ad6a67f31edb5a876d57e96bb9d38759c42401^
+head_commit: 64ad6a67f31edb5a876d57e96bb9d38759c42401
+fix_commit: 64ad6a67f31edb5a876d57e96bb9d38759c42401
 category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: medium
-description: Variable renaming during function inlining used incorrect identifier
-  extraction (.identifier().name) for mapping input parameters, causing wrong variable
-  substitutions in the inlined code. This was particularly problematic when the same
-  function was inlined multiple times. The fix corrects how parameter names are extracted
-  to build the renaming map.
+pr_size: large
+description: 'Multiple bugs fixed: incorrect Display trait implementations for field
+  and group types that produced wrong output or panicked, missing validation for constant
+  inputs in the main function input handler, and platform-specific Windows warnings
+  in the logger/main modules. Also fixes a typo in CLI help text.'
 expected_findings:
-- file: compiler/passes/src/function_inlining/inline_expression.rs
-  line: 58
-  summary: 'Incorrect parameter name extraction: `.map(|input| input.identifier().name)`
-    produces wrong renaming map for inlined function variables, causing name collisions
-    or mismatches when a function is inlined multiple times.'
-- file: compiler/passes/src/function_inlining/inline_expression.rs
-  line: 74
-  summary: 'Same incorrect identifier extraction pattern: `.map(|input| input.identifier().name)`
-    should use a different method to get the correct variable name for the renaming
-    substitution.'
+- file: compiler/src/value/field/field_type.rs
+  line: 247
+  summary: Display impl uses `get_value().ok_or(std::fmt::Error)` incorrectly — when
+    the field is an allocated variable (not a constant), this returns Err and the
+    match fails to print anything useful. Should handle the allocated case and print
+    the underlying constraint variable.
+  line_side: pre_fix
+- file: compiler/src/value/integer/integer.rs
+  line: 160
+  summary: Integer type mismatch error raised incorrectly for constant inputs — the
+    validation rejects valid constant integer values or uses the wrong error variant,
+    preventing constant inputs from being accepted.
+  line_side: pre_fix
+- file: compiler/src/function/input/main_function_input.rs
+  line: 101
+  summary: Main function input handler does not properly distinguish constant inputs
+    from regular inputs, causing constant values declared in the [constants] section
+    to be rejected or mishandled.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

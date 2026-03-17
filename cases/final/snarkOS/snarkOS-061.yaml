@@ -1,26 +1,34 @@
 id: snarkOS-061
 repo: ProvableHQ/snarkOS
-base_commit: 189dc1cd72e940bdee3ebb7293f21b91e336094b^
-head_commit: 189dc1cd72e940bdee3ebb7293f21b91e336094b
-fix_commit: 189dc1cd72e940bdee3ebb7293f21b91e336094b
-category: logic
-difficulty: easy
-severity: medium
+base_commit: 535d63a6f54ab95a36581ae40a091e84691f9861^
+head_commit: d04ca336e2f8a09652bceb00042c241a16766dca
+fix_commit: 535d63a6f54ab95a36581ae40a091e84691f9861
+category: security
+difficulty: medium
+severity: high
 language: rust
 pr_size: tiny
-description: The `get_blocks` REST endpoint treated the ending block height as inclusive
-  rather than exclusive, causing it to return one extra block beyond the intended
-  range. The fix updates the range handling so the start is inclusive and the end
-  is exclusive, matching standard range conventions.
+description: 'The inbound PeerResponse handler checks whether a peer has an outstanding
+  outbound request via a counter-based cache, but never decrements the counter after
+  processing a valid response. Because the counter only increases, `contains_outbound_peer_request()`
+  always returns true after the first legitimate exchange, effectively disabling the
+  unsolicited PeerResponse rejection and re-enabling a known peer-flooding attack
+  (issue #2894).'
 expected_findings:
-- file: node/rest/src/routes.rs
-  line: 253
-  summary: 'Off-by-one: get_blocks end height is inclusive but should be exclusive;
-    the range fetches one extra block beyond what the caller intended'
-- file: node/rest/src/routes.rs
-  line: 21
-  summary: Documentation states ending block height semantics but the implementation
-    does not match the intended exclusive-end convention
+- file: node/router/src/inbound.rs
+  line: 136
+  summary: 'Missing `self.router().cache.decrement_outbound_peer_requests(peer_ip)`
+    call: inbound peer responses do not decrement the outbound request counter, allowing
+    unbounded peer response flooding'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,36 +1,36 @@
 id: leo-158
 repo: ProvableHQ/leo
-base_commit: 641f9f925b323d8d8bdfdcd207c4f0c13e860293^
-head_commit: 641f9f925b323d8d8bdfdcd207c4f0c13e860293
-fix_commit: 641f9f925b323d8d8bdfdcd207c4f0c13e860293
-category: logic
-difficulty: medium
-severity: high
+base_commit: a570a2a13e7aeecea71588303e2cfb5e0f027c22^
+head_commit: a570a2a13e7aeecea71588303e2cfb5e0f027c22
+fix_commit: a570a2a13e7aeecea71588303e2cfb5e0f027c22
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: large
-description: Leo compiler could not find circuit definitions when referenced from
-  within a circuit function. The scope resolution logic in the expression/circuit
-  evaluator only searched the current function scope, not the file-level scope where
-  circuit definitions are declared. The fix adds a `declared_circuit_reference` parameter
-  threaded through enforce_function, enforce_statement, and enforce_expression to
-  allow circuit lookups to fall back to the file-level scope.
+pr_size: medium
+description: This PR is a pure renaming refactor, changing all references from 'leo_ast'
+  to 'ast' across import statements, comments, and documentation for clarity. There
+  is no bug fix, no behavioral change, and no code smell being addressed — it is a
+  cosmetic naming convention change.
 expected_findings:
-- file: compiler/src/expression/circuit/circuit.rs
-  line: 39
-  summary: "Circuit definition lookup is scoped incorrectly \u2014 when inside a circuit\
-    \ function, the lookup does not reach the file-level scope where other circuit\
-    \ definitions (e.g., Foo) are declared. Needs to search a broader scope or accept\
-    \ a declared_circuit_reference to resolve circuit types."
-- file: compiler/src/function/function.rs
-  line: 47
-  summary: enforce_function does not accept or propagate a declared_circuit_reference
-    parameter, preventing circuit definitions from being resolved when called from
-    within a circuit method context.
-- file: compiler/src/statement/statement.rs
-  line: 38
-  summary: enforce_statement does not pass through the declared_circuit_reference,
-    breaking the chain needed for inner expressions to resolve circuit types from
-    file scope.
+- file: ast/src/lib.rs
+  line: 16
+  summary: Renaming 'leo_ast' to 'ast' in module documentation — purely cosmetic change
+    with no functional impact
+  line_side: pre_fix
+- file: compiler/src/compiler.rs
+  line: 23
+  summary: Import path renamed from 'leo_ast' to 'ast' — verify Cargo.toml package
+    name matches to avoid compilation failure
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

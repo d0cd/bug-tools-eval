@@ -1,22 +1,33 @@
 id: snarkOS-058
 repo: ProvableHQ/snarkOS
-base_commit: 392b728d8dfbeaf1f038e3cea3806f10815e4248^
-head_commit: 392b728d8dfbeaf1f038e3cea3806f10815e4248
-fix_commit: 392b728d8dfbeaf1f038e3cea3806f10815e4248
+base_commit: 4d4805796036709c367add54e3ab31f5900fa196^
+head_commit: 4d4805796036709c367add54e3ab31f5900fa196
+fix_commit: 4d4805796036709c367add54e3ab31f5900fa196
 category: logic
 difficulty: easy
-severity: medium
+severity: low
 language: rust
 pr_size: tiny
-description: UnconfirmedSolution messages were only propagated to validators via `propagate_to_validators`
-  instead of being broadcast to all peers via `propagate`. This meant provers and
-  other non-validator nodes would not receive new solutions, limiting network-wide
-  solution distribution.
+description: A format string placeholder (e.g., `{e}`) was used inside a regular string
+  literal rather than inside a formatting macro like `format!` or `eprintln!`. This
+  caused the literal text `{e}` to appear in the output instead of the interpolated
+  error value. The fix wraps the string in the appropriate formatting macro or uses
+  proper string interpolation.
 expected_findings:
-- file: node/src/prover/mod.rs
-  line: 260
-  summary: 'Wrong propagation method: `propagate_to_validators` is used for UnconfirmedSolution
-    but should be `propagate` to broadcast to all connected peers, not just validators.'
+- file: cli/src/helpers/logger.rs
+  line: 98
+  summary: Format string syntax `{e}` used in a plain string outside a formatting
+    macro (e.g., `format!`, `eprintln!`). The variable will not be interpolated and
+    the literal text `{e}` will be output instead of the error value.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

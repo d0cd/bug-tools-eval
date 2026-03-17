@@ -1,30 +1,36 @@
 id: leo-187
 repo: ProvableHQ/leo
-base_commit: d1dd42a70a6c3fc9fa235448070a1cd71c58f005^
-head_commit: d1dd42a70a6c3fc9fa235448070a1cd71c58f005
-fix_commit: d1dd42a70a6c3fc9fa235448070a1cd71c58f005
-category: logic
+base_commit: bf8ca5abc433e39d05b5f1a83da1a971287f591d^
+head_commit: 99605f46a54a1e13a898fb97ef4cf98938328109
+fix_commit: bf8ca5abc433e39d05b5f1a83da1a971287f591d
+category: style
 difficulty: easy
 severity: low
 language: rust
-pr_size: small
-description: The arguments to AsgError::unexpected_type() were passed in the wrong
-  order across multiple call sites, swapping the 'expected' and 'got' type parameters.
-  This caused error messages to display the expected type as the actual type and vice
-  versa. The fix corrects the argument ordering in all affected unexpected_type calls.
+pr_size: tiny
+description: Doc comments on ShlWrapped and ShrWrapped variants incorrectly included
+  the non-wrapping operator symbols (`<<` and `>>`) alongside the correct `.shl_wrapped()`
+  / `.shr_wrapped()` method names. These were copy-paste artifacts from the non-wrapping
+  shift variants above them.
 expected_findings:
-- file: asg/src/expression/array_init.rs
-  line: 74
-  summary: 'Arguments to unexpected_type are in wrong order: expected type and actual
-    type are swapped, producing a misleading error message.'
-- file: asg/src/expression/binary.rs
-  line: 123
-  summary: 'unexpected_type arguments swapped: the expected type (Boolean) and actual
-    type are in the wrong parameter positions.'
-- file: asg/src/expression/circuit_access.rs
-  line: 172
-  summary: 'unexpected_type called with reversed arguments: ''none'' and expected_type
-    are swapped, making the error message say the opposite of what it should.'
+- file: compiler/ast/src/expressions/binary.rs
+  line: 64
+  summary: Doc comment for ShlWrapped incorrectly includes `<<` operator symbol —
+    should only reference `.shl_wrapped()`, not the non-wrapping operator.
+  line_side: pre_fix
+- file: compiler/ast/src/expressions/binary.rs
+  line: 73
+  summary: Doc comment for ShrWrapped incorrectly includes `>>` operator symbol —
+    should only reference `.shr_wrapped()`, not the non-wrapping operator.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,31 +1,33 @@
 id: snarkVM-183
 repo: ProvableHQ/snarkVM
-base_commit: 5435d5c3d76cf9438073dae4011e28e0628dda8d^
-head_commit: 5435d5c3d76cf9438073dae4011e28e0628dda8d
-fix_commit: 5435d5c3d76cf9438073dae4011e28e0628dda8d
-category: perf
-difficulty: easy
-severity: medium
+base_commit: fbbec6c2ffe299415dd2e182012c8090c668fabf^
+head_commit: fbbec6c2ffe299415dd2e182012c8090c668fabf
+fix_commit: fbbec6c2ffe299415dd2e182012c8090c668fabf
+category: logic
+difficulty: hard
+severity: high
 language: rust
 pr_size: small
-description: CI jobs for memory-intensive synthesizer tests were running out of memory
-  (OOM) because all tests ran together on insufficiently sized instances. The fix
-  moves memory-intensive tests to a dedicated multi-threaded job on 2xlarge instances
-  and marks them with `#[ignore = "memory-intensive"]`, while also commenting out
-  highest-power test cases whose parameter downloads were failing.
+description: The code used `self.latest_committee()` when calculating the next block
+  timestamp from a subdag, but the correct committee to use is the committee lookback
+  — retrieved by subtracting COMMITTEE_LOOKBACK_RANGE from the subdag's anchor round
+  and fetching the committee for that earlier round. Using the wrong committee could
+  produce incorrect block timestamps and compromise consensus safety.
 expected_findings:
-- file: .circleci/config.yml
-  line: 682
-  summary: Synthesizer CI job uses insufficient instance size, causing OOM when memory-intensive
-    tests run alongside other tests
-- file: synthesizer/src/vm/execute.rs
-  line: 915
-  summary: 'Memory-intensive test not marked with #[ignore], causing it to run in
-    the default parallel test job and exhaust available memory'
-- file: synthesizer/src/vm/mod.rs
-  line: 1356
-  summary: 'Memory-intensive test not marked with #[ignore], contributing to OOM in
-    the shared synthesizer CI job'
+- file: ledger/src/advance.rs
+  line: 242
+  summary: 'Wrong committee passed to subdag.timestamp(): uses self.latest_committee()
+    but should use the committee lookback (committee at anchor_round - COMMITTEE_LOOKBACK_RANGE)
+    to correctly weight the timestamp calculation.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

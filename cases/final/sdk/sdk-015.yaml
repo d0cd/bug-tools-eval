@@ -1,29 +1,31 @@
 id: sdk-015
 repo: ProvableHQ/sdk
-base_commit: 733b3c78dee7c9766ff5a677ceec20f58f7e9df5^
-head_commit: 733b3c78dee7c9766ff5a677ceec20f58f7e9df5
-fix_commit: 733b3c78dee7c9766ff5a677ceec20f58f7e9df5
-category: api
+base_commit: 27a64cacacff91d768dc8e1ed54a428d66f690ec^
+head_commit: 27a64cacacff91d768dc8e1ed54a428d66f690ec
+fix_commit: 27a64cacacff91d768dc8e1ed54a428d66f690ec
+category: logic
 difficulty: easy
-severity: medium
-language: typescript
-pr_size: small
-description: The SDK used deprecated API endpoints (e.g., `/block/latest`, `/block/height/latest`)
-  that are no longer supported by snarkOS. The fix updates these endpoint paths to
-  their current equivalents across the network client, tests, and documentation.
+severity: high
+language: javascript
+pr_size: tiny
+description: The split function incorrectly passes `amount` instead of `splitAmount`
+  when constructing the split transaction parameters. This causes the split operation
+  to use the wrong value, splitting by the full amount rather than the user-specified
+  split amount.
 expected_findings:
-- file: sdk/src/network-client.ts
-  line: 364
-  summary: 'Deprecated endpoint: `/block/latest` should be updated to the current
-    snarkOS endpoint path'
-- file: sdk/src/network-client.ts
-  line: 391
-  summary: 'Deprecated endpoint: `/block/latest` should be updated to the current
-    snarkOS endpoint path'
-- file: sdk/src/network-client.ts
-  line: 567
-  summary: 'Deprecated endpoint: `/block/latest` should be updated to the current
-    snarkOS endpoint path'
+- file: website/src/tabs/develop/Split.js
+  line: 65
+  summary: 'Wrong variable: `splitAmount: amount` should be `splitAmount: splitAmount`
+    — passes the total amount instead of the user-specified split amount'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

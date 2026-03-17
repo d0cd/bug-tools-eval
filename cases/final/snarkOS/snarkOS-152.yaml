@@ -1,27 +1,44 @@
 id: snarkOS-152
 repo: ProvableHQ/snarkOS
-base_commit: a81dd1947acd72ffcd17026da0ca0cdd51dac483^
-head_commit: a81dd1947acd72ffcd17026da0ca0cdd51dac483
-fix_commit: a81dd1947acd72ffcd17026da0ca0cdd51dac483
+base_commit: c7390bd1450b06fa0223dfe1f46a31da356a824a^
+head_commit: c7390bd1450b06fa0223dfe1f46a31da356a824a
+fix_commit: c7390bd1450b06fa0223dfe1f46a31da356a824a
 category: logic
 difficulty: hard
 severity: high
 language: rust
 pr_size: xl
-description: A sync issue allowed corrupt or invalid blocks to be fast-forwarded into
-  the canonical chain. The fix adds a guard in the consensus agent to check if the
-  canon chain is empty before processing, and improves fork detection logging in the
-  sync master. Additionally, the PR replaces RocksDB with SQLite for improved performance
-  and stability.
+description: 'PR #3543 introduced a large refactoring of the sync/communication layer
+  in the BFT consensus module, abstracting sync operations through a new communication
+  service. The refactor caused regressions serious enough to warrant a full revert,
+  likely breaking node synchronization or consensus participation across validator,
+  prover, and client node types.'
 expected_findings:
-- file: consensus/src/consensus/inner/agent.rs
-  line: 23
-  summary: 'Missing empty-canon guard: corrupt/invalid blocks could be fast-forwarded
-    into the canonical chain when canon is empty, leading to chain corruption'
-- file: network/src/sync/master.rs
-  line: 79
-  summary: Sync logic did not properly handle forks of interest, allowing invalid
-    blocks to bypass validation during fast-forward sync
+- file: node/sync/communication-service/src/lib.rs
+  line: 21
+  summary: 'New communication service abstraction introduced by PR #3543 likely had
+    incorrect message handling or interface mismatch with existing sync protocol,
+    breaking block synchronization'
+  line_side: pre_fix
+- file: node/bft/src/sync/mod.rs
+  line: 18
+  summary: BFT sync module was rewired to use new BlockSync/communication-service
+    imports; the integration likely broke sync state management or introduced incorrect
+    BlockSyncMode handling
+  line_side: pre_fix
+- file: node/sync/src/block_sync.rs
+  line: 31
+  summary: BlockSync was refactored to depend on Tcp/communication-service layer changes
+    that altered connection or message routing semantics, breaking block sync protocol
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

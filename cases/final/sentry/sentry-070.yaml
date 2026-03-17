@@ -1,0 +1,42 @@
+id: sentry-070
+repo: getsentry/sentry
+base_commit: 5b7877ac43a2137215e74a1509a71a42b9614fba^
+head_commit: 5b7877ac43a2137215e74a1509a71a42b9614fba
+fix_commit: 5b7877ac43a2137215e74a1509a71a42b9614fba
+category: style
+difficulty: easy
+severity: low
+language: typescript
+pr_size: tiny
+description: 'CSS layout issue where `GridStatusWrapper` and `GridStatusFloat` used
+  explicit `height: 168px` with absolute positioning, which prevented the `EmptyStateWarning`
+  child''s vertical padding from expanding the container naturally. The fix removes
+  absolute positioning and switches to `min-height: 168px`, but reviewer noted orphaned
+  CSS positioning properties (`top: 0`, etc.) left behind without a `position` context.'
+expected_findings:
+- file: static/app/components/tables/gridEditable/styles.tsx
+  line: 254
+  summary: 'Orphaned CSS positioning properties (`top: 0`, etc.) remain after removing
+    `position: absolute`. These properties have no effect without a positioning context
+    and should be removed to avoid confusion.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110321
+reviewer_notes: []
+reviewer_findings:
+- file: static/app/components/tables/gridEditable/styles.tsx
+  line: 254
+  summary: '### Orphaned CSS positioning properties without position context  **Low
+    Severity**  <!-- DESCRIPTION START --> `top: 0`,'
+  line_side: pre_fix
+- file: static/app/components/tables/gridEditable/styles.tsx
+  line: 254
+  summary: ha, true!
+  line_side: pre_fix
+quality_flags: []

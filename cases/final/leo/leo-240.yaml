@@ -1,27 +1,38 @@
 id: leo-240
 repo: ProvableHQ/leo
-base_commit: b84e910c0cc0188f11f150837e4587c48e2c6ec5^
-head_commit: b84e910c0cc0188f11f150837e4587c48e2c6ec5
-fix_commit: b84e910c0cc0188f11f150837e4587c48e2c6ec5
-category: api
-difficulty: medium
-severity: medium
+base_commit: 60e592edd7620907da9d0851f55857f55ac63f14
+head_commit: 84002cf3e799d7ce02fd6a6ad11c40db5366eaff
+fix_commit: f1d0cc37c1fac2eafc2ea15bfa056e4d98f38f93
+category: api-misuse
+difficulty: easy
+severity: high
 language: rust
-pr_size: xl
-description: The Leo compiler did not serialize and output the compiled circuit to
-  a file after building. The fix adds a circuit serialization pipeline (CircuitSynthesizer,
-  SerializedCircuit, SerializedField, SerializedIndex) and integrates it into the
-  build command so that the compiled R1CS circuit is written to an output file.
+pr_size: tiny
+description: 'After dependabot bumped the sha2 crate from 0.8.2 to 0.9.0 (PR #82),
+  the call sites in compiler/src/compiler.rs were not updated. The sha2 0.9.0 release
+  renamed `input()` to `update()` and `result()` to `finalize()` per the RustCrypto
+  Digest trait, causing a compilation failure. PR #90 updates the two call sites to
+  use the new API.'
 expected_findings:
-- file: leo/commands/build.rs
-  line: 102
-  summary: Build command did not serialize the compiled circuit to an output file
-    after constraint generation, causing users to have no way to inspect or export
-    the circuit.
 - file: compiler/src/compiler.rs
-  line: 140
-  summary: generate_constraints call did not expose or return the constraint system
-    in a form that could be serialized for circuit output.
+  line: 69
+  summary: 'API mismatch: `hasher.input()` no longer exists in sha2 0.9.0; must be
+    `hasher.update()` after the dependency bump in PR #82'
+  line_side: pre_fix
+- file: compiler/src/compiler.rs
+  line: 70
+  summary: 'API mismatch: `hasher.result()` no longer exists in sha2 0.9.0; must be
+    `hasher.finalize()` after the dependency bump in PR #82'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 90
+reviewer_notes: []
+reviewer_findings: []
+quality_flags:
+- groundedness-failed

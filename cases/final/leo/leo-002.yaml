@@ -1,29 +1,33 @@
 id: leo-002
 repo: ProvableHQ/leo
-base_commit: b6c5f4d60f51b0950465327afc3ce289e2cf3388^
-head_commit: b6c5f4d60f51b0950465327afc3ce289e2cf3388
-fix_commit: b6c5f4d60f51b0950465327afc3ce289e2cf3388
-category: api
+base_commit: 0197aebc5aac199fde95e9481c409da80ab16dd3^
+head_commit: 0197aebc5aac199fde95e9481c409da80ab16dd3
+fix_commit: 0197aebc5aac199fde95e9481c409da80ab16dd3
+category: logic
 difficulty: medium
-severity: high
-language: rust
-pr_size: tiny
-description: The `leo publish` command failed on Windows because file paths in zip
-  archives used Windows-style backslash separators instead of Unix-style forward slashes.
-  The fix uses the `zip` crate's deprecated (but recommended) path sanitization method
-  to normalize paths before adding files to the archive, with `#[allow(deprecated)]`
-  annotations.
+severity: medium
+language: leo
+pr_size: xl
+description: The parser for ordering expressions (>, >=, <, <=) incorrectly used a
+  looping/associative parsing pattern, allowing chained comparisons like `a > b >
+  c` which violates the Leo grammar specification. The fix changes the ordering expression
+  parser to parse at most one comparison operator, making these operators non-associative
+  as the grammar requires.
 expected_findings:
-- file: package/src/root/zip.rs
-  line: 106
-  summary: File path added to zip archive without platform-independent normalization;
-    on Windows, backslash separators will produce invalid zip entries. Should use
-    the zip crate's path sanitization method.
-- file: package/src/root/zip.rs
-  line: 117
-  summary: Directory path added to zip archive without platform-independent normalization;
-    on Windows, backslash separators will produce invalid zip entries. Should use
-    the zip crate's path sanitization method.
+- file: compiler/parser/src/parser/expression.rs
+  line: 152
+  summary: Ordering expression parser uses associative (looping) parsing pattern instead
+    of non-associative single-operator parse. Expressions like `a > b > c` are incorrectly
+    accepted; the grammar specifies ordering operators are non-associative.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

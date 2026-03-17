@@ -1,28 +1,47 @@
 id: sentry-022
 repo: getsentry/sentry
-base_commit: d678512d615e7a47baa5cc18ccd10a119b323192^
-head_commit: d678512d615e7a47baa5cc18ccd10a119b323192
-fix_commit: d678512d615e7a47baa5cc18ccd10a119b323192
-category: logic
-difficulty: easy
-severity: low
-language: python
+base_commit: 1cea9f4adea50c3cac85d88a5e1ceebc5909bc12^
+head_commit: 1cea9f4adea50c3cac85d88a5e1ceebc5909bc12
+fix_commit: 1cea9f4adea50c3cac85d88a5e1ceebc5909bc12
+category: incomplete
+difficulty: medium
+severity: medium
+language: typescript
 pr_size: small
-description: A temporary feature flag 'seer-slack-workflows-explorer' was gating Slack
-  workflow integration with the explorer autofix feature. Now that the integration
-  works correctly, the flag and its associated conditional check are removed to simplify
-  the code path and enable the functionality unconditionally.
+description: 'The PR removes frontend defense-in-depth filtering of hidden occurrence
+  types (HIDDEN_OCCURRENCE_TYPE_IDS in addOccurrence), relying entirely on the EAP
+  trace API to filter them server-side. The frontend does not explicitly request this
+  filtering, so if the API-side filter (PR #110356) has gaps or is not yet fully deployed,
+  hidden occurrence types could be exposed to users.'
 expected_findings:
-- file: src/sentry/features/temporary.py
-  line: 353
-  summary: Unnecessary temporary feature flag 'seer-slack-workflows-explorer' should
-    be removed now that the feature is stable
-- file: src/sentry/seer/entrypoints/operator.py
-  line: 77
-  summary: Redundant feature flag check gates functionality that should now be unconditionally
-    enabled
+- file: static/app/views/performance/newTraceDetails/traceModels/traceTreeNode/baseNode.tsx
+  line: 180
+  summary: Removal of addOccurrence() and its HIDDEN_OCCURRENCE_TYPE_IDS filtering
+    drops a defense-in-depth layer; the frontend now has no guard against hidden occurrence
+    types if the API-side filter has gaps or is temporarily disabled
+  line_side: pre_fix
+- file: static/app/views/performance/newTraceDetails/traceModels/traceTreeNode/eapSpanNode.tsx
+  line: 1
+  summary: Call site reverted from addOccurrence() to occurrences.add(), losing client-side
+    filtering; confirm no deployment race between this change and the API filter rollout
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110565
+reviewer_notes:
+- '[inline] **Bug:** The EAP trace API is now solely responsible for filtering hidden
+  occurrences, but the frontend doesn''t explicitly request this filtering, potentially
+  causing hidden issues to be rendered. <sub>Severity: MEDIUM</sub> <!-- BUG_PREDICTION
+  -->  <details> <summary><b title="Reference ID: `116737'
+reviewer_findings:
+- file: static/app/views/performance/newTraceDetails/traceModels/traceTreeNode/baseNode.tsx
+  line: 180
+  summary: '**Bug:** The EAP trace API is now solely responsible for filtering hidden
+    occurrences, but the frontend doesn''t explicit'
+  line_side: pre_fix
+quality_flags: []

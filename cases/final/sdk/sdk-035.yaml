@@ -1,33 +1,39 @@
 id: sdk-035
 repo: ProvableHQ/sdk
-base_commit: a7a0ef90a982be5c40f5f18b064a13dc59428e1c^
-head_commit: a7a0ef90a982be5c40f5f18b064a13dc59428e1c
-fix_commit: a7a0ef90a982be5c40f5f18b064a13dc59428e1c
-category: api
-difficulty: medium
-severity: high
-language: rust
-pr_size: xl
-description: The SnarkVM dependency was outdated, causing the consensus version check
-  in execute.rs to use a deprecated API instead of CurrentNetwork::CONSENSUS_HEIGHT.
-  Additionally, the Deploy transaction pattern match in transaction.rs was missing
-  a field introduced in SnarkVM 1.4.0, which would cause compilation failure or incorrect
-  destructuring. Import statements were also updated to include newly required types
-  like StackKeys.
+base_commit: 786939b2fa467771e72ad078578c8cb48e217238^
+head_commit: 8a590d703d0617139d9c2b32416894ebe5e586e3
+fix_commit: 786939b2fa467771e72ad078578c8cb48e217238
+category: api-misuse
+difficulty: easy
+severity: medium
+language: javascript
+pr_size: small
+description: The website uses webpack for bundling but was referencing environment
+  variables via `import.meta.env`, which is a Vite-specific API and does not work
+  in webpack builds. The fix switches to `process.env`, adds dotenv to parse `.env`
+  files, and uses `webpack.DefinePlugin` to inject the variables at build time. Without
+  this, the Amplitude analytics API key was always undefined, silently disabling analytics.
 expected_findings:
-- file: wasm/src/programs/manager/execute.rs
-  line: 26
-  summary: Outdated imports for SnarkVM types; missing necessary imports (e.g., StackKeys)
-    required by SnarkVM 1.4.0 API changes
-- file: wasm/src/ledger/transaction.rs
-  line: 282
-  summary: "Deploy pattern match uses wrong number of fields \u2014 SnarkVM 1.4.0\
-    \ added a field to the Deploy variant, so the destructuring pattern (_, _, _,\
-    \ _, fee) is incorrect"
-- file: wasm/src/programs/manager/execute.rs
-  line: 315
-  summary: Consensus version check uses deprecated/incorrect API; should use CurrentNetwork::CONSENSUS_HEIGHT
-    instead of the old method
+- file: website/src/index.jsx
+  line: 11
+  summary: '`import.meta.env.VITE_AMPLITUDE_API_KEY` uses Vite''s env API but this
+    project is bundled with webpack — this will always be undefined. Should use `process.env.VITE_AMPLITUDE_API_KEY`
+    with DefinePlugin.'
+  line_side: pre_fix
+- file: website/webpack.config.js
+  line: 60
+  summary: No `webpack.DefinePlugin` configured to inject environment variables into
+    the bundle. Without it, `process.env.*` references in client code will be undefined
+    at runtime.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

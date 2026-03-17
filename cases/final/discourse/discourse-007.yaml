@@ -1,25 +1,48 @@
 id: discourse-007
 repo: discourse/discourse
-base_commit: 4dbe3d2931389ffeada875c8168c335103e41832^
-head_commit: 4dbe3d2931389ffeada875c8168c335103e41832
-fix_commit: 4dbe3d2931389ffeada875c8168c335103e41832
-category: logic
-difficulty: medium
-severity: high
+base_commit: 0626ec1a294d3c4ea97c767f5f93232ce78ee8f6^
+head_commit: 0626ec1a294d3c4ea97c767f5f93232ce78ee8f6
+fix_commit: 0626ec1a294d3c4ea97c767f5f93232ce78ee8f6
+category: api-misuse
+difficulty: hard
+severity: critical
 language: ruby
-pr_size: medium
-description: 'The chat channel archive endpoint allowed staff users to archive channels
-  into existing topics they cannot access or post to. The fix adds a destination topic
-  access check (e.g., Guardian#can_see_topic? and #can_create_post?) before allowing
-  the archive action to proceed on an existing topic.'
+pr_size: small
+description: 'Passkey registration fails in two ways: (1) the authenticator data parser
+  naively slices all bytes after the credential ID as the public key, so authenticators
+  that include CBOR extension data (e.g. hmac-secret) cause a CBOR/COSE decode failure
+  (HTTP 500); (2) pubKeyCredParams is populated from COSE::Algorithm.registered_algorithm_ids
+  which includes HMAC symmetric algorithms that strict authenticator firmware rejects
+  with NotAllowedError. The fix uses CBOR::Unpacker streaming decode to read exactly
+  one CBOR object and replaces the blanket algorithm list with an explicit asymmetric-only
+  allow-list.'
 expected_findings:
-- file: plugins/chat/app/controllers/chat/api/channels_archives_controller.rb
-  line: 15
-  summary: 'Missing authorization check: when archiving to an existing topic (`!new_topic`
-    branch), the controller does not verify the current user has access to or can
-    post in the destination topic, allowing archival into arbitrary inaccessible topics'
+- file: lib/discourse_webauthn/registration_service.rb
+  line: 118
+  summary: Public key extraction slices remaining bytes after credential ID without
+    accounting for trailing CBOR extension data; should use CBOR::Unpacker streaming
+    decode to read exactly one CBOR object instead of consuming the entire remainder
+  line_side: pre_fix
+- file: lib/discourse_webauthn.rb
+  line: 4
+  summary: COSE::Algorithm.registered_algorithm_ids includes HMAC symmetric algorithms
+    invalid for WebAuthn credential creation; should use an explicit allow-list of
+    asymmetric signature algorithm IDs (e.g. ES256, RS256, EdDSA)
+  line_side: pre_fix
+- file: lib/discourse_webauthn/registration_service.rb
+  line: 159
+  summary: Rescue block does not catch COSE::MalformedKeyError, so malformed key data
+    from extension-polluted bytes returns an unhandled 500 instead of a proper error
+    response
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

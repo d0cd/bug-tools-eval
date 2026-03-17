@@ -1,0 +1,33 @@
+id: sentry-089
+repo: getsentry/sentry
+base_commit: 70362547529005afe2976bb499e6119943cdb1d3^
+head_commit: 70362547529005afe2976bb499e6119943cdb1d3
+fix_commit: 70362547529005afe2976bb499e6119943cdb1d3
+category: logic
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: small
+description: The mobile build monitor creation form unconditionally marked the high
+  priority threshold as required, preventing users who only wanted to set a low priority
+  threshold from saving. The fix replaces per-field required validation with a cross-field
+  validate function ensuring at least one of the two thresholds is provided.
+expected_findings:
+- file: static/app/views/detectors/components/forms/mobileBuild/detectSection.tsx
+  line: 1
+  summary: "High priority threshold field is marked as unconditionally `required`,\
+    \ but the backend handles missing thresholds gracefully \u2014 validation should\
+    \ require at least one of high or low priority threshold, not mandate high priority\
+    \ specifically"
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110460
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

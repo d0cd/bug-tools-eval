@@ -1,25 +1,34 @@
 id: leo-073
 repo: ProvableHQ/leo
-base_commit: 848872de151d5989ed2e8616dd0d4072138a46a5^
-head_commit: 848872de151d5989ed2e8616dd0d4072138a46a5
-fix_commit: 848872de151d5989ed2e8616dd0d4072138a46a5
-category: logic
-difficulty: medium
-severity: high
+base_commit: 4a3e89f877d23afd6471d5353ae1790310743739^
+head_commit: 4a3e89f877d23afd6471d5353ae1790310743739
+fix_commit: 4a3e89f877d23afd6471d5353ae1790310743739
+category: incomplete
+difficulty: easy
+severity: medium
 language: rust
-pr_size: xl
-description: "The compound assignment canonicalization (e.g., `foo.bar += 1` \u2192\
-  \ `foo.bar = foo.bar + 1`) incorrectly constructed the RHS expression using only\
-  \ the base identifier, discarding member/tuple accesses. This caused `foo.bar +=\
-  \ 1` to be desugared as `foo.bar = foo + 1` instead of `foo.bar = foo.bar + 1`,\
-  \ producing incorrect results for any compound assignment on circuit members or\
-  \ tuple elements."
+pr_size: small
+description: 'PR fixes CI by renaming `disassembler` to `leo-disassembler` across
+  Cargo.toml, Cargo.lock, and test imports, and bumps sccache from v0.2.15 to v0.7.6.
+  However, `SCCACHE_RECACHE: 1` is left uncommented in ci.yml, forcing every CI run
+  to rebuild the cache from scratch — the inline comment literally says to comment
+  it back out after clearing.'
 expected_findings:
-- file: ast/src/reducer/canonicalization.rs
-  line: 470
-  summary: Compound assignment desugaring only uses the base identifier (`assignee.identifier.clone()`)
-    for the RHS operand, ignoring any member/tuple accesses. Should reconstruct the
-    full access expression (e.g., `foo.bar`) not just the identifier (`foo`).
+- file: .github/workflows/ci.yml
+  line: 184
+  summary: 'SCCACHE_RECACHE: 1 is left active (uncommented). The inline comment says
+    ''Uncomment this to clear cache, then comment it back out'' — this was never commented
+    back out, so every CI run will wastefully rebuild the entire sccache, defeating
+    the purpose of caching.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

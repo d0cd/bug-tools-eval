@@ -1,25 +1,34 @@
 id: discourse-038
 repo: discourse/discourse
-base_commit: 490bf4470b5e7f6e315f23805f53743fdcb2e49b^
-head_commit: 490bf4470b5e7f6e315f23805f53743fdcb2e49b
-fix_commit: 490bf4470b5e7f6e315f23805f53743fdcb2e49b
-category: api
+base_commit: 44338ac69c3829e4c7f5adde92967c134890e2fe^
+head_commit: 44338ac69c3829e4c7f5adde92967c134890e2fe
+fix_commit: 44338ac69c3829e4c7f5adde92967c134890e2fe
+category: security
 difficulty: medium
-severity: critical
+severity: high
 language: ruby
-pr_size: small
-description: An admin could set the `pg_function` field on an EmbeddingDefinition
-  to an arbitrary SQL fragment, which was then string-interpolated into raw SQL queries
-  in DiscourseAi::Embeddings::Schema, enabling SQL injection. The fix adds a validation
-  on the `pg_function` attribute to restrict it to safe, known PostgreSQL function
-  names.
+pr_size: medium
+description: The delegated auth flow in redirect_to_login_if_required validated auth_redirect
+  only against global allowed_user_api_auth_redirects wildcards, but never checked
+  it against the specific UserApiKeyClient's registered auth_redirect. This allowed
+  an attacker to pair a legitimate client's public key with a different redirect URL,
+  enabling an open redirect that could capture user authorization tokens.
 expected_findings:
-- file: plugins/discourse-ai/app/models/embedding_definition.rb
-  line: 129
-  summary: Missing validation on `pg_function` field allows arbitrary SQL fragments
-    to be injected via string interpolation into raw SQL queries
+- file: app/controllers/application_controller.rb
+  line: 802
+  summary: 'Missing validation: auth_redirect parameter is not checked against the
+    UserApiKeyClient''s registered redirect URL. An attacker can use a valid client
+    public key with an arbitrary redirect URL that matches the global wildcard allowlist,
+    bypassing per-client redirect restrictions.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

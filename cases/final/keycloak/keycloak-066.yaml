@@ -1,0 +1,33 @@
+id: keycloak-066
+repo: keycloak/keycloak
+base_commit: d0c42a4a93634af07a3059cf46d3069571eaba44^
+head_commit: d0c42a4a93634af07a3059cf46d3069571eaba44
+fix_commit: d0c42a4a93634af07a3059cf46d3069571eaba44
+category: api-misuse
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: small
+description: The SelectControl options for the OIDC IdP prompt dropdown had their
+  label and value properties reversed, causing the localized display string to be
+  stored as the protocol value instead of the OIDC-compliant prompt value (e.g. 'select_account').
+  The fix swaps the key/value mapping so that OIDC prompt values are persisted while
+  localized labels are used only for display.
+expected_findings:
+- file: js/apps/admin-ui/src/identity-providers/add/ExtendedOAuth2Settings.tsx
+  line: 22
+  summary: 'SelectControl option has key and value reversed: the localized label is
+    being stored as the form value instead of the OIDC protocol prompt string (e.g.
+    ''select_account'')'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

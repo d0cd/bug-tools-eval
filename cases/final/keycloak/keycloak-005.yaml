@@ -1,32 +1,31 @@
 id: keycloak-005
 repo: keycloak/keycloak
-base_commit: bd80f208fa968dffb16c9c410dbfb002354b52da^
-head_commit: bd80f208fa968dffb16c9c410dbfb002354b52da
-fix_commit: bd80f208fa968dffb16c9c410dbfb002354b52da
-category: api
+base_commit: 0c0f9096d44df9cb03f336022fdfd9588005099c^
+head_commit: 0c0f9096d44df9cb03f336022fdfd9588005099c
+fix_commit: 0c0f9096d44df9cb03f336022fdfd9588005099c
+category: api-misuse
 difficulty: easy
 severity: medium
-language: typescript
-pr_size: medium
-description: Translation keys in the Keycloak Admin Console still contained leftover
-  i18n namespace prefixes (e.g., 'common:', 'clients:') after a namespace consolidation.
-  These stale prefixes caused translation lookups to fail, resulting in raw keys being
-  displayed instead of localized strings. The fix removes the namespace prefixes from
-  all affected translation key references.
+language: unknown
+pr_size: tiny
+description: The GitHub Actions workflow for translation review notifications lacked
+  the correct permissions to post comments on pull requests. The fix updates the workflow's
+  permissions block so the bot can comment on PRs triggered by pull_request_target
+  events.
 expected_findings:
-- file: js/apps/admin-ui/src/authentication/EmptyExecutionState.tsx
-  line: 69
-  summary: Translation key passed to `t()` still contains a leftover namespace prefix,
-    causing failed i18n lookup and displaying a raw key instead of translated text.
-- file: js/apps/admin-ui/src/clients/credentials/Credentials.tsx
-  line: 91
-  summary: Error handler string template includes a namespace prefix in the translation
-    key (e.g., `clients:` prefix in `addError`), which will not resolve correctly
-    after namespace removal.
-- file: js/apps/admin-ui/src/realm-settings/GeneralTab.tsx
-  line: 94
-  summary: Translation key in validation message contains a leftover namespace prefix,
-    causing the error message to display as a raw key rather than localized text.
+- file: .github/workflows/translation-notify.yml
+  line: 1
+  summary: 'Workflow permissions are insufficient for commenting on PRs; the permissions
+    block needs pull-requests: write to allow the workflow to post review comments'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

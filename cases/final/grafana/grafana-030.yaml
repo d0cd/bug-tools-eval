@@ -1,24 +1,33 @@
 id: grafana-030
 repo: grafana/grafana
-base_commit: 5e4aae0a19d191cd31e3ebd6c12c7b63ab652889^
-head_commit: 5e4aae0a19d191cd31e3ebd6c12c7b63ab652889
-fix_commit: 5e4aae0a19d191cd31e3ebd6c12c7b63ab652889
-category: api
+base_commit: 414fe3cab8ee088ea6bd507f54f1c2786b366051^
+head_commit: 414fe3cab8ee088ea6bd507f54f1c2786b366051
+fix_commit: 414fe3cab8ee088ea6bd507f54f1c2786b366051
+category: api-misuse
 difficulty: medium
-severity: medium
+severity: high
 language: typescript
 pr_size: small
-description: QueryEditorRenderer used `queryError` from the query runner context to
-  display error state, but this value is not populated correctly on initial render.
-  The fix switches to reading errors from the `data.errors` array, which is reliably
-  available from the query response data.
+description: Using lodash `cloneDeep` on a `MutableDataFrame` silently drops the `.length`
+  prototype getter (which has no setter), producing a cloned frame with incorrect
+  length. This caused the Prometheus table view in Explore to break with a type error.
+  The fix removes the unnecessary `cloneDeep` call and passes `tableResult` directly
+  to `applyFieldOverrides`.
 expected_findings:
-- file: public/app/features/dashboard-scene/panel-edit/PanelEditNext/QueryEditor/QueryEditorRenderer.tsx
-  line: 98
-  summary: Using `queryError` from context to determine error state is unreliable
-    on initial render; should use `data.errors` array from the query response instead
+- file: public/app/features/explore/RawPrometheus/PrometheusQueryResultsContainer.tsx
+  line: 1
+  summary: "`cloneDeep` on `MutableDataFrame` drops prototype getters like `.length`,\
+    \ producing a frame with zero/undefined length \u2014 pass the frame directly\
+    \ instead of deep-cloning it"
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119960
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

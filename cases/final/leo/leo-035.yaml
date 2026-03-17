@@ -1,30 +1,37 @@
 id: leo-035
 repo: ProvableHQ/leo
-base_commit: a852fa3c2e279d6b14205a6db9e2131055cda390^
-head_commit: a852fa3c2e279d6b14205a6db9e2131055cda390
-fix_commit: a852fa3c2e279d6b14205a6db9e2131055cda390
+base_commit: 20befbdd93565e7484b88083fe7084084eff1b24^
+head_commit: 20befbdd93565e7484b88083fe7084084eff1b24
+fix_commit: 20befbdd93565e7484b88083fe7084084eff1b24
 category: logic
-difficulty: easy
+difficulty: medium
 severity: medium
-language: rust
-pr_size: small
-description: "Console statement code generation produced incorrect newlines in the\
-  \ generated Aleo instructions. The bug was in how operand instructions were concatenated\
-  \ when generating code for console.assert, console.log, and similar statements \u2014\
-  \ newlines were either missing or duplicated, leading to malformed output."
+language: leo
+pr_size: xl
+description: The hex character literal parser incorrectly restricted valid hex escape
+  values to ASCII range (<=127) instead of the full byte range (<=255), causing valid
+  hex literals like '\x9A' to be rejected. Additionally, the lexer's unicode escape
+  parsing had an incorrect boundary check when validating the closing '}' delimiter.
 expected_findings:
-- file: compiler/passes/src/code_generation/visit_statements.rs
-  line: 40
-  summary: Incorrect newline handling when assigning operand instructions for console
-    statement code generation; the instructions string needs proper newline concatenation
-- file: compiler/passes/src/code_generation/visit_statements.rs
-  line: 87
-  summary: Incorrect newline handling when assigning operand instructions for console
-    statement code generation; the instructions string needs proper newline concatenation
-- file: compiler/passes/src/code_generation/visit_statements.rs
-  line: 99
-  summary: Incorrect newline handling when assigning operand instructions for console
-    statement code generation; the instructions string needs proper newline concatenation
+- file: input/src/values/char_types.rs
+  line: 107
+  summary: 'Incorrect upper bound: `if number <= 127` should be `<= 255` (0xFF) —
+    hex escapes \xNN must accept the full single-byte range, not just ASCII'
+  line_side: pre_fix
+- file: parser/src/tokenizer/lexer.rs
+  line: 113
+  summary: Incorrect string slice boundary check for unicode escape closing delimiter
+    — `string[string.len() - 1..]` may misidentify the closing '}' position when the
+    escape sequence content varies in length
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

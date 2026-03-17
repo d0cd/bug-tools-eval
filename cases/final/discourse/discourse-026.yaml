@@ -1,29 +1,32 @@
 id: discourse-026
 repo: discourse/discourse
-base_commit: 899a483d74c6aa9991dc4a9d617eee187da74217^
-head_commit: 899a483d74c6aa9991dc4a9d617eee187da74217
-fix_commit: 899a483d74c6aa9991dc4a9d617eee187da74217
-category: logic
-difficulty: medium
+base_commit: 249a2c1c3490129e05b8f2a2b76a000bc35cbf63^
+head_commit: 249a2c1c3490129e05b8f2a2b76a000bc35cbf63
+fix_commit: 249a2c1c3490129e05b8f2a2b76a000bc35cbf63
+category: code-smell
+difficulty: easy
 severity: medium
-language: ruby
-pr_size: medium
-description: The server-side code that computes the initial value of `enabled_for`
-  for the upcoming changes page did not account for localized staff group names. This
-  meant that when the staff group name was translated, it would not match on page
-  load and the staff group would appear unselected even though it was enabled. The
-  fix updates the server-side list service to compare against localized group names.
+language: javascript
+pr_size: tiny
+description: The scroll-direction service registers a `routeWillChange` listener on
+  the router but its `willDestroy` hook only tears down the `routeDidChange` listener,
+  leaking the `routeWillChange` callback. This can cause stale references and unexpected
+  behavior after the service is destroyed.
 expected_findings:
-- file: app/services/upcoming_changes/list.rb
-  line: 60
-  summary: "enabled_for lookup does not account for localized staff group names \u2014\
-    \ should compare against translated group name, not just the default English name"
-- file: lib/upcoming_changes.rb
-  line: 181
-  summary: Setting groups resolution does not normalize localized staff group names,
-    causing mismatch when locale is non-English
+- file: frontend/discourse/app/services/scroll-direction.js
+  line: 34
+  summary: 'Missing teardown: willDestroy removes routeDidChange but not routeWillChange
+    — add `this.router.off("routeWillChange", this.routeWillChange)` to prevent a
+    leaked listener'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

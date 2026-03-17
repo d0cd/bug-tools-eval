@@ -11,7 +11,7 @@ from click.testing import CliRunner
 
 from bugeval.cli import cli
 from bugeval.pr_eval_models import CaseToolState, CaseToolStatus, RunState, ToolDef, ToolType
-from bugeval.run_agent_eval import process_case_agent
+from bugeval.run_agent_eval import _resolve_allowed_tools, process_case_agent
 from tests.conftest import make_case
 
 
@@ -566,7 +566,10 @@ def test_process_case_agent_uses_docker_when_flag_set(tmp_path: Path) -> None:
         ANY,
         max_turns=5,
         model="claude-sonnet-4-6",
+        timeout_seconds=600,
         image="bugeval-agent",
+        allowed_tools="",
+        dangerously_skip_permissions=True,
     )
     called_dir = mock_docker.call_args[0][0]
     assert called_dir != tmp_path / "repo"
@@ -598,7 +601,7 @@ def test_process_case_agent_gemini_cli_mode(tmp_path: Path) -> None:
                 )
 
     assert state.status == CaseToolStatus.done
-    mock_fn.assert_called_once_with(ANY, ANY, model="gemini-2.5-flash")
+    mock_fn.assert_called_once_with(ANY, ANY, model="gemini-2.5-flash", timeout_seconds=600)
 
 
 def test_process_case_agent_codex_cli_mode(tmp_path: Path) -> None:
@@ -625,7 +628,7 @@ def test_process_case_agent_codex_cli_mode(tmp_path: Path) -> None:
                 )
 
     assert state.status == CaseToolStatus.done
-    mock_fn.assert_called_once_with(ANY, ANY, model="o4-mini")
+    mock_fn.assert_called_once_with(ANY, ANY, model="o4-mini", timeout_seconds=600)
 
 
 def test_process_case_agent_google_api_mode(tmp_path: Path) -> None:
@@ -831,6 +834,185 @@ def test_run_agent_eval_fail_after_aborts(tmp_path: Path) -> None:
     assert len(failed) == 2
 
 
+def test_process_case_agent_diff_only_cli_skips_clone(tmp_path: Path) -> None:
+    """diff-only + CLI tool must not call setup_repo_for_case (no clone)."""
+    from bugeval.agent_models import AgentResult
+
+    case = make_case()
+    tool = ToolDef(name="claude-code-cli", type=ToolType.agent, cooldown_seconds=0)
+    patch_path = tmp_path / "case-001.patch"
+    patch_path.write_text("--- a\n+++ b\n")
+
+    with patch("bugeval.run_agent_eval.setup_repo_for_case") as mock_setup:
+        with patch("bugeval.run_agent_eval.run_claude_cli", return_value=AgentResult(findings=[])):
+            with patch("bugeval.run_agent_eval.cleanup_repo"):
+                process_case_agent(
+                    case=case,
+                    tool=tool,
+                    patch_path=patch_path,
+                    run_dir=tmp_path,
+                    context_level="diff-only",
+                    dry_run=False,
+                    max_turns=10,
+                )
+
+    mock_setup.assert_not_called()
+
+
+def test_process_case_agent_diff_repo_cli_still_clones(tmp_path: Path) -> None:
+    """diff+repo + CLI tool must still call setup_repo_for_case."""
+    from bugeval.agent_models import AgentResult
+
+    case = make_case()
+    tool = ToolDef(name="claude-code-cli", type=ToolType.agent, cooldown_seconds=0)
+    patch_path = tmp_path / "case-001.patch"
+    patch_path.write_text("--- a\n+++ b\n")
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+
+    with patch("bugeval.run_agent_eval.setup_repo_for_case", return_value=repo_dir) as mock_setup:
+        with patch("bugeval.run_agent_eval.run_claude_cli", return_value=AgentResult(findings=[])):
+            with patch("bugeval.run_agent_eval.cleanup_repo"):
+                process_case_agent(
+                    case=case,
+                    tool=tool,
+                    patch_path=patch_path,
+                    run_dir=tmp_path,
+                    context_level="diff+repo",
+                    dry_run=False,
+                    max_turns=10,
+                )
+
+    mock_setup.assert_called_once()
+
+
+def test_run_agent_eval_help_shows_repo_cache_dir(tmp_path: Path) -> None:
+    """--repo-cache-dir flag should appear in help output."""
+    from click.testing import CliRunner
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["run-agent-eval", "--help"])
+    assert "--repo-cache-dir" in result.output
+
+
+def test_process_case_agent_cli_combines_system_and_user_prompt(tmp_path: Path) -> None:
+    """CLI runners receive combined system+user prompt, not just user_prompt."""
+    from bugeval.agent_models import AgentResult
+
+    case = make_case()
+    tool = ToolDef(name="claude-code-cli", type=ToolType.agent, cooldown_seconds=0)
+    patch_path = tmp_path / "case-001.patch"
+    patch_path.write_text("--- a\n+++ b\n")
+
+    captured_prompts: list[str] = []
+
+    def capture_prompt(d: Any, prompt: Any, *args: Any, **kwargs: Any) -> AgentResult:
+        captured_prompts.append(prompt)
+        return AgentResult(findings=[])
+
+    with patch("bugeval.run_agent_eval.load_agent_prompt", return_value="SYSTEM_PROMPT"):
+        with patch("bugeval.run_agent_eval.build_user_prompt", return_value="USER_PROMPT"):
+            with patch("bugeval.run_agent_eval.run_claude_cli", side_effect=capture_prompt):
+                with patch("bugeval.run_agent_eval.cleanup_repo"):
+                    process_case_agent(
+                        case=case,
+                        tool=tool,
+                        patch_path=patch_path,
+                        run_dir=tmp_path,
+                        context_level="diff-only",
+                        dry_run=False,
+                        max_turns=5,
+                    )
+
+    assert len(captured_prompts) == 1
+    combined = captured_prompts[0]
+    assert "SYSTEM_PROMPT" in combined
+    assert "USER_PROMPT" in combined
+
+
+def test_process_case_agent_saves_response_text(tmp_path: Path) -> None:
+    """When AgentResult.response_text is set, response_text.txt is written."""
+    from bugeval.agent_models import AgentResult
+
+    case = make_case()
+    tool = ToolDef(name="claude-code-cli", type=ToolType.agent, cooldown_seconds=0)
+    patch_path = tmp_path / "case-001.patch"
+    patch_path.write_text("--- a\n+++ b\n")
+
+    mock_result = AgentResult(findings=[], response_text="Here is my reasoning.")
+
+    with patch("bugeval.run_agent_eval.run_claude_cli", return_value=mock_result):
+        with patch("bugeval.run_agent_eval.cleanup_repo"):
+            process_case_agent(
+                case=case,
+                tool=tool,
+                patch_path=patch_path,
+                run_dir=tmp_path,
+                context_level="diff-only",
+                dry_run=False,
+                max_turns=5,
+            )
+
+    response_text_file = tmp_path / "raw" / "case-001-claude-code-cli" / "response_text.txt"
+    assert response_text_file.exists()
+    assert response_text_file.read_text() == "Here is my reasoning."
+
+
+def test_process_case_agent_no_response_text_file_when_empty(tmp_path: Path) -> None:
+    """When AgentResult.response_text is empty, response_text.txt is not written."""
+    from bugeval.agent_models import AgentResult
+
+    case = make_case()
+    tool = ToolDef(name="claude-code-cli", type=ToolType.agent, cooldown_seconds=0)
+    patch_path = tmp_path / "case-001.patch"
+    patch_path.write_text("--- a\n+++ b\n")
+
+    mock_result = AgentResult(findings=[], response_text="")
+
+    with patch("bugeval.run_agent_eval.run_claude_cli", return_value=mock_result):
+        with patch("bugeval.run_agent_eval.cleanup_repo"):
+            process_case_agent(
+                case=case,
+                tool=tool,
+                patch_path=patch_path,
+                run_dir=tmp_path,
+                context_level="diff-only",
+                dry_run=False,
+                max_turns=5,
+            )
+
+    response_text_file = tmp_path / "raw" / "case-001-claude-code-cli" / "response_text.txt"
+    assert not response_text_file.exists()
+
+
+def test_process_case_agent_writes_prompt_txt(tmp_path: Path) -> None:
+    """prompt.txt is written to the output dir for every run."""
+    from bugeval.agent_models import AgentResult
+
+    case = make_case()
+    tool = ToolDef(name="claude-code-cli", type=ToolType.agent, cooldown_seconds=0)
+    patch_path = tmp_path / "case-001.patch"
+    patch_path.write_text("--- a\n+++ b\n")
+
+    mock_result = AgentResult(findings=[], response_text="some output")
+
+    with patch("bugeval.run_agent_eval.run_claude_cli", return_value=mock_result):
+        with patch("bugeval.run_agent_eval.cleanup_repo"):
+            process_case_agent(
+                case=case,
+                tool=tool,
+                patch_path=patch_path,
+                run_dir=tmp_path,
+                context_level="diff-only",
+                dry_run=False,
+                max_turns=5,
+            )
+
+    prompt_file = tmp_path / "raw" / "case-001-claude-code-cli" / "prompt.txt"
+    assert prompt_file.exists()
+    assert len(prompt_file.read_text()) > 0
+
+
 def test_process_case_agent_no_docker_by_default(tmp_path: Path) -> None:
     """When use_docker=False (default), run_claude_cli is called (not docker variant)."""
     from bugeval.agent_models import AgentResult
@@ -857,3 +1039,140 @@ def test_process_case_agent_no_docker_by_default(tmp_path: Path) -> None:
                 )
 
     mock_local.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _resolve_allowed_tools
+# ---------------------------------------------------------------------------
+
+
+class TestResolveAllowedTools:
+    def test_diff_only_always_empty(self) -> None:
+        assert _resolve_allowed_tools("diff-only", use_docker=False, override=None) == ""
+        assert _resolve_allowed_tools("diff-only", use_docker=True, override=None) == ""
+
+    def test_diff_repo_no_docker_base_tools(self) -> None:
+        result = _resolve_allowed_tools("diff+repo", use_docker=False, override=None)
+        assert "Read" in result
+        assert "WebSearch" in result
+        assert "WebFetch" in result
+        assert "Bash" not in result
+
+    def test_diff_repo_docker_adds_bash(self) -> None:
+        result = _resolve_allowed_tools("diff+repo", use_docker=True, override=None)
+        assert "Bash" in result
+        assert "Read" in result
+        assert "WebSearch" in result
+
+    def test_diff_repo_domain_no_docker(self) -> None:
+        result = _resolve_allowed_tools("diff+repo+domain", use_docker=False, override=None)
+        assert "WebSearch" in result
+        assert "Bash" not in result
+
+    def test_override_takes_precedence(self) -> None:
+        result = _resolve_allowed_tools("diff+repo", use_docker=True, override="Read,Grep")
+        assert result == "Read,Grep"
+
+    def test_override_empty_string_respected(self) -> None:
+        # Explicit empty override → no tools even for diff+repo
+        result = _resolve_allowed_tools("diff+repo", use_docker=True, override="")
+        assert result == ""
+
+
+def test_run_agent_eval_help_shows_allowed_tools() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["run-agent-eval", "--help"])
+    assert result.exit_code == 0
+    assert "--allowed-tools" in result.output
+
+
+def test_process_case_agent_docker_passes_bash_in_tools(tmp_path: Path) -> None:
+    """Docker + diff+repo context → allowed_tools includes Bash."""
+    from bugeval.agent_models import AgentResult
+
+    case = make_case()
+    tool = ToolDef(name="claude-code-cli", type=ToolType.agent, cooldown_seconds=0)
+    patch_path = tmp_path / "case-001.patch"
+    patch_path.write_text("--- a\n+++ b\n")
+
+    mock_result = AgentResult(findings=[])
+
+    with patch("bugeval.run_agent_eval.setup_repo_for_case", return_value=tmp_path / "repo"):
+        with patch(
+            "bugeval.run_agent_eval.run_claude_cli_docker", return_value=mock_result
+        ) as mock_docker:
+            with patch("bugeval.run_agent_eval.cleanup_repo"):
+                process_case_agent(
+                    case=case,
+                    tool=tool,
+                    patch_path=patch_path,
+                    run_dir=tmp_path,
+                    context_level="diff+repo",
+                    dry_run=False,
+                    max_turns=5,
+                    use_docker=True,
+                )
+
+    call_kwargs = mock_docker.call_args[1]
+    assert "Bash" in call_kwargs["allowed_tools"]
+    assert "WebSearch" in call_kwargs["allowed_tools"]
+
+
+def test_process_case_agent_no_docker_no_bash(tmp_path: Path) -> None:
+    """Filesystem runner (no docker) + diff+repo → Bash excluded from allowed_tools."""
+    from bugeval.agent_models import AgentResult
+
+    case = make_case()
+    tool = ToolDef(name="claude-code-cli", type=ToolType.agent, cooldown_seconds=0)
+    patch_path = tmp_path / "case-001.patch"
+    patch_path.write_text("--- a\n+++ b\n")
+
+    mock_result = AgentResult(findings=[])
+
+    with patch("bugeval.run_agent_eval.setup_repo_for_case", return_value=tmp_path / "repo"):
+        with patch("bugeval.run_agent_eval.run_claude_cli", return_value=mock_result) as mock_local:
+            with patch("bugeval.run_agent_eval.cleanup_repo"):
+                process_case_agent(
+                    case=case,
+                    tool=tool,
+                    patch_path=patch_path,
+                    run_dir=tmp_path,
+                    context_level="diff+repo",
+                    dry_run=False,
+                    max_turns=5,
+                    use_docker=False,
+                )
+
+    call_kwargs = mock_local.call_args[1]
+    assert "Bash" not in call_kwargs["allowed_tools"]
+    assert "WebSearch" in call_kwargs["allowed_tools"]
+
+
+def test_process_case_agent_allowed_tools_override(tmp_path: Path) -> None:
+    """Explicit allowed_tools override is passed verbatim regardless of docker/context."""
+    from bugeval.agent_models import AgentResult
+
+    case = make_case()
+    tool = ToolDef(name="claude-code-cli", type=ToolType.agent, cooldown_seconds=0)
+    patch_path = tmp_path / "case-001.patch"
+    patch_path.write_text("--- a\n+++ b\n")
+
+    mock_result = AgentResult(findings=[])
+
+    with patch("bugeval.run_agent_eval.setup_repo_for_case", return_value=tmp_path / "repo"):
+        with patch("bugeval.run_agent_eval.run_claude_cli", return_value=mock_result) as mock_local:
+            with patch("bugeval.run_agent_eval.cleanup_repo"):
+                process_case_agent(
+                    case=case,
+                    tool=tool,
+                    patch_path=patch_path,
+                    run_dir=tmp_path,
+                    context_level="diff+repo",
+                    dry_run=False,
+                    max_turns=5,
+                    use_docker=False,
+                    allowed_tools="Read,Grep",
+                )
+
+    call_kwargs = mock_local.call_args[1]
+    assert call_kwargs["allowed_tools"] == "Read,Grep"

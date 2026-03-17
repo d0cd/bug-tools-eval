@@ -1,31 +1,32 @@
 id: snarkOS-149
 repo: ProvableHQ/snarkOS
-base_commit: 269f1a787dfb8d0b44b6d48d7bef844d7d95ae28^
-head_commit: 269f1a787dfb8d0b44b6d48d7bef844d7d95ae28
-fix_commit: 269f1a787dfb8d0b44b6d48d7bef844d7d95ae28
-category: memory
-difficulty: medium
-severity: critical
+base_commit: bdcac741121bbc0907ac46bcaa18a024246ff329^
+head_commit: bdcac741121bbc0907ac46bcaa18a024246ff329
+fix_commit: bdcac741121bbc0907ac46bcaa18a024246ff329
+category: logic
+difficulty: easy
+severity: low
 language: rust
-pr_size: tiny
-description: Collections in deserialization code were preallocated using `IndexSet::with_capacity()`
-  and `IndexMap::with_capacity()` based on untrusted size values read from the wire.
-  A malicious or malformed serialized Event could specify an enormous capacity, causing
-  an out-of-memory panic during deserialization. The fix replaces `with_capacity(num)`
-  calls with `new()` to avoid trusting the deserialized size.
+pr_size: small
+description: Property-based test (proptest) for BlockResponse was generating the same
+  block every time instead of producing varied random blocks. The fix adds proper
+  proptest strategy imports and a test-helpers dependency so that the Arbitrary implementation
+  generates diverse block instances, making the property tests meaningful.
 expected_findings:
-- file: node/narwhal/events/src/worker_ping.rs
-  line: 54
-  summary: Preallocating IndexSet with untrusted deserialized size via `with_capacity()`
-    can cause OOM panic; should use `IndexSet::new()` instead
-- file: node/sync/locators/src/block_locators.rs
-  line: 264
-  summary: Preallocating IndexMap with untrusted deserialized size via `with_capacity()`
-    can cause OOM panic; should use `IndexMap::new()` instead
-- file: node/sync/locators/src/block_locators.rs
-  line: 274
-  summary: Preallocating IndexMap with untrusted deserialized size via `with_capacity()`
-    can cause OOM panic; should use `IndexMap::new()` instead
+- file: node/narwhal/events/src/block_response.rs
+  line: 140
+  summary: 'Proptest strategy is deterministic: BlockResponse arbitrary impl generates
+    the same block on every run instead of using a proper Strategy to produce varied
+    inputs'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

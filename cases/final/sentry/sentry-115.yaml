@@ -1,0 +1,33 @@
+id: sentry-115
+repo: getsentry/sentry
+base_commit: 98349bd88adc847b39d2a758c89c36770ad49815^
+head_commit: 98349bd88adc847b39d2a758c89c36770ad49815
+fix_commit: 98349bd88adc847b39d2a758c89c36770ad49815
+category: logic
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: small
+description: The modal's document-level keydown listener unconditionally closes the
+  modal on any ESC press, ignoring whether a child overlay (e.g., CompactSelect dropdown)
+  has already handled and prevented the event. The fix adds an `e.defaultPrevented`
+  check so the modal respects events already consumed by React Aria's `useOverlay`.
+expected_findings:
+- file: static/app/components/globalModal/index.tsx
+  line: 1
+  summary: 'Modal ESC keydown handler missing `e.defaultPrevented` guard: the `document.addEventListener(''keydown'',
+    ...)` callback closes the modal on any ESC press without checking if a child overlay
+    already called `e.preventDefault()`, causing premature modal dismissal when nested
+    overlays are open'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 109556
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

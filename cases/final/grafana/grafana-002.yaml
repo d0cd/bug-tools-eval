@@ -1,24 +1,31 @@
 id: grafana-002
 repo: grafana/grafana
-base_commit: 866d6ad66925daf05b1d9bc83d79ee8c8021226d^
-head_commit: 866d6ad66925daf05b1d9bc83d79ee8c8021226d
-fix_commit: 866d6ad66925daf05b1d9bc83d79ee8c8021226d
-category: logic
-difficulty: medium
-severity: high
-language: typescript
-pr_size: large
-description: In the heatmap panel's bucket expansion factor calculation, a division
-  by zero occurs when the minimum y value is zero, causing the entire heatmap to fail
-  to render when the y-axis max is set to auto. The fix extracts the calculation into
-  a separate function that skips invalid (zero) bucket values and falls back to the
-  next valid bucket, defaulting to a factor of 1 if none are found.
+base_commit: 02b9dabb4a93591dc1fa64f623a809e35984aaec^
+head_commit: 02b9dabb4a93591dc1fa64f623a809e35984aaec
+fix_commit: 02b9dabb4a93591dc1fa64f623a809e35984aaec
+category: api-misuse
+difficulty: easy
+severity: medium
+language: unknown
+pr_size: medium
+description: The @grafana/scenes dependency was pinned to version 6.8.6 which contained
+  a bug. The fix is a version bump to a newer scenes release that includes a backported
+  fix. The actual code change is entirely in the upstream dependency, not in this
+  repository's source code.
 expected_findings:
-- file: public/app/plugins/panel/heatmap/utils.ts
-  line: 887
-  summary: 'Division by zero: bucket expansion factor calculation divides by yMin
-    which can be zero, producing NaN/Infinity and breaking heatmap rendering. Should
-    guard against zero denominators or skip zero-valued buckets.'
+- file: package.json
+  line: 281
+  summary: '@grafana/scenes pinned to 6.8.6 which contains a known bug; should be
+    bumped to the version carrying the backported fix'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

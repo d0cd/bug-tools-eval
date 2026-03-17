@@ -1,0 +1,36 @@
+id: cal.com-038
+repo: calcom/cal.com
+base_commit: 8319666d769ae3b38a4997dc0b36a6b70ee02f39^
+head_commit: 8319666d769ae3b38a4997dc0b36a6b70ee02f39
+fix_commit: 8319666d769ae3b38a4997dc0b36a6b70ee02f39
+category: api-misuse
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: medium
+description: The SlotSelectionModalHeader used `new Date()` for rendering the weekday
+  and full date in the two-step slot selection view, which does not respect the user's
+  i18n locale. The fix replaces `new Date` with `dayjs` and locale-aware formatting
+  so the displayed date matches the user's language and regional settings.
+expected_findings:
+- file: apps/web/modules/bookings/components/SlotSelectionModalHeader.tsx
+  line: 66
+  summary: 'Date rendered with `new Date()` instead of dayjs: loses locale-aware formatting,
+    showing English-only or incorrect weekday/date strings for non-English users.'
+  line_side: pre_fix
+- file: apps/web/modules/bookings/components/SlotSelectionModalHeader.tsx
+  line: 80
+  summary: Same `new Date()` misuse for full date display; should use dayjs with locale
+    to ensure consistent i18n formatting.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

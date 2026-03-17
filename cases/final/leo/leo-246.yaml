@@ -1,23 +1,40 @@
 id: leo-246
 repo: ProvableHQ/leo
-base_commit: 94e70ebee696b2ae2f4d723a1ee2ede1ab3d1014^
-head_commit: 94e70ebee696b2ae2f4d723a1ee2ede1ab3d1014
-fix_commit: 94e70ebee696b2ae2f4d723a1ee2ede1ab3d1014
-category: logic
+base_commit: f9d2bb92466e5a93f0cb7b43e0631e58723e2de8^
+head_commit: f9d2bb92466e5a93f0cb7b43e0631e58723e2de8
+fix_commit: f9d2bb92466e5a93f0cb7b43e0631e58723e2de8
+category: style
 difficulty: easy
-severity: medium
+severity: low
 language: rust
-pr_size: large
-description: The code generation pass for core algorithm function calls (BHP, Poseidon,
-  etc.) was missing a trailing newline when emitting AVM bytecode instructions. This
-  caused multiple instructions to be concatenated on the same line, producing incorrect/unreadable
-  bytecode output. The fix adds a newline character to the generated instruction string.
+pr_size: small
+description: This PR fixes and improves documentation comments across compiler span
+  source files. Changes include correcting doc comments in source_map.rs, updating
+  a description string in span_json.rs, and refining macro documentation in symbol.rs.
+  These are purely cosmetic documentation improvements with no behavioral impact.
 expected_findings:
-- file: compiler/passes/src/code_generation/visit_expressions.rs
-  line: 297
-  summary: 'Missing newline after writing instruction: the writeln!/write! or string
-    formatting for core function call instructions does not append a newline, causing
-    consecutive instructions to be concatenated on the same line.'
+- file: compiler/span/src/source_map.rs
+  line: 14
+  summary: Module-level doc comment is inaccurate or incomplete in describing the
+    source map's role in span position tracking
+  line_side: pre_fix
+- file: compiler/span/src/span_json.rs
+  line: 50
+  summary: Description string for span JSON serialization is misleading or imprecise
+  line_side: pre_fix
+- file: compiler/span/src/symbol.rs
+  line: 31
+  summary: Doc comment for symbol macro incorrectly describes its purpose or binding
+    behavior
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

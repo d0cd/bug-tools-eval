@@ -1,24 +1,37 @@
 id: snarkOS-113
 repo: ProvableHQ/snarkOS
-base_commit: b3c94022f20e9b5b4847d8b9e2c1e6a670926581^
-head_commit: b3c94022f20e9b5b4847d8b9e2c1e6a670926581
-fix_commit: b3c94022f20e9b5b4847d8b9e2c1e6a670926581
+base_commit: 9e20cc141f64553f35ffdc959fb42217b489682f^
+head_commit: 9e20cc141f64553f35ffdc959fb42217b489682f
+fix_commit: 9e20cc141f64553f35ffdc959fb42217b489682f
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: tiny
-description: When a new epoch started, the solutions from the previous epoch were
-  not being correctly cleared. The bug was in the timing/logic of capturing the old
-  epoch number (via `self.ledger.latest_epoch_number()`) relative to when the ledger
-  state advanced, causing the epoch-transition check to fail and stale solutions to
-  persist.
+pr_size: small
+description: The `check_block_locators` function had an incorrect initialization for
+  `previous_block_height`, which would cause block locator validation to fail or produce
+  incorrect results during sync. The fix initializes `previous_block_height` to `u32::MAX`
+  to ensure the descending-order check works correctly. Additionally, a limit on the
+  number of connected sync nodes was introduced to prevent resource exhaustion.
 expected_findings:
-- file: node/consensus/src/lib.rs
-  line: 146
-  summary: The old epoch number is captured at the wrong point or compared incorrectly,
-    causing the epoch-change detection to fail and solutions not to be cleared when
-    a new epoch begins.
+- file: ledger/src/state/ledger.rs
+  line: 509
+  summary: Incorrect initialization of `previous_block_height` — should be `u32::MAX`
+    to properly validate that block locators are in descending order
+  line_side: pre_fix
+- file: src/network/peers.rs
+  line: 168
+  summary: No enforcement of maximum sync node connection limit, allowing unbounded
+    sync peer connections
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,32 +1,31 @@
 id: leo-186
 repo: ProvableHQ/leo
-base_commit: 4fb0c73873c5ddb9eb40134333749141ffed9552^
-head_commit: 4fb0c73873c5ddb9eb40134333749141ffed9552
-fix_commit: 4fb0c73873c5ddb9eb40134333749141ffed9552
+base_commit: be8318c8c23a3c2ed80b39e1a900e0759fcb86e4^
+head_commit: be8318c8c23a3c2ed80b39e1a900e0759fcb86e4
+fix_commit: be8318c8c23a3c2ed80b39e1a900e0759fcb86e4
 category: logic
-difficulty: hard
-severity: high
+difficulty: easy
+severity: low
 language: rust
 pr_size: tiny
-description: The `PartialEq` implementation for `Identifier` was inconsistent with
-  its `Hash` implementation. When hash collisions occurred in `IndexMap` (used for
-  all top-level objects), the fallback to `PartialEq` produced incorrect equality
-  results, causing random duplicate entries or missed lookups roughly 1% of the time
-  across parser and canonicalization stages.
+description: The deploy confirmation prompt duplicated the '.aleo' extension on program
+  names, producing strings like 'puzzle_arc_38.aleo.aleo'. The program name variable
+  already includes the '.aleo' suffix, but the format string appended it again.
 expected_findings:
-- file: ast/src/common/identifier.rs
-  line: 66
-  summary: 'Incomplete `PartialEq` implementation for `Identifier`: does not compare
-    all fields used by `Hash`, causing inconsistent behavior on IndexMap hash collisions.'
-- file: ast/src/common/identifier.rs
-  line: 95
-  summary: The `Hash` impl hashes fields that `PartialEq` does not compare, violating
-    the Rust contract that `a == b` implies `hash(a) == hash(b)` and vice versa for
-    correctness.
-- file: compiler/src/statement/assign/assignee/member.rs
-  line: 36
-  summary: Uses `matches()` method on `Identifier` which relies on the broken `PartialEq`
-    implementation, leading to incorrect member lookups when hash collisions occur.
+- file: leo/cli/commands/deploy.rs
+  line: 190
+  summary: 'Duplicate ''.aleo'' suffix: the format string appends ''.aleo'' to `name`,
+    but `name` already contains the ''.aleo'' extension, producing ''program.aleo.aleo''
+    in the confirmation prompt'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

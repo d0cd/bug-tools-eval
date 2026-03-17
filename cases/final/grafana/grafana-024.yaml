@@ -1,24 +1,31 @@
 id: grafana-024
 repo: grafana/grafana
-base_commit: d02929e4bdf7021bfb299ba53026a6dc33108905^
-head_commit: d02929e4bdf7021bfb299ba53026a6dc33108905
-fix_commit: d02929e4bdf7021bfb299ba53026a6dc33108905
-category: logic
+base_commit: 376238a81baec9350abc35fdf9abb5e0a858ac09^
+head_commit: 376238a81baec9350abc35fdf9abb5e0a858ac09
+fix_commit: 376238a81baec9350abc35fdf9abb5e0a858ac09
+category: style
 difficulty: easy
-severity: medium
-language: typescript
+severity: low
+language: unknown
 pr_size: tiny
-description: The check for whether a variable has 'options' was incorrect, causing
-  panel links to break on dashboards. The fix updates the condition to properly use
-  an 'in' operator check ('options' in variable) instead of a direct property access,
-  ensuring variable options are correctly evaluated before accessing nested properties.
+description: The pyroscope datasource label was renamed from `datasource/grafana-pyroscope`
+  to `datasource/Pyroscope`, but the GitHub Actions auto-labeling configuration in
+  `.github/pr-commands.json` was not updated to match. This caused PRs touching pyroscope-related
+  files to receive the old, now-incorrect label.
 expected_findings:
-- file: public/app/features/panel/panellinks/link_srv.ts
-  line: 84
-  summary: 'Incorrect condition check for variable options: should use `''options''
-    in variable` to safely check for the property before accessing `variable.options?.[0]?.properties`'
+- file: .github/pr-commands.json
+  line: 184
+  summary: 'Stale label reference: `datasource/grafana-pyroscope` should be `datasource/Pyroscope`
+    to match the renamed pyroscope label'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,24 +1,33 @@
 id: snarkOS-114
 repo: ProvableHQ/snarkOS
-base_commit: 88daf2699d2220d7f7beff5db2b57371f6f4f574^
-head_commit: 88daf2699d2220d7f7beff5db2b57371f6f4f574
-fix_commit: 88daf2699d2220d7f7beff5db2b57371f6f4f574
+base_commit: 9e492706e133de68b8da40fa8134c2f278129775^
+head_commit: 9e492706e133de68b8da40fa8134c2f278129775
+fix_commit: 9e492706e133de68b8da40fa8134c2f278129775
 category: logic
-difficulty: easy
-severity: high
+difficulty: medium
+severity: medium
 language: rust
-pr_size: tiny
-description: When the validator is ahead of the CDN (start height > CDN height), the
-  code incorrectly treated this as an error condition, triggering a false 'Storage
-  corruption detected!' message and panicking. The fix changes this case to return
-  Ok(completed_height) instead of propagating an error, recognizing that being ahead
-  of the CDN is a valid state.
+pr_size: small
+description: Router initialization (TCP bind) occurs before unspent records are computed
+  and before enable_handshake is called, causing the node to accept inbound connections
+  prematurely. This leads to 'permission denied' errors because peers connect before
+  the node is ready to perform handshakes. The fix reorders router initialization
+  to occur after unspent record computation, right before enable_handshake is invoked.
 expected_findings:
-- file: node/cdn/src/blocks.rs
-  line: 72
-  summary: When start_height > CDN height, this path returns an error causing a false
-    'storage corruption' panic. Should return Ok(*completed_height) since the validator
-    being ahead of CDN is not an error condition.
+- file: node/src/beacon/mod.rs
+  line: 118
+  summary: Router binds and begins accepting TCP connections too early in the initialization
+    sequence — before unspent records are computed and before enable_handshake is
+    called, causing premature inbound connections to fail with 'permission denied'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

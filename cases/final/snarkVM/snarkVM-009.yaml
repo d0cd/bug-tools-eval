@@ -1,28 +1,36 @@
 id: snarkVM-009
 repo: ProvableHQ/snarkVM
-base_commit: d414a75a4841abe6cdff5027ba59ec4d01c562f5^
-head_commit: d414a75a4841abe6cdff5027ba59ec4d01c562f5
-fix_commit: d414a75a4841abe6cdff5027ba59ec4d01c562f5
-category: logic
+base_commit: 0b391d2a0fad8c1ee49b3fc64e6a64d4b801ad2d^
+head_commit: 0b391d2a0fad8c1ee49b3fc64e6a64d4b801ad2d
+fix_commit: 0b391d2a0fad8c1ee49b3fc64e6a64d4b801ad2d
+category: code-smell
 difficulty: easy
-severity: medium
+severity: low
 language: rust
 pr_size: small
-description: The `ensure_equals` macro in utilities/src/errors.rs accepts variadic
-  format arguments `$(, $format_args:tt)*` but does not forward them to the underlying
-  format string. This causes messages to display raw format placeholders (e.g., `{}`)
-  instead of interpolated values. The fix passes `$($format_args)*` through to the
-  formatting call.
+description: Minor cleanup fixing Clippy warnings and compilation issues. Duplicate
+  `sample_metadata()` helper definitions in test/sample modules of ledger/block were
+  consolidated, and a cost calculation call in synthesizer/process/src/cost.rs was
+  updated to satisfy Clippy lints (likely an unnecessary or deprecated API usage pattern).
 expected_findings:
-- file: utilities/src/errors.rs
-  line: 62
-  summary: "Macro arm captures `$format_args:tt` but does not forward them to the\
-    \ format string \u2014 format arguments are silently dropped, producing unformatted\
-    \ messages."
-- file: utilities/src/errors.rs
-  line: 197
-  summary: "Second macro arm (likely halt variant) also captures `$format_args:tt`\
-    \ without forwarding to the format call \u2014 same dropped-format-args bug."
+- file: ledger/block/src/lib.rs
+  line: 707
+  summary: Duplicate `pub(crate) fn sample_metadata()` definition — Clippy flags redundant
+    or dead helper functions that should be consolidated
+  line_side: pre_fix
+- file: synthesizer/process/src/cost.rs
+  line: 87
+  summary: Call to `cost_in_microcredits_v1` triggers Clippy or compilation warning
+    — likely needs updated API call or unused-variable fix
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,40 @@
+id: discourse-112
+repo: discourse/discourse
+base_commit: eee6341054eb5cf84aef2275af495477126e278b^
+head_commit: eee6341054eb5cf84aef2275af495477126e278b
+fix_commit: eee6341054eb5cf84aef2275af495477126e278b
+category: api-misuse
+difficulty: medium
+severity: high
+language: ruby
+pr_size: tiny
+description: Passkey authentication called `cose_key.to_pkey.verify(cose_algorithm.hash_function,
+  ...)` to verify WebAuthn signatures, but `COSE::Algorithm::EdDSA` does not implement
+  `hash_function` (EdDSA incorporates the hash internally). This caused a `NoMethodError`
+  500 for any user with an EdDSA-based passkey authenticator. The fix uses `cose_algorithm.verify`,
+  which correctly dispatches verification for all algorithm types.
+expected_findings:
+- file: lib/discourse_webauthn/authentication_service.rb
+  line: 99
+  summary: 'api-misuse: `cose_algorithm.hash_function` is not implemented by `COSE::Algorithm::EdDSA`,
+    causing NoMethodError. Use `cose_algorithm.verify` instead, which handles all
+    COSE algorithm types including EdDSA.'
+  line_side: pre_fix
+- file: lib/discourse_webauthn/authentication_service.rb
+  line: 98
+  summary: Verification via `cose_key.to_pkey.verify` bypasses the COSE gem's own
+    dispatch logic and assumes all algorithms support a separate hash function. Should
+    delegate to `cose_algorithm.verify` which correctly handles algorithm-specific
+    verification semantics.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

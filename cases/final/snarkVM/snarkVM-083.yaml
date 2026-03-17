@@ -1,33 +1,32 @@
 id: snarkVM-083
 repo: ProvableHQ/snarkVM
-base_commit: ef1f6733840d3d4dc9b80fa201e099609c657051^
-head_commit: ef1f6733840d3d4dc9b80fa201e099609c657051
-fix_commit: ef1f6733840d3d4dc9b80fa201e099609c657051
-category: logic
+base_commit: 5d7074110c433e1c44ebbe6db26557294d4e7b66^
+head_commit: 5d7074110c433e1c44ebbe6db26557294d4e7b66
+fix_commit: 5d7074110c433e1c44ebbe6db26557294d4e7b66
+category: cryptographic
 difficulty: medium
 severity: high
 language: rust
-pr_size: small
-description: Functions that retrieve programs from the ledger used the caller-provided
-  edition number when looking up `credits.aleo`, but `credits.aleo` is a built-in
-  program that should always be at edition 0. This caused lookups to fail or return
-  incorrect results when a non-zero edition was passed. The fix adds a special case
-  to force edition 0 whenever the program ID is `credits.aleo`.
+pr_size: tiny
+description: An affine elliptic curve point is constructed from raw coordinates without
+  verifying that the point actually lies on the curve. This missing on-curve check
+  could allow invalid points to be accepted, potentially enabling invalid-curve attacks
+  or soundness issues in downstream ZK proofs.
 expected_findings:
-- file: ledger/src/get.rs
-  line: 254
-  summary: 'Logic error: `try_get_program_for_edition` is called with the user-supplied
-    `edition` for `credits.aleo`, but `credits.aleo` should always use edition 0 since
-    it is a built-in genesis program.'
-- file: ledger/store/src/transaction/deployment.rs
-  line: 392
-  summary: 'Logic error: `program_map().get_confirmed` uses the provided `edition`
-    for `credits.aleo` lookups instead of hardcoding edition 0, causing lookup failures
-    for the built-in credits program.'
-- file: ledger/store/src/transaction/deployment.rs
-  line: 414
-  summary: 'Same bug: edition parameter is passed through without special-casing `credits.aleo`
-    to edition 0, leading to incorrect program retrieval.'
+- file: curves/src/templates/short_weierstrass_jacobian/affine.rs
+  line: 103
+  summary: "Point constructed via `Self { x, y, infinity }` without verifying the\
+    \ coordinates satisfy the curve equation (y\xB2 = x\xB3 + ax + b). Must check\
+    \ `is_on_curve()` before returning."
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 1036
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

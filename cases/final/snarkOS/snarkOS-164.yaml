@@ -1,24 +1,50 @@
 id: snarkOS-164
 repo: ProvableHQ/snarkOS
-base_commit: 62b797731e1e66c876bcc12294b8d6fc1d341e86^
-head_commit: 62b797731e1e66c876bcc12294b8d6fc1d341e86
-fix_commit: 62b797731e1e66c876bcc12294b8d6fc1d341e86
+base_commit: de856fd42d6caa022810742329d7fd7c51e8913c^
+head_commit: de856fd42d6caa022810742329d7fd7c51e8913c
+fix_commit: de856fd42d6caa022810742329d7fd7c51e8913c
 category: concurrency
 difficulty: hard
-severity: high
+severity: critical
 language: rust
-pr_size: small
-description: The `propose_batch` function in the BFT primary can be invoked concurrently
-  from a dedicated proposer task and from `try_increment_to_the_next_round` on different
-  threads. Without synchronization, parallel invocations could propose different batches
-  for the same round, violating the BFT protocol. The fix adds a Tokio mutex to serialize
-  calls to `propose_batch`.
+pr_size: xl
+description: 'PR #3681 introduced a PendingBlocks feature in the BFT sync and worker
+  modules that caused halting/liveness failures during stress testing. The issue stems
+  from the tight coupling between snarkOS PendingBlocks logic and corresponding snarkVM
+  changes; when the snarkVM side was reverted due to the halting problems, the snarkOS
+  feature became incompatible. This revert removes the PendingBlocks machinery to
+  restore node liveness.'
 expected_findings:
-- file: node/bft/src/primary.rs
-  line: 94
-  summary: 'Missing synchronization: `propose_batch` can be called concurrently from
-    multiple tasks/threads without a lock, allowing duplicate batch proposals for
-    the same round (race condition).'
+- file: node/bft/src/sync/mod.rs
+  line: 87
+  summary: 'PendingBlocks integration in BFT sync introduces halting risk: the sync
+    loop can stall under load when pending block handling interacts with authority/certificate
+    processing'
+  line_side: pre_fix
+- file: node/bft/src/worker.rs
+  line: 560
+  summary: Transaction handling changes tied to PendingBlocks can cause the worker
+    to halt when pending block queue backs up under stress
+  line_side: pre_fix
+- file: node/bft/ledger-service/src/ledger.rs
+  line: 352
+  summary: Ledger service trait changes for PendingBlocks alter block/transaction
+    processing flow in a way that contributes to halting under concurrent load
+  line_side: pre_fix
+- file: Cargo.toml
+  line: 46
+  summary: snarkVM revision pinned to a commit that includes PendingBlocks support;
+    if snarkVM reverts those changes, this pin creates an incompatible dependency
+    causing runtime failures.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,25 +1,36 @@
 id: sentry-016
 repo: getsentry/sentry
-base_commit: 3870453cfb79f9e954581318aab616bb91cab26c^
-head_commit: 3870453cfb79f9e954581318aab616bb91cab26c
-fix_commit: 3870453cfb79f9e954581318aab616bb91cab26c
+base_commit: 188f9e9fb1f4e66b319877627ab130d9f2ebfe51^
+head_commit: 188f9e9fb1f4e66b319877627ab130d9f2ebfe51
+fix_commit: 188f9e9fb1f4e66b319877627ab130d9f2ebfe51
 category: logic
-difficulty: easy
+difficulty: medium
 severity: medium
 language: python
-pr_size: medium
-description: All PUT requests to prebuilt dashboards were rejected with a 409 Conflict,
-  even when users only wanted to update global filters (projects, environments, period).
-  The fix narrows the guard to only reject requests that include 'widgets' in the
-  payload, allowing other properties to pass through normally.
+pr_size: tiny
+description: The regex for parameterizing 'kitchen' time formats uses a literal space
+  before the am/pm group, but all parameterization regexes are evaluated with the
+  `(?x)` verbose flag which causes whitespace to be ignored. This means the space
+  between the time and am/pm marker is silently dropped from the pattern, causing
+  it to only match formats without a space (e.g. '3:04PM' but not '3:04 PM'). The
+  fix replaces the literal space with `\s?` to both survive verbose mode and make
+  the space optional.
 expected_findings:
-- file: src/sentry/dashboards/endpoints/organization_dashboard_details.py
-  line: 173
-  summary: 'Overly broad prebuilt dashboard guard: rejects all PUT requests when it
-    should only reject requests containing ''widgets'' in the payload. Users cannot
-    set global filters (projects, environments, period) on prebuilt dashboards.'
+- file: src/sentry/grouping/parameterization.py
+  line: 142
+  summary: Literal space in verbose-mode regex is silently ignored by (?x) flag. The
+    space before `[aApP][Mm]` in the kitchen time pattern has no effect, so times
+    like '3:04 PM' (with space) won't match. Replace the literal space with `\s` to
+    match whitespace under verbose mode.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

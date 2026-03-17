@@ -1,33 +1,34 @@
 id: leo-202
 repo: ProvableHQ/leo
-base_commit: 73f29ac12ca2d6d6647a391102a45dc93eae8453^
-head_commit: 73f29ac12ca2d6d6647a391102a45dc93eae8453
-fix_commit: 73f29ac12ca2d6d6647a391102a45dc93eae8453
-category: api
-difficulty: hard
-severity: medium
+base_commit: c8f6089be3453d3345e43098541ffaf28abb52d9^
+head_commit: c8f6089be3453d3345e43098541ffaf28abb52d9
+fix_commit: c8f6089be3453d3345e43098541ffaf28abb52d9
+category: logic
+difficulty: easy
+severity: high
 language: rust
-pr_size: xl
-description: Large feature/refactor PR that adds cost estimation for on-chain deployments
-  and executions, removes the snarkOS dependency, and refactors `leo execute` to work
-  with a generic network. The changes resolve issues where transactions were broadcast
-  successfully but later rejected on-chain due to insufficient balance, and fix the
-  forced adherence to a specific snarkVM network type.
+pr_size: small
+description: The code generation pass incorrectly treated inline functions as closures
+  in the produced bytecode. The match on `self.is_transition_function` only distinguished
+  between transitions (Aleo `function`) and everything else (Aleo `closure`), but
+  failed to handle the `Inline` variant, which should produce no bytecode at all.
+  The fix switches the match to `function.variant` and returns early for `Variant::Inline`.
 expected_findings:
-- file: leo/cli/commands/execute.rs
-  line: 88
-  summary: Execute command was hardcoded to a specific network type rather than being
-    generic, causing all executions to be forced to the underlying snarkVM dependency's
-    network.
-- file: leo/cli/commands/deploy.rs
-  line: 51
-  summary: Deploy command lacked balance validation before broadcasting, allowing
-    transactions that would later be rejected on-chain due to insufficient funds.
-- file: leo/cli/commands/mod.rs
-  line: 133
-  summary: Shared command infrastructure imported and used snarkOS-specific types
-    (Transaction, Address, etc.) tightly coupling CLI to snarkOS rather than working
-    through snarkVM generics.
+- file: compiler/passes/src/code_generation/visit_program.rs
+  line: 174
+  summary: 'Missing check for inline function variant: the boolean `self.is_transition_function`
+    only distinguishes transitions from non-transitions, causing inline functions
+    to be emitted as closures. Should match on `function.variant` and skip code generation
+    entirely for `Variant::Inline`.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

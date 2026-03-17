@@ -1,0 +1,37 @@
+id: sentry-168
+repo: getsentry/sentry
+base_commit: dff0ced4715763892a0424528ccd30a9285ea399^
+head_commit: dff0ced4715763892a0424528ccd30a9285ea399
+fix_commit: dff0ced4715763892a0424528ccd30a9285ea399
+category: logic
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: medium
+description: The deletion logic in the traces explorer visualization toolbar was incorrectly
+  restricted to only counting charts when determining whether a visualization could
+  be deleted. This meant equations alone couldn't satisfy the minimum-visualization
+  requirement, and the query comparison button assumed a chart always existed. The
+  fix generalizes the check to count all visualization types (charts and equations).
+expected_findings:
+- file: static/app/views/explore/components/toolbar/toolbarVisualize/index.tsx
+  line: 1
+  summary: Deletion guard only counts charts instead of all visualizations; should
+    check total visualization count (charts + equations) >= 1 before allowing removal
+  line_side: pre_fix
+- file: static/app/views/explore/toolbar/toolbarVisualize.tsx
+  line: 1
+  summary: Same chart-only deletion restriction duplicated in the non-component toolbar;
+    needs the same generalized visualization count check
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110046
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

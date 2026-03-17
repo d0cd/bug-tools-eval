@@ -1,23 +1,35 @@
 id: snarkOS-185
 repo: ProvableHQ/snarkOS
-base_commit: 87366097ab684e7c677b9582af7891461e941971^
-head_commit: 87366097ab684e7c677b9582af7891461e941971
-fix_commit: 87366097ab684e7c677b9582af7891461e941971
-category: logic
-difficulty: hard
-severity: medium
+base_commit: fce07799ced78b2e18f0c503ee5e816cb89506b4^
+head_commit: fce07799ced78b2e18f0c503ee5e816cb89506b4
+fix_commit: fce07799ced78b2e18f0c503ee5e816cb89506b4
+category: performance
+difficulty: easy
+severity: low
 language: rust
-pr_size: xl
-description: This PR is primarily a large-scale migration and modularization effort
-  (migrating Ledger and snarkvm-rest from snarkVM, modularizing node logic), not a
-  clear bug-fix. No diff is available and the auto-extracted findings are generic
-  file-level changes with no identifiable bug pattern. The 'fix' keyword signal may
-  be a false positive from incidental language in the PR or commits.
+pr_size: small
+description: A write lock was used where a read lock suffices, causing unnecessary
+  lock contention on `latest_block_hashes`. Additionally, a single-branch `select!`
+  macro was used instead of a direct `.await` call, adding unnecessary complexity.
 expected_findings:
-- file: cli/src/commands/start.rs
-  line: 1
-  summary: "Unable to identify a specific bug location \u2014 PR is a large refactor/migration\
-    \ with no available diff to analyze"
+- file: ledger/src/state/ledger.rs
+  line: 377
+  summary: 'Unnecessary write lock: `self.latest_block_hashes.write()` should be `self.latest_block_hashes.read()`
+    since this code path only reads the data'
+  line_side: pre_fix
+- file: src/network/server.rs
+  line: 139
+  summary: Single-branch `select!` is redundant; replace with a direct `.await` on
+    the channel receive for clarity and reduced overhead
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

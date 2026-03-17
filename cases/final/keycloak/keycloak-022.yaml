@@ -1,25 +1,43 @@
 id: keycloak-022
 repo: keycloak/keycloak
-base_commit: e53575d5d55cc97fae33e8e5f3052df26e0e9f8d^
-head_commit: e53575d5d55cc97fae33e8e5f3052df26e0e9f8d
-fix_commit: e53575d5d55cc97fae33e8e5f3052df26e0e9f8d
-category: logic
+base_commit: 418700b4f8b15189d4c0a646fc02b9ca28e1995b^
+head_commit: 418700b4f8b15189d4c0a646fc02b9ca28e1995b
+fix_commit: 418700b4f8b15189d4c0a646fc02b9ca28e1995b
+category: api-misuse
 difficulty: easy
 severity: low
-language: unknown
+language: java
 pr_size: tiny
-description: The confirmation message displayed when disabling an identity provider
-  had incorrect text formatting, likely with broken MessageFormat escaping (malformed
-  quote/brace pattern in the Java properties string). The fix corrected the message
-  template to properly display the provider name.
+description: AuthenticationManager.finishedRequiredActions() rendered the ACCOUNT_UPDATED
+  info page without setting the messageHeader attribute. The info.ftl template falls
+  back to message.summary when messageHeader is absent, causing the same 'Your account
+  has been updated.' string to appear as both the page header and the body text. The
+  fix sets an explicit messageHeader so the header and body are distinct.
 expected_findings:
-- file: js/apps/admin-ui/maven-resources/theme/keycloak.v2/admin/messages/messages_en.properties
-  line: 1140
-  summary: 'Malformed MessageFormat string in disableConfirmIdentityProvider: incorrect
-    quote/brace escaping causes the confirmation dialog to display garbled text instead
-    of the provider name'
+- file: services/src/main/java/org/keycloak/services/managers/AuthenticationManager.java
+  line: 0
+  summary: "Missing messageHeader attribute when rendering the ACCOUNT_UPDATED info\
+    \ page; info.ftl duplicates message.summary into the header when no explicit header\
+    \ is provided \u2014 should call setAttribute(\"messageHeader\", ...) before rendering"
+  line_side: pre_fix
+- file: themes/src/main/resources/theme/base/login/messages/messages_en.properties
+  line: 315
+  summary: A new message key for the account-updated page header is needed here so
+    the info.ftl template can display distinct header vs body text
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 46106
+reviewer_notes: []
+reviewer_findings:
+- file: themes/src/main/resources/theme/base/login/messages/messages_en.properties
+  line: 315
+  summary: Probably this is required somewhere else, but I'm not familiar with the
+    process
+  line_side: pre_fix
+quality_flags: []

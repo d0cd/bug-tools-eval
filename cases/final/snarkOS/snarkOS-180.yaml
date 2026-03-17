@@ -1,25 +1,34 @@
 id: snarkOS-180
 repo: ProvableHQ/snarkOS
-base_commit: cbc30f55ad8cd800959b84a548758d1877e76f11^
-head_commit: cbc30f55ad8cd800959b84a548758d1877e76f11
-fix_commit: cbc30f55ad8cd800959b84a548758d1877e76f11
+base_commit: ee8ca4466d19a3166784b42a6ddb8898f4f1c3e0^
+head_commit: ee8ca4466d19a3166784b42a6ddb8898f4f1c3e0
+fix_commit: ee8ca4466d19a3166784b42a6ddb8898f4f1c3e0
 category: logic
 difficulty: easy
-severity: high
+severity: low
 language: rust
-pr_size: tiny
-description: The CLI commands `clean` and `start` used an incorrect network ID, causing
-  them to target the wrong blockchain network. The fix updates the network ID references
-  in both commands to use the correct value.
+pr_size: small
+description: Tests for BlockResponse only handled one message version format, naively
+  asserting equality of `latest_consensus_version` without accounting for the V12
+  protocol change. Pre-V12 consensus versions are not serialized in the BlockResponse
+  wire format, so deserialized values will be None for those versions. The fix branches
+  on protocol version to verify correct behavior for each format.
 expected_findings:
-- file: cli/src/commands/clean.rs
-  line: 0
-  summary: Incorrect network ID used in the clean command; should reference the correct
-    network identifier
-- file: cli/src/commands/start.rs
-  line: 0
-  summary: Incorrect network ID used in the start command; should reference the correct
-    network identifier
+- file: node/bft/events/src/block_response.rs
+  line: 216
+  summary: 'Test blindly asserts `block_response.latest_consensus_version == decoded.latest_consensus_version`
+    without accounting for the V12 boundary: pre-V12 consensus versions are not serialized
+    in the BlockResponse format, so decoded will have None while the original may
+    have Some(v < V12). Should branch on version to check expected deserialized value.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

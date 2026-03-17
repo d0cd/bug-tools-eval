@@ -1,22 +1,34 @@
 id: snarkVM-021
 repo: ProvableHQ/snarkVM
-base_commit: dac95b8ef63a36397ca2afb6a8ff0cb644fc1251^
-head_commit: dac95b8ef63a36397ca2afb6a8ff0cb644fc1251
-fix_commit: dac95b8ef63a36397ca2afb6a8ff0cb644fc1251
-category: api
-difficulty: easy
-severity: low
+base_commit: 13461a140b2049756626cc2c37c07a3efe37f329^
+head_commit: 13461a140b2049756626cc2c37c07a3efe37f329
+fix_commit: 13461a140b2049756626cc2c37c07a3efe37f329
+category: constraint
+difficulty: medium
+severity: critical
 language: rust
 pr_size: tiny
-description: A constant in `curves/src/edwards_bls12/fr.rs` is set to `unimplemented!()`,
-  which causes `cargo doc` compilation to fail. The fix adds a `#[doc(hidden)]` attribute
-  to that constant so the documentation builder skips it, allowing `cargo doc` to
-  complete successfully.
+description: The boolean well-formedness check in LinearCombination::is_boolean_type()
+  used `.all()` instead of `.any()` when testing whether terms violate the boolean
+  property. With `.all()`, the check only flagged the linear combination as invalid
+  if ALL terms were non-boolean; a single valid term among invalid ones would cause
+  the entire check to pass, allowing malformed booleans through ZK circuit validation.
 expected_findings:
-- file: curves/src/edwards_bls12/fr.rs
-  line: 33
-  summary: Constant defined with `unimplemented!()` causes `cargo doc` to fail; needs
-    a doc-exclusion attribute to prevent documentation compilation error
+- file: circuit/environment/src/helpers/linear_combination.rs
+  line: 99
+  summary: 'Logic inversion: `.all(|(v, _)| !(v.value().is_zero() || v.value().is_one()))`
+    should be `.any(...)`. Using `.all()` means the error branch only triggers when
+    every term is non-boolean, so a mix of valid and invalid terms passes the check
+    incorrectly.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

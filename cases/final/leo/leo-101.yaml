@@ -1,33 +1,32 @@
 id: leo-101
 repo: ProvableHQ/leo
-base_commit: b61e2b4733653a633a0276685380186ab6a05998^
-head_commit: b61e2b4733653a633a0276685380186ab6a05998
-fix_commit: b61e2b4733653a633a0276685380186ab6a05998
-category: api
-difficulty: medium
-severity: high
+base_commit: 61680fb3637b0e81f93303e3daab9c133779cb9a^
+head_commit: 61680fb3637b0e81f93303e3daab9c133779cb9a
+fix_commit: 61680fb3637b0e81f93303e3daab9c133779cb9a
+category: logic
+difficulty: easy
+severity: medium
 language: rust
-pr_size: medium
-description: Network error responses (e.g., 'Too Many Requests') from API calls were
-  being cached as valid Aleo programs in the .aleo/registry directory, corrupting
-  the dependency cache. The fix adds validation that fetched content parses as a valid
-  program before writing to cache, and refactors network retrieval into a single shared
-  module to eliminate duplicated retrieval logic between `leo query` and the retriever.
+pr_size: tiny
+description: The `leo execute` command did not handle program names that included
+  the `.aleo` suffix, causing failures when users provided the full program name (e.g.,
+  `my_program.aleo` instead of `my_program`). The fix strips the `.aleo` extension
+  from the program name if it exists before using it.
 expected_findings:
-- file: utils/retriever/src/retriever/mod.rs
-  line: 310
-  summary: Network response is cached without validating that it is a valid Aleo program.
-    Error responses (e.g., rate-limit messages) get written to the registry cache,
-    corrupting dependencies.
-- file: leo/cli/commands/query/mod.rs
-  line: 74
-  summary: Duplicated network retrieval logic that does not validate fetched program
-    content before use, allowing invalid/error responses to propagate.
-- file: utils/disassembler/src/lib.rs
-  line: 86
-  summary: disassemble_from_str does not validate that the input string is a parseable
-    program before processing, missing an opportunity to catch corrupted cache entries
-    early.
+- file: leo/cli/commands/execute.rs
+  line: 172
+  summary: 'Missing normalization of program name: the `.aleo` suffix is not stripped
+    before use, so passing a program name with `.aleo` extension causes execution
+    to fail.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

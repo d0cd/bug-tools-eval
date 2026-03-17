@@ -1,26 +1,40 @@
 id: discourse-052
 repo: discourse/discourse
-base_commit: 9f4e335b568ba462446f3015d2e092c729808bbc^
-head_commit: 9f4e335b568ba462446f3015d2e092c729808bbc
-fix_commit: 9f4e335b568ba462446f3015d2e092c729808bbc
-category: logic
-difficulty: easy
-severity: medium
-language: javascript
-pr_size: small
-description: On login-required sites, the anonymous site payload omits the `email_configured`
-  field entirely. The GlobalNotice component used a falsy check (e.g., `!this.site.email_configured`)
-  which treated `undefined` the same as `false`, causing the SMTP warning banner to
-  incorrectly appear on the login page. The fix switches to a strict `=== false` comparison
-  so that a missing/undefined value no longer triggers the banner.
+base_commit: 69af7d62ae87f535a52f8b7989185625e1221470^
+head_commit: 9e99066b07
+fix_commit: 69af7d62ae87f535a52f8b7989185625e1221470
+category: api-misuse
+difficulty: medium
+severity: high
+language: ruby
+pr_size: medium
+description: 'After a TagChooser refactor (commit 9e99066b07) began passing tag objects
+  instead of plain name strings, the webhook form sent these objects to the backend
+  where Rails'' `permit(tag_names: [])` silently dropped non-scalar values, causing
+  all tag selections on webhooks to be silently lost. The fix adds `tag_ids` as the
+  canonical parameter while keeping `tag_names` with a deprecation path.'
 expected_findings:
-- file: frontend/discourse/app/components/global-notice.gjs
-  line: 172
-  summary: Falsy check on `email_configured` treats `undefined` (missing from anonymous
-    payload on login-required sites) as `false`, incorrectly showing SMTP banner.
-    Should use strict `=== false` comparison.
+- file: app/controllers/admin/web_hooks_controller.rb
+  line: 1
+  summary: 'Strong parameters `permit(tag_names: [])` silently strips non-scalar (object)
+    values passed from the frontend TagChooser, causing tag selections to be silently
+    discarded. Needs to also permit `tag_ids` and handle the object-to-id/name coercion.'
+  line_side: pre_fix
+- file: frontend/discourse/admin/models/web-hook.js
+  line: 1
+  summary: Webhook model passes raw tag objects (with id, name, etc.) from TagChooser
+    directly to the API as `tag_names`, but the backend expects an array of scalar
+    strings/ids. Should extract and send `tag_ids` (or at minimum tag name strings)
+    instead of full objects.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 37942
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

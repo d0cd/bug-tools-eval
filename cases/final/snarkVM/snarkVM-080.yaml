@@ -1,25 +1,41 @@
 id: snarkVM-080
 repo: ProvableHQ/snarkVM
-base_commit: 8a576d6c5e369552d5c5987a9aeb3dc14cac8106^
-head_commit: 8a576d6c5e369552d5c5987a9aeb3dc14cac8106
-fix_commit: 8a576d6c5e369552d5c5987a9aeb3dc14cac8106
+base_commit: 5276b048c6f5008c631e83023ffd06febb454a47^
+head_commit: 5276b048c6f5008c631e83023ffd06febb454a47
+fix_commit: 590a8de94c0770dafaf625a4b86f12eabcf07fa2
 category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: medium
-description: The `GroupEncryptionGadget` signature verification was missing the message
-  length in the Poseidon gadget hash input. Without including `message.len()` in the
-  hash, the signature verification would produce incorrect results because the hash
-  would not match the one used during signing. The fix adds `FpGadget::Constant(F::from(message.len()
-  as u128))` to the hash input vector.
+pr_size: small
+description: The test `test_load_deployments_with_imports` used a non-deterministic
+  RNG seed, causing the lexicographical ordering of `deployment_transaction_ids()`
+  to vary between runs. When the random ordering happened to match deployment order,
+  the test failed to exercise recursive import loading of parent programs before their
+  imports, making it flaky. The fix pins the RNG to a fixed seed that guarantees the
+  ordering reliably tests the intended behavior.
 expected_findings:
-- file: gadgets/src/algorithms/signature/group.rs
-  line: 398
-  summary: 'Missing message length in Poseidon hash input: `hash_input` should include
-    `FpGadget::<F>::Constant(F::from(message.len() as u128))` to match the signing
-    algorithm''s hash computation, otherwise signature verification will fail or be
-    insecure.'
+- file: synthesizer/src/vm/mod.rs
+  line: 713
+  summary: 'Non-deterministic RNG in test: should use `TestRng::fixed(...)` with a
+    constant seed instead of a non-deterministic RNG source to ensure reproducible
+    test results'
+  line_side: pre_fix
+- file: synthesizer/src/vm/mod.rs
+  line: 712
+  summary: 'Non-deterministic RNG in test: the random seed may produce transaction
+    IDs whose lexicographical order happens to match deployment order, failing to
+    exercise recursive import loading. Use a fixed seed (e.g. TestRng::fixed) to guarantee
+    the ordering tests the intended code path.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

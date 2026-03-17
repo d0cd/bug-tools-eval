@@ -1,36 +1,37 @@
 id: discourse-051
 repo: discourse/discourse
-base_commit: 255c1dfaf32faa6045c2518cb33e438582aec125^
-head_commit: 255c1dfaf32faa6045c2518cb33e438582aec125
-fix_commit: 255c1dfaf32faa6045c2518cb33e438582aec125
-category: logic
-difficulty: medium
-severity: medium
+base_commit: 691622181af8e1513f7caa33ce21948cc96b2028^
+head_commit: 691622181af8e1513f7caa33ce21948cc96b2028
+fix_commit: 691622181af8e1513f7caa33ce21948cc96b2028
+category: code-smell
+difficulty: easy
+severity: low
 language: ruby
-pr_size: medium
-description: "The ProseMirror quote node spec lacked a `displayName` attribute, so\
-  \ during the markdown\u2192ProseMirror\u2192markdown round-trip the display name\
-  \ was silently discarded and only the username survived. Additionally, the markdown-it\
-  \ aside token did not emit `data-display-name`, preventing the ProseMirror parser\
-  \ from capturing it, and a latent bug left `displayName` as an array instead of\
-  \ a joined string when the name contained no commas."
+pr_size: tiny
+description: Flaky system test in the rich editor checklist spec due to using a fixed
+  timeout or single `send_keys` call instead of the established retry pattern. The
+  fix replaces `wait_for_timeout` calls at lines 99 and 133 with the same repeated
+  `send_keys` pattern used elsewhere in the codebase to handle intermittent key-input
+  failures in system tests.
 expected_findings:
-- file: frontend/discourse/app/static/prosemirror/extensions/quote.js
-  line: 14
-  summary: "ProseMirror quote node spec is missing a `displayName` attribute \u2014\
-    \ the round-trip will lose the display name because the node has no place to store\
-    \ it"
-- file: frontend/discourse-markdown-it/src/features/quotes.js
-  line: 42
-  summary: When parsing BBCode quote with a `username:` param, the display name portion
-    is not extracted and attached to the aside token as `data-display-name`, causing
-    it to be silently dropped
-- file: frontend/discourse-markdown-it/src/features/quotes.js
-  line: 91
-  summary: Display name split into array but never joined back to a string when the
-    name contains no commas, leaving `displayName` as an array instead of a string
+- file: plugins/checklist/spec/system/rich_editor_extension_spec.rb
+  line: 99
+  summary: 'Flaky: uses `wait_for_timeout` instead of retrying `send_keys` in a loop,
+    causing intermittent test failures when key input is not reliably received'
+  line_side: pre_fix
+- file: plugins/checklist/spec/system/rich_editor_extension_spec.rb
+  line: 133
+  summary: 'Same flaky pattern: `wait_for_timeout` should be replaced with the retry-based
+    `send_keys` approach used elsewhere in the test suite'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

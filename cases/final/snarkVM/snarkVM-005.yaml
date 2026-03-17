@@ -1,26 +1,46 @@
 id: snarkVM-005
 repo: ProvableHQ/snarkVM
-base_commit: bb5c8ae6a6ac50358871058e1e1b34b55cb3f7f3^
-head_commit: bb5c8ae6a6ac50358871058e1e1b34b55cb3f7f3
-fix_commit: bb5c8ae6a6ac50358871058e1e1b34b55cb3f7f3
+base_commit: 06964e8c81ee81ff8c0f2062234196151d6767ba^
+head_commit: 06964e8c81ee81ff8c0f2062234196151d6767ba
+fix_commit: 06964e8c81ee81ff8c0f2062234196151d6767ba
 category: logic
-difficulty: medium
-severity: medium
+difficulty: hard
+severity: critical
 language: rust
 pr_size: medium
-description: When executing closures in the snarkVM synthesizer, the console's caller
-  and signer were not being set, preventing closures from accessing `self.caller`
-  and `self.signer`. The fix adds the necessary caller and signer assignments before
-  closure execution, restoring expected functionality without impacting VM soundness.
+description: Block subdag verification was missing a quorum check on certificates,
+  meaning blocks with insufficient signature quorum could pass validation. Additionally,
+  manual committee lookback calculations were duplicated and inconsistent with the
+  existing `get_committee_lookback_for_round` helper method, risking incorrect committee
+  resolution.
 expected_findings:
-- file: synthesizer/process/src/stack/execute.rs
-  line: 48
-  summary: Missing assignment of console caller before closure execution; closures
-    cannot resolve `self.caller` without this.
-- file: synthesizer/process/src/stack/execute.rs
-  line: 69
-  summary: Missing assignment of console signer before closure execution; closures
-    cannot resolve `self.signer` without this.
+- file: ledger/src/check_next_block.rs
+  line: 129
+  summary: 'Missing quorum verification for subdag certificates: `check_block_subdag_atomicity`
+    is called but there is no check that each certificate in the subdag meets the
+    quorum threshold based on its signers'' stake. An attacker could craft a block
+    with certificates that lack sufficient signatures.'
+  line_side: pre_fix
+- file: ledger/src/check_next_block.rs
+  line: 81
+  summary: Manual committee lookback calculation duplicates logic from `get_committee_lookback_for_round`
+    and may diverge from the canonical helper. Should delegate to the helper method
+    instead of reimplementing the round arithmetic.
+  line_side: pre_fix
+- file: ledger/src/advance.rs
+  line: 257
+  summary: Same duplicated manual committee lookback round calculation as in check_next_block.rs.
+    The round-parity arithmetic and subtraction logic should use `get_committee_lookback_for_round`
+    to stay consistent.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

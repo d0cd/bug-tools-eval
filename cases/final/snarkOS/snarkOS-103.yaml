@@ -1,32 +1,38 @@
 id: snarkOS-103
 repo: ProvableHQ/snarkOS
-base_commit: a4b8b17a299fb06aa9df50c44618cc07c58f337a^
-head_commit: a4b8b17a299fb06aa9df50c44618cc07c58f337a
-fix_commit: a4b8b17a299fb06aa9df50c44618cc07c58f337a
-category: concurrency
-difficulty: hard
+base_commit: 90c60940ca50c328e3ea70598e635edfb0f0e51d^
+head_commit: 90c60940ca50c328e3ea70598e635edfb0f0e51d
+fix_commit: 90c60940ca50c328e3ea70598e635edfb0f0e51d
+category: api-misuse
+difficulty: medium
 severity: high
 language: rust
-pr_size: large
-description: 'Multiple concurrency safety issues in the BFT consensus layer: event
-  handlers were not spawned as separate tasks (risking blocking), sync logic ran too
-  frequently causing contention, and signature processing lacked proper async concurrency
-  controls. The fix spawns tasks for event handlers, reduces sync frequency via updated
-  delay constants, and improves async concurrency for signature processing.'
+pr_size: medium
+description: The Bowe-Hopwood Pedersen CRH implementation used Rayon's parallel `.reduce()`
+  directly, which is unavailable on WASM targets and blocks WASM builds. The fix introduces
+  a `cfg_reduce!` macro that conditionally dispatches to parallel `.reduce()` (when
+  `pedersen-parallel` feature is enabled) or sequential `.fold()` (otherwise), restoring
+  WASM compatibility.
 expected_findings:
-- file: node/bft/src/gateway.rs
-  line: 71
-  summary: Event handlers are processed inline rather than spawned as separate tasks,
-    risking blocking the gateway's main event loop under load.
-- file: node/bft/src/sync/mod.rs
-  line: 80
-  summary: Sync logic uses MAX_BATCH_DELAY_IN_MS for its interval, causing it to run
-    too frequently and creating unnecessary contention; should use a longer, dedicated
-    sync interval.
-- file: node/bft/src/primary.rs
-  line: 87
-  summary: Signature processing lacks proper async concurrency boundaries, allowing
-    unbounded concurrent processing that can degrade safety under high throughput.
+- file: algorithms/src/crh/bowe_hopwood_pedersen.rs
+  line: 159
+  summary: Inner `.reduce(G::zero, |a, b| a + &b)` call uses Rayon parallel reduce
+    unconditionally, which fails on WASM targets; should be wrapped in a cfg-conditional
+    macro that falls back to sequential `.fold()`
+  line_side: pre_fix
+- file: algorithms/src/crh/bowe_hopwood_pedersen.rs
+  line: 161
+  summary: Outer `.reduce(G::zero, |a, b| a + &b)` call also uses Rayon parallel reduce
+    unconditionally, blocking WASM builds; needs the same cfg-conditional wrapping
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,26 +1,30 @@
 id: keycloak-009
 repo: keycloak/keycloak
-base_commit: 595e2e06d5a517735aad90b893d877001248435c^
-head_commit: 595e2e06d5a517735aad90b893d877001248435c
-fix_commit: 595e2e06d5a517735aad90b893d877001248435c
-category: logic
+base_commit: 168f8247418613a5c8a8c887e53886fe76ee7cd9^
+head_commit: 168f8247418613a5c8a8c887e53886fe76ee7cd9
+fix_commit: 168f8247418613a5c8a8c887e53886fe76ee7cd9
+category: style
 difficulty: easy
-severity: medium
+severity: low
 language: unknown
 pr_size: tiny
-description: Cypress CI tests were running on all forks on push events, overwhelming
-  the budget and adding irrelevant PR comments. The fix adds a condition to only run
-  Cypress tests when the repository is 'keycloak/keycloak', and passes the GitHub
-  token for proper build detection in Cypress Cloud.
+description: Documentation formatting fix in the reverse proxy guide. The PR removes
+  9 lines to correct the formatting of examples in the AsciiDoc file, likely fixing
+  indentation or markup issues that caused examples to render incorrectly.
 expected_findings:
-- file: .github/workflows/js-ci.yml
-  line: 190
-  summary: 'Missing repository guard: Cypress test job runs on forks, should be gated
-    with `github.repository == ''keycloak/keycloak''` condition'
-- file: .github/workflows/js-ci.yml
-  line: 243
-  summary: 'Missing repository guard: another Cypress-related job also lacks the `github.repository
-    == ''keycloak/keycloak''` check, allowing fork runs'
+- file: docs/guides/server/reverseproxy.adoc
+  line: 394
+  summary: 'Incorrectly formatted example blocks: extraneous or malformed AsciiDoc
+    markup causing examples to render improperly'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

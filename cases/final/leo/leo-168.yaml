@@ -1,21 +1,39 @@
 id: leo-168
 repo: ProvableHQ/leo
-base_commit: dfcf2d3dbded4695c786039c819c2a106b394b73^
-head_commit: dfcf2d3dbded4695c786039c819c2a106b394b73
-fix_commit: dfcf2d3dbded4695c786039c819c2a106b394b73
+base_commit: b3ae194ef7ee288119792163d60b93b93f54270d^
+head_commit: b3ae194ef7ee288119792163d60b93b93f54270d
+fix_commit: b3ae194ef7ee288119792163d60b93b93f54270d
 category: logic
 difficulty: easy
-severity: low
+severity: medium
 language: rust
-pr_size: tiny
-description: The example code template in leo/files/main.rs (used by `leo init`) contained
-  an incorrect code snippet. The fix corrects a single line in the generated example,
-  likely fixing a syntax or logic error in the starter template.
+pr_size: medium
+description: Leo allowed single-element tuple types and parenthesized single-variable
+  definitions, which should be disallowed since a 1-element tuple is semantically
+  meaningless and can mask user intent errors. The fix adds validation in the canonicalizer
+  to reject these cases and tracks whether definition variables are parenthesized
+  via a new `parened` field on Definition statements.
 expected_findings:
-- file: leo/files/main.rs
-  line: 1
-  summary: Incorrect example code in the init template; the generated starter code
-    contains an error that would confuse new users or fail to compile
+- file: ast-passes/src/canonicalization/canonicalizer.rs
+  line: 376
+  summary: 'Missing check: canonicalizer does not reject single-element tuple definitions
+    when the variable list is parenthesized with only one name — should emit an error
+    for `let (x) = ...`'
+  line_side: pre_fix
+- file: parser/src/parser/statement.rs
+  line: 295
+  summary: Parser does not track whether a definition's variable names were parenthesized,
+    losing information needed to distinguish `let x = ...` from `let (x) = ...` for
+    later validation
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,31 +1,39 @@
 id: snarkOS-146
 repo: ProvableHQ/snarkOS
-base_commit: fcf66fe85e516e0459fa51dd7d7d85932473a229^
-head_commit: fcf66fe85e516e0459fa51dd7d7d85932473a229
-fix_commit: fcf66fe85e516e0459fa51dd7d7d85932473a229
-category: logic
-difficulty: medium
-severity: high
+base_commit: b8fdfd28e823bf4bc585ab5843bf908a1ddd982c^
+head_commit: b8fdfd28e823bf4bc585ab5843bf908a1ddd982c
+fix_commit: b8fdfd28e823bf4bc585ab5843bf908a1ddd982c
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: The sync node selection logic did not correctly identify and select a
-  sync node during the first handshake. The handshake functions needed to return version
-  information (changing their return type to a 3-tuple) so the server could properly
-  evaluate peers for sync node selection. The fix also adds GetSync message handling
-  and corrects the bootnode test to match the updated handshake return signature.
+pr_size: small
+description: Fixes documentation comment typos and inaccuracies in CLI command descriptions
+  and BFT storage helper doc-comments. The changes correct misleading or incorrect
+  doc-strings to match actual behavior.
 expected_findings:
-- file: network/src/context/handshakes.rs
-  line: 62
-  summary: Handshake function returns insufficient information - missing version data
-    needed for sync node selection during first handshake
-- file: network/src/server/server.rs
-  line: 17
-  summary: Missing GetSync message type import - sync node selection not supported,
-    preventing correct sync behavior on first connection
-- file: network/tests/server_listen.rs
-  line: 110
-  summary: Bootnode handshake destructuring does not account for version return value,
-    causing test compilation failure
+- file: cli/src/commands/start.rs
+  line: 55
+  summary: Documentation comment contains a typo or inaccuracy that should be corrected
+  line_side: pre_fix
+- file: node/bft/src/helpers/storage.rs
+  line: 331
+  summary: Doc-comment says 'an empty set is returned' but may not accurately describe
+    the actual return behavior; verify doc matches implementation
+  line_side: pre_fix
+- file: node/bft/src/helpers/storage.rs
+  line: 347
+  summary: Repeated inaccurate doc-comment pattern — same misleading description copied
+    across similar methods
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

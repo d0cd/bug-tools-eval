@@ -1,28 +1,37 @@
 id: discourse-058
 repo: discourse/discourse
-base_commit: 1a6615107255951c2fc669126749ab53892e7d30^
-head_commit: 1a6615107255951c2fc669126749ab53892e7d30
-fix_commit: 1a6615107255951c2fc669126749ab53892e7d30
-category: api
+base_commit: 7f119b5f63f7f72f186d7f77214778f4d60dbb22^
+head_commit: 7f119b5f63f7f72f186d7f77214778f4d60dbb22
+fix_commit: 7f119b5f63f7f72f186d7f77214778f4d60dbb22
+category: logic
 difficulty: easy
 severity: medium
-language: javascript
-pr_size: tiny
-description: Admin code for the data-explorer plugin was not correctly placed in the
-  admin bundle, likely causing the admin UI components to fail to load or register
-  properly. The fix moves the adapter and template files to the correct admin bundle
-  paths so they are properly included when the admin interface loads.
+language: ruby
+pr_size: small
+description: When GPT 5.4 sends max_posts:0 to the Discourse search tools, the code
+  interprets it literally and returns zero posts instead of treating 0 as 'no limit'.
+  The fix removes the max_posts parameter when its value is 0, so the search falls
+  back to the default unlimited behavior.
 expected_findings:
-- file: plugins/discourse-data-explorer/admin/assets/javascripts/admin/adapters/query.js
+- file: plugins/discourse-ai/lib/personas/tools/search.rb
   line: 1
-  summary: Adapter file located in wrong bundle path; should be in the admin bundle
-    so it is loaded in the admin context
-- file: plugins/discourse-data-explorer/admin/assets/javascripts/admin/templates/admin-plugins/show/explorer/index.gjs
+  summary: 'max_posts parameter is not guarded against 0: a value of 0 causes the
+    search to return no posts instead of treating it as unlimited. Should treat 0
+    the same as nil/absent.'
+  line_side: pre_fix
+- file: plugins/discourse-ai/lib/personas/tools/discourse_meta_search.rb
   line: 1
-  summary: Template not correctly placed in admin bundle, preventing it from being
-    resolved when navigating to the admin data explorer route
+  summary: 'Same max_posts:0 issue exists here: 0 is treated as a literal limit rather
+    than as ''no limit'', returning empty results when the caller intended unlimited.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 38358
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

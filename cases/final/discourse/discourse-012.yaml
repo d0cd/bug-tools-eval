@@ -1,30 +1,32 @@
 id: discourse-012
 repo: discourse/discourse
-base_commit: 37e695796424929dd901e714a18bc6300a55af1e^
-head_commit: 37e695796424929dd901e714a18bc6300a55af1e
-fix_commit: 37e695796424929dd901e714a18bc6300a55af1e
-category: concurrency
+base_commit: 11cadf114314b57bbff18cd0bfac56539d111670^
+head_commit: 11cadf114314b57bbff18cd0bfac56539d111670
+fix_commit: 11cadf114314b57bbff18cd0bfac56539d111670
+category: logic
 difficulty: medium
-severity: low
-language: javascript
+severity: medium
+language: ruby
 pr_size: small
-description: Flaky test caused by a race condition where the test clicks an image
-  immediately after setting state via `this.set()` without waiting for the Ember re-render
-  to complete. The fix adds `settled()` before the click action and wraps the lightbox
-  initialization with `waitForPromise` so Ember's test waiters properly track the
-  async work.
+description: In TopicsController#update_tags, a false return from PostRevisor#revise!
+  was unconditionally treated as a failure (422), but revise! returns false both when
+  revision fails AND when nothing changed. The fix checks topic.errors to distinguish
+  'no-op' (return 200) from 'actual failure' (return 422).
 expected_findings:
-- file: plugins/chat/test/javascripts/components/chat-message-collapser-test.gjs
-  line: 284
-  summary: 'Race condition: clicking the image after `this.set()` without first calling
-    `settled()` to wait for re-render, causing flaky test failures'
-- file: frontend/discourse/app/lib/lightbox.js
-  line: 20
-  summary: Missing `waitForPromise` wrapper around async lightbox initialization,
-    preventing Ember test waiters from tracking this async work and causing `settled()`
-    to resolve prematurely
+- file: app/controllers/topics_controller.rb
+  line: 505
+  summary: 'Logic error: revise! returning false is treated as failure unconditionally.
+    When no tags actually changed, revise! returns false but topic has no errors —
+    should return 200, not 422.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

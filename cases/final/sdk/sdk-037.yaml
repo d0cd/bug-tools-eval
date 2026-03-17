@@ -1,30 +1,44 @@
 id: sdk-037
 repo: ProvableHQ/sdk
-base_commit: 2975260f8353f6ca256f01e6917289ee681ca6da^
-head_commit: 2975260f8353f6ca256f01e6917289ee681ca6da
-fix_commit: 2975260f8353f6ca256f01e6917289ee681ca6da
-category: api
-difficulty: medium
-severity: medium
-language: rust
-pr_size: xl
-description: Version upgrade PR that updates NPM and Cargo dependencies, Rust toolchain
-  (to nightly-2025-01-16), and build configuration. The changes also fix the build
-  process so that wasm/build.js no longer requires manual updates when adding new
-  Wasm exports, and reduce .wasm file size by ~18% via stripping symbols.
+base_commit: 8f729e12477f45aef307fb737941d1c66c6ef493^
+head_commit: 8f729e12477f45aef307fb737941d1c66c6ef493
+fix_commit: 8f729e12477f45aef307fb737941d1c66c6ef493
+category: code-smell
+difficulty: easy
+severity: low
+language: typescript
+pr_size: large
+description: Refactoring PR that resolves Rollup circular dependency warnings and
+  test warnings by reorganizing imports and re-exports across SDK modules. The changes
+  shuffle declarations between files (e.g., moving `logAndThrow` out of `utils.ts`
+  re-export chains, restructuring wasm re-exports) to break dependency cycles. No
+  behavioral change is intended.
 expected_findings:
-- file: rust-toolchain.toml
+- file: sdk/src/browser.ts
   line: 1
-  summary: Rust toolchain pinned to an outdated nightly version; upgrading to nightly-2025-01-16
-    resolves build or compatibility issues with current dependencies
-- file: wasm/Cargo.toml
-  line: 139
-  summary: Missing `strip = true` in wasm release profile caused unnecessarily large
-    .wasm binary (8.9 MB vs 7.3 MB)
-- file: wasm/build.js
+  summary: 'Circular dependency: browser.ts re-exports `logAndThrow` from utils.ts
+    while utils.ts or its transitive imports depend back on browser.ts — reorganize
+    to break the cycle'
+  line_side: pre_fix
+- file: sdk/src/constants.ts
   line: 1
-  summary: Build script required manual updates when adding new Wasm exports; rewrite
-    to auto-detect exports fixes maintenance burden and potential missed-export bugs
+  summary: 'Circular dependency: constants.ts imports from wasm.ts which transitively
+    imports back through other modules — consider importing VerifyingKey/Metadata
+    via a shared types module'
+  line_side: pre_fix
+- file: sdk/rollup.config.js
+  line: 32
+  summary: 'Unnecessary polyfill: core-js/proposals/json-parse-with-source.js inclusion
+    generates warnings and may not be needed — remove or gate behind a feature check'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,35 +1,45 @@
 id: leo-201
 repo: ProvableHQ/leo
-base_commit: 402a8e4015713b90e606d3c2d74cff864540a4f0^
-head_commit: 402a8e4015713b90e606d3c2d74cff864540a4f0
-fix_commit: 402a8e4015713b90e606d3c2d74cff864540a4f0
+base_commit: c85a8e1595a5674a59fe983adcbc8c48bffe0179^
+head_commit: c85a8e1595a5674a59fe983adcbc8c48bffe0179
+fix_commit: c85a8e1595a5674a59fe983adcbc8c48bffe0179
 category: logic
-difficulty: hard
+difficulty: medium
 severity: high
 language: rust
-pr_size: xl
-description: The Leo compiler's type checker and static analyzer did not properly
-  validate future types, allowing futures to be incorrectly placed in tuples, accessed
-  as tuple elements, and passed as function parameters without generating appropriate
-  errors. The fix introduces a dedicated future_checker static analysis pass and tightens
-  future consumption tracking across multiple type-checking expression and statement
-  handlers.
+pr_size: small
+description: 'Three distinct bugs found during documentation writing: (1) `eq` and
+  `ne` operators were assigned incorrect precedence in the PEG grammar, differing
+  from other relational comparators like `lt`, `gt`, `le`, `ge`; (2) successful compilation
+  of `lib.leo` files silently discarded the result (`let _program =`) instead of printing
+  a success message to the console; (3) the reserved/protected keyword list was missing
+  current Leo keywords like `address`, allowing them to be used as identifiers.'
 expected_findings:
-- file: compiler/passes/src/type_checking/checker.rs
-  line: 1220
-  summary: "Incomplete future type validation: `matches!(&input_var.type_(), Type::Future(_))`\
-    \ check is insufficient \u2014 does not properly enforce constraints on how futures\
-    \ can be used in variable contexts."
-- file: compiler/passes/src/type_checking/check_expressions.rs
-  line: 147
-  summary: "Future consumption logic is missing or incorrect \u2014 futures are not\
-    \ being properly tracked/consumed when used in expressions, allowing invalid future\
-    \ usage patterns to pass type checking."
-- file: compiler/passes/src/type_checking/check_statements.rs
-  line: 23
-  summary: "insert_variable call does not properly handle future types \u2014 missing\
-    \ validation that futures cannot be stored in certain variable contexts (e.g.,\
-    \ tuple bindings), allowing misplaced futures to go undetected."
+- file: ast/src/ast.rs
+  line: 45
+  summary: 'Operator precedence bug: `operation_eq` and `operation_ne` are defined
+    at a different precedence level than other relational operators (`lt`, `gt`, `le`,
+    `ge`); they should share the same precedence group.'
+  line_side: pre_fix
+- file: leo/commands/build.rs
+  line: 55
+  summary: Build result silently discarded via `let _program =` for lib.leo compilation;
+    should print a success message to console like other build paths do.
+  line_side: pre_fix
+- file: ast/src/leo.pest
+  line: 9
+  summary: Reserved keyword list is incomplete — missing `address` and potentially
+    other current Leo keywords, allowing them to be used as user-defined identifiers
+    which will cause downstream errors.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

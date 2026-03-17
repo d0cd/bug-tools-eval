@@ -1,23 +1,44 @@
 id: leo-028
 repo: ProvableHQ/leo
-base_commit: 9050bc8da2cef59f027dea2aa099618a4270f2ee^
-head_commit: 9050bc8da2cef59f027dea2aa099618a4270f2ee
-fix_commit: 9050bc8da2cef59f027dea2aa099618a4270f2ee
+base_commit: 1c88ea938bf21080b46e4b19bc1f5fb42e877445^
+head_commit: 1c88ea938bf21080b46e4b19bc1f5fb42e877445
+fix_commit: 1c88ea938bf21080b46e4b19bc1f5fb42e877445
 category: logic
-difficulty: easy
-severity: high
+difficulty: medium
+severity: medium
 language: rust
-pr_size: tiny
-description: The code generation for array init expressions produced incorrect bytecode
-  due to a formatting error in operand string construction. The format string in `operands.push_str(&format!("
-  {operand}"))` at line 154 of visit_expressions.rs was incorrect, causing malformed
-  output when concatenating operands for array initialization. The fix corrected the
-  format string to properly separate operands in the generated code.
+pr_size: large
+description: The type checker did not validate circuit member access expressions (e.g.,
+  `<expr>.<identifier>`), allowing type-incorrect member accesses to pass compilation
+  silently. The PR adds the missing type-checking logic for circuit member accesses
+  and cleans up related error-emission patterns across the type checker.
 expected_findings:
-- file: compiler/passes/src/code_generation/visit_expressions.rs
-  line: 154
-  summary: "Incorrect format string in operands.push_str for array init expressions\
-    \ produces malformed bytecode \u2014 the operand spacing or separator is wrong."
+- file: compiler/passes/src/type_checker/check_expressions.rs
+  line: 63
+  summary: Missing type-checking for circuit member access expressions — accessing
+    a member on a circuit-typed expression is not validated, so invalid member names
+    or type mismatches go unreported
+  line_side: pre_fix
+- file: compiler/passes/src/type_checker/checker.rs
+  line: 86
+  summary: Error emission in type checker uses inconsistent pattern; errors may be
+    emitted without properly propagating type information back to the caller, masking
+    downstream type mismatches
+  line_side: pre_fix
+- file: compiler/passes/src/type_checker/check_program.rs
+  line: 35
+  summary: Core type conflict check called with potentially incorrect argument wrapping
+    — verify that `&Some(input_var.type_)` correctly matches the expected parameter
+    type after refactor
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

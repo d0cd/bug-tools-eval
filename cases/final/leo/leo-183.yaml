@@ -1,23 +1,32 @@
 id: leo-183
 repo: ProvableHQ/leo
-base_commit: c8f6089be3453d3345e43098541ffaf28abb52d9^
-head_commit: c8f6089be3453d3345e43098541ffaf28abb52d9
-fix_commit: c8f6089be3453d3345e43098541ffaf28abb52d9
+base_commit: bd7ec477c9f17289b13975bebd88382a7b70a429^
+head_commit: bd7ec477c9f17289b13975bebd88382a7b70a429
+fix_commit: bd7ec477c9f17289b13975bebd88382a7b70a429
 category: logic
 difficulty: easy
 severity: high
 language: rust
 pr_size: small
-description: Inline functions were incorrectly included as `closure`s in the produced
-  bytecode. The fix adds a check in the code generation pass (visit_program.rs) to
-  skip functions marked as `inline`, preventing them from being emitted as closures
-  in the output.
+description: The Leo compiler did not check for duplicate function definitions, silently
+  accepting programs with multiple definitions of the same function (e.g., main).
+  This caused confusing downstream errors such as return type mismatches instead of
+  a clear duplicate-definition error at the ASG level.
 expected_findings:
-- file: compiler/passes/src/code_generation/visit_program.rs
-  line: 174
-  summary: 'Missing check for inline functions: the code generation logic should exclude
-    inline functions from bytecode output, but currently emits them as closures alongside
-    regular program functions.'
+- file: asg/src/program/mod.rs
+  line: 266
+  summary: 'Missing duplicate-function check: when inserting a function into the program
+    scope, there is no guard to detect that a function with the same name was already
+    defined. Should error on duplicate instead of silently overwriting.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

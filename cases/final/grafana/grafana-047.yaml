@@ -1,35 +1,32 @@
 id: grafana-047
 repo: grafana/grafana
-base_commit: 8d4e1e21b4b123ab984cc24bf757f68ffe85c7a4^
-head_commit: 8d4e1e21b4b123ab984cc24bf757f68ffe85c7a4
-fix_commit: 8d4e1e21b4b123ab984cc24bf757f68ffe85c7a4
+base_commit: 5c749143186928973387eb0c3d7740fbce7d916a^
+head_commit: 5c749143186928973387eb0c3d7740fbce7d916a
+fix_commit: 5c749143186928973387eb0c3d7740fbce7d916a
 category: logic
-difficulty: medium
+difficulty: easy
 severity: high
-language: go
-pr_size: medium
-description: 'The parquet buffer implementation had multiple issues preventing it
-  from working correctly: the reader was not properly resolving file paths (using
-  reader.folder incorrectly), and the writer lacked a nil check before writing, causing
-  migration failures. Additionally, there was no fallback mechanism when SQLite-based
-  migration failed due to OOM from cache_size memory usage, so a retry path using
-  parquet buffering was added.'
+language: typescript
+pr_size: tiny
+description: Panel link variable interpolation had an incorrect guard condition when
+  checking whether a variable has options with properties. The fix corrects the conditional
+  check in link_srv.ts around line 84 to properly handle variables that lack an 'options'
+  array or whose options lack 'properties', preventing panel links from breaking.
 expected_findings:
-- file: pkg/storage/unified/parquet/writer.go
-  line: 104
-  summary: 'Missing nil check on writer: w.writer could be nil when Write is called,
-    causing a nil pointer dereference during migration'
-- file: pkg/storage/unified/parquet/reader.go
-  line: 49
-  summary: 'Incorrect folder path resolution in parquet reader: reader.folder not
-    properly used when constructing file paths, causing file-not-found errors during
-    migration read-back'
-- file: pkg/storage/unified/migrations/resource_migration.go
-  line: 94
-  summary: No fallback when SQLite-based migration fails with OOM; should retry using
-    parquet buffer as an alternative data-buffering strategy
+- file: public/app/features/panel/panellinks/link_srv.ts
+  line: 84
+  summary: 'Incorrect guard condition when accessing variable.options: the check for
+    ''options'' in variable or the negation logic is wrong, causing panel links to
+    fail when variables lack the expected options/properties structure.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

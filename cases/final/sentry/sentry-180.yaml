@@ -1,0 +1,39 @@
+id: sentry-180
+repo: getsentry/sentry
+base_commit: f146a390b58db6aec025d9de8e3b7609a5bf1423^
+head_commit: f146a390b58db6aec025d9de8e3b7609a5bf1423
+fix_commit: f146a390b58db6aec025d9de8e3b7609a5bf1423
+category: security
+difficulty: medium
+severity: medium
+language: python
+pr_size: small
+description: User-provided feedback (user_context) is appended directly to an LLM
+  prompt without sanitization or escaping, creating a prompt injection risk. A malicious
+  user could craft feedback that manipulates the autofix agent's behavior. Additionally,
+  the field appears to accept arbitrary text via a CharField with no length limit
+  or content validation.
+expected_findings:
+- file: src/sentry/seer/autofix/autofix_agent.py
+  line: 118
+  summary: User-supplied `user_context` string is appended directly to the agent prompt
+    without sanitization, enabling prompt injection. Should validate/sanitize input
+    or use a structured delimiter to separate user feedback from system instructions.
+  line_side: pre_fix
+- file: src/sentry/seer/endpoints/group_ai_autofix.py
+  line: 117
+  summary: The `user_context` CharField lacks `max_length` and content validation.
+    Unbounded user input passed to an LLM prompt could be used for prompt injection
+    or cause excessive token usage.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,36 @@
+id: keycloak-059
+repo: keycloak/keycloak
+base_commit: bd703eb767a865db8d0c34cae14e837ffd0bcbb3^
+head_commit: bd703eb767a865db8d0c34cae14e837ffd0bcbb3
+fix_commit: bd703eb767a865db8d0c34cae14e837ffd0bcbb3
+category: cryptographic
+difficulty: medium
+severity: high
+language: java
+pr_size: tiny
+description: Apache Santuario 3.0.4 contains bug SANTUARIO-617 which causes failures
+  when using RSA-OAEP-MGF1P encryption in SAML/XML Security operations. The fix upgrades
+  xmlsec to 3.0.6 which includes the upstream fix, and adds a test exercising the
+  RSA-OAEP with SHA-256 and MGF1P combination that was broken.
+expected_findings:
+- file: pom.xml
+  line: 125
+  summary: xmlsec.version is set to 3.0.4 which contains SANTUARIO-617, a bug in RSA-OAEP-MGF1P
+    handling; should be upgraded to at least 3.0.5
+  line_side: pre_fix
+- file: testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/saml/BasicSamlTest.java
+  line: 478
+  summary: Missing test coverage for RSA_OAEP with SHA256 and MGF1P combination —
+    the exact code path broken by SANTUARIO-617
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

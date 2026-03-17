@@ -1,31 +1,31 @@
 id: snarkOS-169
 repo: ProvableHQ/snarkOS
-base_commit: af07c7f4a197e8fd766ec8c59672525c3260d09e^
-head_commit: af07c7f4a197e8fd766ec8c59672525c3260d09e
-fix_commit: af07c7f4a197e8fd766ec8c59672525c3260d09e
-category: api
-difficulty: medium
-severity: high
+base_commit: e38bf68d9ef03bd4c89ff6fbeaa10f97861c040c^
+head_commit: e38bf68d9ef03bd4c89ff6fbeaa10f97861c040c
+fix_commit: e38bf68d9ef03bd4c89ff6fbeaa10f97861c040c
+category: security
+difficulty: easy
+severity: medium
 language: rust
-pr_size: small
-description: JSON-RPC request deserialization failed when the `id` field was a numerical
-  value instead of a string. The code was deserializing directly into the typed RPC
-  request struct, which couldn't handle the polymorphic nature of JSON-RPC's `id`
-  field (string or number). The fix parses the request body into `serde_json::Value`
-  first before converting to the typed struct, and updates the `json-rpc-types` dependency
-  to fix string Value deserialization.
+pr_size: tiny
+description: The PeerResponse message did not limit the number of peers it could share,
+  potentially allowing an unbounded list to be sent to requesting nodes. The fix restricts
+  the maximum number of peers included in the response, completing a safeguard that
+  was missed in a prior PR (#2751).
 expected_findings:
-- file: src/rpc/rpc.rs
-  line: 141
-  summary: 'Incorrect deserialization: `serde_json::from_slice` deserializes directly
-    into the RPC request type, which fails when the JSON-RPC `id` field is a number
-    instead of a string. Should first parse into `serde_json::Value` to handle polymorphic
-    id field.'
-- file: Cargo.toml
-  line: 71
-  summary: Outdated `json-rpc-types` dependency (version prior to 1.0.2) has a bug
-    where `serde_json::Value` string deserialization requires escaping, preventing
-    proper borrowed str casting.
+- file: node/router/messages/src/peer_response.rs
+  line: 33
+  summary: Missing cap on the number of peers returned in PeerResponse; should restrict
+    to a maximum to prevent resource abuse or information leakage
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 2763
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

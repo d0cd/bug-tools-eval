@@ -1,31 +1,32 @@
 id: snarkVM-003
 repo: ProvableHQ/snarkVM
-base_commit: 2eb1d44aec25ff298f6a418dec143a8a50bed0d4^
-head_commit: 2eb1d44aec25ff298f6a418dec143a8a50bed0d4
-fix_commit: 2eb1d44aec25ff298f6a418dec143a8a50bed0d4
-category: logic
-difficulty: medium
-severity: high
+base_commit: 064a384d3a61b58ec755982553bbb3a53ee986d3^
+head_commit: 064a384d3a61b58ec755982553bbb3a53ee986d3
+fix_commit: 064a384d3a61b58ec755982553bbb3a53ee986d3
+category: incomplete
+difficulty: easy
+severity: critical
 language: rust
-pr_size: medium
-description: Identifier::from_bits_le was missing string sanity checks during deserialization,
-  allowing potentially invalid or malformed identifiers to be constructed from arbitrary
-  bits. The fix adds UTF-8 and identifier validity checks in both the console and
-  circuit implementations of from_bits_le, ensuring that bit sequences that don't
-  represent valid identifiers are rejected.
+pr_size: small
+description: 'A merge ordering issue caused a build break: the ''hash'' PR was branched
+  before the ''finalize-fees'' PR landed, so it carried stale code in the finalize
+  module. The fix removed 12 lines of now-redundant or conflicting code from synthesizer/src/program/finalize/mod.rs
+  to restore compilation.'
 expected_findings:
-- file: console/program/src/data/identifier/from_bits.rs
-  line: 24
-  summary: 'Missing validation: from_bits_le parses bytes as UTF-8 string without
-    checking identifier string sanity (e.g. valid characters, non-empty, length bounds)'
-- file: circuit/program/src/data/identifier/from_bits.rs
-  line: 29
-  summary: 'Missing validation: circuit from_bits_le ejects bits and reconstructs
-    identifier without enforcing string sanity checks on the resulting value'
-- file: console/program/src/data/identifier/from_bits.rs
-  line: 34
-  summary: 'Missing validation: second code path for from_bits_le also lacks identifier
-    string sanity check after UTF-8 parsing'
+- file: synthesizer/src/program/finalize/mod.rs
+  line: 121
+  summary: Stale/duplicate code left over from merge of 'hash' PR that conflicts with
+    changes introduced by the 'finalize-fees' PR; these lines should be removed to
+    fix the build
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

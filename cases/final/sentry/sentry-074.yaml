@@ -1,0 +1,40 @@
+id: sentry-074
+repo: getsentry/sentry
+base_commit: 60ce1d1e12890930217edc7f63ecb7dd9a80ebfd^
+head_commit: 60ce1d1e12890930217edc7f63ecb7dd9a80ebfd
+fix_commit: 60ce1d1e12890930217edc7f63ecb7dd9a80ebfd
+category: security
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: small
+description: The personal token creation UI exposed the Distribution scope, allowing
+  users to add distribution permissions to personal tokens. Distribution scopes are
+  intended only for Sentry App tokens that get embedded into apps, not for personal
+  API tokens. The fix extracts the Distribution permission into a named constant and
+  filters it out of the permissions displayed in the personal token creation form.
+expected_findings:
+- file: static/app/views/settings/account/apiNewToken.tsx
+  line: 40
+  summary: Personal token UI displays all SENTRY_APP_PERMISSIONS including Distribution
+    scope without filtering. Distribution scopes should not be available for personal
+    tokens — they are meant for app-embedded tokens only.
+  line_side: pre_fix
+- file: static/app/constants/index.tsx
+  line: 174
+  summary: The Distribution permission object is defined inline in the SENTRY_APP_PERMISSIONS
+    array, making it impossible to selectively exclude by reference identity when
+    the array is consumed in contexts where Distribution should not be offered (e.g.
+    personal token creation).
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

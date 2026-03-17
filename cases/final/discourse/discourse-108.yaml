@@ -1,0 +1,38 @@
+id: discourse-108
+repo: discourse/discourse
+base_commit: e88573a1e2d2a0468fe31b05b0770a14afb347ea^
+head_commit: e88573a1e2d2a0468fe31b05b0770a14afb347ea
+fix_commit: e88573a1e2d2a0468fe31b05b0770a14afb347ea
+category: logic
+difficulty: easy
+severity: high
+language: javascript
+pr_size: small
+description: The `newFeatures` tracked property was initialized to `null`, causing
+  `Object.keys(null)` to throw a TypeError when the dashboard feed request fails on
+  first load. The fix initializes it to `{}` and resets it in the catch block so stale
+  data is cleared on retry failures.
+expected_findings:
+- file: frontend/discourse/admin/components/dashboard-new-features.gjs
+  line: 14
+  summary: 'Null crash: `newFeatures` is initialized to `null` (or left uninitialized),
+    but later passed to `Object.keys()` which throws TypeError on null. Should default
+    to `{}`.'
+  line_side: pre_fix
+- file: frontend/discourse/admin/components/dashboard-new-features.gjs
+  line: 47
+  summary: 'Missing reset in catch block: when the feed request fails, `newFeatures`
+    retains its previous value (or stays `null`), leaving stale data on retry failures.
+    Should reset to `{}` in the error handler.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,31 +1,40 @@
 id: snarkVM-122
 repo: ProvableHQ/snarkVM
-base_commit: 074cd20903587f81cbd6c72ce717387d2ef57f0f^
-head_commit: 074cd20903587f81cbd6c72ce717387d2ef57f0f
-fix_commit: 074cd20903587f81cbd6c72ce717387d2ef57f0f
-category: logic
-difficulty: medium
+base_commit: 9124c319dfd08e19f537e64be18755cfd90f6975^
+head_commit: 9124c319dfd08e19f537e64be18755cfd90f6975
+fix_commit: 9124c319dfd08e19f537e64be18755cfd90f6975
+category: api-misuse
+difficulty: easy
 severity: medium
 language: rust
-pr_size: small
-description: The `is_reserved_opcode` function was duplicated across multiple files
-  with potentially inconsistent implementations. The fix unifies these into a single
-  implementation, and also fixes the opcode validation checks in `add_program.rs`
-  where `Program::<N>::is_reserved_opcode` was called instead of the unified version.
-  An iterator inefficiency in `optional_vec.rs` was also corrected to use `filter_map`.
+pr_size: tiny
+description: 'Several minor compilation fixes: the `rng` argument was passed by value
+  instead of by mutable reference in test helper calls (`check_next_block`), a constant
+  reference used the wrong associated constant, and a dependency version was outdated
+  causing build failures.'
 expected_findings:
-- file: vm/compiler/src/process/add_program.rs
-  line: 279
-  summary: Uses `Program::<N>::is_reserved_opcode(opcode)` which references a duplicated/non-unified
-    implementation; should use the consolidated opcode check.
-- file: vm/compiler/src/process/add_program.rs
-  line: 434
-  summary: Duplicate call to `Program::<N>::is_reserved_opcode(opcode)` using the
-    non-unified implementation; same fix needed as line 279.
-- file: r1cs/src/optional_vec.rs
-  line: 68
-  summary: Iterator uses a less efficient pattern instead of `filter_map(|v| v.as_ref())`
-    to iterate over optional values.
+- file: ledger/src/tests.rs
+  line: 596
+  summary: 'Incorrect rng passing: `rng` should be passed as `&mut rng` to `check_next_block`,
+    which expects a mutable reference to the RNG'
+  line_side: pre_fix
+- file: ledger/src/tests.rs
+  line: 631
+  summary: 'Same rng misuse: `rng` passed by value instead of `&mut rng` to `check_next_block`'
+  line_side: pre_fix
+- file: synthesizer/src/vm/finalize.rs
+  line: 130
+  summary: Wrong constant used for `MAXIMUM_CONFIRMED_TRANSACTIONS`; references incorrect
+    associated type or value
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

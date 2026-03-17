@@ -1,31 +1,26 @@
 id: snarkOS-071
 repo: ProvableHQ/snarkOS
-base_commit: c7ccc4f2b88d557aeb614bec92891f3efc288c32^
-head_commit: c7ccc4f2b88d557aeb614bec92891f3efc288c32
-fix_commit: c7ccc4f2b88d557aeb614bec92891f3efc288c32
-category: api
-difficulty: medium
-severity: high
+base_commit: 63f6f9bc28cdc6e57b6e1fc1e19ed141156885c7^
+head_commit: 63f6f9bc28cdc6e57b6e1fc1e19ed141156885c7
+fix_commit: 63f6f9bc28cdc6e57b6e1fc1e19ed141156885c7
+category: incomplete
+difficulty: hard
+severity: medium
 language: rust
-pr_size: medium
-description: The Scan CLI command was not using the correct CDN base URL for the network,
-  and the CDN module was using native_tls which is incompatible with the new endpoint
-  https://blocks.aleo.org. The fix updates Scan to import and use CDN_BASE_URL from
-  the start command module and switches reqwest from native_tls to rustls_tls feature
-  throughout the CDN block-fetching code.
-expected_findings:
-- file: cli/src/commands/developer/scan.rs
-  line: 15
-  summary: Scan command is not importing/using the shared CDN_BASE_URL constant, likely
-    using a hardcoded or incorrect URL for block syncing
-- file: node/cdn/Cargo.toml
-  line: 41
-  summary: Reqwest dependency uses native-tls feature which does not support the TLS
-    configuration required by the new CDN endpoint; should use rustls-tls instead
-- file: node/cdn/src/blocks.rs
-  line: 107
-  summary: HTTP client is built without specifying use_rustls_tls(), causing TLS handshake
-    failures with the new CDN endpoint
+pr_size: xl
+description: Large migration PR that restructures snarkOS by importing modules from
+  snarkVM and modularizing node logic by node type. Without an available diff, specific
+  code-level issues cannot be identified, making this unsuitable as a code review
+  test case.
+expected_findings: []
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: null
+valid_for_code_review: false
+introducing_commit: null
+pr_number: 1992
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

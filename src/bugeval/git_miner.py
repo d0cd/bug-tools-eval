@@ -43,7 +43,11 @@ def detect_fix_keywords(message: str) -> list[str]:
     return signals
 
 
-def score_git_candidate(commit: dict[str, Any], has_introducing: bool) -> tuple[float, list[str]]:
+def score_git_candidate(
+    commit: dict[str, Any],
+    has_introducing: bool,
+    introducing_diff_lines: int | None = None,
+) -> tuple[float, list[str]]:
     """Compute confidence 0.0–1.0 and signals from a commit dict.
 
     Scoring heuristic:
@@ -53,6 +57,7 @@ def score_git_candidate(commit: dict[str, Any], has_introducing: bool) -> tuple[
     - +0.20 introducing commit identified
     - +0.10 few files (1–3)
     - +0.10 merge commit
+    - +0.10 small introducing commit (<20 lines)
     Capped at 1.0.
     """
     message: str = commit.get("message", "")
@@ -80,6 +85,9 @@ def score_git_candidate(commit: dict[str, Any], has_introducing: bool) -> tuple[
     if is_merge:
         score += 0.10
         signals.append("signal:merge_commit")
+    if introducing_diff_lines is not None and introducing_diff_lines < 20:
+        score += 0.10
+        signals.append("signal:small_introducing_commit")
 
     return min(score, 1.0), signals
 
@@ -205,7 +213,28 @@ def build_git_candidates(repo: str, commits: list[dict[str, Any]], cwd: Path) ->
         if not _has_code_files(commit["files"]):
             continue
         introducing = find_introducing_commit(commit["sha"], commit["files"], cwd)
-        confidence, signals = score_git_candidate(commit, has_introducing=introducing is not None)
+        introducing_diff_lines: int | None = None
+        if introducing is not None:
+            try:
+                numstat = run_git(
+                    "diff-tree", "--no-commit-id", "--numstat", "-r", introducing, cwd=cwd
+                )
+                diff_lines = 0
+                for line in numstat.strip().splitlines():
+                    parts = line.split("\t")
+                    if len(parts) >= 2 and parts[0] != "-" and parts[1] != "-":
+                        try:
+                            diff_lines += int(parts[0]) + int(parts[1])
+                        except ValueError:
+                            pass
+                introducing_diff_lines = diff_lines
+            except GitError:
+                pass
+        confidence, signals = score_git_candidate(
+            commit,
+            has_introducing=introducing is not None,
+            introducing_diff_lines=introducing_diff_lines,
+        )
 
         files = commit["files"]
         language = detect_language(files)

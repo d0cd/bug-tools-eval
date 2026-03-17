@@ -164,10 +164,18 @@ class TestCurateCliHelp:
 
 
 def make_mock_subprocess(response_data: dict[str, object]) -> MagicMock:
-    """Return a mock subprocess.run result that outputs JSON."""
+    """Return a mock subprocess.run result that outputs stream-json (type=result event)."""
     mock_result = MagicMock()
     mock_result.returncode = 0
-    mock_result.stdout = json.dumps(response_data)
+    # Emit a stream-json result event so _parse_stream_json_output populates response_text
+    result_event = {
+        "type": "result",
+        "result": json.dumps(response_data),
+        "num_turns": 1,
+        "total_cost_usd": 0.0,
+        "usage": {},
+    }
+    mock_result.stdout = json.dumps(result_event) + "\n"
     mock_result.stderr = ""
     return mock_result
 
@@ -435,6 +443,75 @@ class TestCurateWithMockedApi:
         assert len(yaml_files) == 0
 
 
+class TestBuildCurationPromptReviewerContext:
+    def test_includes_reviewer_notes_when_present(self) -> None:
+        candidate = make_candidate()
+        candidate = candidate.model_copy(
+            update={"reviewer_notes": ["[inline] This will panic on empty input"]}
+        )
+        prompt = build_curation_prompt(candidate, diff_context="")
+        assert "Human Reviewer Comments" in prompt
+        assert "This will panic on empty input" in prompt
+
+    def test_no_reviewer_notes_section_when_empty(self) -> None:
+        candidate = make_candidate()
+        prompt = build_curation_prompt(candidate, diff_context="")
+        assert "Human Reviewer Comments" not in prompt
+
+    def test_includes_reviewer_findings_when_present(self) -> None:
+        from bugeval.models import ExpectedFinding
+
+        candidate = make_candidate()
+        candidate = candidate.model_copy(
+            update={
+                "reviewer_findings": [
+                    ExpectedFinding(file="src/foo.rs", line=10, summary="bad logic")
+                ]
+            }
+        )
+        prompt = build_curation_prompt(candidate, diff_context="")
+        assert "Reviewer-Anchored Findings" in prompt
+        assert "src/foo.rs" in prompt
+
+    def test_no_reviewer_findings_section_when_empty(self) -> None:
+        candidate = make_candidate()
+        prompt = build_curation_prompt(candidate, diff_context="")
+        assert "Reviewer-Anchored Findings" not in prompt
+
+
+class TestParseLlmResponsePreservesReviewerContext:
+    def test_preserves_pr_number(self) -> None:
+        candidate = make_candidate(pr_number=999)
+        data = make_llm_response_data()
+        case = parse_llm_response(data, case_id="bar-010", candidate=candidate)
+        assert case.pr_number == 999
+
+    def test_preserves_reviewer_notes(self) -> None:
+        candidate = make_candidate()
+        candidate = candidate.model_copy(
+            update={"reviewer_notes": ["reviewer said X"]}
+        )
+        data = make_llm_response_data()
+        case = parse_llm_response(data, case_id="bar-011", candidate=candidate)
+        assert case.reviewer_notes == ["reviewer said X"]
+
+    def test_preserves_reviewer_findings(self) -> None:
+        from bugeval.models import ExpectedFinding
+
+        candidate = make_candidate()
+        candidate = candidate.model_copy(
+            update={
+                "reviewer_findings": [
+                    ExpectedFinding(file="src/x.rs", line=5, summary="issue here")
+                ]
+            }
+        )
+        data = make_llm_response_data()
+        case = parse_llm_response(data, case_id="bar-012", candidate=candidate)
+        assert len(case.reviewer_findings) == 1
+        assert case.reviewer_findings[0].file == "src/x.rs"
+
+
 class TestCurateCandidateBackend:
     """curate_candidate must delegate subprocess calls to run_claude_cli."""
 
@@ -455,6 +532,31 @@ class TestCurateCandidateBackend:
         assert isinstance(result, __import__("bugeval.models", fromlist=["TestCase"]).TestCase)
         # subprocess.run must have been called (via run_claude_cli)
         assert mock_run.call_count == 1
+
+    def test_default_max_turns_allows_tool_calls(self) -> None:
+        """max_turns defaults to >1 so the agent can make WebSearch/WebFetch calls."""
+        from bugeval.curate import curate_candidate
+
+        candidate = make_candidate(1)
+        mock_sub = make_mock_subprocess(make_llm_response_data())
+        captured: list[list[str]] = []
+        def _capture(cmd: list[str], **_kw: object) -> object:
+            captured.append(cmd)
+            return mock_sub
+
+        with patch("subprocess.run", side_effect=_capture):
+            curate_candidate(
+                candidate=candidate,
+                diff_context="",
+                git_log="",
+                case_id="bar-003",
+                system_prompt="classify this",
+            )
+        assert captured, "subprocess.run not called"
+        cmd = captured[0]
+        turns_idx = cmd.index("--max-turns") if "--max-turns" in cmd else -1
+        assert turns_idx != -1, "--max-turns not in command"
+        assert int(cmd[turns_idx + 1]) > 1, "max_turns should be >1 to allow tool use"
 
     def test_timeout_is_at_least_300s(self) -> None:
         from bugeval.curate import curate_candidate

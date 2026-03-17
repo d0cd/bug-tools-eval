@@ -1,24 +1,41 @@
 id: grafana-029
 repo: grafana/grafana
-base_commit: 5e4aae0a19d191cd31e3ebd6c12c7b63ab652889^
-head_commit: 5e4aae0a19d191cd31e3ebd6c12c7b63ab652889
-fix_commit: 5e4aae0a19d191cd31e3ebd6c12c7b63ab652889
-category: logic
+base_commit: 40033dd271a3bfb29d6ccc7f8a1b9a7f8e5ddc38^
+head_commit: 40033dd271a3bfb29d6ccc7f8a1b9a7f8e5ddc38
+fix_commit: 40033dd271a3bfb29d6ccc7f8a1b9a7f8e5ddc38
+category: api-misuse
 difficulty: easy
-severity: medium
+severity: critical
 language: typescript
 pr_size: small
-description: QueryEditorRenderer used `queryError` from the query runner context to
-  display error state, but this value was not populated correctly on initial render.
-  The fix switches to reading errors from the `data.errors` array, which is reliably
-  available from the query response data.
+description: The v2 dashboard API can return null for annotations and variables fields,
+  but the frontend code directly calls array methods (.some(), .map()) on these values
+  without null checks, causing a crash on startup. The fix adds nullish coalescing
+  (?? []) to default null values to empty arrays before iteration.
 expected_findings:
-- file: public/app/features/dashboard-scene/panel-edit/PanelEditNext/QueryEditor/QueryEditorRenderer.tsx
-  line: 98
-  summary: Using `queryError` from context for error state is unreliable on initial
-    render; should use `data.errors` array from the query response instead
+- file: public/app/features/dashboard-scene/serialization/transformSaveModelSchemaV2ToScene.ts
+  line: 111
+  summary: Calling array methods on dashboard.annotations which can be null from the
+    v2 API; needs nullish coalescing (?? []) to prevent TypeError
+  line_side: pre_fix
+- file: public/app/features/dashboard-scene/serialization/transformSaveModelSchemaV2ToScene.ts
+  line: 292
+  summary: 'Same null-safety issue: dashboard.annotations used without null check
+    before array iteration'
+  line_side: pre_fix
+- file: public/app/features/dashboard/api/ResponseTransformers.ts
+  line: 1407
+  summary: spec.annotations may be null from the v2 API; calling .map() on null will
+    crash. Needs ?? [] guard
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

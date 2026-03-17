@@ -1,31 +1,43 @@
 id: sdk-040
 repo: ProvableHQ/sdk
-base_commit: 4fd700d0f18e48d269204c99f77e19c68628c4e6^
-head_commit: 4fd700d0f18e48d269204c99f77e19c68628c4e6
-fix_commit: 4fd700d0f18e48d269204c99f77e19c68628c4e6
-category: api
+base_commit: 955697d230d10fc7565bde6ec33841b9bf30277a^
+head_commit: 955697d230d10fc7565bde6ec33841b9bf30277a
+fix_commit: 955697d230d10fc7565bde6ec33841b9bf30277a
+category: concurrency
 difficulty: medium
 severity: high
-language: typescript
+language: javascript
 pr_size: large
-description: The AleoKeyProvider's verifying key fetch method only supported downloading
-  keys as bytes (binary), failing when keys were stored as text strings. The fix adds
-  a try-catch in the key fetching logic to first attempt reading the verifying key
-  as a string, then falling back to byte download if that fails. The worker.js was
-  also updated to pass correct parameters to the updated function signatures.
+description: The app had a race condition where components would attempt to use the
+  WASM worker before it finished initializing, causing the app to fail to load on
+  mobile or slow connections. The fix introduces a React context provider (WorkerProvider/WorkerContext)
+  that gates app rendering until the worker signals initialization is complete, and
+  refactors worker.js to post status messages so the provider can track readiness.
 expected_findings:
-- file: sdk/src/function-key-provider.ts
-  line: 501
-  summary: Verifying key fetch only supports byte/binary downloads but keys can be
-    stored as text strings. Should try fetching as text first and fall back to bytes.
+- file: website/src/aleo-wasm-hook.js
+  line: 1
+  summary: 'Race condition: WASM hook initializes and exposes the module without waiting
+    for the web worker to be ready, causing components to call into uninitialized
+    worker on slow connections'
+  line_side: pre_fix
 - file: website/src/workers/worker.js
-  line: 133
-  summary: "Missing parameter in function call \u2014 needs an additional undefined\
-    \ argument to match the updated key provider function signature."
-- file: website/src/workers/worker.js
-  line: 330
-  summary: "Missing parameter in function call \u2014 needs an additional undefined\
-    \ argument to match the updated key provider function signature."
+  line: 1
+  summary: Worker does not signal initialization completion to the main thread; consumers
+    have no way to know when WASM is ready before invoking operations
+  line_side: pre_fix
+- file: website/src/index.jsx
+  line: 3
+  summary: App renders immediately without gating on worker readiness — needs a provider/context
+    that defers rendering until the worker posts an 'initialized' message
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

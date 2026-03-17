@@ -1,0 +1,33 @@
+id: discourse-110
+repo: discourse/discourse
+base_commit: ea0c186d04737daa10c864b5c2c1b3468667f498^
+head_commit: ea0c186d04737daa10c864b5c2c1b3468667f498
+fix_commit: ea0c186d04737daa10c864b5c2c1b3468667f498
+category: logic
+difficulty: medium
+severity: medium
+language: ruby
+pr_size: small
+description: The NavItem component's `active` getter calls `router.isActive(route)`
+  without passing the `routeParam` dynamic segment value. This causes all nav items
+  sharing the same route but with different params to appear active simultaneously.
+  The fix passes `routeParam` to `router.isActive(route, routeParam)` when the param
+  is present.
+expected_findings:
+- file: frontend/discourse/app/components/nav-item.gjs
+  line: 65
+  summary: 'Missing routeParam in isActive check: `router.isActive(route)` should
+    pass `routeParam` as second argument when present, otherwise all nav items on
+    the same route appear active regardless of dynamic segment value'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

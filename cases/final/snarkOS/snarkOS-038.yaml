@@ -1,26 +1,47 @@
 id: snarkOS-038
 repo: ProvableHQ/snarkOS
-base_commit: e8d3a90fe9d39ab2a83236c0835a3714651395f4^
-head_commit: e8d3a90fe9d39ab2a83236c0835a3714651395f4
-fix_commit: e8d3a90fe9d39ab2a83236c0835a3714651395f4
-category: api
-difficulty: easy
-severity: medium
+base_commit: 372f8cdf714c8854aeadee12f2c43c253918f64d^
+head_commit: 431bbc2f89285aef451f133f2df943b0061734cc
+fix_commit: 372f8cdf714c8854aeadee12f2c43c253918f64d
+category: concurrency
+difficulty: hard
+severity: high
 language: rust
-pr_size: tiny
-description: When `self.inbound()` failed in both the client and validator routers,
-  the error was silently swallowed with no logging output. This made it difficult
-  to diagnose sync issues. The fix adds `error!()` log statements to surface the failure
-  details including the peer address and error message.
+pr_size: medium
+description: When a node is still syncing, it would process certificate and batch
+  header requests from peers, triggering recursive certificate fetching that could
+  overwhelm the node. The fix introduces an `IS_SYNCING` const generic parameter to
+  guard `sync_with_certificate_from_peer` and `sync_with_batch_header_from_peer`,
+  bailing early when the node is not synced and the call isn't part of the sync process.
+  Additionally, `update_is_block_synced` was called prematurely before pending sync
+  requests/responses completed, causing incorrect sync status.
 expected_findings:
-- file: node/src/client/router.rs
-  line: 146
-  summary: 'Missing error logging: when inbound message processing fails, the error
-    is silently discarded. Should log the error with peer address for diagnostics.'
-- file: node/src/validator/router.rs
-  line: 137
-  summary: 'Missing error logging: when inbound message processing fails, the error
-    is silently discarded. Should log the error with peer address for diagnostics.'
+- file: node/bft/src/primary.rs
+  line: 1429
+  summary: 'Missing sync-state guard: `sync_with_certificate_from_peer` recursively
+    fetches certificates from peers even when the node is still syncing, which can
+    overwhelm the node. Needs an `is_synced()` check to bail early for non-sync callers.'
+  line_side: pre_fix
+- file: node/bft/src/primary.rs
+  line: 1480
+  summary: 'Missing sync-state guard: `sync_with_batch_header_from_peer` similarly
+    lacks a check for whether the node is synced, allowing recursive fetching during
+    sync that should be blocked for peer-initiated requests.'
+  line_side: pre_fix
+- file: node/sync/src/block_sync.rs
+  line: 456
+  summary: 'Premature sync status update: `update_is_block_synced(0, MAX_BLOCKS_BEHIND)`
+    is called unconditionally even when there are still pending requests or responses
+    in flight, causing the node to incorrectly report as synced.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

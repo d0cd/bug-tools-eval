@@ -1,30 +1,34 @@
 id: snarkOS-053
 repo: ProvableHQ/snarkOS
-base_commit: 08bcccca82a708d607a45432f7dc98c432f962cf^
-head_commit: 08bcccca82a708d607a45432f7dc98c432f962cf
-fix_commit: 08bcccca82a708d607a45432f7dc98c432f962cf
-category: api
-difficulty: easy
+base_commit: 4358ec441a4fd6ee3c5f31565c27cad8bd0b4ac9^
+head_commit: 4358ec441a4fd6ee3c5f31565c27cad8bd0b4ac9
+fix_commit: 4358ec441a4fd6ee3c5f31565c27cad8bd0b4ac9
+category: api-misuse
+difficulty: medium
 severity: medium
 language: rust
-pr_size: medium
-description: The simple_node example was broken because it used outdated imports and
-  API calls that no longer matched the current library interfaces. The fix updates
-  the example to use TranslucentLedgerService and aligns the code with the current
-  BFT node construction API.
+pr_size: tiny
+description: 'After PR #3163 introduced stricter peering rules requiring validators
+  to only connect to trusted peers, the test helper for constructing a validator router
+  was still passing `false` for the allow-external-connections parameter. This caused
+  router tests to flake because test peers were not in the validator''s trusted set,
+  so connections would be rejected. The fix sets the parameter to `true` so validators
+  in tests can connect to any peer.'
 expected_findings:
-- file: node/bft/examples/simple_node.rs
-  line: 22
-  summary: 'Outdated import: should use TranslucentLedgerService from snarkos_node_bft_ledger_service
-    instead of the previous ledger service type'
-- file: node/bft/examples/simple_node.rs
-  line: 51
-  summary: 'Incorrect ledger service instantiation: needs to be updated to use TranslucentLedgerService
-    constructor matching current API'
-- file: node/bft/examples/simple_node.rs
-  line: 119
-  summary: 'Outdated BFT/node construction call: API signature has changed and example
-    code no longer compiles'
+- file: node/router/tests/common/mod.rs
+  line: 114
+  summary: 'Incorrect boolean argument `false` for the allow-connections parameter:
+    after stricter peering rules were introduced, test validators need this set to
+    `true` to connect to non-trusted test peers'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

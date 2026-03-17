@@ -1,26 +1,34 @@
 id: leo-050
 repo: ProvableHQ/leo
-base_commit: 062994e4fe5ab33507c73774584f0f73d8d10c00^
-head_commit: 062994e4fe5ab33507c73774584f0f73d8d10c00
-fix_commit: 062994e4fe5ab33507c73774584f0f73d8d10c00
-category: logic
-difficulty: easy
-severity: low
+base_commit: 32dad405210f99d07a1040795ba23cd12bc50af4^
+head_commit: 32dad405210f99d07a1040795ba23cd12bc50af4
+fix_commit: 32dad405210f99d07a1040795ba23cd12bc50af4
+category: type
+difficulty: medium
+severity: high
 language: leo
-pr_size: small
-description: 'Duplicate variable name ''in32'' was used twice in the nonprinting character
-  test file, where the second occurrence should have been ''in33''. The compiler failed
-  to detect this duplicate (see issue #1282), so the test was silently incorrect.
-  The fix renames the duplicate to ''in33'' and updates the expected output accordingly.'
+pr_size: tiny
+description: 'The type inference pass incorrectly calculated the type of array spread
+  expressions. When encountering a spread like `...a` where `a: [u32; 2]`, the code
+  destructured `Type::Array(element_type)` and returned the inner element type (`u32`)
+  instead of preserving the array type information needed to correctly compute the
+  spread''s contribution to the enclosing array literal. This caused valid code like
+  `let b: [u32; 3] = [...a, 3]` to fail type checking.'
 expected_findings:
-- file: tests/compiler/char/nonprinting.leo
-  line: 37
-  summary: 'Duplicate identifier: ''in32'' is declared twice; this second occurrence
-    should be ''in33''.'
-- file: tests/compiler/char/nonprinting.leo
-  line: 72
-  summary: 'Duplicate identifier: ''in32'' used again in the function body; should
-    be ''in33'' to match the corrected parameter name.'
+- file: type-inference/src/objects/frame.rs
+  line: 837
+  summary: Type::Array(element_type) => Ok(*element_type) incorrectly unwraps the
+    array type for spread expressions — should return the full array type (including
+    length) so the enclosing array literal can compute its total size correctly
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

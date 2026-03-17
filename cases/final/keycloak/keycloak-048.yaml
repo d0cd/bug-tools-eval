@@ -1,28 +1,36 @@
 id: keycloak-048
 repo: keycloak/keycloak
-base_commit: 418700b4f8b15189d4c0a646fc02b9ca28e1995b^
-head_commit: 418700b4f8b15189d4c0a646fc02b9ca28e1995b
-fix_commit: 418700b4f8b15189d4c0a646fc02b9ca28e1995b
+base_commit: 878074ac6cf87098bc67d307122b3208f870b492^
+head_commit: 878074ac6cf87098bc67d307122b3208f870b492
+fix_commit: 878074ac6cf87098bc67d307122b3208f870b492
 category: logic
 difficulty: easy
 severity: low
-language: java
+language: typescript
 pr_size: tiny
-description: "When executing the VERIFY_EMAIL action, the confirmation page displayed\
-  \ 'Your account has been updated.' twice \u2014 once as the page header and once\
-  \ as the body text. The root cause was that AuthenticationManager.finishedRequiredActions()\
-  \ rendered the ACCOUNT_UPDATED info page without setting a messageHeader attribute,\
-  \ causing the info.ftl template to fall back to message.summary for the header,\
-  \ duplicating the body message. The fix adds a distinct accountUpdatedTitle message\
-  \ key and passes it as the messageHeader attribute."
+description: The admin console used hardcoded fallback paths for the logo ("/logo.svg")
+  and favicon ("favIcon=/img/favicon.ico") that were incorrect or inconsistent with
+  the actual asset locations. The fix corrects these paths so the favicon and logo
+  display properly in both the account and admin consoles.
 expected_findings:
-- file: services/src/main/java/org/keycloak/services/managers/AuthenticationManager.java
-  line: 0
-  summary: "Missing messageHeader attribute when rendering ACCOUNT_UPDATED info page\
-    \ \u2014 without it, info.ftl falls back to message.summary, duplicating the body\
-    \ text as the header"
+- file: js/apps/admin-ui/src/PageHeader.tsx
+  line: 102
+  summary: Hardcoded logo fallback path "/logo.svg" is incorrect; should reference
+    the proper favicon/logo asset path used by the admin console theme
+  line_side: pre_fix
+- file: js/apps/admin-ui/src/realm-settings/themes/ThemesTab.tsx
+  line: 61
+  summary: Hardcoded favicon path "favIcon=/img/favicon.ico" uses wrong location;
+    the favicon path should match the actual theme asset directory
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

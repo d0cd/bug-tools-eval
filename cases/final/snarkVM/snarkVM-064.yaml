@@ -1,27 +1,42 @@
 id: snarkVM-064
 repo: ProvableHQ/snarkVM
-base_commit: 1db1f757939aef9b2f58c1f382d8d66cd81f9232^
-head_commit: 1db1f757939aef9b2f58c1f382d8d66cd81f9232
-fix_commit: 1db1f757939aef9b2f58c1f382d8d66cd81f9232
-category: type
+base_commit: 43e681f4588129a4564debc1af526855787b11a8^
+head_commit: 43e681f4588129a4564debc1af526855787b11a8
+fix_commit: 43e681f4588129a4564debc1af526855787b11a8
+category: style
 difficulty: easy
-severity: high
+severity: low
 language: rust
 pr_size: tiny
-description: A previous PR changed TransactionID to no longer be passed by reference,
-  but several call sites still passed it by reference, breaking compilation. The fix
-  updates those call sites to pass TransactionID by value instead of by reference.
+description: 'Documentation/comment typos in three places: (1) an outdated constraint
+  comment referencing ''10,000 microcredits'' for delegators was removed as it no
+  longer applied, (2) ''microcredits'' was corrected to ''credits'' in a bond_public
+  comment, and (3) a rewards.rs doc comment incorrectly said ''stakers who have less
+  than 10 credit'' instead of ''delegators who have less than 10,000 credits''.'
 expected_findings:
-- file: vm/compiler/src/ledger/get.rs
-  line: 78
-  summary: 'Type mismatch: `get_transaction(&transaction_id)` passes TransactionID
-    by reference, but the function signature was changed to take it by value. Should
-    be `get_transaction(transaction_id)`.'
-- file: vm/package/deploy.rs
-  line: 30
-  summary: "Unnecessary dereference or reference mismatch after TransactionID signature\
-    \ change \u2014 call site needs to be updated to match the new by-value parameter\
-    \ convention."
+- file: synthesizer/src/vm/helpers/rewards.rs
+  line: 34
+  summary: 'Incorrect doc comment: says ''stakers who have less than 10 credit'' but
+    the actual threshold is 10,000 credits for delegators, not 10 credits for stakers'
+  line_side: pre_fix
+- file: synthesizer/program/src/resources/credits.aleo
+  line: 284
+  summary: Comment says '10,000 microcredits' but should say '10,000 credits' — microcredits
+    vs credits unit mismatch in documentation
+  line_side: pre_fix
+- file: synthesizer/program/src/resources/credits.aleo
+  line: 43
+  summary: Stale constraint comment '13. delegated[*] >= 10,000' no longer applies
+    and should be removed
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

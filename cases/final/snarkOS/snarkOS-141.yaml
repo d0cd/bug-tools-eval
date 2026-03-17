@@ -1,30 +1,34 @@
 id: snarkOS-141
 repo: ProvableHQ/snarkOS
-base_commit: eaa2c940d502b88a00cdd27f8f3b0037954eb22d^
-head_commit: eaa2c940d502b88a00cdd27f8f3b0037954eb22d
-fix_commit: eaa2c940d502b88a00cdd27f8f3b0037954eb22d
-category: type
-difficulty: easy
-severity: medium
+base_commit: b544b7ae173970b045b622e8273d668f1ea67fc0^
+head_commit: b544b7ae173970b045b622e8273d668f1ea67fc0
+fix_commit: b544b7ae173970b045b622e8273d668f1ea67fc0
+category: api-misuse
+difficulty: medium
+severity: high
 language: rust
-pr_size: medium
-description: The codebase used the deprecated `BlockHeaderHash` type throughout the
-  network and storage modules instead of the replacement `Digest` type. The fix replaces
-  all occurrences of `BlockHeaderHash` with `Digest` across message handling, block
-  synchronization, serialization, tests, and storage validation code.
+pr_size: small
+description: The rate limiter was configured using `per_second` which caused the replenishment
+  rate to drop to 1 request per second after the burst quota was exhausted, instead
+  of maintaining the configured RPS. The fix uses `per_nanosecond((1_000_000_000 /
+  rest_rps) as u64)` to correctly replenish the full burst rate every second. A secondary
+  fix addresses proper HTTP error responses (429 for rate limiting) and a compilation
+  issue with import ordering.
 expected_findings:
-- file: network/src/message/message.rs
-  line: 14
-  summary: Uses deprecated `BlockHeaderHash` type; should be replaced with `Digest`
-    from `snarkos_storage`.
-- file: network/src/sync/blocks/interface.rs
-  line: 24
-  summary: Struct field uses deprecated `BlockHeaderHash` type for `header_hashes`;
-    should use `Vec<Digest>` instead.
-- file: storage/src/validator.rs
-  line: 628
-  summary: Accesses `tx_location.block_hash` using deprecated `BlockHeaderHash` type;
-    should use `Digest`.
+- file: node/rest/src/lib.rs
+  line: 111
+  summary: 'Rate limiter misconfiguration: `per_second` replenishes at 1 req/s after
+    burst exhaustion instead of the configured RPS; should use `per_nanosecond((1_000_000_000
+    / rest_rps) as u64)` to distribute replenishment evenly across the full second'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

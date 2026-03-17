@@ -1,34 +1,32 @@
 id: snarkOS-010
 repo: ProvableHQ/snarkOS
-base_commit: b23fa7e165fb87b8d2d94f93d9d572ed78b68a2d^
-head_commit: dc6ab50d2e30ccc75b9c7e4565cc83faa539946f
-fix_commit: b23fa7e165fb87b8d2d94f93d9d572ed78b68a2d
-category: concurrency
-difficulty: hard
+base_commit: 10be4d1a32417e10c6a762d70c5d6a7d99bbb74d^
+head_commit: 10be4d1a32417e10c6a762d70c5d6a7d99bbb74d
+fix_commit: 10be4d1a32417e10c6a762d70c5d6a7d99bbb74d
+category: logic
+difficulty: easy
 severity: high
 language: rust
-pr_size: small
-description: 'Two TCP edge cases: (1) concurrent calls to Tcp::disconnect could both
-  execute disconnect behavior due to lack of atomic synchronization, and (2) if Reading::process_message
-  panicked, the stream reading task was not dropped, causing a connection and memory
-  leak. Fixed by adding an AtomicBool to claim disconnect exclusivity and by aborting
-  the reader task when the message processing channel closes.'
+pr_size: tiny
+description: The string literal 'credits.aleo' was misspelled in the program lookup
+  endpoint, causing the special-case handling for the credits program to never match.
+  This meant requests for the credits.aleo program would fall through to the general
+  lookup path instead of being handled by the dedicated branch.
 expected_findings:
-- file: node/tcp/src/tcp.rs
-  line: 302
-  summary: 'Race condition: Tcp::disconnect lacks atomic guard, allowing duplicate
-    concurrent calls to both execute disconnect behavior. Should use an atomic compare-and-swap
-    to claim exclusive disconnect execution.'
-- file: node/tcp/src/protocols/reading.rs
-  line: 175
-  summary: 'Resource leak: when the message processing task panics (channel closes),
-    the stream reading task is not aborted/dropped, leaking the connection and associated
-    memory. Should detect TrySendError::Closed and terminate the reader task.'
-- file: node/tcp/src/helpers/connections.rs
-  line: 15
-  summary: Connection state missing AtomicBool field to track whether disconnect has
-    already been initiated for a given connection, enabling the race condition in
-    Tcp::disconnect.
+- file: node/rest/src/routes.rs
+  line: 138
+  summary: 'Misspelled string literal in comparison: the string used to match the
+    credits program ID is misspelled, so the special-case branch for `credits.aleo`
+    is dead code and the program lookup will fail or take the wrong path.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

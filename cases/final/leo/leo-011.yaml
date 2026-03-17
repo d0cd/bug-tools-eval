@@ -1,23 +1,44 @@
 id: leo-011
 repo: ProvableHQ/leo
-base_commit: 7ba71bbfc16f8330cb35e87a41916a501f9f84b8^
-head_commit: 7ba71bbfc16f8330cb35e87a41916a501f9f84b8
-fix_commit: 7ba71bbfc16f8330cb35e87a41916a501f9f84b8
-category: logic
+base_commit: 0e11b6e757902906df71a406c74c8d1f851514f2^
+head_commit: 0e11b6e757902906df71a406c74c8d1f851514f2
+fix_commit: 0e11b6e757902906df71a406c74c8d1f851514f2
+category: code-smell
 difficulty: easy
-severity: critical
+severity: medium
 language: rust
 pr_size: medium
-description: The not-equals (`!=`) operator's AST conversion handler in `typed/src/expression.rs`
-  contained infinite recursion, likely by incorrectly calling itself instead of properly
-  converting the operands. This caused a stack overflow at runtime whenever `!=` was
-  used. The fix corrected the recursive call in the `BinaryOperation::Ne` match arm.
+description: HashMap usage throughout the compiler produces non-deterministic iteration
+  order, meaning compiling the same Leo program multiple times can yield structurally
+  different ASTs. While these ASTs should produce equivalent circuits, the non-determinism
+  undermines reproducibility and makes debugging harder. The fix replaces HashMap/HashSet
+  with IndexMap/IndexSet to guarantee insertion-order iteration.
 expected_findings:
-- file: typed/src/expression.rs
-  line: 331
-  summary: 'Infinite recursion in BinaryOperation::Ne match arm: the Ne case likely
-    recurses into itself instead of correctly converting sub-expressions, causing
-    a stack overflow'
+- file: ast/src/program.rs
+  line: 20
+  summary: HashMap used for program-level collections (imports, circuits, functions)
+    in the AST — non-deterministic iteration order means the same source can produce
+    different AST orderings across runs. Should use IndexMap for deterministic output.
+  line_side: pre_fix
+- file: symbol-table/src/symbol_table.rs
+  line: 19
+  summary: HashMap/HashSet used in the symbol table for names, circuits, and functions
+    — non-deterministic ordering propagates through type checking and downstream passes.
+    Should use IndexMap/IndexSet.
+  line_side: pre_fix
+- file: imports/src/parser/import_parser.rs
+  line: 17
+  summary: HashMap/HashSet in the import parser means import resolution order is non-deterministic,
+    which can affect error reporting order and AST structure. Should use IndexMap/IndexSet.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

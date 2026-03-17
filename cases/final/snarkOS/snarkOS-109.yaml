@@ -1,24 +1,42 @@
 id: snarkOS-109
 repo: ProvableHQ/snarkOS
-base_commit: bc92d3b22743c7ab93c40166f206aed82e499d46^
-head_commit: bc92d3b22743c7ab93c40166f206aed82e499d46
-fix_commit: bc92d3b22743c7ab93c40166f206aed82e499d46
+base_commit: 97b0eebf412ded0525e9f9bf961ac942dd3234c4^
+head_commit: 97b0eebf412ded0525e9f9bf961ac942dd3234c4
+fix_commit: 97b0eebf412ded0525e9f9bf961ac942dd3234c4
 category: logic
-difficulty: hard
-severity: critical
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: The signed_proposals cache in the BFT primary lacked a round check, allowing
-  malicious validators to trick peers into double-signing proposals by submitting
-  proposals with rounds behind the already-signed round. The fix adds a check to disconnect
-  from peers that request signatures on proposals behind the signed_round, preventing
-  DAG safety violations.
+pr_size: small
+description: The SYNC_LENIENCY check was applied too broadly, preventing transaction
+  broadcasts when a node was behind on sync. This caused hours of downtime for wallets
+  and end-users during any client outage or sync disruption. The fix ignores SYNC_LENIENCY
+  for broadcast operations, allowing the transaction to propagate to other nodes even
+  if the local node won't process it.
 expected_findings:
-- file: node/bft/src/primary.rs
-  line: 525
-  summary: 'Missing round validation: no check that a peer''s batch round is not behind
-    the signed_round in the signed_proposals cache, allowing malicious validators
-    to bypass the cache and induce double-signing'
+- file: node/rest/src/routes.rs
+  line: 629
+  summary: SYNC_LENIENCY guard blocks transaction broadcast when node is behind; broadcast
+    should be allowed regardless of sync state to avoid wallet downtime
+  line_side: pre_fix
+- file: node/rest/src/routes.rs
+  line: 642
+  summary: Transaction processing path rejects broadcast due to sync leniency check;
+    should still propagate to peers even if local node skips processing
+  line_side: pre_fix
+- file: node/rest/src/routes.rs
+  line: 707
+  summary: Sync leniency check prevents transaction relay; this check should be bypassed
+    for broadcast operations
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

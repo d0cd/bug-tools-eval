@@ -1,28 +1,35 @@
 id: discourse-018
 repo: discourse/discourse
-base_commit: 58b4853f1de2d7ef6a97f3af362d2838f79eba58^
-head_commit: 58b4853f1de2d7ef6a97f3af362d2838f79eba58
-fix_commit: 58b4853f1de2d7ef6a97f3af362d2838f79eba58
-category: api
-difficulty: easy
-severity: low
-language: unknown
+base_commit: 1a22ddb55e3a9af7091782b9fc2da6fb134bdca3^
+head_commit: 1a22ddb55e3a9af7091782b9fc2da6fb134bdca3
+fix_commit: 1a22ddb55e3a9af7091782b9fc2da6fb134bdca3
+category: logic
+difficulty: medium
+severity: high
+language: javascript
 pr_size: small
-description: Dependency bump of ember-resolver from 13.1.1 to 13.2.0. This is a routine
-  minor version update rather than a targeted bug fix; the upstream package likely
-  contains fixes or improvements that Discourse consumes transitively. The change
-  updates version specifiers in two package.json files and regenerates the lockfile.
+description: In subfolder Discourse setups, the `routeTo` function checked the full
+  pathname (including the subfolder prefix like `/forum`) against SERVER_SIDE_ONLY
+  regex patterns (e.g. `/^\/uploads\//`), causing the match to fail. This routed server-side-only
+  URLs (like file download links) through Ember's client router instead of redirecting
+  to the server, producing a 'page doesn't exist' error. The fix strips the subfolder
+  prefix with `withoutPrefix()` before the regex check.
 expected_findings:
-- file: frontend/discourse/package.json
-  line: 46
-  summary: 'Outdated dependency: ember-resolver pinned at ^13.1.1 should be bumped
-    to ^13.2.0 to pick up upstream fixes'
-- file: frontend/pretty-text/package.json
-  line: 35
-  summary: 'Outdated dependency: ember-resolver pinned at ^13.1.1 should be bumped
-    to ^13.2.0 to stay consistent with main package'
+- file: frontend/discourse/app/lib/url.js
+  line: 1
+  summary: SERVER_SIDE_ONLY regex check runs against the full pathname including subfolder
+    prefix, so patterns like `/^\/uploads\//` never match URLs like `/forum/uploads/...`.
+    The path must be stripped of the subfolder prefix via `withoutPrefix()` before
+    the check.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 37996
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

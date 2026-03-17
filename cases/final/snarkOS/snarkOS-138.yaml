@@ -1,25 +1,37 @@
 id: snarkOS-138
 repo: ProvableHQ/snarkOS
-base_commit: 39448912f9db287968f88f468258a34791c4de80^
-head_commit: 39448912f9db287968f88f468258a34791c4de80
-fix_commit: 39448912f9db287968f88f468258a34791c4de80
+base_commit: b3c94022f20e9b5b4847d8b9e2c1e6a670926581^
+head_commit: b3c94022f20e9b5b4847d8b9e2c1e6a670926581
+fix_commit: b3c94022f20e9b5b4847d8b9e2c1e6a670926581
 category: logic
-difficulty: easy
-severity: low
+difficulty: medium
+severity: high
 language: rust
 pr_size: tiny
-description: The orphan block metric counter was not being incremented when orphan
-  blocks were detected during the commit process. The fix restores the missing `metrics::increment_counter!(metrics::blocks::ORPHANS)`
-  calls at two code paths in the consensus commit logic where orphan blocks are identified.
+description: After calling advance_to_next_block(), the ledger's latest_epoch_number()
+  already reflects the new epoch. Comparing block.epoch_number() > self.ledger.latest_epoch_number()
+  is therefore always false, so stale solutions are never cleared on epoch boundaries.
+  The fix is to capture the previous epoch number before advancing the ledger.
 expected_findings:
-- file: consensus/src/consensus/inner/commit.rs
-  line: 52
-  summary: "Missing metrics::increment_counter!(metrics::blocks::ORPHANS) call \u2014\
-    \ orphan blocks detected here are not counted in the metrics."
-- file: consensus/src/consensus/inner/commit.rs
-  line: 119
-  summary: "Missing metrics::increment_counter!(metrics::blocks::ORPHANS) call \u2014\
-    \ second orphan block code path also fails to increment the counter."
+- file: node/consensus/src/lib.rs
+  line: 150
+  summary: 'Epoch staleness check is dead code: advance_to_next_block() updates the
+    ledger before this comparison, so block.epoch_number() can never exceed latest_epoch_number().
+    Capture the old epoch number before advancing.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 2540
+reviewer_notes: []
+reviewer_findings:
+- file: node/consensus/src/lib.rs
+  line: 150
+  summary: When `advance_to_next_block` is Ok, `block.epoch_number()` will always
+    equal to `self.ledger.latest_epoch_number()`. Tha
+  line_side: pre_fix
+quality_flags: []

@@ -1,34 +1,40 @@
 id: leo-118
 repo: ProvableHQ/leo
-base_commit: 3c2da076ff4a04af5ad6f54f170159096b1f0d3e^
-head_commit: 3c2da076ff4a04af5ad6f54f170159096b1f0d3e
-fix_commit: 3c2da076ff4a04af5ad6f54f170159096b1f0d3e
-category: logic
-difficulty: medium
-severity: high
+base_commit: 7919eaab6dcad0176b8088b4a5215a8c7f342f31^
+head_commit: 7919eaab6dcad0176b8088b4a5215a8c7f342f31
+fix_commit: 7919eaab6dcad0176b8088b4a5215a8c7f342f31
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: The compiler's flattening pass did not properly handle `console` statements
-  (e.g. `console.assert()`) inside conditional blocks. When flattening conditionals,
-  console statements were emitted without being guarded by the branch condition, causing
-  them to execute unconditionally. The fix adds logic to wrap console statements with
-  the appropriate condition during flattening.
+pr_size: xl
+description: License headers were duplicated across ~30 files in the asg crate. The
+  fix simply removes the redundant second copy of the license block from each affected
+  file. This is a mechanical cleanup with no functional impact.
 expected_findings:
-- file: compiler/passes/src/flattening/flatten_statement.rs
-  line: 110
-  summary: Console statements inside conditional blocks are not guarded by the branch
-    condition during flattening. The flattener should wrap console.assert (and similar)
-    calls with the enclosing conditional's condition, but instead emits them unconditionally.
-- file: compiler/passes/src/flattening/flatten_statement.rs
-  line: 209
-  summary: "Missing handling for console statements in the conditional flattening\
-    \ logic \u2014 console statements should be transformed to include the condition\
-    \ as a conjunct (e.g. `condition && assert_expr`) but are passed through unchanged."
-- file: compiler/passes/src/flattening/flattener.rs
-  line: 175
-  summary: Flattener helper does not account for console statement variants when constructing
-    conditional guards, causing console assertions in if/else branches to lose their
-    conditional context.
+- file: asg/src/expression/circuit_access.rs
+  line: 14
+  summary: 'Duplicate license header: the same license block appears twice at the
+    top of the file, starting at line 14'
+  line_side: pre_fix
+- file: asg/tests/fail/address/mod.rs
+  line: 14
+  summary: 'Duplicate license header: the same license block is repeated starting
+    at line 14'
+  line_side: pre_fix
+- file: asg/tests/fail/integers/int_macro.rs
+  line: 14
+  summary: 'Duplicate license header: the same license block is repeated starting
+    at line 14'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

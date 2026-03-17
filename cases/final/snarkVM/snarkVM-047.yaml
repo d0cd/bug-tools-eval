@@ -1,23 +1,32 @@
 id: snarkVM-047
 repo: ProvableHQ/snarkVM
-base_commit: 320ac64f15acb85ea8c2fb986faac669af5cb643^
-head_commit: 320ac64f15acb85ea8c2fb986faac669af5cb643
-fix_commit: 320ac64f15acb85ea8c2fb986faac669af5cb643
-category: type
-difficulty: medium
-severity: medium
+base_commit: 2f5a0216149d163f60f9dae33ce75c4ad72dabdd^
+head_commit: 2f5a0216149d163f60f9dae33ce75c4ad72dabdd
+fix_commit: 2f5a0216149d163f60f9dae33ce75c4ad72dabdd
+category: security
+difficulty: hard
+severity: high
 language: rust
-pr_size: tiny
-description: Integer division truncation in `block_reward` function where `annual_reward
-  = total_supply / 20` could lose precision. The fix restructures the arithmetic to
-  avoid or minimize truncation in the annual reward calculation. This was identified
-  as Trail of Bits audit finding TOB-ALEO-26.
+pr_size: medium
+description: Added tests to verify subgroup membership and nonmembership of small
+  order curve points. Without these checks, small-order points could be accepted as
+  valid group elements, potentially enabling cryptographic attacks such as small-subgroup
+  attacks that compromise zero-knowledge proof soundness.
 expected_findings:
-- file: ledger/block/src/helpers/target.rs
-  line: 27
-  summary: 'Integer division truncation: `total_supply / 20` loses precision; the
-    division should be restructured to minimize or eliminate truncation in the annual
-    reward calculation'
+- file: circuit/types/group/src/lib.rs
+  line: 401
+  summary: 'Missing subgroup membership validation: small-order curve points (points
+    not in the prime-order subgroup) should be rejected but no tests existed to verify
+    this behavior, risking acceptance of invalid group elements'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

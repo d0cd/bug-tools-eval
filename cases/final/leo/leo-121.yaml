@@ -1,24 +1,36 @@
 id: leo-121
 repo: ProvableHQ/leo
-base_commit: bad06869e9f214193f4eaa9fc11bb5dbb102a917^
-head_commit: bad06869e9f214193f4eaa9fc11bb5dbb102a917
-fix_commit: bad06869e9f214193f4eaa9fc11bb5dbb102a917
-category: type
+base_commit: 7bc803bd32594072efb42747e6da8352e481eca3^
+head_commit: 7bc803bd32594072efb42747e6da8352e481eca3
+fix_commit: 7bc803bd32594072efb42747e6da8352e481eca3
+category: style
 difficulty: easy
-severity: high
+severity: low
 language: rust
 pr_size: medium
-description: The Leo compiler's type checker in check_expressions.rs was missing type
-  validation for multiplication (Mul) expressions. While other binary arithmetic operations
-  (Add, Sub, Div) checked that both operands have the same type, the Mul case was
-  skipped, allowing type-mismatched or invalid multiplication expressions to pass
-  compilation without error.
+description: 'Pure mechanical rename of `circuit_field` to `circuit_variable` across
+  the codebase to improve readability. No logic, behavior, or API changes — only identifier
+  and module names were updated. This is a cosmetic refactoring PR addressing naming
+  consistency (issue #313).'
 expected_findings:
-- file: compiler/passes/src/type_checking/check_expressions.rs
-  line: 183
-  summary: 'Missing type check for Mul binary expressions: multiplication operands
-    are not validated for type compatibility, unlike Add/Sub/Div which all verify
-    both operands have the same type.'
+- file: ast/src/circuits/circuit_variable.rs
+  line: 21
+  summary: Renamed struct/rule from circuit_field to circuit_variable; reviewer should
+    verify all references to the old name are updated consistently across the codebase
+  line_side: pre_fix
+- file: ast/src/leo.pest
+  line: 285
+  summary: PEG grammar rule renamed from circuit_field to circuit_variable; verify
+    no other grammar rules or parser code still reference the old name
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

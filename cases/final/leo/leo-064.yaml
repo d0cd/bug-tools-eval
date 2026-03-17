@@ -1,21 +1,34 @@
 id: leo-064
 repo: ProvableHQ/leo
-base_commit: 41e856ef6a0d7e12c3f297bfaff7afe7e5cb3c7f^
-head_commit: 41e856ef6a0d7e12c3f297bfaff7afe7e5cb3c7f
-fix_commit: 41e856ef6a0d7e12c3f297bfaff7afe7e5cb3c7f
-category: logic
+base_commit: 4617c3ba35c2a5f4c3dc1391cf98e3749034bc7a^
+head_commit: 4617c3ba35c2a5f4c3dc1391cf98e3749034bc7a
+fix_commit: 4617c3ba35c2a5f4c3dc1391cf98e3749034bc7a
+category: style
 difficulty: easy
 severity: low
 language: rust
 pr_size: tiny
-description: The default license field in the leo.toml manifest was set to "LICENSE-MIT"
-  instead of the correct SPDX identifier "MIT". The fix changes the default license
-  string literal to "MIT" so generated manifest files contain the proper license identifier.
+description: Comments in compiler/ast/src/common/identifier.rs and leo/span/src/symbol.rs
+  contained typos that were caught by a VS Code spell checker. The fix corrects spelling
+  errors in code comments with no functional impact.
 expected_findings:
-- file: package/src/root/manifest.rs
-  line: 99
-  summary: 'Incorrect default license string: should be "MIT" (SPDX identifier) not
-    "LICENSE-MIT" (filename)'
+- file: compiler/ast/src/common/identifier.rs
+  line: 32
+  summary: 'Typo in comment: misspelled word in the Serialize/Deserialize implementation
+    reminder comment'
+  line_side: pre_fix
+- file: leo/span/src/symbol.rs
+  line: 73
+  summary: 'Typo in comment: misspelled word in the ''base case 4'' identifier comment'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

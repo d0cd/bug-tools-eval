@@ -1,0 +1,32 @@
+id: discourse-086
+repo: discourse/discourse
+base_commit: c79a307da4440f0c842fbcb9969008d27df2521f^
+head_commit: c79a307da4440f0c842fbcb9969008d27df2521f
+fix_commit: c79a307da4440f0c842fbcb9969008d27df2521f
+category: logic
+difficulty: easy
+severity: medium
+language: unknown
+pr_size: tiny
+description: The setting `enable_upcoming_changes` was removed in a prior commit,
+  but for a correct rollout the setting should first be changed to default `true`
+  before being removed in a later release. Without this, users who hadn't explicitly
+  opted in would not get the upcoming changes behavior after the setting was removed.
+expected_findings:
+- file: config/site_settings.yml
+  line: 4317
+  summary: Default value for `enable_upcoming_changes` should be `true`, not `false`
+    — the setting must default to enabled before it can be safely removed in a future
+    release
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

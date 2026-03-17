@@ -1,27 +1,38 @@
 id: keycloak-011
 repo: keycloak/keycloak
-base_commit: b1bdf7dd134be11c0a4b9b9cacee1a4afbfa4260^
-head_commit: b1bdf7dd134be11c0a4b9b9cacee1a4afbfa4260
-fix_commit: b1bdf7dd134be11c0a4b9b9cacee1a4afbfa4260
-category: api
-difficulty: easy
-severity: low
-language: unknown
-pr_size: small
-description: Broken URLs in CODING_GUIDELINES.md pointed to an incorrect PatternFly
-  archive domain. The fix updated the URLs to the correct https://v4-archive.patternfly.org
-  domain so the links resolve properly.
+base_commit: 19118a097c66c4f484b53c042ff13fc8da0e6dc5^
+head_commit: 19118a097c66c4f484b53c042ff13fc8da0e6dc5
+fix_commit: 19118a097c66c4f484b53c042ff13fc8da0e6dc5
+category: logic
+difficulty: hard
+severity: high
+language: java
+pr_size: medium
+description: After importing a new realm, the master admin role's composite roles
+  are not updated in the Infinispan cache, and the MgmtPermissions check doesn't account
+  for newly-added realm client roles when using lightweight tokens. This means admin
+  operations on newly-imported realms fail until a server restart forces cache refresh.
 expected_findings:
-- file: js/CODING_GUIDELINES.md
-  line: 129
-  summary: 'Broken URL: PatternFly design guidelines link points to wrong domain;
-    should be https://v4-archive.patternfly.org'
-- file: js/CODING_GUIDELINES.md
-  line: 215
-  summary: 'Broken URL: PatternFly design guidelines link points to wrong domain;
-    should be https://v4-archive.patternfly.org'
+- file: services/src/main/java/org/keycloak/services/resources/admin/fgap/MgmtPermissions.java
+  line: 176
+  summary: 'hasOneAdminRole returns only identity.hasOneClientRole() without fallback:
+    when a new realm is imported and lightweight tokens are used, the token lacks
+    the new realm''s client roles, so admin access is incorrectly denied until restart.'
+  line_side: pre_fix
+- file: model/infinispan/src/main/java/org/keycloak/models/cache/infinispan/RealmCacheSession.java
+  line: 494
+  summary: prepareCachedRealm does not check whether the master admin role's composites
+    are stale after a new realm import. The cached admin role never gets invalidated,
+    so newly-imported realm client roles are invisible to permission checks.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

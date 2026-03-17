@@ -1,23 +1,33 @@
 id: leo-177
 repo: ProvableHQ/leo
-base_commit: 59965f189b6b9ac03ec4d804f02ac5f055c968a5^
-head_commit: 59965f189b6b9ac03ec4d804f02ac5f055c968a5
-fix_commit: 59965f189b6b9ac03ec4d804f02ac5f055c968a5
+base_commit: b967c3a39ff09127ee2a73b8df34098a2d6dd1a0^
+head_commit: b967c3a39ff09127ee2a73b8df34098a2d6dd1a0
+fix_commit: b967c3a39ff09127ee2a73b8df34098a2d6dd1a0
 category: logic
 difficulty: medium
-severity: medium
-language: leo
-pr_size: medium
-description: 'The compiler did not correctly handle nested external records. This
-  PR adds a test case (external_nested_record.leo) to cover the scenario of nested
-  external records, resolving issue #28192. The actual bug likely involved incorrect
-  compilation or validation of records containing nested external record types.'
+severity: high
+language: rust
+pr_size: small
+description: Bug in the SSA (Static Single Assignment) pass where the order of renaming
+  in assignment statements was incorrect. The left-hand side was being renamed before
+  the right-hand side, causing the RHS to reference the wrong SSA variable version.
+  The fix ensures the RHS is reconstructed first, then the LHS is assigned a new SSA
+  name.
 expected_findings:
-- file: tests/tests/compiler/records/external_nested_record.leo
-  line: 1
-  summary: "New test for nested external records \u2014 verifies the compiler correctly\
-    \ handles records that contain fields referencing external record types from other\
-    \ programs"
+- file: compiler/passes/src/static_single_assignment/rename_statement.rs
+  line: 79
+  summary: 'Incorrect ordering in SSA renaming: the RHS of the assignment must be
+    reconstructed before the LHS is renamed to a new SSA version, otherwise the RHS
+    picks up the wrong variable version.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

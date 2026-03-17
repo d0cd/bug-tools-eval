@@ -1,27 +1,33 @@
 id: snarkOS-076
 repo: ProvableHQ/snarkOS
-base_commit: 654fe0eb8372259ca66ff6c4cc5c8bfbff302ac6^
-head_commit: 654fe0eb8372259ca66ff6c4cc5c8bfbff302ac6
-fix_commit: 654fe0eb8372259ca66ff6c4cc5c8bfbff302ac6
+base_commit: 6ac2fe5fc2b85960c2fec11a9caba3819ef59b21^
+head_commit: 6ac2fe5fc2b85960c2fec11a9caba3819ef59b21
+fix_commit: 6ac2fe5fc2b85960c2fec11a9caba3819ef59b21
 category: logic
-difficulty: easy
-severity: critical
+difficulty: medium
+severity: high
 language: rust
-pr_size: small
-description: When the node detected an invalid ledger state, it automatically cleared
-  (deleted) the entire ledger without user consent, potentially causing irreversible
-  data loss. The fix removes the automatic clearing logic and instead notifies the
-  user to manually run the clean command, preventing silent data destruction.
+pr_size: tiny
+description: During validator bootup, nodes could incorrectly set themselves as synced
+  before receiving any PrimaryPing messages, causing them to process proposals and
+  certificates instead of properly syncing. The fix adds a grace period sleep before
+  calling try_block_sync, giving time for an initial PrimaryPing to arrive and establish
+  accurate sync state.
 expected_findings:
-- file: cli/src/commands/start.rs
-  line: 198
-  summary: 'Automatic ledger clearing on invalid state is dangerous: silently deletes
-    user data without consent. Should notify the user and let them manually clear
-    instead.'
-- file: cli/src/commands/start.rs
-  line: 14
-  summary: Imports for ConsensusMemory/ConsensusStore/Block used only for automatic
-    ledger clearing should be removed along with the dangerous auto-clear logic.
+- file: node/bft/src/sync/mod.rs
+  line: 102
+  summary: 'Missing grace period before try_block_sync: on bootup, nodes may incorrectly
+    consider themselves synced before receiving any PrimaryPing, leading to premature
+    proposal/certificate processing instead of block syncing'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

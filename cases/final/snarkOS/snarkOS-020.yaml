@@ -1,24 +1,38 @@
 id: snarkOS-020
 repo: ProvableHQ/snarkOS
-base_commit: d229dd3e88e66b7c5e1a0f94d06792b8c366154a^
-head_commit: d229dd3e88e66b7c5e1a0f94d06792b8c366154a
-fix_commit: d229dd3e88e66b7c5e1a0f94d06792b8c366154a
+base_commit: 23abf12f8f7612b01603cf303b79348a4c4b94c7^
+head_commit: 23abf12f8f7612b01603cf303b79348a4c4b94c7
+fix_commit: 23abf12f8f7612b01603cf303b79348a4c4b94c7
 category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: tiny
-description: The REST API's `is_synced` field incorrectly reported `true` while a
-  client was still fetching blocks from CDN. This occurred because `BlockSync` is
-  initialized as synced and only transitions to 'syncing' upon receiving block locators
-  from peers, which doesn't happen during CDN fetches. The fix adds a `!cdn_sync`
-  guard so `is_synced` returns `false` while CDN sync is in progress.
+pr_size: small
+description: Block request timestamps were only cleaned up on timeout, but never when
+  a block request became obsolete (i.e., its height was below the current canonical
+  block height). This caused stale request entries to accumulate indefinitely. The
+  fix adds an is_obsolete check comparing each request's height against the current
+  block height, removing entries that are no longer needed.
 expected_findings:
-- file: node/rest/src/routes.rs
-  line: 158
-  summary: 'Incomplete sync check: `is_synced` only checks `is_block_synced()` but
-    does not account for ongoing CDN sync, causing it to incorrectly report true during
-    CDN fetching. Should be `!cdn_sync && rest.routing.is_block_synced()`.'
+- file: node/sync/src/block_sync.rs
+  line: 683
+  summary: 'Missing obsolescence check: retain closure only removes timed-out requests
+    (`is_timeout`) but never removes requests whose height is already below the current
+    canonical block height, causing stale entries to accumulate'
+  line_side: pre_fix
+- file: node/sync/src/block_sync.rs
+  line: 646
+  summary: Block request timestamp removal lacks trace logging, making it difficult
+    to diagnose sync issues when stale entries are cleaned up
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

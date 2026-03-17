@@ -1,23 +1,35 @@
 id: leo-003
 repo: ProvableHQ/leo
-base_commit: ea5bc5d693ff7647c98feb3d5b6905c76a817d81^
-head_commit: ea5bc5d693ff7647c98feb3d5b6905c76a817d81
-fix_commit: ea5bc5d693ff7647c98feb3d5b6905c76a817d81
-category: logic
+base_commit: 019bbbff093b28a9f9be4a29929c626a48ec780b^
+head_commit: 019bbbff093b28a9f9be4a29929c626a48ec780b
+fix_commit: 019bbbff093b28a9f9be4a29929c626a48ec780b
+category: style
 difficulty: easy
-severity: high
+severity: low
 language: rust
 pr_size: small
-description: The circuit initialization expression in the ASG hardcoded `true` for
-  mutability at line 67 of circuit_init.rs, allowing mutable methods to be called
-  in immutable contexts without error. The fix replaces the hardcoded `true` with
-  the actual mutability value from the surrounding context, and adds a regression
-  test.
+description: Formatting fix to resolve cargo fmt failures in two files. The changes
+  correct code formatting (likely line wrapping or expression layout) in circuit member
+  display and main function input handling to comply with rustfmt rules.
 expected_findings:
-- file: asg/src/expression/circuit_init.rs
-  line: 67
-  summary: Hardcoded `true` for mutability flag allows mutable method calls in immutable
-    contexts; should propagate the actual mutability from the calling context
+- file: ast/src/circuits/circuit_member.rs
+  line: 58
+  summary: 'Formatting: write! macro arguments not formatted according to cargo fmt
+    rules; long match arm body needs reformatting'
+  line_side: pre_fix
+- file: compiler/src/function/main_function.rs
+  line: 52
+  summary: 'Formatting: match arm with unimplemented! macro not formatted according
+    to cargo fmt rules; needs line break or restructuring'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,23 +1,44 @@
 id: snarkVM-063
 repo: ProvableHQ/snarkVM
-base_commit: 8daeaba8fa34d5561c546c49f1f3088e56dc5aa4^
-head_commit: 8daeaba8fa34d5561c546c49f1f3088e56dc5aa4
-fix_commit: 8daeaba8fa34d5561c546c49f1f3088e56dc5aa4
-category: logic
-difficulty: medium
-severity: medium
+base_commit: 42d25281291aba39e580d0ca7af9253df0c3e08c^
+head_commit: 42d25281291aba39e580d0ca7af9253df0c3e08c
+fix_commit: 42d25281291aba39e580d0ca7af9253df0c3e08c
+category: cryptographic
+difficulty: hard
+severity: critical
 language: rust
-pr_size: tiny
-description: 'The `is_build_required` function in the package module had an incorrect
-  condition for determining whether a package build could be skipped, causing packages
-  that had changed to not be rebuilt. The fix corrects the skip condition and adds
-  diagnostic println! logging in assert and is operation tests to aid debugging related
-  issues #985/#986.'
+pr_size: large
+description: The precomputed powers of the root of unity constants in BLS12-377 Fq,
+  Fr, and Edwards BLS12 Fr were stored in raw integer representation instead of Montgomery
+  form. Since the field arithmetic (Fp256) operates in Montgomery representation,
+  using non-Montgomery constants in FFT computations produces incorrect results, breaking
+  polynomial evaluation and by extension proof generation/verification.
 expected_findings:
-- file: vm/package/is_build_required.rs
-  line: 59
-  summary: 'Incorrect build-skip logic: the condition for skipping the package build
-    is wrong, causing changed packages to not be rebuilt when they should be.'
+- file: curves/src/bls12_377/fq.rs
+  line: 34
+  summary: POWERS_OF_ROOTS_OF_UNITY values are in raw form, not Montgomery representation.
+    All BigInteger constants used in Fp arithmetic must be in Montgomery form (multiplied
+    by R mod p) for correctness.
+  line_side: pre_fix
+- file: curves/src/bls12_377/fr.rs
+  line: 57
+  summary: POWERS_OF_ROOTS_OF_UNITY values are in raw form instead of Montgomery form,
+    same issue as in fq.rs — FFT operations using these constants will produce incorrect
+    field elements.
+  line_side: pre_fix
+- file: curves/src/edwards_bls12/fr.rs
+  line: 33
+  summary: POWERS_OF_ROOTS_OF_UNITY is stubbed with unimplemented!() — this will panic
+    at runtime if Edwards BLS12 FFT is invoked. Needs actual Montgomery-form constants.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

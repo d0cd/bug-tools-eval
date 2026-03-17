@@ -1,26 +1,43 @@
 id: sdk-023
 repo: ProvableHQ/sdk
-base_commit: 9be130dcb983477410be02d9d937cdd52da9df4b^
-head_commit: 9be130dcb983477410be02d9d937cdd52da9df4b
-fix_commit: 9be130dcb983477410be02d9d937cdd52da9df4b
-category: api
+base_commit: 4fd700d0f18e48d269204c99f77e19c68628c4e6^
+head_commit: 4fd700d0f18e48d269204c99f77e19c68628c4e6
+fix_commit: 4fd700d0f18e48d269204c99f77e19c68628c4e6
+category: api-misuse
 difficulty: medium
-severity: high
+severity: medium
 language: typescript
-pr_size: medium
-description: Several API methods in the NodeClient class used incorrect or outdated
-  Beacon API endpoints, causing requests to fail. The fix corrects the endpoint URLs,
-  replaces the HTTP client with axios, and renames the class to AleoNetworkClient
-  to reflect its purpose.
+pr_size: large
+description: The AleoKeyProvider's verifying key fetch logic only supported downloading
+  keys as bytes, ignoring the fact that verifying keys can now be represented as short
+  strings. This caused failures or inefficiency when keys were served in string format.
+  The fix adds string-format fetching with a byte-download fallback, and updates call
+  sites in the website worker that were passing `undefined` for the new parameter.
 expected_findings:
-- file: sdk/src/node_connection.ts
-  line: 8
-  summary: HTTP client implementation uses incorrect approach for making API requests;
-    should use axios for proper request handling and error reporting
-- file: sdk/src/node_connection.ts
-  line: 45
-  summary: "API endpoint URL is incorrect or outdated \u2014 Beacon API endpoints\
-    \ have changed and this method will return errors or wrong data"
+- file: sdk/src/function-key-provider.ts
+  line: 501
+  summary: Verifying key fetch only attempts byte download; should try string format
+    first and fall back to bytes, since verifying keys can now be represented as short
+    strings
+  line_side: pre_fix
+- file: website/src/workers/worker.js
+  line: 133
+  summary: Call site passes `undefined` for verifying key parameter — needs to be
+    updated to match the new key provider API that supports string keys
+  line_side: pre_fix
+- file: website/src/workers/worker.js
+  line: 330
+  summary: Second call site also passes `undefined` for verifying key parameter —
+    same incomplete API usage as line 133
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

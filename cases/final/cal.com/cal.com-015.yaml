@@ -1,0 +1,36 @@
+id: cal.com-015
+repo: calcom/cal.com
+base_commit: 2509116b28f260242334da39ed986b90bd25dccd^
+head_commit: 2509116b28f260242334da39ed986b90bd25dccd
+fix_commit: 2509116b28f260242334da39ed986b90bd25dccd
+category: api-misuse
+difficulty: medium
+severity: high
+language: typescript
+pr_size: small
+description: The OIDC callback route destructured only `code` and `state` from the
+  authentication response query parameters, discarding the `iss` (issuer) parameter
+  that Keycloak v18+ and other compliant providers include per RFC 9207. When the
+  incomplete parameter set was forwarded to `openid-client`, the library's validation
+  rejected it with 'invalid response encountered' because the expected `iss` claim
+  was missing. The fix passes all query parameters through instead of selectively
+  extracting a subset.
+expected_findings:
+- file: apps/web/app/api/auth/oidc/route.ts
+  line: 9
+  summary: Destructuring only `code` and `state` from the OIDC callback query parameters
+    drops the `iss` parameter required by RFC 9207; should forward all query parameters
+    to the openid-client library to avoid validation failure with providers like Keycloak
+    v18+.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

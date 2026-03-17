@@ -1,23 +1,50 @@
 id: sentry-059
 repo: getsentry/sentry
-base_commit: b87e23b533528358fc1b470b8f8c55741826235b^
-head_commit: b87e23b533528358fc1b470b8f8c55741826235b
-fix_commit: b87e23b533528358fc1b470b8f8c55741826235b
-category: logic
-difficulty: easy
-severity: low
-language: typescript
-pr_size: small
-description: Two Seer drawer variants (legacy and explorer) had subtle, unnecessary
-  differences in their implementations. The fix unifies them so components can be
-  reused rather than copied, reducing inconsistency and preparation for a redesign.
+base_commit: 4a509ead4570de69130973946170026fd4c4f272^
+head_commit: 4a509ead4570de69130973946170026fd4c4f272
+fix_commit: 4a509ead4570de69130973946170026fd4c4f272
+category: api-misuse
+difficulty: medium
+severity: high
+language: python
+pr_size: tiny
+description: 'Migration 1040_drop_fk_projecttemplate declares an incorrect dependency
+  ordering with monitors migration 0008_fix_processing_error_keys. The dependency
+  chain is inverted: migration 0008 needs to run after 1040 (not before), and 0008
+  itself implicitly depends on migration 0964. On clean installations where the project
+  template table was never created, the incorrect ordering causes the migration to
+  fail because it tries to drop a foreign key on a nonexistent table before the guard
+  migration runs.'
 expected_findings:
-- file: static/app/views/issueDetails/streamline/sidebar/seerDrawer.tsx
-  line: 1
-  summary: Inconsistent logic between legacy and explorer Seer drawer variants; divergent
-    code paths should be unified to avoid behavioral discrepancies
+- file: src/sentry/migrations/1040_drop_fk_projecttemplate.py
+  line: 29
+  summary: 'Migration dependency ordering is incorrect: this migration''s dependencies
+    should ensure it runs before monitors/0008, not after. On fresh installs the referenced
+    project template table may not exist, and the wrong ordering means no guard handles
+    this case.'
+  line_side: pre_fix
+- file: src/sentry/monitors/migrations/0008_fix_processing_error_keys.py
+  line: 216
+  summary: This migration declares a dependency on 0964 but implicitly requires 1040
+    to have already run; the dependency should be explicit to ensure correct ordering
+    on clean databases.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110374
+reviewer_notes: []
+reviewer_findings:
+- file: src/sentry/monitors/migrations/0008_fix_processing_error_keys.py
+  line: 216
+  summary: by design this also is a dependency on 0964 since 1040 comes afterwards
+  line_side: pre_fix
+- file: src/sentry/migrations/1040_drop_fk_projecttemplate.py
+  line: 29
+  summary: apparently 0008 needs to run after 1040, not the other way around
+  line_side: pre_fix
+quality_flags: []

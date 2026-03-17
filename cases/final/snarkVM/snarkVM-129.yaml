@@ -1,32 +1,45 @@
 id: snarkVM-129
 repo: ProvableHQ/snarkVM
-base_commit: d0de94293ac69817e3d419dd6917a48869a19514^
-head_commit: d0de94293ac69817e3d419dd6917a48869a19514
-fix_commit: d0de94293ac69817e3d419dd6917a48869a19514
+base_commit: 9f605e838099f63191cd7b3693e70395fdc80bae^
+head_commit: 9f605e838099f63191cd7b3693e70395fdc80bae
+fix_commit: 9f605e838099f63191cd7b3693e70395fdc80bae
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: medium
-description: Aborted prover solutions were not being filtered out before block creation,
-  allowing invalid solutions to be included in new blocks. The fix adds a filter for
-  aborted solution IDs in the coinbase solution construction and verification paths,
-  propagating the filter through CoinbaseSolution::new(), check_solutions(), and the
-  block advance logic.
+pr_size: small
+description: The `contains_transaction_id` check used `Result::or()` instead of logical
+  OR (`||`) to combine the transaction store lookup with the rejected/aborted transaction
+  lookup. `Result::or()` returns the first `Ok` value regardless of its boolean content,
+  so if the transaction store returned `Ok(false)`, the rejected/aborted check was
+  never evaluated — allowing duplicate rejected/aborted transactions to be accepted.
+  The fix consolidates both checks into a single `BlockStore::contains_transaction_id`
+  method using proper `||` on the boolean values.
 expected_findings:
-- file: ledger/src/advance.rs
-  line: 123
-  summary: Missing filter for aborted solutions before constructing the next block;
-    aborted solution IDs should be excluded from the coinbase solution passed to block
-    creation.
-- file: ledger/coinbase/src/lib.rs
-  line: 158
-  summary: check_solutions() does not accept or apply an aborted-solutions filter,
-    allowing already-aborted solutions to pass verification.
-- file: ledger/coinbase/src/helpers/coinbase_solution/mod.rs
-  line: 29
-  summary: CoinbaseSolution::new() does not filter out aborted prover solutions from
-    the provided solution list before constructing the coinbase solution.
+- file: ledger/src/contains.rs
+  line: 58
+  summary: 'Incorrect use of `Result::or()` to combine two boolean Result checks:
+    `.or()` short-circuits on the first `Ok` value regardless of whether it''s `true`
+    or `false`, so `Ok(false).or(Ok(true))` returns `Ok(false)`. Should use `||` on
+    unwrapped booleans to correctly check both transaction store and rejected/aborted
+    store.'
+  line_side: pre_fix
+- file: synthesizer/src/vm/verify.rs
+  line: 42
+  summary: 'Duplicated incorrect pattern: transaction ID uniqueness check manually
+    combines `transaction_store().contains_transaction_id()` and `block_store().contains_rejected_or_aborted_transaction_id()`
+    with `||`, but this logic should be centralized. The check here is actually correct
+    (uses `||`), but the duplication means the ledger''s `contains.rs` version (which
+    uses `.or()`) diverges in behavior.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

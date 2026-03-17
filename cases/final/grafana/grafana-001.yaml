@@ -1,22 +1,36 @@
 id: grafana-001
 repo: grafana/grafana
-base_commit: 02b9dabb4a93591dc1fa64f623a809e35984aaec^
-head_commit: 02b9dabb4a93591dc1fa64f623a809e35984aaec
-fix_commit: 02b9dabb4a93591dc1fa64f623a809e35984aaec
-category: api
+base_commit: 0095e4ab5216b226a9bfa65bfe4eaa79e6b64108^
+head_commit: 0095e4ab5216b226a9bfa65bfe4eaa79e6b64108
+fix_commit: 0095e4ab5216b226a9bfa65bfe4eaa79e6b64108
+category: performance
 difficulty: easy
-severity: medium
+severity: low
 language: unknown
-pr_size: medium
-description: The @grafana/scenes dependency was pinned to a version containing a bug.
-  The fix bumps the scenes library version from a prior release to 6.8.6, which includes
-  a backported fix for a support escalation issue. This is a transitive bug fix resolved
-  by updating a third-party dependency.
+pr_size: tiny
+description: 'The Air hot-reload configuration and Makefile were not optimized for
+  fast incremental rebuilds. Three build configuration changes were made: pinning
+  SOURCE_DATE_EPOCH to improve cache hits, explicitly setting CGO_ENABLED=0 to avoid
+  cgo overhead, and disabling compiler optimizations (-N -l) for faster dev builds.'
 expected_findings:
-- file: package.json
-  line: 281
-  summary: Outdated @grafana/scenes dependency version contains a known bug; should
-    be bumped to 6.8.6 which includes the backported fix.
+- file: .air.toml
+  line: 1
+  summary: Build command lacks CGO_ENABLED=0 and uses default optimizations, causing
+    unnecessarily slow incremental rebuilds during development
+  line_side: pre_fix
+- file: Makefile
+  line: 1
+  summary: SOURCE_DATE_EPOCH not pinned, causing cache invalidation on every build
+    due to changing timestamps
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119799
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

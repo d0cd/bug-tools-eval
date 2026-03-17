@@ -1,26 +1,39 @@
 id: grafana-043
 repo: grafana/grafana
-base_commit: 1e2b2c0eb5f64c06d6c5a7f19d79bee937442585^
-head_commit: 1e2b2c0eb5f64c06d6c5a7f19d79bee937442585
-fix_commit: 1e2b2c0eb5f64c06d6c5a7f19d79bee937442585
+base_commit: 56d6e2c9862b6c3b6331c5ab6cebd1d7e6c99e5f^
+head_commit: 56d6e2c9862b6c3b6331c5ab6cebd1d7e6c99e5f
+fix_commit: 56d6e2c9862b6c3b6331c5ab6cebd1d7e6c99e5f
 category: logic
-difficulty: medium
+difficulty: easy
 severity: medium
 language: typescript
-pr_size: medium
-description: The dashboard version history page resolved user display names by array
-  index, but the IAM /display API returns `keys` in request order and `display` sorted
-  by database ID. This index mismatch caused user names to appear swapped across versions.
-  The fix replaces the index-based array lookup with an identity-based Map keyed on
-  each display item's `identity` field.
+pr_size: small
+description: When the newVizSuggestions feature flag is enabled, clicking 'configure'
+  on a new panel clears the user-entered title. The old suggestion flow intentionally
+  blanked the title, but the new flow should preserve it. The fix removes the title-clearing
+  logic so the panel title persists through configuration, matching dynamic dashboard
+  behavior.
 expected_findings:
-- file: public/app/features/dashboard-scene/settings/VersionsEditView.tsx
-  line: 133
-  summary: 'Index-based lookup between misaligned arrays: `keys[i]` does not correspond
-    to `display[i]` because the API returns display entries sorted by `u.id ASC`,
-    not in request order. Should use identity-based Map instead of positional indexing.'
+- file: public/app/features/dashboard-scene/scene/UnconfiguredPanel.tsx
+  line: 63
+  summary: Panel title is being reset/cleared when transitioning to configuration.
+    With the new suggestions flow enabled, user-entered title should be preserved,
+    not blanked.
+  line_side: pre_fix
+- file: public/app/features/dashboard-scene/utils/utils.ts
+  line: 268
+  summary: newPanelTitle is set to a default 'New panel' string and used to overwrite
+    the user's existing title during the configure transition, causing the title to
+    disappear.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

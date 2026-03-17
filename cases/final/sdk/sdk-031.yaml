@@ -1,26 +1,31 @@
 id: sdk-031
 repo: ProvableHQ/sdk
-base_commit: fbd1b92a442b9334ea8d2b3b62390411ecc817c4^
-head_commit: fbd1b92a442b9334ea8d2b3b62390411ecc817c4
-fix_commit: fbd1b92a442b9334ea8d2b3b62390411ecc817c4
-category: api
+base_commit: 727ab2732b9ee205dd594a9077d64d95a087af4a^
+head_commit: 727ab2732b9ee205dd594a9077d64d95a087af4a
+fix_commit: 727ab2732b9ee205dd594a9077d64d95a087af4a
+category: style
 difficulty: easy
-severity: medium
-language: rust
-pr_size: medium
-description: Removal of benchmark files and their Cargo.toml configuration broke the
-  benchmark CI pipeline. The fix re-adds the benchmark source files (account.rs, private_key_encryption.rs)
-  and their corresponding [[bench]] entries in Cargo.toml, along with necessary dependency
-  updates in Cargo.lock.
+severity: low
+language: javascript
+pr_size: xl
+description: This PR adds prettier and eslint configuration to the aleo.tools website
+  and reformats all source files to match the new style rules. It is purely a cosmetic/tooling
+  change with no functional code modifications — no bugs, logic changes, or security-relevant
+  edits are present.
 expected_findings:
-- file: rust/Cargo.toml
-  line: 17
-  summary: Missing [[bench]] entries in Cargo.toml cause benchmark CI to fail because
-    the build system cannot find any benchmark targets.
-- file: rust/benches/account.rs
+- file: website/.eslintrc.cjs
   line: 1
-  summary: Benchmark source file was removed but CI still expects to collect and run
-    benchmarks, causing pipeline failure.
+  summary: 'Style-only change: ESLint configuration updated but no functional issues
+    introduced or fixed'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

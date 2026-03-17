@@ -1,34 +1,76 @@
 id: sentry-009
 repo: getsentry/sentry
-base_commit: e2ea2b2cb37f60ed6dce8a76324524bb31d3c8ed^
-head_commit: e2ea2b2cb37f60ed6dce8a76324524bb31d3c8ed
-fix_commit: e2ea2b2cb37f60ed6dce8a76324524bb31d3c8ed
-category: logic
+base_commit: 0fd63d2944e17aa1bf99fbc0a6b09743311f68f5^
+head_commit: 0fd63d2944e17aa1bf99fbc0a6b09743311f68f5
+fix_commit: 0fd63d2944e17aa1bf99fbc0a6b09743311f68f5
+category: security
 difficulty: medium
-severity: medium
-language: typescript
-pr_size: small
-description: 'The Agents Traces Table widget had multiple display issues in the widget
-  viewer: it used `frameless` mode which disabled pagination, column widths were too
-  narrow causing text clipping, chart visualization was incorrectly enabled for a
-  table-only widget, and a `widgetType: WidgetType.SPANS` definition caused incorrect
-  ''Open in Explore'' links to appear.'
+severity: high
+language: python
+pr_size: medium
+description: The trace API endpoints did not apply visibility filtering for issue
+  types, causing unreleased and internal issue types to leak to users in trace waterfall,
+  preview timeline, and event graph views. The fix adds backend filtering using the
+  existing GroupType visibility system, but the fallback behavior when get_visible()
+  is unavailable silently degrades to no filtering rather than blocking.
 expected_findings:
-- file: static/app/views/dashboards/widgetCard/chart.tsx
-  line: 262
-  summary: AgentsTracesTable widget incorrectly renders with `frameless` mode enabled,
-    which suppresses pagination controls in the widget viewer
-- file: static/app/views/dashboards/utils/prebuiltConfigs/ai/aiAgentsOverview.ts
-  line: 163
-  summary: 'Column widths for the traces table are too narrow, causing text to clip;
-    also includes `widgetType: WidgetType.SPANS` which incorrectly enables ''Open
-    in Explore'' links for a custom widget'
-- file: static/app/views/dashboards/widgets/agentsTracesTableWidget/agentsTracesTableWidgetVisualization.tsx
-  line: 20
-  summary: Missing explicit column width overrides using DEFAULT_TRACES_TABLE_WIDTHS,
-    causing the table to render with default widths that are too small for the content
+- file: src/sentry/snuba/trace.py
+  line: 338
+  summary: Trace query returns issues without filtering by GroupType.released status;
+    unreleased/internal issue types leak to API consumers. Additionally, when get_visible()
+    returns an empty list, the code falls back to no filtering instead of returning
+    no results, which preserves the information leak in edge cases.
+  line_side: pre_fix
+- file: src/sentry/api/endpoints/organization_trace.py
+  line: 59
+  summary: Trace API endpoint lacks the visibility filtering that the /issues/ endpoint
+    applies, allowing users to see internal test issue types in trace views.
+  line_side: pre_fix
+- file: src/sentry/seer/endpoints/organization_trace_summary.py
+  line: 1
+  summary: Trace summary endpoint also exposes unreleased issue types; needs the same
+    GroupType visibility filtering applied to the main trace and issues endpoints.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110356
+reviewer_notes:
+- '[inline] This is true: if for some reason `get_visible()` is unavailable (should
+  be very rare), we fallback to the original behavior, which is NO filter and "unreleased"
+  occurrences would be included in the response. I thought this was better than returning
+  None, but LMK if you disagree.'
+- "[inline] It forces the `args` after it to be a `kwarg`, so organization must be\
+  \ passed as a `kwarg`. \r I like `kwargs` more than positional `args`, and it was\
+  \ easier to update the functions that call this one. \r \r Additionally, `organization`\
+  \ is required but it comes after several optional `args` - without t"
+reviewer_findings:
+- file: src/sentry/snuba/trace.py
+  line: 338
+  summary: '### Empty visible types list skips filtering instead of blocking  **Medium
+    Severity**  <!-- DESCRIPTION START --> When `'
+  line_side: pre_fix
+- file: src/sentry/snuba/trace.py
+  line: 338
+  summary: 'This is true: if for some reason `get_visible()` is unavailable (should
+    be very rare), we fallback to the original behav'
+  line_side: pre_fix
+- file: src/sentry/issues/grouptype.py
+  line: 251
+  summary: Because `released` is stored in code (not db or options), the frontend
+    cannot access it directly, which it needs to do f
+  line_side: pre_fix
+- file: src/sentry/api/endpoints/organization_trace.py
+  line: 59
+  summary: What's the reason we're adding `*` as an arg?
+  line_side: pre_fix
+- file: src/sentry/api/endpoints/organization_trace.py
+  line: 59
+  summary: "It forces the `args` after it to be a `kwarg`, so organization must be\
+    \ passed as a `kwarg`. \r I like `kwargs` more than "
+  line_side: pre_fix
+quality_flags: []

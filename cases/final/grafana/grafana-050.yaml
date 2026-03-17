@@ -1,23 +1,34 @@
 id: grafana-050
 repo: grafana/grafana
-base_commit: 9c0099ee981a18b9d53fa02744d88f20924edd02^
-head_commit: 9c0099ee981a18b9d53fa02744d88f20924edd02
-fix_commit: 9c0099ee981a18b9d53fa02744d88f20924edd02
+base_commit: 610f7eefe1332c287fb33a00a12a786308f932ae^
+head_commit: 610f7eefe1332c287fb33a00a12a786308f932ae
+fix_commit: 610f7eefe1332c287fb33a00a12a786308f932ae
 category: logic
-difficulty: easy
-severity: low
-language: unknown
-pr_size: tiny
-description: A documentation anchor link in the Git Sync usage-limits page was pointing
-  to an incorrect fragment identifier. The fix corrects the anchor reference so the
-  in-page link navigates to the intended section.
+difficulty: medium
+severity: high
+language: go
+pr_size: medium
+description: The unified storage migration service's Run method only checked DisableDataMigrations
+  before proceeding with migrations, but did not verify the storage type. This caused
+  migrations to run for non-unified storage types like unified-grpc and unified-kv-grpc,
+  which should not execute these migrations. The fix adds a guard condition to skip
+  migrations when the storage type is anything other than 'unified'.
 expected_findings:
-- file: docs/sources/as-code/observability-as-code/git-sync/usage-limits.md
-  line: 90
-  summary: 'Broken anchor link: the fragment reference (e.g. #reso...) does not match
-    the actual heading ID for the supported-resources section'
+- file: pkg/storage/unified/migrations/service.go
+  line: 59
+  summary: 'Missing storage-type guard: migrations run unconditionally for all storage
+    types. The condition only checks DisableDataMigrations but should also verify
+    that UnifiedStorageType() == "unified" before proceeding, otherwise non-unified
+    storage backends (unified-grpc, unified-kv-grpc) will incorrectly execute migrations.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

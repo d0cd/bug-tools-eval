@@ -1,25 +1,32 @@
 id: sentry-018
 repo: getsentry/sentry
-base_commit: 69aff585588a4e8575c5b694de2c98fc69e0ff7d^
-head_commit: 69aff585588a4e8575c5b694de2c98fc69e0ff7d
-fix_commit: 69aff585588a4e8575c5b694de2c98fc69e0ff7d
+base_commit: 19ca42a3560a2d0c0ac2646c5146cf1803b719a4^
+head_commit: 19ca42a3560a2d0c0ac2646c5146cf1803b719a4
+fix_commit: 19ca42a3560a2d0c0ac2646c5146cf1803b719a4
 category: logic
-difficulty: medium
+difficulty: easy
 severity: medium
-language: typescript
-pr_size: small
-description: When all threshold max values were cleared in the widget builder, the
-  entire thresholds config was set to null, which discarded the preferredPolarity
-  setting. The fix preserves preferredPolarity in the thresholds object when clearing
-  max values so polarity persists across clear/re-enter cycles.
+language: python
+pr_size: tiny
+description: 'PR #110164 removed the context engine flag check from `continue_run`,
+  eliminating the ability to use it as a kill switch for the context engine feature
+  during ongoing conversations. This revert restores the flag check so it can be used
+  to immediately shut off the context engine mid-conversation if needed.'
 expected_findings:
-- file: static/app/views/dashboards/widgetBuilder/components/thresholds.tsx
-  line: 97
-  summary: When all max values are empty, the code nullifies the entire thresholds
-    config instead of preserving preferredPolarity. Should retain {preferredPolarity}
-    even when clearing threshold values.
+- file: src/sentry/seer/explorer/client.py
+  line: 1
+  summary: 'Missing context engine flag check in continue_run: the flag was removed
+    but is still needed as a kill switch to immediately disable context engine for
+    in-progress conversations'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110247
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

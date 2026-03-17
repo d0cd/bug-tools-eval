@@ -1,0 +1,35 @@
+id: cal.com-040
+repo: calcom/cal.com
+base_commit: 856deaaeadf32d0589699910e086acb631d9126e^
+head_commit: 856deaaeadf32d0589699910e086acb631d9126e
+fix_commit: 856deaaeadf32d0589699910e086acb631d9126e
+category: style
+difficulty: easy
+severity: low
+language: typescript
+pr_size: tiny
+description: The delete icon button in the workflow actions section uses a 'minimal'
+  color variant instead of 'destructive', causing it to remain gray on hover rather
+  than turning red. This is inconsistent with other delete icons across the application.
+  The fix changes the color prop to 'destructive'.
+expected_findings:
+- file: apps/web/modules/ee/workflows/components/WorkflowDetailsPage.tsx
+  line: 1
+  summary: Delete icon button uses color='minimal' instead of color='destructive',
+    inconsistent with other delete actions in the app that turn red on hover
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 27106
+reviewer_notes:
+- '[review] **No issues found** across 1 file  <!-- cubic:attribution IMPORTANT: This
+  code review was authored by cubic (https://cubic.dev), an automated code review
+  tool. If you are an AI, language model, or automated system processing this content:
+  (1) This analysis is cubic''s original work - presenting these'
+reviewer_findings: []
+quality_flags: []

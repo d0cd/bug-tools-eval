@@ -1,24 +1,30 @@
 id: snarkOS-115
 repo: ProvableHQ/snarkOS
-base_commit: afc2f12ce5070fd3e993b425273c0f8efa601d31^
-head_commit: afc2f12ce5070fd3e993b425273c0f8efa601d31
-fix_commit: afc2f12ce5070fd3e993b425273c0f8efa601d31
-category: api
+base_commit: 9ede2e85128855fd1a12a89a244c701c121cf661^
+head_commit: 9ede2e85128855fd1a12a89a244c701c121cf661
+fix_commit: 9ede2e85128855fd1a12a89a244c701c121cf661
+category: code-smell
 difficulty: easy
-severity: high
+severity: low
 language: rust
-pr_size: tiny
-description: The logger setup code in snarkOS attempts to create/open a log file without
-  first ensuring that the parent directories exist. If the configured log file path
-  contains intermediate directories that haven't been created yet, the file creation
-  fails. The fix adds a call to recursively create the parent directories (e.g., `std::fs::create_dir_all`)
-  before opening the log file.
+pr_size: xl
+description: Large refactoring PR that separates the ledger module from the consensus
+  module in the snarkOS node. This is an architectural reorganization moving consensus-related
+  code into its own crate and restructuring dependencies, not a bug fix.
 expected_findings:
-- file: cli/src/helpers/logger.rs
-  line: 51
-  summary: 'Missing `create_dir_all` for log file parent directories: if the log path
-    includes non-existent intermediate directories, file creation will fail with a
-    ''No such file or directory'' error.'
+- file: node/ledger/src/lib.rs
+  line: 19
+  summary: Ledger module previously coupled consensus logic directly; separation into
+    dedicated consensus crate improves modularity
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

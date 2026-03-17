@@ -1,23 +1,37 @@
 id: snarkOS-085
 repo: ProvableHQ/snarkOS
-base_commit: 1199a6e27d781b0e3bf361a39ff6f0314c3435dc^
-head_commit: 1199a6e27d781b0e3bf361a39ff6f0314c3435dc
-fix_commit: 1199a6e27d781b0e3bf361a39ff6f0314c3435dc
-category: logic
-difficulty: easy
-severity: medium
+base_commit: 73147585924a33ef009a9af949a098941c9a9ea5^
+head_commit: 73147585924a33ef009a9af949a098941c9a9ea5
+fix_commit: 73147585924a33ef009a9af949a098941c9a9ea5
+category: incomplete
+difficulty: medium
+severity: low
 language: rust
-pr_size: tiny
-description: In the wrapped MPSC sender, the metric tracking sent messages was incremented
-  even when `try_send` failed, causing inaccurate metrics. The fix ensures the metric
-  is only incremented after `try_send` succeeds by moving the increment after the
-  `?` error propagation.
+pr_size: large
+description: This PR adds unit tests for `check_incoming_certificate` and `check_certificate`
+  functions but the diff is unavailable for analysis. Based on the PR metadata, it
+  is a test-addition PR (208 lines added, 1 removed) rather than a bug-fix PR, and
+  depends on an external SnarkVM PR for test helper utilities.
 expected_findings:
-- file: metrics/src/wrapped_mpsc.rs
-  line: 62
-  summary: Metric is incremented before verifying that try_send succeeded; if try_send
-    fails, the metric will still be incremented, producing inaccurate counts of queued
-    messages.
+- file: node/bft/src/helpers/storage.rs
+  line: 948
+  summary: New test imports and test helper usage for certificate checking — verify
+    test coverage is comprehensive and edge cases (invalid signatures, wrong round,
+    duplicate certificates) are covered
+  line_side: pre_fix
+- file: node/bft/src/helpers/storage.rs
+  line: 1139
+  summary: Additional test code using sample_batch_certificate helpers — verify tests
+    assert failure cases, not just happy paths
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

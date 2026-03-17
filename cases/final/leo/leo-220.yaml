@@ -1,30 +1,36 @@
 id: leo-220
 repo: ProvableHQ/leo
-base_commit: 179fba27fcbc03350c5b0ffbb79c589f1f0380dd^
-head_commit: 179fba27fcbc03350c5b0ffbb79c589f1f0380dd
-fix_commit: 179fba27fcbc03350c5b0ffbb79c589f1f0380dd
-category: logic
+base_commit: dae45d91071ce50be72904ed29c70a1e55894459^
+head_commit: dae45d91071ce50be72904ed29c70a1e55894459
+fix_commit: dae45d91071ce50be72904ed29c70a1e55894459
+category: api-misuse
 difficulty: easy
-severity: low
+severity: medium
 language: rust
-pr_size: large
-description: Multiple source files were missing required license headers (Copyright
-  notice and license text). The fix adds the standard 'Copyright (C) 2019-2020 Aleo
-  Systems Inc.' license header block to all affected files across the ast, compiler,
-  and typed crates.
+pr_size: small
+description: The `read_token()` call in both `add.rs` and `login.rs` propagated raw
+  IO errors when no JWT file existed, producing unhelpful error messages for non-authorized
+  users. The fix wraps these calls with `.map_err()` to convert failures into domain-specific
+  CLI errors (NotAuthorized, NoCredentialsProvided) with actionable messages.
 expected_findings:
-- file: ast/src/console/console_assert.rs
-  line: 1
-  summary: Missing required license header comment at top of file; all source files
-    must begin with the standard copyright and license block.
-- file: compiler/src/console/assert.rs
-  line: 1
-  summary: Missing required license header comment at top of file; all source files
-    must begin with the standard copyright and license block.
-- file: typed/src/console/console_function.rs
-  line: 1
-  summary: Missing required license header comment at top of file; all source files
-    must begin with the standard copyright and license block.
+- file: leo/commands/add.rs
+  line: 111
+  summary: 'Missing error handling: `read_token()?` propagates a raw IO error when
+    no JWT exists; should map to a user-friendly NotAuthorized error'
+  line_side: pre_fix
+- file: leo/commands/login.rs
+  line: 87
+  summary: 'Missing error handling: fallback `read_token()?` propagates a raw IO error
+    when no stored credentials exist; should map to NoCredentialsProvided'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

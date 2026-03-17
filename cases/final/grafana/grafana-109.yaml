@@ -1,0 +1,47 @@
+id: grafana-109
+repo: grafana/grafana
+base_commit: e83f16c9796cf2011a550648477aa9fe4cca15f8^
+head_commit: 79dfc245bf70410275a72054bf7f933c7e4a2988
+fix_commit: e83f16c9796cf2011a550648477aa9fe4cca15f8
+category: logic
+difficulty: medium
+severity: medium
+language: go
+pr_size: medium
+description: 'Two distinct bugs: (1) In datasource check, the plugin-installability
+  cache stored the negated value (!isAvailableInRepo) while the function returned
+  the non-negated value, causing the first call to return the correct result but all
+  subsequent cached calls to return the opposite. (2) In the check scheduler, logger.With()
+  was reassigned to the outer ''logger'' variable inside a loop over namespaces, causing
+  structured log fields to accumulate across iterations — each iteration appended
+  another ''namespace'' key to the same logger, polluting log output and making debugging
+  misleading.'
+expected_findings:
+- file: apps/advisor/pkg/app/checks/datasourcecheck/check.go
+  line: 161
+  summary: 'Cache-vs-return mismatch: cache stores `!isAvailableInRepo` but function
+    returns `isAvailableInRepo`, so first call is correct but all subsequent cached
+    calls return the inverted boolean.'
+  line_side: pre_fix
+- file: apps/advisor/pkg/app/checkscheduler/checkscheduler.go
+  line: 115
+  summary: 'Logger mutation in loop: `logger = logger.With("namespace", namespace)`
+    reassigns the outer variable, accumulating fields across loop iterations. Should
+    use a loop-scoped variable (`nsLogger :=`).'
+  line_side: pre_fix
+- file: apps/advisor/pkg/app/checkscheduler/checkscheduler.go
+  line: 147
+  summary: 'Same logger mutation bug in the ticker loop: `logger = logger.With("namespace",
+    namespace)` contaminates the logger for subsequent namespace iterations.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

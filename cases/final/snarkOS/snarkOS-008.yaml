@@ -1,29 +1,37 @@
 id: snarkOS-008
 repo: ProvableHQ/snarkOS
-base_commit: 6bf506233d5338a626ebc465e47492224a7b6507^
-head_commit: 6bf506233d5338a626ebc465e47492224a7b6507
-fix_commit: 6bf506233d5338a626ebc465e47492224a7b6507
-category: api
-difficulty: easy
-severity: high
+base_commit: 0f8b53963631f952fb5f0242a84c3904c8db266a^
+head_commit: 0f8b53963631f952fb5f0242a84c3904c8db266a
+fix_commit: 0f8b53963631f952fb5f0242a84c3904c8db266a
+category: memory
+difficulty: medium
+severity: critical
 language: rust
 pr_size: small
-description: The challenge request deserialization in both BFT events and router messages
-  would fail the handshake if the peer did not send a valid 40-byte commit hash. The
-  fix changes the `read_le` call to gracefully handle missing or invalid commit hash
-  bytes by using a match/fallback instead of propagating the error, allowing connections
-  with peers that omit the field.
+description: The `to_vec` method on the digest tree recursively cloned each layer
+  of the tree, which caused a stack overflow when the tree was sufficiently deep (i.e.,
+  large numbers of blocks). The fix replaces the recursive clone with `take_children()`
+  to move ownership instead of cloning, and adds comments warning against implementing
+  Clone on the deep tree structure.
 expected_findings:
-- file: node/bft/events/src/challenge_request.rs
-  line: 60
-  summary: Deserializing snarkos_sha via `<[u8; 40]>::read_le` will fail the entire
-    handshake if the peer does not send a commit hash. Should gracefully handle missing/invalid
-    bytes instead of propagating the error.
-- file: node/router/messages/src/challenge_request.rs
-  line: 59
-  summary: Deserializing snarkos_sha via `<[u8; 40]>::read_le` will fail the entire
-    handshake if the peer does not send a commit hash. Should gracefully handle missing/invalid
-    bytes instead of propagating the error.
+- file: storage/src/storage/digest_tree.rs
+  line: 16
+  summary: 'DigestTree should not derive or implement Clone: recursive cloning of
+    a deeply nested tree will overflow the stack'
+  line_side: pre_fix
+- file: consensus/src/consensus/inner/commit.rs
+  line: 281
+  summary: Use take_children() (move) instead of cloning children to avoid recursive
+    deep-copy that causes stack overflow on large digest trees
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

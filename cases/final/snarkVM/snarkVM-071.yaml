@@ -1,34 +1,49 @@
 id: snarkVM-071
 repo: ProvableHQ/snarkVM
-base_commit: 54447585f74775e3b9e583bff18c9e52b1aeaae9^
-head_commit: 54447585f74775e3b9e583bff18c9e52b1aeaae9
-fix_commit: 54447585f74775e3b9e583bff18c9e52b1aeaae9
-category: api
+base_commit: 50b95099343ef99e76781c5f51ee3e77d6a7df45^
+head_commit: 50b95099343ef99e76781c5f51ee3e77d6a7df45
+fix_commit: 50b95099343ef99e76781c5f51ee3e77d6a7df45
+category: incomplete
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: medium
-description: Multiple `FromBytes` implementations read u32 values from untrusted input
-  and use them directly in `Vec::with_capacity(num as usize)` without bounds validation.
-  On 32-bit architectures, values exceeding i32::MAX cause a panic, creating a denial-of-service
-  vector. The fix adds upper-bound checks (against network constants like MAX_SOLUTIONS
-  and MAX_COMMITTEE_MEMBERS) before allocation.
+pr_size: xl
+description: This PR removes the entire outer circuit layer from the DPC system, including
+  OuterCircuit, OuterPublicVariables, OuterPrivateVariables, and all associated SNARK
+  types/gadgets from the Network trait. However, the removal also strips InnerSNARKGadget
+  and ProgramSNARKGadget from the Network trait and implementations, which are not
+  exclusively outer-circuit concerns, and bundles an unrelated documentation correction
+  (GM17→Marlin for Noop Program SNARK).
 expected_findings:
-- file: ledger/narwhal/batch-header/src/bytes.rs
-  line: 34
-  summary: 'Missing bounds check: `num_transmission_ids` read from untrusted input
-    is used directly in Vec::with_capacity() without validating it is within allowed
-    limits, enabling DoS via panic on 32-bit architectures'
-- file: ledger/committee/src/bytes.rs
-  line: 28
-  summary: 'Missing bounds check: number of committee members read from untrusted
-    bytes is passed to Vec::with_capacity() without verifying it does not exceed MAX_COMMITTEE_MEMBERS,
-    enabling allocation panic'
-- file: utilities/src/bytes.rs
-  line: 145
-  summary: 'Missing bounds check: `size_b` read from input used directly for Vec capacity
-    allocation without validating it is within safe bounds, enabling DoS via oversized
-    allocation or panic'
+- file: dpc/src/traits/network.rs
+  line: 181
+  summary: Removing InnerSNARKGadget and ProgramSNARKGadget associated types from
+    the Network trait is overly aggressive — these gadgets support in-circuit SNARK
+    verification generally, not just within the outer circuit. Any future circuit
+    needing to verify inner or program proofs in-circuit will lack the trait-level
+    type binding.
+  line_side: pre_fix
+- file: parameters/examples/setup.rs
+  line: 18
+  summary: Removal of imports (Execution, Function, Noop, NoopPrivateVariables, ProgramPrivateVariables,
+    ProgramPublicVariables) goes beyond outer-circuit cleanup — these types relate
+    to program SNARK setup, not the outer circuit. Verify the rest of setup.rs still
+    compiles and functions correctly after these removals.
+  line_side: pre_fix
+- file: parameters/README.md
+  line: 67
+  summary: 'Bundled unrelated documentation change: corrects ''GM17'' to ''Marlin''
+    for the Noop Program SNARK description. This is accurate but unrelated to the
+    outer circuit removal and should ideally be a separate commit for clear history.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,33 +1,39 @@
 id: snarkVM-132
 repo: ProvableHQ/snarkVM
-base_commit: 94c03b823cad3f58369976ecde41a8c1eb52bda0^
-head_commit: 94c03b823cad3f58369976ecde41a8c1eb52bda0
-fix_commit: 94c03b823cad3f58369976ecde41a8c1eb52bda0
+base_commit: a87ceb9ccdb7d45d876c7212208b95b5a6b01820^
+head_commit: a87ceb9ccdb7d45d876c7212208b95b5a6b01820
+fix_commit: a87ceb9ccdb7d45d876c7212208b95b5a6b01820
 category: logic
-difficulty: medium
+difficulty: easy
 severity: high
 language: rust
-pr_size: medium
-description: The block header Metadata was missing the `last_coinbase_target` field,
-  which is required for correctly calculating subsequent coinbase targets. The fix
-  adds this field throughout the Metadata struct, its serialization/deserialization,
-  genesis initialization, and updates the ANCHOR_TIME constant and genesis block size
-  assertions accordingly.
+pr_size: tiny
+description: The `test_consensus_heights` feature flag incorrectly also changed the
+  `MAX_CERTIFICATES` constant in both canary_v0.rs and testnet_v0.rs. The cfg attribute
+  `#[cfg(not(any(test, feature = "test")))]` was applied to MAX_CERTIFICATES when
+  it should only gate consensus version heights, causing test builds to use a different
+  (incorrect) MAX_CERTIFICATES value.
 expected_findings:
-- file: synthesizer/src/block/header/metadata/mod.rs
-  line: 37
-  summary: Missing `last_coinbase_target` field in Metadata struct prevents correct
-    calculation of subsequent coinbase targets; this u64 field must be tracked alongside
-    the existing `coinbase_target`.
-- file: synthesizer/src/block/header/metadata/genesis.rs
-  line: 25
-  summary: Genesis metadata does not initialize `last_coinbase_target`, which should
-    be set to `N::GENESIS_COINBASE_TARGET` to provide the baseline for future target
-    calculations.
-- file: console/network/src/lib.rs
-  line: 87
-  summary: ANCHOR_TIME constant value needs updating to 25 to align with the new coinbase
-    target tracking mechanism.
+- file: console/network/src/canary_v0.rs
+  line: 174
+  summary: 'Incorrect feature-flag gating: `#[cfg(not(any(test, feature = "test")))]`
+    should not apply to MAX_CERTIFICATES — this constant should remain unchanged regardless
+    of the test_consensus_heights feature.'
+  line_side: pre_fix
+- file: console/network/src/testnet_v0.rs
+  line: 174
+  summary: 'Incorrect feature-flag gating: `#[cfg(not(any(test, feature = "test")))]`
+    should not apply to MAX_CERTIFICATES — this constant should remain unchanged regardless
+    of the test_consensus_heights feature.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

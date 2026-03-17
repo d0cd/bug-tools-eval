@@ -1,21 +1,30 @@
 id: leo-031
 repo: ProvableHQ/leo
-base_commit: cb2a9d3290676f529bb1a2463a85605bd79eb754^
-head_commit: cb2a9d3290676f529bb1a2463a85605bd79eb754
-fix_commit: cb2a9d3290676f529bb1a2463a85605bd79eb754
-category: logic
+base_commit: 1dcd226656120ac25e834f23c4c24a0b8f32a42f^
+head_commit: 1dcd226656120ac25e834f23c4c24a0b8f32a42f
+fix_commit: 1dcd226656120ac25e834f23c4c24a0b8f32a42f
+category: style
 difficulty: easy
-severity: medium
-language: leo
+severity: low
+language: rust
 pr_size: tiny
-description: The program declaration in ntzdebruijn/src/main.leo contained a typo
-  in the program name, preventing compilation. The fix corrects the program name to
-  match the expected 'ntzdebruijn.aleo' identifier so the program compiles successfully.
+description: A typo existed in an error message string within the canonicalization
+  error definitions. The fix corrects the wording so the error message accurately
+  communicates the constraint on dimension sizes.
 expected_findings:
-- file: examples/hackers-delight/ntzdebruijn/src/main.leo
-  line: 1
-  summary: 'Typo in program name declaration: program name does not match the expected
-    ''ntzdebruijn.aleo'', preventing compilation.'
+- file: ast/src/errors/canonicalization.rs
+  line: 36
+  summary: 'Typo in error message string literal: misspelled word should be corrected
+    for clarity'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

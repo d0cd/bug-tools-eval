@@ -1,29 +1,39 @@
 id: snarkOS-112
 repo: ProvableHQ/snarkOS
-base_commit: 9c722fe0d7ea2f01cbc92b0f402d782ac3dc5ba8^
-head_commit: 9c722fe0d7ea2f01cbc92b0f402d782ac3dc5ba8
-fix_commit: 9c722fe0d7ea2f01cbc92b0f402d782ac3dc5ba8
-category: logic
+base_commit: 9da1bbc1d100c25a144dd4614ac2f88e1e359985^
+head_commit: 9da1bbc1d100c25a144dd4614ac2f88e1e359985
+fix_commit: 9da1bbc1d100c25a144dd4614ac2f88e1e359985
+category: cryptographic
 difficulty: medium
 severity: critical
 language: rust
-pr_size: small
-description: Subdag certificates were being prematurely committed to the DAG before
-  confirming that the corresponding block was successfully produced. If block production
-  failed for any reason, the already-committed certificates would cause subsequent
-  block production to operate on corrupted state. The fix ensures certificates are
-  only committed after successful block production.
+pr_size: medium
+description: The `--seed` flag on the `account sign` command allowed users to seed
+  the nonce used in signatures, which is cryptographically insecure. Reusing or sharing
+  signature nonces can lead to private key recovery (analogous to the ECDSA nonce
+  reuse attack). The fix removes the `--seed` flag entirely to prevent accidental
+  use of this insecure functionality.
 expected_findings:
-- file: node/narwhal/src/bft.rs
-  line: 482
-  summary: Subdag certificates are committed to the DAG before verifying block production
-    succeeded. If block production fails, these prematurely committed certificates
-    corrupt subsequent DAG state.
-- file: node/narwhal/src/bft.rs
-  line: 507
-  summary: "Missing error handling (bail/ensure) around block commitment \u2014 certificates\
-    \ should only be marked as canonicalized in the DAG after confirming the block\
-    \ was successfully produced."
+- file: cli/src/commands/account.rs
+  line: 65
+  summary: 'Security: The `--seed` parameter on the sign command allows users to seed
+    signature nonces, which is cryptographically insecure and can lead to private
+    key compromise if nonces are reused.'
+  line_side: pre_fix
+- file: cli/src/commands/account.rs
+  line: 119
+  summary: 'Security: The sign function uses the user-provided seed to deterministically
+    generate a nonce for the signature. Signature nonces must be random and never
+    reused; deterministic/seeded nonces enable private key recovery attacks.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

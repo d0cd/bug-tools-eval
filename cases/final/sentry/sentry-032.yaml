@@ -1,24 +1,50 @@
 id: sentry-032
 repo: getsentry/sentry
-base_commit: 8b873b17e90d235cdcd4cca9f84f0b8acfb200c8^
-head_commit: 8b873b17e90d235cdcd4cca9f84f0b8acfb200c8
-fix_commit: 8b873b17e90d235cdcd4cca9f84f0b8acfb200c8
+base_commit: 288c6ce2429364d838ce720d4063f8c11b265c85^
+head_commit: 288c6ce2429364d838ce720d4063f8c11b265c85
+fix_commit: 288c6ce2429364d838ce720d4063f8c11b265c85
 category: logic
-difficulty: easy
+difficulty: medium
 severity: medium
-language: python
+language: typescript
 pr_size: small
-description: 'A prior refactor (PR #108287) removed the superuser check from the user
-  serializer''s email visibility logic, causing superusers to no longer see other
-  users'' email addresses. The fix adds back the `or user.is_superuser` condition
-  to the email-return gate in the serializer.'
+description: The restart handler was changed from calling `aiAutofix.reset()` (which
+  clears state before requiring a second click) to directly calling `startStep('root_cause')`
+  without resetting first. This means stale autofix state (partial results, error
+  flags, in-progress steps) may persist across restarts. Additionally, `onReset` is
+  now always defined rather than conditionally `undefined`, so the reset button is
+  always enabled even when `runState` is falsy and there is nothing to reset.
 expected_findings:
-- file: src/sentry/users/api/serializers/user.py
-  line: 183
-  summary: 'Missing superuser check: email visibility condition only checks `_user_is_requester`
-    but should also allow superusers via `or user.is_superuser`'
+- file: static/app/components/events/autofix/v3/drawer.tsx
+  line: 152
+  summary: useHandleRestart calls `startStep('root_cause')` without first calling
+    `aiAutofix.reset()`. Stale autofix state (partial results, error flags, in-progress
+    steps) will persist into the new run, potentially causing incorrect or confusing
+    behavior.
+  line_side: pre_fix
+- file: static/app/components/events/autofix/v3/drawer.tsx
+  line: 48
+  summary: '`onReset` is now always defined (handleRestart is never undefined), removing
+    the guard that previously disabled the reset button when `runState` is falsy.
+    Users can trigger a restart when no autofix session is active.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110444
+reviewer_notes: []
+reviewer_findings:
+- file: static/app/components/events/autofix/v3/drawer.tsx
+  line: 49
+  summary: what did the old reset do?
+  line_side: pre_fix
+- file: static/app/components/events/autofix/v3/drawer.tsx
+  line: 49
+  summary: Reset simply wiped the data from the UI but did not re-trigger RCA. V2
+    brought up some UI to let users manually start it
+  line_side: pre_fix
+quality_flags: []

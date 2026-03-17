@@ -1,30 +1,32 @@
 id: sentry-025
 repo: getsentry/sentry
-base_commit: 68cf39d202f4138659b11c94fd69ffa23ece49f6^
-head_commit: 68cf39d202f4138659b11c94fd69ffa23ece49f6
-fix_commit: 68cf39d202f4138659b11c94fd69ffa23ece49f6
+base_commit: 1fed04383783646d222a892b42bfced6a9314669^
+head_commit: 1fed04383783646d222a892b42bfced6a9314669
+fix_commit: 1fed04383783646d222a892b42bfced6a9314669
 category: logic
 difficulty: easy
-severity: low
+severity: medium
 language: typescript
-pr_size: tiny
-description: The ContinuousProfilingBillingRequirementBanner component was rendered
-  as a sibling outside the DescriptionWrapper, breaking the intended layout. The fix
-  moves the banner inside DescriptionWrapper and updates the CSS selector from :not(:last-child)
-  to :not(:last-child):has(*) to avoid adding bottom margin when the wrapper is empty.
+pr_size: small
+description: The admin provisioning UI failed to show the Seer budget field for legacy
+  Seer subscriptions because the visibility check relied on `reservedCpeSeerUser`
+  being set, which is not the case for legacy Seer categories. The fix adds explicit
+  checks for legacy Seer categories to ensure the budget field renders correctly.
 expected_findings:
-- file: static/app/views/profiling/onboarding.tsx
-  line: 313
-  summary: "ContinuousProfilingBillingRequirementBanner is placed outside DescriptionWrapper\
-    \ \u2014 it should be inside the wrapper so it renders alongside introduction\
-    \ text in the same layout container"
-- file: static/app/views/profiling/onboarding.tsx
-  line: 467
-  summary: CSS selector :not(:last-child) on DescriptionWrapper adds unwanted bottom
-    margin when the wrapper is empty; should use :not(:last-child):has(*) to guard
-    against empty content
+- file: static/gsAdmin/components/provisionSubscriptionAction.tsx
+  line: 1
+  summary: Seer budget field visibility condition only checks `reservedCpeSeerUser`
+    but does not account for legacy Seer categories, causing the field to be hidden
+    for legacy subscriptions
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110482
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

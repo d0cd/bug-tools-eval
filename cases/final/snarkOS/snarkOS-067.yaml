@@ -1,30 +1,32 @@
 id: snarkOS-067
 repo: ProvableHQ/snarkOS
-base_commit: d2e3d09a4919e6bbef9d08ea1049a81357ff2e36^
-head_commit: d2e3d09a4919e6bbef9d08ea1049a81357ff2e36
-fix_commit: d2e3d09a4919e6bbef9d08ea1049a81357ff2e36
-category: logic
-difficulty: easy
-severity: low
+base_commit: 5d4de0286964a72ecd2b0c4ace30a938ef269086^
+head_commit: 5d4de0286964a72ecd2b0c4ace30a938ef269086
+fix_commit: 5d4de0286964a72ecd2b0c4ace30a938ef269086
+category: api-misuse
+difficulty: medium
+severity: high
 language: rust
-pr_size: medium
-description: Duplicate BFT signatures and certificates were being logged at warning/error
-  level alongside genuinely serious errors. The fix differentiates between expected
-  duplicate signature events (now logged as debug) and actual errors (kept as error
-  level), reducing log noise in normal operation.
+pr_size: small
+description: Outbound TCP connections were not binding to the local address configured
+  via the --node flag. On multi-homed hosts this caused the OS to select an arbitrary
+  source address, leading peers to extrapolate and broadcast incorrect socket addresses,
+  which broke connectivity and increased load on unrelated nodes.
 expected_findings:
-- file: node/bft/src/helpers/proposal.rs
-  line: 149
-  summary: Duplicate signature error is logged at warning/error level but should be
-    debug, since duplicate signatures are expected in normal BFT operation
-- file: node/bft/src/helpers/storage.rs
-  line: 424
-  summary: Duplicate signature/certificate error logged at warning/error level instead
-    of debug; duplicates are expected and should not raise alarms
-- file: node/bft/src/primary.rs
-  line: 57
-  summary: Error handling does not distinguish between duplicate signatures (benign)
-    and serious errors; all are treated as warnings/errors indiscriminately
+- file: node/tcp/src/tcp.rs
+  line: 225
+  summary: Outbound TCP connect does not bind to the configured local address before
+    connecting; on multi-homed hosts the OS picks an arbitrary source IP, causing
+    peers to learn the wrong address for this node
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

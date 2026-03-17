@@ -1,30 +1,38 @@
 id: sentry-019
 repo: getsentry/sentry
-base_commit: d678512d615e7a47baa5cc18ccd10a119b323192^
-head_commit: d678512d615e7a47baa5cc18ccd10a119b323192
-fix_commit: d678512d615e7a47baa5cc18ccd10a119b323192
+base_commit: 1b2028bb7455b62fba59a1eb3b9d00bdcff27d51^
+head_commit: 1b2028bb7455b62fba59a1eb3b9d00bdcff27d51
+fix_commit: 1b2028bb7455b62fba59a1eb3b9d00bdcff27d51
 category: logic
 difficulty: easy
-severity: low
-language: python
-pr_size: small
-description: A feature flag 'seer-slack-workflows-explorer' was left in place after
-  it was no longer needed. The Slack workflows now work with explorer autofix natively,
-  so the flag gate and its associated conditional check were dead code. The fix removes
-  the flag definition, the feature check in the operator entrypoint, and the corresponding
-  test assertions.
+severity: medium
+language: typescript
+pr_size: medium
+description: The `getPlanCategoryName` and `getSingularCategoryName` functions in
+  dataCategory.tsx fell back to the raw camelCase category key (e.g. `sizeAnalyses`)
+  when `categoryDisplayNames` was missing from the plan, instead of looking up the
+  human-readable `titleName`/`displayName` from `DATA_CATEGORY_INFO`. This caused
+  billing and admin pages to display ugly raw identifiers to users.
 expected_findings:
-- file: src/sentry/seer/entrypoints/operator.py
-  line: 77
-  summary: 'Unnecessary feature flag check: ''seer-slack-workflows-explorer'' gate
-    is redundant since Slack workflows now work with explorer autofix by default;
-    remove the conditional branch'
-- file: src/sentry/features/temporary.py
-  line: 353
-  summary: 'Stale feature flag definition: ''seer-slack-workflows-explorer'' is no
-    longer needed and should be removed from the temporary feature registry'
+- file: static/gsApp/utils/dataCategory.tsx
+  line: 76
+  summary: Fallback in getPlanCategoryName/getSingularCategoryName returns raw camelCase
+    category key instead of looking up human-readable titleName/displayName from DATA_CATEGORY_INFO
+    when categoryDisplayNames doesn't include the category
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 109612
+reviewer_notes: []
+reviewer_findings:
+- file: static/gsApp/utils/dataCategory.tsx
+  line: 76
+  summary: '### Singular/plural fallbacks use inconsistent naming fields  **Low Severity**  <!--
+    DESCRIPTION START --> The plural fa'
+  line_side: pre_fix
+quality_flags: []

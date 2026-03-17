@@ -1,30 +1,33 @@
 id: snarkVM-109
 repo: ProvableHQ/snarkVM
-base_commit: 0e9a5fc649abeada99671e78f11cd4301305f609^
-head_commit: 0e9a5fc649abeada99671e78f11cd4301305f609
-fix_commit: 0e9a5fc649abeada99671e78f11cd4301305f609
-category: perf
-difficulty: medium
-severity: medium
+base_commit: 7f69a82d27d368aed8e1bfb8b9cfd0b6c3245867^
+head_commit: 7f69a82d27d368aed8e1bfb8b9cfd0b6c3245867
+fix_commit: 7f69a82d27d368aed8e1bfb8b9cfd0b6c3245867
+category: security
+difficulty: easy
+severity: high
 language: rust
-pr_size: large
-description: The TestConstraintSystem used in CI tests was storing all constraints
-  and computing full paths, consuming excessive memory. The fix introduces a TestConstraintChecker
-  that skips path computation and constraint storage while still verifying constraint
-  satisfaction, reducing memory usage in CI tests.
+pr_size: tiny
+description: The `G2Prepared::read_le` deserialization method preallocated a `Vec`
+  using `Vec::with_capacity()` with a size read directly from untrusted input. A malicious
+  payload could specify an enormous capacity value, causing the process to attempt
+  a massive memory allocation and crash (denial-of-service). The fix replaces `Vec::with_capacity(num)`
+  with `Vec::new()`, removing the attacker-controlled preallocation.
 expected_findings:
-- file: r1cs/src/test_constraint_checker.rs
-  line: 1
-  summary: New memory-efficient TestConstraintChecker introduced to replace TestConstraintSystem
-    in tests where full constraint storage is unnecessary
-- file: gadgets/src/integers/int/tests/int128.rs
-  line: 330
-  summary: Test uses TestConstraintSystem which stores all constraints and computes
-    full paths unnecessarily; should use TestConstraintChecker for memory efficiency
-- file: gadgets/src/integers/uint/tests/uint128.rs
-  line: 370
-  summary: Test uses TestConstraintSystem which allocates excessive memory; should
-    use the lighter TestConstraintChecker
+- file: curves/src/templates/bls12/g2.rs
+  line: 65
+  summary: 'Untrusted preallocation: `Vec::with_capacity(ell_coeffs_len)` uses a deserialized
+    length directly without bounds checking, enabling OOM denial-of-service via crafted
+    input'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

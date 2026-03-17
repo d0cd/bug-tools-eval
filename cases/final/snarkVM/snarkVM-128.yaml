@@ -1,35 +1,36 @@
 id: snarkVM-128
 repo: ProvableHQ/snarkVM
-base_commit: 802491c0e3543b0cd54532dae5f50fb2ee35cf4b^
-head_commit: 802491c0e3543b0cd54532dae5f50fb2ee35cf4b
-fix_commit: 802491c0e3543b0cd54532dae5f50fb2ee35cf4b
-category: memory
-difficulty: hard
-severity: high
+base_commit: 9f5246d8c28afc0aef769b723eeaa4ec4a402b9c^
+head_commit: 9f5246d8c28afc0aef769b723eeaa4ec4a402b9c
+fix_commit: 9f5246d8c28afc0aef769b723eeaa4ec4a402b9c
+category: performance
+difficulty: easy
+severity: low
 language: rust
 pr_size: medium
-description: 'Programs with deep nested imports consumed excessive memory due to two
-  issues: (1) Stack trees containing all imported external_stacks were being deeply
-  cloned instead of shared via Arc, causing exponential memory growth with nesting
-  depth. (2) During CheckDeployment, `execute_function` was called instead of `evaluate_function`
-  for nested calls, unnecessarily computing full execution when only the top-level
-  circuit was needed. The fix wraps Stack in Arc for shared ownership and routes CheckDeployment
-  through evaluate_function.'
+description: CI pipeline for synthesizer-program-integration was too slow due to high
+  iteration counts in expensive integration tests. The fix reduces ITERATIONS constants
+  in commit and hash instruction tests from 50 to a lower value, and adjusts CircleCI
+  configuration for the keccak test job.
 expected_findings:
-- file: synthesizer/process/src/stack/mod.rs
-  line: 169
-  summary: external_stacks stored as owned `Stack<N>` instead of `Arc<Stack<N>>`,
-    causing deep clones of entire stack trees (including all nested imports) whenever
-    a stack is cloned
-- file: synthesizer/process/src/stack/evaluate.rs
-  line: 106
-  summary: CheckDeployment callstack variant incorrectly falls through to `execute_function`
-    instead of `evaluate_function` for nested calls, performing unnecessary full execution
-    when only circuit computation is needed
-- file: synthesizer/process/src/lib.rs
-  line: 75
-  summary: Process-level stacks map stores owned `Stack<N>` instead of `Arc<Stack<N>>`,
-    requiring full clones when stacks are shared across imports
+- file: synthesizer/program/tests/instruction/commit.rs
+  line: 41
+  summary: ITERATIONS set to 50 causes unnecessarily long CI times for commit instruction
+    integration tests; should be reduced
+  line_side: pre_fix
+- file: synthesizer/program/tests/instruction/hash.rs
+  line: 50
+  summary: ITERATIONS set to 50 causes unnecessarily long CI times for hash instruction
+    integration tests; should be reduced
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

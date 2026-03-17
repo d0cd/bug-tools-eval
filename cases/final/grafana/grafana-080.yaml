@@ -1,0 +1,36 @@
+id: grafana-080
+repo: grafana/grafana
+base_commit: abe7f7c7027a31d72f7495aac1b983e896782008^
+head_commit: abe7f7c7027a31d72f7495aac1b983e896782008
+fix_commit: abe7f7c7027a31d72f7495aac1b983e896782008
+category: concurrency
+difficulty: hard
+severity: medium
+language: go
+pr_size: small
+description: The channelNotifier.Watch goroutine uses a select statement with both
+  a raw event channel and a ticker. When the ticker fires and the raw channel also
+  has pending events, Go's select randomly picks one, causing partial batch reads
+  where lower-RV events remain unread while higher-RV events are emitted first, violating
+  ResourceVersion ordering. The fix adds a non-blocking drain loop after the ticker
+  fires to read all pending events from the raw channel into the buffer before sorting
+  and emitting.
+expected_findings:
+- file: pkg/storage/unified/resource/notifier.go
+  line: 131
+  summary: 'Race in select: when ticker fires concurrently with pending channel events,
+    Go randomly picks between cases, so a tick can process a partial batch while lower-ResourceVersion
+    events are still buffered in the channel — need to drain all pending events before
+    sorting and emitting'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

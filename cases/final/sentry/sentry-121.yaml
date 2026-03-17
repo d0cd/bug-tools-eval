@@ -1,0 +1,43 @@
+id: sentry-121
+repo: getsentry/sentry
+base_commit: 9b0d843d1d4e068ade08c589ff74599ddc348f7d^
+head_commit: 9b0d843d1d4e068ade08c589ff74599ddc348f7d
+fix_commit: 9b0d843d1d4e068ade08c589ff74599ddc348f7d
+category: logic
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: small
+description: The Widget Viewer modal incorrectly treated CATEGORICAL_BAR charts like
+  time-series charts (LINE, AREA, BAR), giving them HALF_TABLE_ITEM_LIMIT instead
+  of FULL_TABLE_ITEM_LIMIT. This caused fewer bars to render and a smaller backing
+  table. The fix adds CATEGORICAL_BAR to the TABLE display-type condition in all three
+  query branches and passes widget.limit as tableItemLimit.
+expected_findings:
+- file: static/app/components/modals/widgetViewerModal.tsx
+  line: 526
+  summary: 'Missing CATEGORICAL_BAR in DisplayType check: condition only checks TABLE,
+    so categorical bar charts fall through to the half-limit branch and get fewer
+    rows than configured.'
+  line_side: pre_fix
+- file: static/app/components/modals/widgetViewerModal.tsx
+  line: 544
+  summary: Same missing CATEGORICAL_BAR condition in the Release query branch — should
+    use FULL_TABLE_ITEM_LIMIT like TABLE widgets.
+  line_side: pre_fix
+- file: static/app/components/modals/widgetViewerModal.tsx
+  line: 563
+  summary: Same missing CATEGORICAL_BAR condition in the Discover query branch — should
+    use FULL_TABLE_ITEM_LIMIT like TABLE widgets.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -3,21 +3,31 @@ repo: ProvableHQ/snarkVM
 base_commit: b698185524d4bb351852fbefff1a545f7cf2cabd^
 head_commit: b698185524d4bb351852fbefff1a545f7cf2cabd
 fix_commit: b698185524d4bb351852fbefff1a545f7cf2cabd
-category: logic
+category: constraint
 difficulty: medium
 severity: high
 language: rust
 pr_size: small
 description: The inner circuit gadget incorrectly computed the output record position
-  number, using just the loop index `j` instead of offsetting it by `NUM_INPUT_RECORDS`.
-  The fix changes the record number to `(C::NUM_INPUT_RECORDS + j) as u8`, ensuring
-  output records are numbered after input records. This required resampling SNARK
-  parameters and updating integration test expectations.
+  using `(NUM_INPUT_RECORDS + j)` as the record number, which produced wrong positions
+  for output records in the ZK circuit. The fix corrects the position calculation,
+  and the integration tests and SNARK parameters were regenerated to match the corrected
+  circuit.
 expected_findings:
 - file: dpc/src/circuits/inner_circuit_gadget.rs
   line: 654
-  summary: 'Incorrect output record position: should be `(C::NUM_INPUT_RECORDS + j)
-    as u8` to offset output records past input records, but was using just `j as u8`.'
+  summary: 'Incorrect output record position: `UInt8::constant((C::NUM_INPUT_RECORDS
+    + j) as u8)` computes the wrong index for output records in the inner circuit,
+    leading to mismatched record positions in the constraint system.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

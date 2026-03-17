@@ -189,21 +189,7 @@ uv run bugeval groundedness-check \
 
 Cases that fail verification are flagged with `quality_flags: ["groundedness-failed"]` and `needs_manual_review: true`. Re-run without `--dry-run` to update case files.
 
-### 1g. Consolidate and merge cases (when combining sources)
-
-```bash
-# Merge cases from multiple directories, dedup by fix_commit
-uv run bugeval merge-cases \
-  --input-dirs candidates/snarkVM-a/ candidates/snarkVM-b/ \
-  --output-dir cases/final/snarkVM/
-
-# Consolidate v1→v2 dataset (category migration, auto-review)
-uv run bugeval consolidate \
-  --cases-dir cases/final \
-  --verified-dir cases/verified
-```
-
-### 1h. Tag the dataset
+### 1g. Tag the dataset
 
 ```bash
 git add cases/ patches/
@@ -390,8 +376,6 @@ uv run bugeval dashboard --run-dir results/run-<date>
 | `curate` | LLM-assisted curation of candidates into test cases |
 | `validate-cases` | Validate case YAML files against Pydantic schema |
 | `extract-patch` | Generate `.patch` files from case commits |
-| `consolidate` | Merge and migrate datasets (v1→v2 category migration, auto-review) |
-| `merge-cases` | Merge cases from multiple directories, dedup by fix_commit |
 | `groundedness-check` | Verify expected_findings exist in pre-fix diffs (LLM-based QA) |
 
 ### Evaluation commands

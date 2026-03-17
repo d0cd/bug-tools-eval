@@ -1,31 +1,45 @@
 id: snarkOS-100
 repo: ProvableHQ/snarkOS
-base_commit: 5d7d1c1bceff8139c347abe6a205c162df522d0e^
-head_commit: 5d7d1c1bceff8139c347abe6a205c162df522d0e
-fix_commit: 5d7d1c1bceff8139c347abe6a205c162df522d0e
-category: api
+base_commit: 8df3a32c0e39226965e751f22d4a5befcf169724^
+head_commit: 8df3a32c0e39226965e751f22d4a5befcf169724
+fix_commit: 8df3a32c0e39226965e751f22d4a5befcf169724
+category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: xl
-description: The snarkOS CLI developer commands (`deploy` and `execute`) did not work
-  as expected due to incorrect HTTP request handling after a `ureq` API change, broken
-  `--broadcast` flag semantics, and missing protocol/URI normalization for the endpoint
-  argument. The fix updates `ureq` usage with proper helper functions, changes `--broadcast`
-  to a boolean flag, renames `--query` to `--endpoint`, and adds URI validation.
+pr_size: medium
+description: The aggro sync mode had a regression that disabled chain-scanning behavior,
+  reducing the node's ability to discover and sync longer chains. The PR re-enables
+  chain-scanning in aggro sync, adjusts block locator hash ordering to prioritize
+  proportional hashes over quadratic ones (moving quadratic hashes closer to chain
+  origin), extends aggro sync rounds from 15 to 60 seconds, and splits peer reconnection
+  strategy between highest-block-count peers and random peers for better chain discovery.
 expected_findings:
-- file: cli/src/commands/developer/deploy.rs
-  line: 13
-  summary: Deploy command uses incorrect endpoint/query parameter handling and broken
-    broadcast flag, causing deployment to fail or target the wrong endpoint.
-- file: cli/src/commands/developer/execute.rs
-  line: 13
-  summary: Execute command has the same broken broadcast and endpoint handling as
-    deploy, preventing successful transaction execution.
-- file: cli/src/commands/developer/mod.rs
-  line: 28
-  summary: Developer module lacks proper HTTP helper functions and URI parsing for
-    the updated ureq API, causing HTTP errors to lose response body information.
+- file: network/src/sync/blocks/aggro.rs
+  line: 59
+  summary: Chain-scanning behavior was inadvertently disabled in aggro sync mode (regression);
+    the sync loop skips scanning which prevents discovery of longer chains from peers
+  line_side: pre_fix
+- file: storage/src/storage/sync.rs
+  line: 246
+  summary: Block locator hash algorithm places quadratic hashes before proportional
+    hashes, causing inefficient block discovery — proportional hashes should come
+    first with quadratic hashes shifted toward chain origin
+  line_side: pre_fix
+- file: network/src/peers/peers.rs
+  line: 225
+  summary: Peer reconnection selects only random disconnected peers instead of splitting
+    between highest-claimed-block-count peers and random peers, reducing likelihood
+    of finding longer chains
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

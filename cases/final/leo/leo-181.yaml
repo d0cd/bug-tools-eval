@@ -1,31 +1,33 @@
 id: leo-181
 repo: ProvableHQ/leo
-base_commit: 700e31f11322070d0c4d785903852900695a4dac^
-head_commit: 700e31f11322070d0c4d785903852900695a4dac
-fix_commit: 700e31f11322070d0c4d785903852900695a4dac
-category: api
+base_commit: bad06869e9f214193f4eaa9fc11bb5dbb102a917^
+head_commit: bad06869e9f214193f4eaa9fc11bb5dbb102a917
+fix_commit: bad06869e9f214193f4eaa9fc11bb5dbb102a917
+category: type
 difficulty: easy
 severity: high
 language: rust
 pr_size: medium
-description: The `leo execute` CLI command had incorrect clap argument annotations,
-  causing input arguments to be incorrectly parsed as the API endpoint parameter.
-  The fix corrected the clap attribute definitions in execute.rs to properly distinguish
-  between input arguments and the endpoint option, and aligned the argument parsing
-  with the pattern used in run.rs.
+description: The Leo compiler's type checker in check_expressions.rs was missing type
+  validation for multiplication (Mul) expressions. While other binary arithmetic operations
+  (Add, Sub, Div) checked that both operands have the same type, the Mul case was
+  skipped, allowing type-mismatched or invalid multiplication expressions to pass
+  compilation without error.
 expected_findings:
-- file: leo/cli/commands/execute.rs
-  line: 27
-  summary: Incorrect clap attribute on this field causes input arguments to be parsed
-    as the API endpoint instead of program inputs
-- file: leo/cli/commands/execute.rs
-  line: 64
-  summary: Clap argument definition is missing or misconfigured, leading to ambiguous
-    positional argument parsing between inputs and endpoint
-- file: leo/cli/commands/execute.rs
-  line: 85
-  summary: Clap attribute ordering or configuration does not correctly separate the
-    endpoint option from positional input arguments
+- file: compiler/passes/src/type_checking/check_expressions.rs
+  line: 183
+  summary: 'Missing type check for Mul binary expressions: multiplication operands
+    are not validated for type compatibility, unlike Add/Sub/Div which all verify
+    both operands have the same type.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

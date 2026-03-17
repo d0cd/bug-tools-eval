@@ -1,32 +1,32 @@
 id: sentry-002
 repo: getsentry/sentry
-base_commit: 660717df15f75613f3f8ff10e0166562cc382b9b^
-head_commit: 660717df15f75613f3f8ff10e0166562cc382b9b
-fix_commit: 660717df15f75613f3f8ff10e0166562cc382b9b
-category: api
-difficulty: easy
-severity: high
+base_commit: 0449c6cfeb684fb89cd33a13fc567f331393352e^
+head_commit: b295bfddbfe9d4b56717639582454702a29112c2
+fix_commit: 0449c6cfeb684fb89cd33a13fc567f331393352e
+category: logic
+difficulty: medium
+severity: medium
 language: python
-pr_size: tiny
-description: After migrating to urllib3 connection pools, a default 5-second read
-  timeout was introduced, causing ReadTimeoutErrors on Seer AI translate endpoints
-  that require longer processing times. The fix adds explicit timeout parameters (30s
-  for translate, 10s for agentic) to the request functions to prevent premature timeouts.
+pr_size: medium
+description: When metric_unit is 'none', the filter only checked for items without
+  a unit (!has:metric.unit) but missed items where the unit is explicitly stored as
+  the string 'none'. The fix wraps the existing NOT EXISTS filter in an OR with an
+  equality check for 'none', so both cases are captured.
 expected_findings:
-- file: src/sentry/seer/endpoints/trace_explorer_ai_query.py
-  line: 41
-  summary: Missing explicit timeout on make_translate_query_request call; inherits
-    default 5s pool timeout which is too short for AI translation queries
-- file: src/sentry/seer/endpoints/trace_explorer_ai_translate_agentic.py
-  line: 82
-  summary: Missing explicit timeout on make_translate_agentic_request call; inherits
-    default 5s pool timeout which is too short for agentic AI queries
-- file: src/sentry/seer/signed_seer_api.py
-  line: 370
-  summary: make_translate_query_request lacks a timeout parameter, so callers cannot
-    override the default pool timeout
+- file: src/sentry/search/eap/trace_metrics/types.py
+  line: 48
+  summary: 'Incomplete filter: when metric_unit==''none'', only NOT EXISTS is checked.
+    Items explicitly stored with unit=''none'' are excluded. Should OR the NOT EXISTS
+    with an EQUALS ''none'' comparison.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

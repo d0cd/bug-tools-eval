@@ -1,27 +1,50 @@
 id: leo-204
 repo: ProvableHQ/leo
-base_commit: a0cdafce4b1232e0806e9ceb7a15c8b9b6f24179^
-head_commit: a0cdafce4b1232e0806e9ceb7a15c8b9b6f24179
-fix_commit: a0cdafce4b1232e0806e9ceb7a15c8b9b6f24179
-category: logic
-difficulty: medium
-severity: medium
+base_commit: cc23fb0bea5c88354c821ae9d84274edd689b674^
+head_commit: cc23fb0bea5c88354c821ae9d84274edd689b674
+fix_commit: cc23fb0bea5c88354c821ae9d84274edd689b674
+category: api-misuse
+difficulty: easy
+severity: high
 language: rust
 pr_size: xl
-description: The `leo build` command was hardcoding `main.leo` as the program name
-  in its output instead of writing the actual program being built. Additionally, `leo
-  add` did not prevent adding local dependencies with duplicate paths, leading to
-  inconsistent dependency state. The fix writes the correct program name during build
-  and deduplicates local dependency paths by overwriting stale entries.
+description: The CircleCI configuration contained a duplicated 'project' directory
+  segment in the EXAMPLES path (`/home/circleci/project/project/examples` instead
+  of `/home/circleci/project/examples`), causing CI example tests to silently fail
+  to locate example projects. Additionally, the `test-examples.sh` script did not
+  iterate over all examples and lacked error propagation (`set -e` or exit-on-failure),
+  so CI passed even when examples failed to compile or run.
 expected_findings:
-- file: leo/cli/commands/build.rs
-  line: 193
-  summary: Build output references a generic/hardcoded program name (`main.leo`) instead
-    of the actual program being compiled; should use the resolved program name.
-- file: leo/cli/commands/add.rs
-  line: 50
-  summary: 'Missing deduplication check: adding a local dependency does not detect
-    or handle duplicate paths, allowing inconsistent dependency entries in the manifest.'
+- file: .circleci/config.yml
+  line: 131
+  summary: 'Incorrect path: `export EXAMPLES=/home/circleci/project/project/examples`
+    has a duplicated ''project'' segment; should be `/home/circleci/project/examples`'
+  line_side: pre_fix
+- file: .circleci/config.yml
+  line: 149
+  summary: 'Same duplicated path bug: `export EXAMPLES=/home/circleci/project/project/examples`
+    appears in a second job definition'
+  line_side: pre_fix
+- file: .circleci/test-examples.sh
+  line: 1
+  summary: "Script does not iterate over all examples and lacks error propagation\
+    \ (e.g. `set -e`) \u2014 CI silently passes even when example programs fail to\
+    \ compile or run"
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 2270
+reviewer_notes:
+- '[thread] # [Codecov](https://codecov.io/gh/AleoHQ/leo/pull/2270?src=pr&el=h1&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=AleoHQ)
+  Report > Merging [#2270](https://codecov.io/gh/AleoHQ/leo/pull/2270?src=pr&el=desc&utm_medium=referral&utm_source=github&utm_content'
+- "[thread] We have a fix for the issue in #2271.\r Prior to the update, the example\
+  \ CI wasn't running in full, which is why the error slipped through the review for\
+  \ function inling.\r IMO, the best course of action is to:\r 1. Revert to aleo 0.3.3\
+  \ (this branch already does that)\r 2. Rebase and merge #2271 to this"
+reviewer_findings: []
+quality_flags: []

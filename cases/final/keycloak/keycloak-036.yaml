@@ -1,29 +1,44 @@
 id: keycloak-036
 repo: keycloak/keycloak
-base_commit: f373c5962ffa387d31657bac8a53bd1c5fab1b66^
-head_commit: f373c5962ffa387d31657bac8a53bd1c5fab1b66
-fix_commit: f373c5962ffa387d31657bac8a53bd1c5fab1b66
-category: logic
+base_commit: 77704a91b6067a41bdbf2a5b74fda1260adcedb2^
+head_commit: 77704a91b6067a41bdbf2a5b74fda1260adcedb2
+fix_commit: 77704a91b6067a41bdbf2a5b74fda1260adcedb2
+category: incomplete
 difficulty: medium
-severity: high
+severity: medium
 language: java
-pr_size: medium
-description: When a new realm is created or imported in Keycloak, the Infinispan cache
-  layer in RealmCacheSession did not invalidate cached admin roles, causing stale
-  role data to be served. The fix adds admin role invalidation logic when a new realm
-  is detected, and adjusts permission checks in MgmtPermissions to handle imported
-  realms correctly (including a lightweight token check).
+pr_size: small
+description: Keycloak's reverse proxy support handled X-Forwarded-For, X-Forwarded-Host,
+  X-Forwarded-Port, and X-Forwarded-Proto but did not support the X-Forwarded-Prefix
+  header. This meant deployments behind reverse proxies that rewrite the context path
+  (e.g., serving Keycloak under /auth/) could not dynamically resolve the correct
+  base path, requiring manual hostname-path configuration as a workaround.
 expected_findings:
-- file: model/infinispan/src/main/java/org/keycloak/models/cache/infinispan/RealmCacheSession.java
-  line: 493
-  summary: "Missing admin role cache invalidation when a new realm is added \u2014\
-    \ cached admin roles become stale after realm creation/import"
-- file: services/src/main/java/org/keycloak/services/resources/admin/fgap/MgmtPermissions.java
-  line: 159
-  summary: MgmtPermissions does not account for newly imported realms; missing lightweight
-    token check causes permission evaluation to use stale or incorrect role state
+- file: quarkus/config-api/src/main/java/org/keycloak/config/ProxyOptions.java
+  line: 35
+  summary: 'Missing X-Forwarded-Prefix option: the proxy options define forwarding
+    support for Host, Port, Proto, and For headers but omit Prefix, leaving context-path
+    resolution unsupported when behind a path-rewriting reverse proxy.'
+  line_side: pre_fix
+- file: quarkus/runtime/src/main/java/org/keycloak/quarkus/runtime/configuration/mappers/ProxyPropertyMappers.java
+  line: 41
+  summary: No property mapper registered for X-Forwarded-Prefix — the xforwarded proxy
+    mode does not wire up prefix header handling, so the header is silently ignored
+    even when proxy-headers=xforwarded.
+  line_side: pre_fix
+- file: quarkus/runtime/src/main/java/org/keycloak/quarkus/runtime/services/resources/ConstantsDebugHostname.java
+  line: 27
+  summary: Debug hostname endpoint lists X-Forwarded-For/Host/Port/Proto but not X-Forwarded-Prefix,
+    so operators cannot verify prefix header propagation via the hostname debug page.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

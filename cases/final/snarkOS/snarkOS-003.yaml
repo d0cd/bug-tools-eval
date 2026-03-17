@@ -1,24 +1,26 @@
 id: snarkOS-003
 repo: ProvableHQ/snarkOS
-base_commit: b81ca28a5f169be4357cc395c9fe3fe6d3b03710^
-head_commit: b81ca28a5f169be4357cc395c9fe3fe6d3b03710
-fix_commit: b81ca28a5f169be4357cc395c9fe3fe6d3b03710
-category: api
-difficulty: easy
+base_commit: 07ef982af744b5b9b9faefd5892c4fc25e4e050e^
+head_commit: 07ef982af744b5b9b9faefd5892c4fc25e4e050e
+fix_commit: 07ef982af744b5b9b9faefd5892c4fc25e4e050e
+category: incomplete
+difficulty: hard
 severity: medium
 language: rust
-pr_size: tiny
-description: Code inside a `#[cfg(feature = "prometheus")]` conditional block in server.rs
-  was not updated when the task accounting API was changed, causing a compilation
-  failure when building with the prometheus feature flag. The fix updates the prometheus-gated
-  code to match the new task spawning signature (likely adding or adjusting a task
-  ID argument).
-expected_findings:
-- file: snarkos/server.rs
-  line: 448
-  summary: "Prometheus-feature-gated code uses outdated task spawning API that no\
-    \ longer compiles after task accounting changes \u2014 missing or incorrect task\
-    \ ID argument"
+pr_size: large
+description: Bulk revert of multiple PRs to enable a Testnet Beta patch. This is a
+  wholesale rollback of prior work rather than a targeted bug fix, making it impossible
+  to isolate a single reviewable issue. The revert touches CLI network variants, BFT
+  helpers, devnet scripts, and dependency pins across 20+ files.
+expected_findings: []
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: null
+valid_for_code_review: false
+introducing_commit: null
+pr_number: 3272
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,35 +1,40 @@
 id: snarkOS-102
 repo: ProvableHQ/snarkOS
-base_commit: 190e125fd5b370359a89f76ec636ddf9b77f4489^
-head_commit: 190e125fd5b370359a89f76ec636ddf9b77f4489
-fix_commit: 190e125fd5b370359a89f76ec636ddf9b77f4489
+base_commit: 8fa064a978c5bcefe7ca64d3ea43ba82466f5ab4^
+head_commit: 8fa064a978c5bcefe7ca64d3ea43ba82466f5ab4
+fix_commit: 8fa064a978c5bcefe7ca64d3ea43ba82466f5ab4
 category: logic
-difficulty: hard
-severity: critical
+difficulty: medium
+severity: high
 language: rust
-pr_size: xl
-description: During validator syncing, the final block was added to the ledger without
-  verifying that its leader certificate reached quorum based on certificates in the
-  subsequent block. This caused validators that synced to tip to store a block prematurely,
-  then fail repeatedly when consensus tried to construct the same block through the
-  standard procedure, halting block advancement until reboot. The fix adds a quorum
-  verification step before advancing blocks during sync.
+pr_size: medium
+description: Block locator deserialization used the loop iteration index instead of
+  the actual block height when associating block headers with their locator entries
+  in the BTreeMap. This caused headers to be mapped to incorrect heights after deserialization.
+  Additionally, the check_block_locators validation function was entirely commented
+  out, meaning malformed block locators would pass validation unchecked.
 expected_findings:
-- file: node/bft/src/sync/mod.rs
-  line: 57
-  summary: 'Missing quorum check: blocks are added to the ledger during sync without
-    verifying that the leader certificate reached quorum based on certificates in
-    the subsequent block, allowing unvalidated blocks to be stored'
-- file: node/bft/src/sync/mod.rs
-  line: 77
-  summary: Block advancement proceeds without quorum verification on the latest block
-    responses, causing race between sync completion and consensus processing that
-    leads to duplicate block errors
-- file: node/bft/src/sync/mod.rs
-  line: 110
-  summary: The sync procedure should validate quorum on each block's leader certificate
-    before accepting it, but this validation is missing, allowing the ledger to reach
-    an inconsistent state
+- file: ledger/src/helpers/block_locators.rs
+  line: 82
+  summary: 'Bug: `block_headers_bytes.push((index, buffer))` uses loop counter `index`
+    instead of `height` — deserialized block headers will be keyed by iteration index
+    (0, 1, 2…) rather than actual block height, corrupting the BTreeMap lookup in
+    lines 90-95.'
+  line_side: pre_fix
+- file: ledger/src/state/ledger.rs
+  line: 449
+  summary: Entire check_block_locators validation logic is commented out — the function
+    always returns Ok(true), allowing any malformed or malicious block locator set
+    to pass validation. This is a P2P protocol safety issue.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

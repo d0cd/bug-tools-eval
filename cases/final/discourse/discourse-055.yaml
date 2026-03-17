@@ -1,33 +1,37 @@
 id: discourse-055
 repo: discourse/discourse
-base_commit: 255c1dfaf32faa6045c2518cb33e438582aec125^
-head_commit: 255c1dfaf32faa6045c2518cb33e438582aec125
-fix_commit: 255c1dfaf32faa6045c2518cb33e438582aec125
-category: logic
-difficulty: medium
-severity: medium
-language: ruby
-pr_size: medium
-description: "The ProseMirror quote node spec lacked a `displayName` attribute, so\
-  \ during the markdown\u2192ProseMirror\u2192markdown round-trip the display name\
-  \ was discarded and only the username survived. Additionally, the markdown-it quote\
-  \ parser did not emit `data-display-name` on the aside token, and the serializer\
-  \ did not output the display name or `username:` param when a display name was present."
+base_commit: 79cde62d3dd18dcb607dcdd61af6ac48dafc9185^
+head_commit: 79cde62d3dd18dcb607dcdd61af6ac48dafc9185
+fix_commit: 79cde62d3dd18dcb607dcdd61af6ac48dafc9185
+category: code-smell
+difficulty: easy
+severity: low
+language: javascript
+pr_size: tiny
+description: During a bulk refactoring of deprecated Ember array methods, a TrackedArray
+  wrapper was introduced around the result of getRoutes(router) in route-action.js.
+  Since the array is only used for a single .find() call and immediately discarded,
+  the TrackedArray provides no reactivity benefit and is unnecessary overhead.
 expected_findings:
-- file: frontend/discourse/app/static/prosemirror/extensions/quote.js
-  line: 14
-  summary: Quote node spec is missing a `displayName` attribute, causing display names
-    to be lost during ProseMirror round-trips
-- file: frontend/discourse-markdown-it/src/features/quotes.js
-  line: 42
-  summary: markdown-it aside token does not propagate the parsed display name as `data-display-name`,
-    so ProseMirror never receives it
-- file: frontend/discourse/app/static/prosemirror/extensions/quote.js
-  line: 35
-  summary: Quote serializer does not emit display name and `username:` param when
-    a display name is present, falling back to username only
+- file: frontend/discourse/app/helpers/route-action.js
+  line: 4
+  summary: 'Unnecessary TrackedArray wrapper: the array from getRoutes(router) is
+    used for a single .find() and immediately discarded — TrackedArray reactivity
+    tracking serves no purpose here.'
+  line_side: pre_fix
+- file: frontend/discourse/app/helpers/route-action.js
+  line: 19
+  summary: 'Same unnecessary TrackedArray pattern repeated: wrap-then-find on a throwaway
+    array gains nothing from tracked reactivity.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

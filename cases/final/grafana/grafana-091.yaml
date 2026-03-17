@@ -1,0 +1,35 @@
+id: grafana-091
+repo: grafana/grafana
+base_commit: c45557735362d09f480726c0b0285c893ca1ab94^
+head_commit: c45557735362d09f480726c0b0285c893ca1ab94
+fix_commit: c45557735362d09f480726c0b0285c893ca1ab94
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: medium
+description: Documentation-only change that updates panel menu option descriptions,
+  replaces internal ref URIs with proper URLs, and corrects dashboard/visualization
+  paths in the Grafana panel overview docs. No application code is modified.
+expected_findings:
+- file: docs/sources/visualizations/panels-visualizations/panel-overview/index.md
+  line: 16
+  summary: Stale or broken internal ref URIs that should be replaced with correct
+    URLs
+  line_side: pre_fix
+- file: docs/sources/visualizations/panels-visualizations/panel-overview/index.md
+  line: 43
+  summary: Outdated panel menu options listed in documentation no longer matching
+    current UI
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

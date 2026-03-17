@@ -1,34 +1,44 @@
 id: keycloak-047
 repo: keycloak/keycloak
-base_commit: 59e9f9bc2b7f6d7cd571ddc5cba0c2dd4e58b13d^
-head_commit: 59e9f9bc2b7f6d7cd571ddc5cba0c2dd4e58b13d
-fix_commit: 59e9f9bc2b7f6d7cd571ddc5cba0c2dd4e58b13d
-category: api
+base_commit: 84e763b472cd6a3f4550e962d694cd0016660c24^
+head_commit: 84e763b472cd6a3f4550e962d694cd0016660c24
+fix_commit: 84e763b472cd6a3f4550e962d694cd0016660c24
+category: logic
 difficulty: medium
-severity: critical
-language: java
-pr_size: medium
-description: The Authorization header parsing in AppAuthManager used indexOf(' ')
-  to split the header without validating that it actually starts with 'Bearer'. This
-  allowed malformed or crafted Authorization headers to bypass validation or cause
-  unexpected behavior, constituting CVE-2026-0707. The fix adds proper validation
-  that the header prefix is 'Bearer ' before extracting the token value.
+severity: medium
+language: typescript
+pr_size: large
+description: The KeyValueInput component did not handle the empty state correctly
+  — when no attributes were defined, it rendered a row with empty values instead of
+  an empty state, causing UI issues and potentially triggering errors when interacting
+  with the empty row. The key-value-convert utility also failed to properly handle
+  empty or undefined attribute arrays during conversion, leading to unexpected form
+  state.
 expected_findings:
-- file: services/src/main/java/org/keycloak/services/managers/AppAuthManager.java
-  line: 17
-  summary: 'Missing validation: Authorization header is split on space without verifying
-    it starts with ''Bearer '', allowing malformed headers to be accepted as valid
-    bearer tokens'
-- file: services/src/main/java/org/keycloak/services/managers/AppAuthManager.java
-  line: 40
-  summary: "Same missing Bearer prefix validation on Authorization header parsing\
-    \ \u2014 repeated vulnerable pattern"
-- file: services/src/main/java/org/keycloak/services/managers/AppAuthManager.java
-  line: 61
-  summary: "Same missing Bearer prefix validation on Authorization header parsing\
-    \ \u2014 repeated vulnerable pattern"
+- file: js/apps/admin-ui/src/components/key-value-form/key-value-convert.ts
+  line: 22
+  summary: keyValueToArray/arrayToKeyValue does not guard against empty or undefined
+    input, producing malformed form state when no attributes exist
+  line_side: pre_fix
+- file: js/apps/admin-ui/src/components/key-value-form/KeyValueInput.tsx
+  line: 2
+  summary: Component renders an empty key-value row when the attributes array is empty
+    instead of showing an empty state; should check for zero entries and render EmptyState
+    component
+  line_side: pre_fix
+- file: js/apps/admin-ui/src/components/multi-line-input/MultiLineInput.tsx
+  line: 85
+  summary: MultiLineInput has the same empty-entry pattern — field name indexing assumes
+    at least one row exists, no empty state guard
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
-verified: false
-verified_by: null
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

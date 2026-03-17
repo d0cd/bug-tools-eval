@@ -1,24 +1,34 @@
 id: keycloak-042
 repo: keycloak/keycloak
-base_commit: bd703eb767a865db8d0c34cae14e837ffd0bcbb3^
-head_commit: bd703eb767a865db8d0c34cae14e837ffd0bcbb3
-fix_commit: bd703eb767a865db8d0c34cae14e837ffd0bcbb3
-category: api
+base_commit: 8258fceb33ef10840021cf4f472e8dac035ebe62^
+head_commit: 8258fceb33ef10840021cf4f472e8dac035ebe62
+fix_commit: 8258fceb33ef10840021cf4f472e8dac035ebe62
+category: api-misuse
 difficulty: easy
-severity: high
+severity: medium
 language: java
 pr_size: tiny
-description: The Apache Santuario XML Security library version 3.0.4 contained a bug
-  (SANTUARIO-617) that broke SAML encryption when using RSA-OAEP with MGF1. The fix
-  upgrades the xmlsec dependency from 3.0.4 to 3.0.6 and adds a test case to verify
-  RSA-OAEP-MGF1P encryption works correctly.
+description: The REST endpoint path `/admin/realms/{realm}/clients/{client-uuid}/roles/{role-name}/composites/clients/{client-uuid}`
+  reuses the path parameter name `{client-uuid}` twice, producing an invalid OpenAPI
+  specification. This violates the OpenAPI requirement that parameter names be unique
+  per path and breaks code generators that rely on this invariant. The fix renames
+  the inner parameter to `{targetClientUuid}`.
 expected_findings:
-- file: pom.xml
-  line: 125
-  summary: "Vulnerable/buggy xmlsec.version pinned to 3.0.4 \u2014 known bug SANTUARIO-617\
-    \ breaks RSA-OAEP-MGF1P encryption; must upgrade to 3.0.6+"
+- file: services/src/main/java/org/keycloak/services/resources/admin/RoleContainerResource.java
+  line: 1
+  summary: 'Duplicate path parameter name `{client-uuid}`: the sub-resource path for
+    composite roles reuses the same `@PathParam("client-uuid")` name as the parent
+    resource, producing an invalid OpenAPI spec. Rename the inner parameter to a distinct
+    name like `{targetClientUuid}`.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 46016
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

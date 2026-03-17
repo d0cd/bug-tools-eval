@@ -1,23 +1,41 @@
 id: leo-111
 repo: ProvableHQ/leo
-base_commit: 4a02807dbca73dc4c6b0a6f40a6c9f6ebcc40ab3^
-head_commit: 4a02807dbca73dc4c6b0a6f40a6c9f6ebcc40ab3
-fix_commit: 4a02807dbca73dc4c6b0a6f40a6c9f6ebcc40ab3
-category: logic
-difficulty: medium
-severity: medium
+base_commit: 700e31f11322070d0c4d785903852900695a4dac^
+head_commit: 700e31f11322070d0c4d785903852900695a4dac
+fix_commit: 700e31f11322070d0c4d785903852900695a4dac
+category: api-misuse
+difficulty: easy
+severity: high
 language: rust
 pr_size: medium
-description: The Leo type checker was missing a validation rule that prevents `function`s
-  from returning `record` types (only `transition`s should be allowed to return records).
-  The fix adds an output type check in `check_program.rs` that iterates over each
-  function's outputs and emits an error if any output type is a record.
+description: The `Execute` CLI struct defined `endpoint` as a positional clap argument
+  (no `long` attribute), which meant clap would greedily consume input arguments intended
+  for the `INPUTS` Vec<String> as the endpoint parameter. The fix changes `endpoint`
+  to a named `--endpoint` long option with a default value, properly separating it
+  from positional inputs.
 expected_findings:
-- file: compiler/passes/src/type_checking/check_program.rs
-  line: 228
-  summary: 'Missing validation: function outputs are not checked to ensure none are
-    record types. Should reject functions that return records, as only transitions
-    may output records.'
+- file: leo/cli/commands/execute.rs
+  line: 30
+  summary: 'Missing `long` attribute on clap field: `endpoint` is defined as an optional
+    positional argument, which conflicts with the preceding `INPUTS` Vec<String> —
+    clap will parse the first input as the endpoint instead of a program input. Should
+    use `#[clap(long)]` to make it a named option.'
+  line_side: pre_fix
+- file: leo/cli/commands/execute.rs
+  line: 85
+  summary: The `endpoint` argument is assembled after `set_current_dir` and uses `.unwrap()`
+    on `Option<String>` without the `long` flag distinguishing it from positional
+    args, compounding the parsing ambiguity — if no endpoint is provided by the user,
+    inputs silently get misrouted.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

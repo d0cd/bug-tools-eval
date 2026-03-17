@@ -1,0 +1,40 @@
+id: sentry-114
+repo: getsentry/sentry
+base_commit: 98289d7012e0d611cce039aa53f70c6fff7823ac^
+head_commit: 98289d7012e0d611cce039aa53f70c6fff7823ac
+fix_commit: 98289d7012e0d611cce039aa53f70c6fff7823ac
+category: api-misuse
+difficulty: easy
+severity: high
+language: python
+pr_size: small
+description: The `SeerExplorerClient` was being instantiated in `operator.py` with
+  only `organization` but missing critical initialization parameters including the
+  `on_completion_hook` callback. This meant the explorer client at the OPEN_PR stopping
+  point would not trigger the completion hook, silently skipping post-completion logic.
+  The fix extracts a shared factory function `get_autofix_explorer_client` that always
+  initializes the client with the correct parameters including the `AutofixOnCompletionHook`.
+expected_findings:
+- file: src/sentry/seer/entrypoints/operator.py
+  line: 223
+  summary: SeerExplorerClient initialized with only `organization` — missing `on_completion_hook`,
+    `project`, `category_key`, `category_value`, and other required parameters. Should
+    use the shared factory function to ensure consistent initialization.
+  line_side: pre_fix
+- file: src/sentry/seer/autofix/autofix_agent.py
+  line: 178
+  summary: SeerExplorerClient construction is inlined in `trigger_autofix_explorer`
+    rather than extracted to a reusable factory, leading to inconsistent initialization
+    when the same client is created elsewhere (e.g., in operator.py).
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

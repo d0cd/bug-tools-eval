@@ -1,0 +1,31 @@
+id: grafana-115
+repo: grafana/grafana
+base_commit: f37f5f85d697af07ad4f34dd3d52509794814cd5^
+head_commit: f37f5f85d697af07ad4f34dd3d52509794814cd5
+fix_commit: f37f5f85d697af07ad4f34dd3d52509794814cd5
+category: code-smell
+difficulty: easy
+severity: low
+language: go
+pr_size: tiny
+description: The test `TestAlertRuleRetry` used a 5ms timeout when polling for metrics,
+  which was too short and caused flaky test failures in CI. The fix increases the
+  timeout to 1s while keeping a 10ms polling interval, giving the asynchronous operation
+  sufficient time to complete.
+expected_findings:
+- file: pkg/services/ngalert/schedule/alert_rule_test.go
+  line: 1394
+  summary: 'Flaky test: 5ms timeout in Eventually/assert is too tight for async metric
+    collection; should use a longer timeout (e.g. 1s) to avoid intermittent CI failures'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

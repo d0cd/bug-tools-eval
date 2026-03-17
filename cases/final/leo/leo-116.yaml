@@ -1,27 +1,48 @@
 id: leo-116
 repo: ProvableHQ/leo
-base_commit: 1c7fefac533d30f3d1ee1ee697a3241c4d5fe2a7^
-head_commit: 1c7fefac533d30f3d1ee1ee697a3241c4d5fe2a7
-fix_commit: 1c7fefac533d30f3d1ee1ee697a3241c4d5fe2a7
-category: type
+base_commit: 7613d0e5cceed02476e2c34176d3a0d2ae47660d^
+head_commit: 7613d0e5cceed02476e2c34176d3a0d2ae47660d
+fix_commit: 7613d0e5cceed02476e2c34176d3a0d2ae47660d
+category: logic
 difficulty: medium
-severity: high
-language: rust
-pr_size: small
-description: The type checker did not properly validate member access on structs,
-  allowing invalid member accesses to pass type checking. The fix corrects the type
-  checking logic in check_expressions.rs to properly resolve and validate the type
-  of struct member accesses, and adjusts the parser span for member access expressions.
+severity: medium
+language: leo
+pr_size: large
+description: This PR adds `self` keyword support for accessing circuit members and
+  methods. The identifier check in `identifier.rs` conflates `Self` (type-level reference)
+  and `self` (instance-level reference) into a single boolean check, which could cause
+  incorrect resolution when one is used where the other is expected. Additionally,
+  `is_in_scope` takes `&String` parameters instead of `&str`, which is a Rust anti-pattern
+  that unnecessarily restricts callers.
 expected_findings:
-- file: compiler/passes/src/type_checking/check_expressions.rs
-  line: 143
-  summary: 'Incorrect type checking for struct member access: the match arm for Some(Member
-    { type_, .. }) does not properly validate or propagate the member''s type, allowing
-    invalid accesses to compile.'
-- file: compiler/parser/src/parser/expression.rs
-  line: 389
-  summary: 'Incorrect span computation for member access expression: span should cover
-    the full expression including the accessed member name.'
+- file: types/src/common/identifier.rs
+  line: 13
+  summary: Conflating `Self` and `self` in a single check (`self.name == "Self" ||
+    self.name == "self"`) is incorrect — these are semantically different (type-level
+    vs instance-level reference) and should be distinguished to prevent incorrect
+    scope resolution.
+  line_side: pre_fix
+- file: compiler/src/constraints/program.rs
+  line: 14
+  summary: '`is_in_scope` takes `&String` instead of `&str` — this is a Rust anti-pattern
+    that forces unnecessary allocation at call sites and should accept `&str` for
+    broader compatibility.'
+  line_side: pre_fix
+- file: compiler/src/constraints/expression.rs
+  line: 34
+  summary: '`SELF_KEYWORD` is defined as a static but the identifier check in `identifier.rs`
+    uses hardcoded string literals instead of referencing this constant, creating
+    an inconsistency that could lead to divergent behavior if the keyword spelling
+    changes.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

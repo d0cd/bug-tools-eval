@@ -1,32 +1,39 @@
 id: discourse-030
 repo: discourse/discourse
-base_commit: 7e566786db7a8dca898523453e89a21d4eadc8d5^
-head_commit: 7e566786db7a8dca898523453e89a21d4eadc8d5
-fix_commit: 7e566786db7a8dca898523453e89a21d4eadc8d5
-category: logic
-difficulty: easy
-severity: low
+base_commit: 2a52a1bda59b4169e9f78ced41f94005e553b17c^
+head_commit: 2a52a1bda59b4169e9f78ced41f94005e553b17c
+fix_commit: 2a52a1bda59b4169e9f78ced41f94005e553b17c
+category: security
+difficulty: medium
+severity: high
 language: ruby
-pr_size: tiny
-description: Test specs used `freeze_time 31.days.ago` which causes failures depending
-  on the current date and month length. For example, going back 31 days from March
-  3rd lands in January, not February, breaking assertions that assume a specific month.
-  The fix replaces the brittle relative date with a more stable time reference.
+pr_size: medium
+description: API credentials (api_key, api_username) were passed as URL query parameters
+  when polling RSS feeds. This is both a security risk (credentials leak via server
+  logs, proxy logs, and Referer headers) and a functional bug since api_parameter_allowed?
+  rejects the request when route path_parameters aren't populated in this context.
+  The fix extracts credentials from the URL and sends them as Api-Key/Api-Username
+  HTTP headers instead.
 expected_findings:
-- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
-  line: 440
-  summary: "Flaky date math: `freeze_time 31.days.ago` crosses month boundaries unpredictably\
-    \ \u2014 use a fixed date or a safer relative offset"
-- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
-  line: 457
-  summary: "Flaky date math: `freeze_time 31.days.ago` crosses month boundaries unpredictably\
-    \ \u2014 use a fixed date or a safer relative offset"
-- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
-  line: 533
-  summary: "Flaky date math: `freeze_time 31.days.ago` crosses month boundaries unpredictably\
-    \ \u2014 use a fixed date or a safer relative offset"
+- file: plugins/discourse-rss-polling/app/jobs/jobs/discourse_rss_polling/poll_feed.rb
+  line: 140
+  summary: "API credentials (api_key, api_username) are embedded as URL query parameters\
+    \ instead of being sent as HTTP headers \u2014 this leaks secrets via logs/proxies/Referer\
+    \ and causes api_parameter_allowed? to reject the request"
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 38044
+reviewer_notes: []
+reviewer_findings:
+- file: plugins/discourse-rss-polling/app/jobs/jobs/discourse_rss_polling/poll_feed.rb
+  line: 140
+  summary: 'Minor but you can use `warn_exception` for this:  ```suggestion         Discourse.warn_exception(e,
+    message: "RSS Pollin'
+  line_side: pre_fix
+quality_flags: []

@@ -1,28 +1,33 @@
 id: snarkOS-155
 repo: ProvableHQ/snarkOS
-base_commit: b51132e00a0c8809bb07da0240115983d0b33d28^
-head_commit: b51132e00a0c8809bb07da0240115983d0b33d28
-fix_commit: b51132e00a0c8809bb07da0240115983d0b33d28
+base_commit: d229dd3e88e66b7c5e1a0f94d06792b8c366154a^
+head_commit: d229dd3e88e66b7c5e1a0f94d06792b8c366154a
+fix_commit: d229dd3e88e66b7c5e1a0f94d06792b8c366154a
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: xl
-description: 'Two bugs in bft::Sync::try_advancing_block_synchronization: (1) During
-  long-range (non-BFT) sync, the sync height was never updated, causing block sync
-  to redundantly re-sync already-received blocks. (2) A condition could incorrectly
-  switch to BFT sync even when the node was still behind by more than GC blocks, triggered
-  if a block arrived right after a non-BFT sync completed.'
+pr_size: tiny
+description: The REST API's `is_synced` endpoint incorrectly reported `true` while
+  the client was still fetching blocks from CDN. This happened because `BlockSync`
+  initializes as synced and only transitions to syncing upon receiving block locators
+  from peers, which doesn't occur during CDN fetches. The fix adds a `!cdn_sync` guard
+  so `is_synced` returns `false` during CDN synchronization.
 expected_findings:
-- file: node/bft/src/sync/mod.rs
-  line: 161
-  summary: 'Missing sync height update after non-BFT long-range sync completes: the
-    sync height is not advanced, causing redundant block re-fetching'
-- file: node/bft/src/sync/mod.rs
-  line: 140
-  summary: 'Incorrect condition for switching to BFT sync: should verify the node
-    is within GC blocks of the tip before transitioning, otherwise premature BFT sync
-    can occur'
+- file: node/rest/src/routes.rs
+  line: 158
+  summary: 'Missing CDN sync check: `is_synced` should incorporate CDN fetch state,
+    e.g. `!cdn_sync && rest.routing.is_block_synced()`, otherwise the node reports
+    synced while still downloading blocks from CDN.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

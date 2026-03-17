@@ -1,26 +1,46 @@
 id: leo-045
 repo: ProvableHQ/leo
-base_commit: c09bd9904a42a610a5ee6b844a84ccf6f241376d^
-head_commit: c09bd9904a42a610a5ee6b844a84ccf6f241376d
-fix_commit: c09bd9904a42a610a5ee6b844a84ccf6f241376d
+base_commit: 2cb3f570c95ae91c241a976619a0dbf51e696298^
+head_commit: 2cb3f570c95ae91c241a976619a0dbf51e696298
+fix_commit: 2cb3f570c95ae91c241a976619a0dbf51e696298
 category: logic
-difficulty: easy
-severity: medium
+difficulty: medium
+severity: high
 language: rust
-pr_size: small
-description: The Leo parser example (parser/examples/parser.rs) would output the AST
-  even when parse errors occurred. The fix adds proper error checking via the Handler
-  from leo_errors::emitter, ensuring that when the parser encounters errors, the AST
-  is not emitted as output.
+pr_size: xl
+description: The compiler's flattening pass had a bug that incorrectly handled certain
+  expressions, likely related to how struct/circuit types and string literals were
+  processed during the flatten and SSA rename phases. The SSA assigner's unique_simple_assign_statement
+  and the rename_expression logic needed fixes to correctly propagate types through
+  the flattening pipeline. The tictactoe example was also broken, likely due to outdated
+  circuit syntax.
 expected_findings:
-- file: parser/examples/parser.rs
-  line: 15
-  summary: "Missing import of Handler from leo_errors::emitter \u2014 without it,\
-    \ parse errors are not checked before outputting the AST"
-- file: parser/examples/parser.rs
-  line: 55
-  summary: 'Missing error check after parsing: should verify Handler has no errors
-    before printing AST output, otherwise parse errors are silently ignored'
+- file: compiler/passes/src/flattening/flatten_statement.rs
+  line: 34
+  summary: 'Flattening bug: incorrect handling of struct/circuit types on the RHS
+    of assignments — the flattener fails to track type information properly, causing
+    miscompilation'
+  line_side: pre_fix
+- file: compiler/passes/src/static_single_assignment/rename_expression.rs
+  line: 84
+  summary: SSA rename returns bare Expression::Identifier without preserving the original
+    expression's type context (e.g. string literals), causing codegen to lose literal
+    information
+  line_side: pre_fix
+- file: compiler/passes/src/static_single_assignment/assigner.rs
+  line: 44
+  summary: unique_simple_assign_statement signature/logic does not account for expression
+    types beyond simple identifiers, causing string literals and other non-trivial
+    expressions to be incorrectly assigned
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

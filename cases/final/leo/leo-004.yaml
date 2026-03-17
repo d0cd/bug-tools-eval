@@ -1,24 +1,36 @@
 id: leo-004
 repo: ProvableHQ/leo
-base_commit: 29fa7cf19ee3ebb451791c0ed3c38cba436f89ad^
-head_commit: 29fa7cf19ee3ebb451791c0ed3c38cba436f89ad
-fix_commit: 29fa7cf19ee3ebb451791c0ed3c38cba436f89ad
+base_commit: 02f8f7310253b2f659ea43ae4ff8d6e2adee8ee4^
+head_commit: 02f8f7310253b2f659ea43ae4ff8d6e2adee8ee4
+fix_commit: 02f8f7310253b2f659ea43ae4ff8d6e2adee8ee4
 category: logic
-difficulty: medium
-severity: high
+difficulty: easy
+severity: medium
 language: rust
-pr_size: small
-description: The ASG's binary expression type-checking did not properly handle Field
-  and Group types for addition operations, causing valid field/group addition expressions
-  to be rejected by the compiler. The fix adds pattern matching arms for PartialType::Type(Type::Field)
-  (and likely Type::Group) in the binary expression resolver, allowing these types
-  to pass through type resolution correctly.
+pr_size: medium
+description: The Leo PEG grammar did not correctly handle the lower-bound-omitted
+  array slice syntax (`arr[..2]`). The range rule likely required both operands, causing
+  `arr[..N]` slices to fail at the parsing stage. The fix adjusts the grammar to make
+  the left-hand side of the range operator optional.
 expected_findings:
-- file: asg/src/expression/binary.rs
-  line: 134
-  summary: "Missing pattern match for Field and Group types in binary expression type\
-    \ resolution \u2014 addition of field/group values is incorrectly rejected because\
-    \ these types are not matched and propagated through the partial type system."
+- file: grammar/src/leo.pest
+  line: 70
+  summary: Range grammar rule does not allow omitting the left operand; `arr[..2]`
+    fails to parse because both sides of `range_operator` are required
+  line_side: pre_fix
+- file: grammar/src/common/range.rs
+  line: 20
+  summary: Range AST node derived from the PEG grammar inherits the same limitation
+    — its `from` field is not Optional, so a lower-omitted slice cannot be represented
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

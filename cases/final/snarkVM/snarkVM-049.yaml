@@ -1,23 +1,33 @@
 id: snarkVM-049
 repo: ProvableHQ/snarkVM
-base_commit: 72b22b049aa7a448a781581d2ced4058c3a87ee2^
-head_commit: 72b22b049aa7a448a781581d2ced4058c3a87ee2
-fix_commit: 72b22b049aa7a448a781581d2ced4058c3a87ee2
+base_commit: 3614f626ec4c509fa76476951a95358b5fc630cb^
+head_commit: 3614f626ec4c509fa76476951a95358b5fc630cb
+fix_commit: 3614f626ec4c509fa76476951a95358b5fc630cb
 category: logic
-difficulty: easy
+difficulty: medium
 severity: high
 language: rust
 pr_size: tiny
-description: Off-by-one error in the `check_fee_internal` function where the `N::MAX_FEE`
-  boundary check used an incorrect comparison operator (e.g., `<` instead of `<=`
-  or vice versa). The fix corrects the comparison so that fee amounts are properly
-  validated against the maximum allowed fee.
+description: The Blake2Xs XOF round calculation had an incorrect ceiling-division
+  formula for computing the number of 32-byte Blake2s blocks needed to produce the
+  requested digest length. The fix corrects the arithmetic to `xof_digest_length.saturating_add(31)
+  / 32`, which is the standard ceiling-division idiom, ensuring the correct number
+  of hash rounds are performed.
 expected_findings:
-- file: synthesizer/src/vm/verify.rs
-  line: 255
-  summary: 'Off-by-one in fee boundary check: the comparison operator against N::MAX_FEE
-    is incorrect, allowing fees that should be rejected (or rejecting fees that should
-    be accepted at the boundary).'
+- file: console/algorithms/src/blake2xs/mod.rs
+  line: 43
+  summary: 'Incorrect ceiling-division for num_rounds: the formula does not correctly
+    compute ceil(xof_digest_length / 32), which can produce too few or too many Blake2s
+    hash rounds for certain digest lengths'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,25 +1,41 @@
 id: grafana-037
 repo: grafana/grafana
-base_commit: b2e27f466b7a71063bfe7b4f43f4d44750cb2de5^
-head_commit: b2e27f466b7a71063bfe7b4f43f4d44750cb2de5
-fix_commit: b2e27f466b7a71063bfe7b4f43f4d44750cb2de5
-category: logic
-difficulty: easy
-severity: high
-language: typescript
-pr_size: small
-description: The Pure Git provisioning wizard hardcoded 'main' as the fallback branch
-  when the user hadn't yet selected one, causing a 'branch not found' error for repositories
-  using 'master' or other default branches. The fix changes the fallback to an empty
-  string, allowing the backend to auto-detect the repository's actual default branch.
+base_commit: 4f600f9aef2498f200165e0a5a3bd36fd5c516fc^
+head_commit: 4f600f9aef2498f200165e0a5a3bd36fd5c516fc
+fix_commit: 4f600f9aef2498f200165e0a5a3bd36fd5c516fc
+category: api-misuse
+difficulty: medium
+severity: medium
+language: go
+pr_size: tiny
+description: "A deferred function capturing a Prometheus histogram observation was\
+  \ defined after an early return path, meaning the duration metric was never recorded\
+  \ for that code path. This caused the status label to be misleading \u2014 the histogram\
+  \ observation with the correct status was skipped entirely on certain outcomes,\
+  \ producing inaccurate observability data."
 expected_findings:
-- file: public/app/features/provisioning/utils/data.ts
-  line: 25
-  summary: 'Wrong fallback: `data.branch || ''main''` hardcodes ''main'' instead of
-    sending empty string for backend auto-detection, breaking repos with non-''main''
-    default branches'
+- file: pkg/services/setting/service.go
+  line: 273
+  summary: "Deferred histogram observation is defined after this early return, so\
+    \ this code path never records the duration metric \u2014 the defer must be placed\
+    \ before any return statements to ensure all outcomes are captured"
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119704
+reviewer_notes: []
+reviewer_findings:
+- file: pkg/services/setting/service.go
+  line: 273
+  summary: this one won't hit the deferred func, since it's only defined later
+  line_side: pre_fix
+- file: pkg/services/setting/service.go
+  line: 273
+  summary: yes, I have noticed, I think for consistency we better keep it
+  line_side: pre_fix
+quality_flags: []

@@ -1,28 +1,40 @@
 id: leo-192
 repo: ProvableHQ/leo
-base_commit: 4682d05e5817c5a3fb5fd6b4a2d64c01d228d0da^
-head_commit: 4682d05e5817c5a3fb5fd6b4a2d64c01d228d0da
-fix_commit: 4682d05e5817c5a3fb5fd6b4a2d64c01d228d0da
-category: api
-difficulty: easy
-severity: high
+base_commit: c2bbe7508cc0c9deb0a5bb5d9ff90c07c2c17c68^
+head_commit: c2bbe7508cc0c9deb0a5bb5d9ff90c07c2c17c68
+fix_commit: c2bbe7508cc0c9deb0a5bb5d9ff90c07c2c17c68
+category: logic
+difficulty: medium
+severity: medium
 language: rust
-pr_size: small
-description: The Leo CLI updater check would propagate errors fatally when it failed
-  to fetch the latest release version, causing all Leo commands to exit early. The
-  fix introduces proper error handling (likely an UpdaterError type and graceful error
-  recovery) so that updater failures are caught and do not prevent CLI commands from
-  executing.
+pr_size: medium
+description: The Leo compiler's code generation and destructuring passes did not handle
+  the case where an array index is a const initialized with an unsuffixed integer
+  literal (e.g., `const INDEX = 0;` instead of `const INDEX = 0u32;`). The fix adds
+  handling for unsuffixed integer literals in the expression code generation pass
+  and ensures the destructuring pass correctly propagates the integer type when replacing
+  const references with their literal values.
 expected_findings:
-- file: leo/updater.rs
-  line: 13
-  summary: 'Updater error propagation halts CLI execution: errors from fetching the
-    latest release version should be caught and handled gracefully rather than propagated
-    with `?` or returned as fatal errors'
-- file: leo/updater.rs
-  line: 27
-  summary: 'Missing error handling: updater check failure should warn/log instead
-    of returning an error that terminates the CLI command'
+- file: compiler/passes/src/code_generation/expression.rs
+  line: 316
+  summary: Missing match arm for unsuffixed integer literals when generating code
+    for array index expressions; an integer literal without a type suffix (e.g., `0`
+    vs `0u32`) falls through or panics instead of being handled.
+  line_side: pre_fix
+- file: compiler/passes/src/destructuring/expression.rs
+  line: 50
+  summary: Literal::integer() construction does not account for unsuffixed integer
+    constants when inlining const values into array index positions; needs to preserve
+    or infer the integer type for unsuffixed literals.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

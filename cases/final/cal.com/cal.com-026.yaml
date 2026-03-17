@@ -1,0 +1,32 @@
+id: cal.com-026
+repo: calcom/cal.com
+base_commit: 53545bdfb759efbe67a30c014d8d4d701d2113dc^
+head_commit: 53545bdfb759efbe67a30c014d8d4d701d2113dc
+fix_commit: 53545bdfb759efbe67a30c014d8d4d701d2113dc
+category: type
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: tiny
+description: The SlotSelectionModalHeader component picks a subset of fields from
+  the event object but was missing the `enablePerHostLocations` property, causing
+  a TypeScript type error. The fix adds the missing field to the pick list so the
+  type checker is satisfied and the value is available downstream.
+expected_findings:
+- file: apps/web/modules/bookings/components/SlotSelectionModalHeader.tsx
+  line: 45
+  summary: Missing `enablePerHostLocations` in the picked event fields causes a TypeScript
+    type error; the property is expected by the component's type but not included
+    in the destructured/picked object.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

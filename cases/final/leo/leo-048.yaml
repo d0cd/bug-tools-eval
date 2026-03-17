@@ -1,32 +1,46 @@
 id: leo-048
 repo: ProvableHQ/leo
-base_commit: d2f63432f804ac46b51c6d41e96ba7e1ddf469b6^
-head_commit: d2f63432f804ac46b51c6d41e96ba7e1ddf469b6
-fix_commit: d2f63432f804ac46b51c6d41e96ba7e1ddf469b6
+base_commit: 2e0dab122b6bd02a36875d6852b413009fffee8b^
+head_commit: 2e0dab122b6bd02a36875d6852b413009fffee8b
+fix_commit: 2e0dab122b6bd02a36875d6852b413009fffee8b
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: medium
-description: The Leo compiler's canonicalization pass failed to properly replace `Self`
-  type references with the actual circuit name in circuit implied variable definitions.
-  The `canonicalize_circuit_implied_variable_definition` function was either missing
-  Self-replacement logic or applying it incorrectly, causing compilation failures
-  or incorrect AST transformations when circuits used `Self` in member variable definitions.
+pr_size: xl
+description: The Leo compiler's canonicalization pass only ran on non-simple assignments
+  (gated by `assign.operation != AssignOperation::Assign`), causing compound assignments
+  and certain expressions to bypass required transformations. Additionally, array
+  initialization lacked const-value propagation, and array index assignment used an
+  incorrect `from_range` context flag that broke dynamic array mutation.
 expected_findings:
-- file: ast-passes/src/canonicalization/canonicalizer.rs
-  line: 133
-  summary: "Missing or incorrect Self type replacement in canonicalize_circuit_implied_variable_definition\
-    \ \u2014 `Self` references in circuit member variables are not being canonicalized\
-    \ to the enclosing circuit name"
-- file: ast-passes/src/canonicalization/canonicalizer.rs
-  line: 283
-  summary: canonicalize_circuit_implied_variable_definition does not handle Self replacement
-    in expression context, leaving unresolved Self references in the AST
-- file: ast-passes/src/canonicalization/canonicalizer.rs
-  line: 309
-  summary: canonicalize_circuit_implied_variable_definition missing Self canonicalization
-    for circuit member type annotations
+- file: ast/src/reducer/canonicalization.rs
+  line: 593
+  summary: Canonicalization guard `assign.operation != AssignOperation::Assign` is
+    too restrictive — canonicalization must run on ALL assignments, not just compound
+    ones, otherwise certain assignment forms (e.g. involving arrays or strings) are
+    never canonicalized.
+  line_side: pre_fix
+- file: asg/src/expression/array_init.rs
+  line: 54
+  summary: 'Missing const-value propagation for array-init expressions: `const_value()`
+    is not implemented, so constant-folding cannot evaluate `[expr; N]` at compile
+    time, leading to incorrect ASG output.'
+  line_side: pre_fix
+- file: compiler/src/statement/assign/assignee/mod.rs
+  line: 35
+  summary: 'The `from_range: bool` field on the assignee context conflates array-index
+    and array-range-index code paths, causing incorrect code generation for dynamic
+    array mutation assignments.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

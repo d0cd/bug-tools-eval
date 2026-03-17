@@ -1,0 +1,42 @@
+id: sentry-133
+repo: getsentry/sentry
+base_commit: a6559487fc0a001f37187d02c6b89d5503865fac^
+head_commit: a6559487fc0a001f37187d02c6b89d5503865fac
+fix_commit: a6559487fc0a001f37187d02c6b89d5503865fac
+category: api-misuse
+difficulty: easy
+severity: high
+language: typescript
+pr_size: tiny
+description: The broadcasts data was assumed to always be an array, but could be a
+  non-array value (e.g., null, undefined, or an object), causing a crash when `.map()`
+  was called on it. The fix adds `Array.isArray()` guards at three locations where
+  the broadcasts data is mapped over, falling back to an empty array when the value
+  is not an array.
+expected_findings:
+- file: static/app/views/navigation/primary/whatsNew.tsx
+  line: 66
+  summary: Unsafe `.map()` call on `data` without checking if it is actually an array;
+    will crash if broadcasts API returns a non-array value.
+  line_side: pre_fix
+- file: static/app/views/navigation/primary/whatsNew.tsx
+  line: 151
+  summary: Same unguarded `.map()` on broadcasts data that may not be an array — needs
+    `Array.isArray()` check.
+  line_side: pre_fix
+- file: static/app/views/navigation/primary/whatsNew.tsx
+  line: 189
+  summary: Third instance of unguarded `.map()` on broadcasts data — all three call
+    sites lack defensive type checking.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

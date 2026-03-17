@@ -1,30 +1,33 @@
 id: snarkVM-091
 repo: ProvableHQ/snarkVM
-base_commit: 16cfd4bdbf9d6828a69e6f70421266309d06028d^
-head_commit: 16cfd4bdbf9d6828a69e6f70421266309d06028d
-fix_commit: 16cfd4bdbf9d6828a69e6f70421266309d06028d
-category: logic
-difficulty: medium
-severity: high
+base_commit: 6417f781aa791b5ca4c2d549b382c803eb470a39^
+head_commit: 6417f781aa791b5ca4c2d549b382c803eb470a39
+fix_commit: 6417f781aa791b5ca4c2d549b382c803eb470a39
+category: type
+difficulty: easy
+severity: medium
 language: rust
-pr_size: medium
-description: Division operations in Field and Scalar console types did not properly
-  handle division by zero. The fix adds `match other.is_zero()` checks in the Div
-  trait implementations for both Field and Scalar types, preventing undefined behavior
-  or incorrect results when dividing by zero.
+pr_size: tiny
+description: The finalize cost calculation in cost.rs used `.sum()` which does not
+  guard against integer overflow. While u16::MAX operations times the most expensive
+  operation wouldn't overflow in practice, the accumulation could theoretically wrap
+  around and produce an incorrect (lower) cost value. The fix replaces `.sum()` with
+  `try_fold` combined with `checked_add` to detect and propagate overflow errors.
 expected_findings:
-- file: console/types/field/src/arithmetic.rs
-  line: 279
-  summary: Missing division-by-zero check in Field Div implementation; dividing by
-    zero field element produces incorrect results instead of returning zero or panicking
-- file: console/types/scalar/src/arithmetic.rs
-  line: 140
-  summary: Missing division-by-zero check in Scalar Div implementation; should guard
-    with `match other.is_zero()` before performing division
-- file: console/types/scalar/src/arithmetic.rs
-  line: 266
-  summary: Missing division-by-zero check in another Scalar division path; zero divisor
-    not handled
+- file: synthesizer/src/vm/helpers/cost.rs
+  line: 199
+  summary: Using `.sum()` on u64 finalize operation costs does not guard against integer
+    overflow; should use `try_fold` with `checked_add` to detect and handle overflow
+    instead of silently wrapping.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,29 +1,97 @@
 id: snarkVM-124
 repo: ProvableHQ/snarkVM
-base_commit: 3f455386c188a1176b9739024cb4a751d7ac3ead^
-head_commit: 3f455386c188a1176b9739024cb4a751d7ac3ead
-fix_commit: 3f455386c188a1176b9739024cb4a751d7ac3ead
-category: logic
-difficulty: medium
+base_commit: 93ba065f1d5005baca0c52cbf3a52a6a4778b1bd^
+head_commit: 93ba065f1d5005baca0c52cbf3a52a6a4778b1bd
+fix_commit: 93ba065f1d5005baca0c52cbf3a52a6a4778b1bd
+category: incomplete
+difficulty: hard
 severity: high
 language: rust
-pr_size: medium
-description: The epoch_provers_cache was not cleared when loading from DB at exactly
-  an epoch boundary (block_height % NUM_BLOCKS_PER_EPOCH == 0). While the runtime
-  advance path correctly cleared the cache at epoch boundaries, the DB loading path
-  missed this check, causing deviation from expected cached values and potential incorrect
-  epoch prover data.
+pr_size: large
+description: 'Merkle path verification gadget is explicitly incomplete: the CRH is
+  hard-coded to Poseidon only (needs generalization to Pedersen/BHP), verify() returns
+  the wrong type instead of Boolean<E>, and an endianness-unaware .to_bytes() is used
+  where .to_bits_le() is required. Code organization also needs splitting into separate
+  to_root.rs and verify.rs files.'
 expected_findings:
-- file: ledger/src/lib.rs
-  line: 263
-  summary: 'Off-by-one/missing boundary check: when loading ledger from DB at an epoch
-    boundary (block_height % NUM_BLOCKS_PER_EPOCH == 0), the epoch_provers_cache is
-    not cleared, causing stale cache values that diverge from runtime behavior'
-- file: ledger/src/advance.rs
-  line: 152
-  summary: The epoch cache clearing logic during block advancement should also be
-    mirrored in the DB loading path in lib.rs to ensure consistent cache state at
-    epoch boundaries
+- file: circuits/types/field/src/lib.rs
+  line: 170
+  summary: "Endianness-unsafe `.to_bytes()` used for field element conversion; must\
+    \ use `.to_bits_le()` instead \u2014 `.to_bytes()` has no notion of endianness\
+    \ and can produce incorrect Merkle hashes on different platforms."
+  line_side: pre_fix
+- file: circuits/core/src/merkle_path/mod.rs
+  line: 140
+  summary: '`verify()` should return `Boolean<E>` to allow the caller to compose the
+    result in a circuit, but currently returns a different type or asserts internally.'
+  line_side: pre_fix
+- file: circuits/core/src/merkle_path/mod.rs
+  line: 73
+  summary: Merkle path `to_root` implementation is hard-coded to Poseidon CRH with
+    unnecessary byte-to-field padding; needs generalization to support Pedersen/BHP
+    hash functions and native field-element inputs.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 732
+reviewer_notes:
+- '[inline] This should be moved into a new file called `to_root.rs` with tests'
+- '[inline] This should be moved to a new file called `verify.rs` with tests'
+- '[inline] This should be removed.'
+- '[inline] Remove this and use `.to_bits_le()`. This call has no notion of endianness
+  and should be avoided at all costs.'
+reviewer_findings:
+- file: circuits/core/src/merkle_path/mod.rs
+  line: 73
+  summary: This should be moved into a new file called `to_root.rs` with tests
+  line_side: pre_fix
+- file: circuits/core/src/merkle_path/mod.rs
+  line: 138
+  summary: This should be moved to a new file called `verify.rs` with tests
+  line_side: pre_fix
+- file: circuits/core/src/merkle_path/mod.rs
+  line: 138
+  summary: Alternatively, we can remove this method. The caller can easily check that
+    `path.to_root() == root` themselves
+  line_side: pre_fix
+- file: circuits/core/src/merkle_path/mod.rs
+  line: 140
+  summary: '`verify()` should return a `Boolean<E>`'
+  line_side: pre_fix
+- file: circuits/core/src/merkle_path/mod.rs
+  line: 143
+  summary: This should be removed.
+  line_side: pre_fix
+- file: circuits/types/field/src/lib.rs
+  line: 170
+  summary: Remove this and use `.to_bits_le()`. This call has no notion of endianness
+    and should be avoided at all costs.
+  line_side: pre_fix
+- file: circuits/core/src/traits.rs
+  line: 24
+  summary: Can you confirm every trait declared here is necessary?
+  line_side: pre_fix
+- file: circuits/core/src/traits.rs
+  line: 24
+  summary: "The minimum required seems to be:\r ```\r type Input: Inject + Clone;\r\
+    \ type Output: Inject + Eject + Ternary<Output = Self"
+  line_side: pre_fix
+- file: circuits/core/src/algorithms/merkle_path/to_root.rs
+  line: 133
+  summary: 'nit: rename these method to `test_to_root_{mode}` and `test_to_root_{mode}_fails`'
+  line_side: pre_fix
+- file: circuits/core/src/algorithms/merkle_path/to_root.rs
+  line: 25
+  summary: Is there a way to use implied trait bounds?
+  line_side: pre_fix
+- file: circuits/core/src/algorithms/merkle_path/to_root.rs
+  line: 25
+  summary: "Currently reduced to:\r ```\r <<H as Hash>::Output as Ternary>::Boolean:\
+    \ From<Boolean<E>>,\r Vec<<H as Hash>::Input>: From<"
+  line_side: pre_fix
+quality_flags: []

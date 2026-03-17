@@ -1,34 +1,44 @@
 id: snarkOS-147
 repo: ProvableHQ/snarkOS
-base_commit: a242215b1ca30386d1f69079b07870819d235593^
-head_commit: a242215b1ca30386d1f69079b07870819d235593
-fix_commit: a242215b1ca30386d1f69079b07870819d235593
-category: api
-difficulty: medium
-severity: high
+base_commit: bc92d3b22743c7ab93c40166f206aed82e499d46^
+head_commit: bc92d3b22743c7ab93c40166f206aed82e499d46
+fix_commit: bc92d3b22743c7ab93c40166f206aed82e499d46
+category: logic
+difficulty: hard
+severity: critical
 language: rust
-pr_size: medium
-description: The toolkit (WASM target) failed to compile because the pedersen CRH
-  code unconditionally used parallel/rayon features unavailable in WASM, and the cargo
-  config and WASM module lacked proper crate-type and target-arch guards. The fix
-  adds `#[cfg(feature = "pedersen-parallel")]` conditionals around parallel code paths
-  in pedersen.rs, sets `crate-type = ["cdylib"]` in .cargo/config, and adds `#[cfg(target_arch
-  = "wasm32")]` in the WASM module.
+pr_size: tiny
+description: The BFT primary's signed_proposals cache only checked for same-round
+  duplicate batch IDs but never verified that an incoming proposal's round was not
+  behind the already-signed round. A malicious validator could exploit this gap by
+  sending proposals for previous rounds, bypassing the cache and tricking peers into
+  double-signing, which could lead to a DAG safety violation. The fix adds a round
+  comparison check that disconnects peers requesting signatures on proposals behind
+  the signed_round.
 expected_findings:
-- file: algorithms/src/crh/pedersen.rs
-  line: 7
-  summary: 'Missing #[cfg(feature = "pedersen-parallel")] guard: parallel/rayon imports
-    are unconditional, causing compilation failure on WASM targets that lack threading
-    support'
-- file: algorithms/src/crh/pedersen.rs
-  line: 69
-  summary: 'Missing #[cfg(feature = "pedersen-parallel")] guard on parallel code path:
-    rayon parallel iterator usage should be feature-gated to avoid WASM compilation
-    errors'
-- file: toolkit/src/wasm/mod.rs
-  line: 1
-  summary: 'Missing #[cfg(target_arch = "wasm32")] guard on WASM module, allowing
-    non-WASM builds to pull in wasm-only dependencies'
+- file: node/bft/src/primary.rs
+  line: 540
+  summary: 'Missing round validation: after retrieving (signed_round, signed_batch_id,
+    signature) from the signed_proposals cache, the code only checks `signed_round
+    == batch_header.round()` for duplicate batch IDs but never rejects proposals where
+    `signed_round > batch_header.round()`, allowing a malicious validator to submit
+    a batch for a previous round and induce double-signing'
+  line_side: pre_fix
+- file: node/bft/src/primary.rs
+  line: 538
+  summary: 'Missing round ordering check: after retrieving (signed_round, signed_batch_id,
+    signature) from the signed_proposals cache, there is no guard rejecting batch_header.round()
+    < signed_round. A malicious peer can submit a proposal for a prior round to bypass
+    the duplicate-signature check and induce double-signing.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

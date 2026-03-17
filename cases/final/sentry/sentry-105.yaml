@@ -1,0 +1,47 @@
+id: sentry-105
+repo: getsentry/sentry
+base_commit: 884bba5c6fc6746ef83879a2fdb664daed7b7a60^
+head_commit: 884bba5c6fc6746ef83879a2fdb664daed7b7a60
+fix_commit: 884bba5c6fc6746ef83879a2fdb664daed7b7a60
+category: logic
+difficulty: medium
+severity: medium
+language: python
+pr_size: medium
+description: The `segment_expired_before_flush` metric was inflated because it unconditionally
+  counted all cases where both data and metadata keys were missing from Redis, including
+  a race condition where another consumer legitimately flushed and deleted the segment
+  between reads. The fix estimates segment age from the queue deadline score and Redis
+  TTL to only count true TTL expirations. Additionally, a new `_apply_per_trace_limit`
+  method is defined but never called in this diff, constituting dead code.
+expected_findings:
+- file: src/sentry/spans/buffer.py
+  line: 855
+  summary: Unconditional metric increment for `segment_expired_before_flush` does
+    not distinguish between true TTL expiration and a benign race condition where
+    another consumer already flushed the segment. Should estimate segment age and
+    compare against Redis TTL before counting as expired.
+  line_side: pre_fix
+- file: src/sentry/spans/buffer.py
+  line: 688
+  summary: New method `_apply_per_trace_limit` is defined but never called anywhere
+    in this diff or visible call sites — this is dead code that should either be wired
+    in or removed.
+  line_side: pre_fix
+- file: src/sentry/spans/buffer.py
+  line: 588
+  summary: '`_load_segment_data` is called without queue context needed to distinguish
+    TTL expiration from race conditions; signature should accept segment-to-queue
+    mapping and current timestamp for accurate expiration detection.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

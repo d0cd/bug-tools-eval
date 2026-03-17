@@ -1,30 +1,43 @@
 id: leo-100
 repo: ProvableHQ/leo
-base_commit: ff915151aa973bb1119c49248b67a0dab24b7742^
-head_commit: ff915151aa973bb1119c49248b67a0dab24b7742
-fix_commit: ff915151aa973bb1119c49248b67a0dab24b7742
+base_commit: 60e592edd7620907da9d0851f55857f55ac63f14^
+head_commit: 60e592edd7620907da9d0851f55857f55ac63f14
+fix_commit: 60e592edd7620907da9d0851f55857f55ac63f14
 category: logic
-difficulty: medium
-severity: high
-language: rust
-pr_size: medium
-description: The disassembler incorrectly used the locator's program name (`loc.name()`)
-  instead of the locator's resource name (`loc.resource()`) when building record identifiers
-  for nested stubs. This caused a panic when compiling programs with nested records
-  as function inputs/outputs, because the record name resolved to the wrong identifier.
-  The fix corrects the identifier source and updates the type checker to properly
-  handle nested records as function I/O.
+difficulty: easy
+severity: medium
+language: leo
+pr_size: small
+description: The pest parser grammar did not require whitespace after keywords like
+  'mut', 'let', 'const', 'static', 'circuit', 'if', 'for', 'return', 'function', and
+  'test', allowing syntactically invalid programs such as 'letmut a:u32 = 1+1' to
+  parse successfully. The fix appends a mandatory space to each keyword literal in
+  the grammar and also adds optional trailing-comma support for circuit field definitions.
 expected_findings:
-- file: compiler/ast/src/stub/function_stub.rs
-  line: 240
-  summary: 'Wrong method called on locator: `loc.name()` returns the program name,
-    but `loc.resource()` should be used to get the actual record type name for the
-    stub identifier.'
-- file: compiler/passes/src/type_checking/checker.rs
-  line: 1186
-  summary: "Type checker overly restricts record types as function inputs \u2014 nested\
-    \ records from external programs should be allowed as inputs to non-transition\
-    \ functions, not just transitions."
+- file: ast/src/leo.pest
+  line: 18
+  summary: Keyword rule 'mutable' matches bare "mut" without requiring trailing whitespace,
+    so 'letmut' or 'mutx' would parse as valid identifiers
+  line_side: pre_fix
+- file: ast/src/leo.pest
+  line: 36
+  summary: Keyword rules 'const_' and 'let_' match bare strings without trailing whitespace,
+    allowing invalid concatenations like 'letconst' to parse
+  line_side: pre_fix
+- file: ast/src/leo.pest
+  line: 177
+  summary: '''circuit_field_definition'' rule uses ''NEWLINE*'' as terminator instead
+    of optional comma, preventing idiomatic trailing-comma syntax and coupling field
+    termination to newlines'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,30 +1,32 @@
 id: snarkOS-034
 repo: ProvableHQ/snarkOS
-base_commit: c683c11c3ffa58daa05acf8fbf4360d3ab9ad625^
-head_commit: c683c11c3ffa58daa05acf8fbf4360d3ab9ad625
-fix_commit: c683c11c3ffa58daa05acf8fbf4360d3ab9ad625
+base_commit: 2df251d8bc339223cbb4d5daacf7bb12b66e171e^
+head_commit: 2df251d8bc339223cbb4d5daacf7bb12b66e171e
+fix_commit: 2df251d8bc339223cbb4d5daacf7bb12b66e171e
 category: logic
-difficulty: medium
-severity: high
+difficulty: easy
+severity: medium
 language: rust
 pr_size: tiny
-description: In `fetch_missing_certificates`, the function returns early without results
-  if all certificate IDs already exist in the `unprocessed_certificate` cache. This
-  causes the validator to never finish processing when all missing certificates arrive
-  via other channels (e.g., `process_batch_certificate_from_peer`) before the fetch
-  completes. The fix ensures cached certificates are returned when there are no remaining
-  certificates to fetch from the network.
+description: The CDN height calculation rounded the tip down to the nearest multiple
+  of BLOCKS_PER_FILE instead of up to the next multiple. This caused blocks to be
+  fetched from the wrong CDN file offset during sync. The fix adds BLOCKS_PER_FILE
+  after the floor-rounding to snap to the next valid boundary.
 expected_findings:
-- file: node/bft/src/primary.rs
-  line: 1697
-  summary: Early return logic in fetch_missing_certificates ignores certificates already
-    present in the unprocessed_certificate cache, causing the function to return empty-handed
-    when all certificates were received from other sources before the network fetch.
-- file: node/bft/src/sync/mod.rs
-  line: 628
-  summary: Related fetch/sync logic that does not account for certificates already
-    cached in unprocessed_certificate, contributing to the early termination without
-    returning available certificates.
+- file: node/cdn/src/blocks.rs
+  line: 306
+  summary: 'Incorrect rounding: `tip - (tip % BLOCKS_PER_FILE)` rounds down to the
+    nearest multiple, but the intent is to align to the closest *subsequent* multiple.
+    Must add `+ BLOCKS_PER_FILE` to round up.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

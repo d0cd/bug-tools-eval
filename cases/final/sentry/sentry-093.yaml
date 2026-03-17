@@ -1,0 +1,51 @@
+id: sentry-093
+repo: getsentry/sentry
+base_commit: 7354cb33d2e403535f76c47591c261cfe6898873^
+head_commit: 7354cb33d2e403535f76c47591c261cfe6898873
+fix_commit: 7354cb33d2e403535f76c47591c261cfe6898873
+category: incomplete
+difficulty: easy
+severity: medium
+language: python
+pr_size: tiny
+description: A prior PR changed the reappeared_event condition's runtime behavior
+  from triggering on 'reappeared' events to 'escalated' events, but failed to update
+  the user-facing label string. The classic alert UI also uses hardcoded labels that
+  were not updated, making the backend label change ineffective and causing user confusion
+  about what the rule condition actually triggers on.
+expected_findings:
+- file: src/sentry/rules/conditions/reappeared_event.py
+  line: 14
+  summary: "Condition label still says 'reappeared' but runtime behavior triggers\
+    \ on escalation \u2014 label is misleading and must be updated to 'An issue has\
+    \ escalated' to match actual semantics"
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/handlers/condition/reappeared_event_handler.py
+  line: 1
+  summary: "Handler label text is inconsistent with the escalation behavior \u2014\
+    \ should be updated to match the actual condition semantics"
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110328
+reviewer_notes:
+- '[inline] **Bug:** The backend label change for the `reappeared_event` condition
+  is ineffective because the classic alert UI uses hardcoded labels that were not
+  updated. <sub>Severity: MEDIUM</sub> <!-- BUG_PREDICTION -->  <details> <summary><b
+  title="Reference ID: `11577190/0`">Suggested Fix</b></summary>  U'
+reviewer_findings:
+- file: src/sentry/rules/conditions/reappeared_event.py
+  line: 14
+  summary: '**Bug:** The backend label change for the `reappeared_event` condition
+    is ineffective because the classic alert UI uses '
+  line_side: pre_fix
+- file: src/sentry/rules/conditions/reappeared_event.py
+  line: 14
+  summary: This was fixed in a PR that was just merged
+  line_side: pre_fix
+quality_flags: []

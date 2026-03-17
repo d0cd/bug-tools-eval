@@ -1,23 +1,45 @@
 id: snarkOS-033
 repo: ProvableHQ/snarkOS
-base_commit: 3eea16f6410d61308774a8ea6678c738fb4e0536^
-head_commit: 3eea16f6410d61308774a8ea6678c738fb4e0536
-fix_commit: 3eea16f6410d61308774a8ea6678c738fb4e0536
-category: logic
-difficulty: easy
-severity: low
+base_commit: 2cb54446ac306304ad83d2acd51ac93ddf3ed712^
+head_commit: 2cb54446ac306304ad83d2acd51ac93ddf3ed712
+fix_commit: 2cb54446ac306304ad83d2acd51ac93ddf3ed712
+category: security
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: The block sync log message did not distinguish between different situations
-  when handling block heights. The fix adds an `else if` branch checking `self.ledger.contains_block_height(height)`
-  to emit a more specific log message when the block is already known to the ledger,
-  rather than using a single generic message for all cases.
+pr_size: medium
+description: Block requests on the gateway were not being cached or rate-limited,
+  unlike other request types (e.g. validator requests). This allowed peers to send
+  unlimited block requests without throttling, and made it impossible to match inbound
+  block responses to prior outbound requests. The fix adds caching for both inbound
+  and outbound block requests, mirroring the existing pattern for validator requests.
 expected_findings:
-- file: node/sync/src/block_sync.rs
-  line: 623
-  summary: 'Missing condition branch: log message does not differentiate when the
-    ledger already contains the block height, leading to misleading or inaccurate
-    log output.'
+- file: node/bft/src/gateway.rs
+  line: 546
+  summary: Block request handling path lacks cache insertion and rate-limit check;
+    other request types (e.g. validator requests) are cached and rate-limited here
+    but block requests are processed without any throttling
+  line_side: pre_fix
+- file: node/bft/src/gateway.rs
+  line: 988
+  summary: Outbound block requests are not recorded in a cache, so inbound block responses
+    cannot be validated against a prior outbound request — allows unsolicited response
+    injection
+  line_side: pre_fix
+- file: node/bft/src/helpers/cache.rs
+  line: 33
+  summary: Cache struct is missing a collection for block requests; validator requests
+    have dedicated cache entries but block requests have none, creating an inconsistency
+    in rate-limiting coverage
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

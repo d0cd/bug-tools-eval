@@ -1,21 +1,40 @@
 id: leo-193
 repo: ProvableHQ/leo
-base_commit: d598f1f72bdaa3a52157ecee35c653d23115ecad^
-head_commit: d598f1f72bdaa3a52157ecee35c653d23115ecad
-fix_commit: d598f1f72bdaa3a52157ecee35c653d23115ecad
-category: logic
-difficulty: easy
-severity: low
+base_commit: c4279e2a8382adf060b30375a454281d7f59f52d^
+head_commit: c4279e2a8382adf060b30375a454281d7f59f52d
+fix_commit: c4279e2a8382adf060b30375a454281d7f59f52d
+category: constraint
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: The Leo CLI help/about message contained an incorrect or outdated description
-  string. The fix updates the `.about()` text in the CLI definition to accurately
-  describe Leo as a compiler and package manager.
+pr_size: small
+description: The Leo compiler's type checker did not validate that loop bounds must
+  be literal values. Non-literal expressions (variables, function calls) were silently
+  accepted as loop bounds, which is unsound in a ZK circuit language where loop bounds
+  must be statically known. The fix adds else-branches to the existing literal checks
+  to emit a new type-checker error for non-literal bounds.
 expected_findings:
-- file: leo/main.rs
-  line: 22
-  summary: 'Incorrect or outdated CLI help/about string: should accurately describe
-    Leo''s purpose'
+- file: compiler/passes/src/type_checking/check_statements.rs
+  line: 323
+  summary: 'Missing else-branch on start bound check: when `input.start` is not a
+    `Expression::Literal`, no error is emitted. Non-literal loop start bounds are
+    silently accepted, which is unsound for ZK compilation where iteration count must
+    be statically determinable.'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_statements.rs
+  line: 330
+  summary: 'Missing else-branch on stop bound check: same pattern as start — when
+    `input.stop` is not a literal, no error is emitted, allowing non-literal stop
+    bounds to pass type checking.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

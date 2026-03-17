@@ -1,0 +1,33 @@
+id: grafana-092
+repo: grafana/grafana
+base_commit: c489fb7bedd6dd40a5cb8e09a9631dc38acbc1a1^
+head_commit: c489fb7bedd6dd40a5cb8e09a9631dc38acbc1a1
+fix_commit: c489fb7bedd6dd40a5cb8e09a9631dc38acbc1a1
+category: logic
+difficulty: easy
+severity: high
+language: go
+pr_size: small
+description: 'PR #118592 replaced a hardcoded constant with a configurable field but
+  missed the NewAPIService constructor, leaving maxNestedFolderDepth at Go''s zero
+  value (0). This caused all nested folder creation/updates to fail in multi-tenant
+  environments with ''folder max depth exceeded, max depth is 0''. The fix sets the
+  field using the default configuration value.'
+expected_findings:
+- file: pkg/registry/apis/folders/register.go
+  line: 96
+  summary: NewAPIService constructor never sets maxNestedFolderDepth field, so it
+    defaults to 0 — every nested folder operation will fail with 'max depth exceeded'.
+    Must initialize from config like the other constructor does.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

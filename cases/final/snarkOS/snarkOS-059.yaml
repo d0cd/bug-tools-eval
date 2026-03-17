@@ -1,24 +1,35 @@
 id: snarkOS-059
 repo: ProvableHQ/snarkOS
-base_commit: 9e492706e133de68b8da40fa8134c2f278129775^
-head_commit: 9e492706e133de68b8da40fa8134c2f278129775
-fix_commit: 9e492706e133de68b8da40fa8134c2f278129775
-category: logic
-difficulty: medium
+base_commit: 4f2e7b69a0d004a40f24ab9fe1de712de447ea5b^
+head_commit: 4f2e7b69a0d004a40f24ab9fe1de712de447ea5b
+fix_commit: 4f2e7b69a0d004a40f24ab9fe1de712de447ea5b
+category: api-misuse
+difficulty: easy
 severity: high
 language: rust
-pr_size: small
-description: Router initialization (TCP bind) was performed too early in the beacon
-  node startup sequence, before computing unspent records and before calling enable_handshake.
-  This caused the TCP stack to accept inbound connections prematurely, leading to
-  'permission denied' errors. The fix reorders router initialization to occur right
-  before enable_handshake is called.
+pr_size: tiny
+description: The `snarkos developer scan` command used an outdated REST endpoint `/latest/height`
+  to fetch the latest block height. The correct endpoint is `/block/height/latest`,
+  causing the scan command to fail entirely since the old endpoint no longer exists.
 expected_findings:
-- file: node/src/beacon/mod.rs
-  line: 118
-  summary: "Router initialization (TCP bind) happens too early in the startup sequence\
-    \ \u2014 it should be moved after unspent records computation and placed right\
-    \ before enable_handshake to prevent premature inbound connections."
+- file: cli/src/commands/developer/scan.rs
+  line: 148
+  summary: 'Incorrect API endpoint: `/{network}/latest/height` should be `/{network}/block/height/latest`
+    — the old endpoint path is no longer valid'
+  line_side: pre_fix
+- file: cli/src/commands/developer/scan.rs
+  line: 161
+  summary: Same incorrect API endpoint `/{network}/latest/height` duplicated here;
+    should be `/{network}/block/height/latest`
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,22 +1,31 @@
 id: snarkVM-058
 repo: ProvableHQ/snarkVM
-base_commit: 9ade8409432ff4d8cbc3ba5ac6dde97655beac6b^
-head_commit: 9ade8409432ff4d8cbc3ba5ac6dde97655beac6b
-fix_commit: 9ade8409432ff4d8cbc3ba5ac6dde97655beac6b
+base_commit: 3d42aa04a058cd5f46a1880b421313e1c04a63dc^
+head_commit: 3d42aa04a058cd5f46a1880b421313e1c04a63dc
+fix_commit: 3d42aa04a058cd5f46a1880b421313e1c04a63dc
 category: logic
 difficulty: easy
 severity: low
 language: rust
 pr_size: tiny
-description: A doc comment in the `Assignment` struct incorrectly described the variable
-  assignments it contains. The fix corrects the comment text to accurately reflect
-  the struct's fields.
+description: A test assertion for a line count value was incorrect after lines were
+  added or removed elsewhere in the file, causing the hardcoded expected line number
+  to drift out of sync with reality. The fix updates the expected value in the assertion
+  to match the actual line.
 expected_findings:
-- file: circuit/environment/src/helpers/assignment.rs
-  line: 55
-  summary: 'Incorrect doc comment: the comment text does not accurately describe the
-    struct''s variable assignment fields (e.g., mislabeled public/private/constraint
-    descriptions).'
+- file: circuit/environment/src/helpers/updatable_count.rs
+  line: 499
+  summary: 'Stale hardcoded line-count assertion: `assert_eq!(count.line, 500)` no
+    longer matches the actual line number after file edits shifted it'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

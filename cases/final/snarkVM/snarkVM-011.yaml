@@ -1,32 +1,38 @@
 id: snarkVM-011
 repo: ProvableHQ/snarkVM
-base_commit: 8c0524f46209db1dd87d840376292f95406f1df7^
-head_commit: 8c0524f46209db1dd87d840376292f95406f1df7
-fix_commit: 8c0524f46209db1dd87d840376292f95406f1df7
+base_commit: 0dc2380f9723c465677952ed6f2d1f3b128630a5^
+head_commit: 0dc2380f9723c465677952ed6f2d1f3b128630a5
+fix_commit: 0dc2380f9723c465677952ed6f2d1f3b128630a5
 category: logic
-difficulty: medium
-severity: high
+difficulty: easy
+severity: medium
 language: rust
 pr_size: small
-description: Package::deploy created a local Process internally, which did not contain
-  the imported programs needed by deployment_cost. This caused deployment of programs
-  with imports to fail. The fix changes deploy() to accept an external &Process<N>
-  parameter so that all imports are available when computing deployment cost.
+description: Calling `current_block_height` on an empty block store panics because
+  the code computes height from `number_of_leaves()` without guarding against the
+  zero-leaves case. The fix adds an early check for an empty block store, returning
+  a safe value instead of allowing the arithmetic to produce a panic or nonsensical
+  result.
 expected_findings:
-- file: vm/package/deploy.rs
-  line: 113
-  summary: deploy() creates or uses a local Process that lacks imported programs;
-    should accept an external &Process<N> parameter so deployment_cost can access
-    all imports
-- file: vm/package/deploy.rs
-  line: 156
-  summary: Inner deploy helper also uses a local Process without imports; needs the
-    external process passed through to ensure imports are present for cost calculation
-- file: vm/package/mod.rs
-  line: 165
-  summary: "is_main flag set to false when calling deploy, but the process scope is\
-    \ wrong \u2014 deploy needs to receive the external Process that already has imports\
-    \ loaded"
+- file: ledger/store/src/block/mod.rs
+  line: 1197
+  summary: 'Missing empty-store guard: when `number_of_leaves()` is 0, the height
+    calculation panics or produces an invalid result. Must check for empty tree before
+    computing block height.'
+  line_side: pre_fix
+- file: ledger/store/src/block/mod.rs
+  line: 1384
+  summary: Same missing empty-store guard in the second implementation of `current_block_height`.
+    Both trait impl sites need the zero-leaves check.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

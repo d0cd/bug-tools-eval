@@ -1,0 +1,33 @@
+id: grafana-120
+repo: grafana/grafana
+base_commit: fe483c7c6102e7448fbc285f5f3096f46df6790f^
+head_commit: fe483c7c6102e7448fbc285f5f3096f46df6790f
+fix_commit: fe483c7c6102e7448fbc285f5f3096f46df6790f
+category: api-misuse
+difficulty: medium
+severity: high
+language: go
+pr_size: small
+description: When the legacy database is not available, the dual writer service lacks
+  a fallback migration status reader. This PR adds a configuration-based MigrationStatusReader
+  that derives status from config rather than querying the legacy DB, which is necessary
+  for API Server scenarios where legacy storage may not exist or resources haven't
+  been migrated.
+expected_findings:
+- file: pkg/storage/legacysql/dualwrite/service.go
+  line: 58
+  summary: "Missing fallback: when legacy DB is unavailable, no MigrationStatusReader\
+    \ is constructed \u2014 should fall back to a config-based status reader instead\
+    \ of failing or returning incorrect status"
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 120295
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

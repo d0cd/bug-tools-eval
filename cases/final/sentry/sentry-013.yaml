@@ -1,31 +1,33 @@
 id: sentry-013
 repo: getsentry/sentry
-base_commit: 29ed1dca227d5ebffca53f5fbcbac6c530624483^
-head_commit: 29ed1dca227d5ebffca53f5fbcbac6c530624483
-fix_commit: 29ed1dca227d5ebffca53f5fbcbac6c530624483
-category: logic
+base_commit: 14fab614013c03320888d19e160781c9e8c7f817^
+head_commit: 14fab614013c03320888d19e160781c9e8c7f817
+fix_commit: 14fab614013c03320888d19e160781c9e8c7f817
+category: api-misuse
 difficulty: medium
-severity: medium
-language: python
-pr_size: small
-description: The `resolve_fingerprint_variable` helper unconditionally parameterizes
-  the `{{ message }}` variable, even when called from `expand_title_template` to build
-  custom event titles. This causes custom titles to display parameterized (sanitized)
-  message values instead of the original event message, inconsistent with how non-custom
-  titles behave. The fix adds an optional `parameterize_message` flag (defaulting
-  to True) and passes False from the title-expansion call site.
+severity: high
+language: typescript
+pr_size: medium
+description: Widget layout dimensions from external sources (e.g. LLM-generated dashboards)
+  are passed unclamped to react-grid-layout, which expects widths ≤ the column count
+  (6). Values like w:12 trigger an infinite re-render loop in the grid library, crashing
+  the browser tab. The fix adds a clampWidgetLayout() function that normalizes w/h/x/y
+  before layouts reach the grid.
 expected_findings:
-- file: src/sentry/grouping/fingerprinting/utils.py
-  line: 338
-  summary: expand_title_template calls resolve_fingerprint_variable without disabling
-    message parameterization, causing custom titles to display parameterized messages
-    instead of original values
-- file: src/sentry/grouping/fingerprinting/utils.py
-  line: 231
-  summary: resolve_fingerprint_variable unconditionally parameterizes the message
-    variable with no way for callers to opt out
+- file: static/app/views/dashboards/layoutUtils.tsx
+  line: 67
+  summary: 'Missing bounds clamping: widget layout dimensions (w, h, x) are passed
+    directly to react-grid-layout without validating they fit within the NUM_DESKTOP_COLS
+    (6) grid constraint, causing infinite re-render when w > 6'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

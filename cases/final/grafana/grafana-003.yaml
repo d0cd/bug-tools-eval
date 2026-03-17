@@ -1,25 +1,31 @@
 id: grafana-003
 repo: grafana/grafana
-base_commit: 02b9dabb4a93591dc1fa64f623a809e35984aaec^
-head_commit: 02b9dabb4a93591dc1fa64f623a809e35984aaec
-fix_commit: 02b9dabb4a93591dc1fa64f623a809e35984aaec
-category: api
+base_commit: 067bfcb96061093c02a8e268b9d81b34a1ba5f31^
+head_commit: 067bfcb96061093c02a8e268b9d81b34a1ba5f31
+fix_commit: 067bfcb96061093c02a8e268b9d81b34a1ba5f31
+category: style
 difficulty: easy
-severity: medium
+severity: low
 language: unknown
-pr_size: medium
-description: "The project depended on a version of @grafana/scenes that contained\
-  \ a bug (tracked via support escalation #19538). The fix was to bump the @grafana/scenes\
-  \ dependency from a prior version to 6.8.6, which included the backported fix from\
-  \ the scenes library. No application code was changed \u2014 only the dependency\
-  \ version was updated."
+pr_size: small
+description: Automated dependency version bump of the centrifuge JS client from 5.5.2
+  to 5.5.3. This is a maintenance release that updates transitive dependencies; no
+  application code changes are involved.
 expected_findings:
 - file: package.json
-  line: 281
-  summary: Outdated @grafana/scenes dependency pinned to a version containing a known
-    bug; should be bumped to 6.8.6 which includes the backported fix
+  line: 342
+  summary: "Dependency version bump: centrifuge 5.5.2 \u2192 5.5.3 (maintenance release,\
+    \ dependency audit)"
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119395
+reviewer_notes: []
+reviewer_findings: []
+quality_flags:
+- groundedness-failed

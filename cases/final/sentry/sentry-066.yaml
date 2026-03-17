@@ -1,0 +1,39 @@
+id: sentry-066
+repo: getsentry/sentry
+base_commit: 53066edd12e194b366297b56b5a4eb8ea87c0fae^
+head_commit: 53066edd12e194b366297b56b5a4eb8ea87c0fae
+fix_commit: 53066edd12e194b366297b56b5a4eb8ea87c0fae
+category: code-smell
+difficulty: easy
+severity: low
+language: typescript
+pr_size: tiny
+description: 'Two useSortable hook calls in the group-by sortable components are missing
+  `transition: null`, causing a visual animation glitch when reordering. The dnd-kit
+  drop transition conflicts with the immediate state update on drop, briefly animating
+  items from a stale position. The fix follows an established pattern already used
+  in SortableVisualizeFieldWrapper and SortableQueryField.'
+expected_findings:
+- file: static/app/views/explore/components/toolbar/toolbarGroupBy/index.tsx
+  line: 57
+  summary: 'Missing `transition: null` in useSortable config — dnd-kit drop transition
+    conflicts with instant state reorder, causing a brief animation from stale position.
+    Should add `transition: null` to match the pattern used in SortableVisualizeFieldWrapper
+    and SortableQueryField.'
+  line_side: pre_fix
+- file: static/app/views/explore/components/toolbar/toolbarGroupBy/index.tsx
+  line: 77
+  summary: 'Same missing `transition: null` in second useSortable call — same visual
+    glitch applies to this sortable instance.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

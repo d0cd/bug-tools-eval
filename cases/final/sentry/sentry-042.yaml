@@ -1,23 +1,37 @@
 id: sentry-042
 repo: getsentry/sentry
-base_commit: feb4898ddb6a99ecf7f9423c2c21558de214690d^
-head_commit: feb4898ddb6a99ecf7f9423c2c21558de214690d
-fix_commit: feb4898ddb6a99ecf7f9423c2c21558de214690d
-category: api
+base_commit: 3175b26fa6d1980a3f6f5bef385a17e2938bbbee^
+head_commit: 3175b26fa6d1980a3f6f5bef385a17e2938bbbee
+fix_commit: 3175b26fa6d1980a3f6f5bef385a17e2938bbbee
+category: code-smell
 difficulty: easy
-severity: medium
-language: python
-pr_size: tiny
-description: The explorer client's create PR payload was missing the on_completion_hook
-  parameter. Without it, Sentry would not receive the webhook callback after PR creation,
-  preventing Slack update notifications from being posted.
+severity: low
+language: typescript
+pr_size: medium
+description: The alert rule UI contained hardcoded label renames for condition/filter/action
+  nodes that were originally needed to override backend labels but became unnecessary
+  over time. These stale renames masked the actual backend labels and would diverge
+  as backend labels are updated, causing UI inconsistencies.
 expected_findings:
-- file: src/sentry/seer/explorer/client.py
-  line: 523
-  summary: 'Missing on_completion_hook in create_pr payload: the payload dict omits
-    the hook parameter, so the downstream service cannot notify Sentry upon PR completion'
+- file: static/app/views/alerts/rules/issue/ruleNodeList.tsx
+  line: 1
+  summary: Unnecessary hardcoded label overrides for alert rule condition nodes; backend
+    labels are now authoritative and these renames will cause UI drift when backend
+    labels change
+  line_side: pre_fix
+- file: static/app/views/alerts/rules/issue/ruleNode.tsx
+  line: 1
+  summary: Dead label-rename logic that shadows the canonical backend-provided labels
+    for alert rule nodes
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110329
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

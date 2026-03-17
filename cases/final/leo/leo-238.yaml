@@ -1,29 +1,44 @@
 id: leo-238
 repo: ProvableHQ/leo
-base_commit: 9511116bc119b3e86c8fcc7bd5dce3d76913165d^
-head_commit: 9511116bc119b3e86c8fcc7bd5dce3d76913165d
-fix_commit: 9511116bc119b3e86c8fcc7bd5dce3d76913165d
+base_commit: f09f16883979ff200454d73985b3b42749a2bcd6^
+head_commit: f09f16883979ff200454d73985b3b42749a2bcd6
+fix_commit: f09f16883979ff200454d73985b3b42749a2bcd6
 category: logic
 difficulty: medium
-severity: high
-language: leo
-pr_size: large
-description: When importing a circuit (or function) under an alias, the symbol table
-  registered it under the original name instead of the alias name. This caused an
-  undefined user type error when referencing the alias. The fix updates the symbol
-  table insertion logic to use the alias name when one is provided, and adds proper
-  validation for undefined import names and star imports.
+severity: medium
+language: rust
+pr_size: xl
+description: The parser retained `mut`, `type`, and `input` as reserved keywords after
+  they were removed from the Leo grammar. This caused `mut` (and the others) to be
+  incorrectly rejected as identifiers. Additionally, special-case error handling code
+  for `mut` usage compounded the problem by emitting a misleading error when `mut`
+  was used as a perfectly valid identifier.
 expected_findings:
-- file: symbol-table/src/symbol_table.rs
-  line: 149
-  summary: Imported circuits are inserted into the symbol table using the original
-    name from the source program rather than the alias name specified in the import
-    statement, causing alias references to fail with undefined type errors.
-- file: imports/src/parser/import_parser.rs
-  line: 37
-  summary: Import parser does not properly propagate alias information when inserting
-    imported symbols, so downstream symbol table construction loses track of the alias
-    mapping.
+- file: compiler/parser/src/parser/statement.rs
+  line: 219
+  summary: parse_variable_name contains special-case logic that rejects `mut` as a
+    keyword, but `mut` is no longer in the grammar and should be a valid identifier
+    — this incorrectly rejects valid code
+  line_side: pre_fix
+- file: compiler/parser/src/tokenizer/token.rs
+  line: 109
+  summary: '`mut`, `type`, and `input` are still listed as keyword tokens but are
+    no longer part of the grammar; they should be removed so the lexer treats them
+    as regular identifiers'
+  line_side: pre_fix
+- file: compiler/parser/src/tokenizer/lexer.rs
+  line: 420
+  summary: Lexer matches `mut`/`type`/`input` strings and emits keyword tokens instead
+    of identifiers, preventing their use as variable names
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

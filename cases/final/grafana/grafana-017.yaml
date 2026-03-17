@@ -1,28 +1,38 @@
 id: grafana-017
 repo: grafana/grafana
-base_commit: 54d54d5532ccf051c2b108c4abc8fdc5caa61c17^
-head_commit: 54d54d5532ccf051c2b108c4abc8fdc5caa61c17
-fix_commit: 54d54d5532ccf051c2b108c4abc8fdc5caa61c17
-category: concurrency
+base_commit: 29c6a9addfc4c83db16595929710b604f287a377^
+head_commit: 29c6a9addfc4c83db16595929710b604f287a377
+fix_commit: 29c6a9addfc4c83db16595929710b604f287a377
+category: security
 difficulty: medium
-severity: low
-language: typescript
-pr_size: tiny
-description: The test used `user.clear()` to reset a Downshift-based Combobox input
-  before typing a new value, but Downshift's stateReducer clears the input when the
-  menu opens. Timing differences between local and CI environments caused `user.type()`
-  to append to the stale value (e.g., 'mainfeature-branch' instead of 'feature-branch').
-  The fix replaces the unreliable `user.clear()` with a click to open the menu, letting
-  the stateReducer clear the input reliably before typing.
+severity: high
+language: go
+pr_size: medium
+description: Empty label/annotation keys were accepted during alert rule creation
+  and update, causing alerts to be silently dropped or rejected during state persistence
+  and sending. The fix adds validation to reject empty keys at the API boundary and
+  a runtime fallback that replaces empty keys with a sentinel value ('__empty_label_key__')
+  so existing malformed rules degrade gracefully instead of failing.
 expected_findings:
-- file: public/app/features/provisioning/components/Folders/FixFolderMetadataDrawer.test.tsx
-  line: 110
-  summary: 'Unreliable `user.clear()` on Downshift Combobox: stateReducer clears input
-    on menu open, so clear+type races with the reducer causing value concatenation.
-    Should click to open menu first, letting the reducer clear the input, then type
-    the new value.'
+- file: pkg/services/ngalert/api/validation/api_ruler_validation.go
+  line: 193
+  summary: 'Missing validation: empty string label keys are accepted here without
+    check, allowing malformed rules that cause silent alert failures downstream'
+  line_side: pre_fix
+- file: pkg/services/ngalert/state/cache.go
+  line: 219
+  summary: No fallback for empty label keys during template expansion — when a label
+    key is empty string, the expansion silently produces invalid state that gets rejected
+    during persistence/sending
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

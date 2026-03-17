@@ -1,23 +1,42 @@
 id: snarkOS-110
 repo: ProvableHQ/snarkOS
-base_commit: 8884db2c620cf8a592ab3f22cbe39095114e04a7^
-head_commit: 8884db2c620cf8a592ab3f22cbe39095114e04a7
-fix_commit: 8884db2c620cf8a592ab3f22cbe39095114e04a7
-category: concurrency
-difficulty: medium
-severity: critical
+base_commit: 98f4bee343077247ff7d2db6158fea935205e24e^
+head_commit: 98f4bee343077247ff7d2db6158fea935205e24e
+fix_commit: 98f4bee343077247ff7d2db6158fea935205e24e
+category: api-misuse
+difficulty: easy
+severity: medium
 language: rust
-pr_size: tiny
-description: A deadlock occurs in `insert_block_response` because the `responses`
-  write lock is held while calling `remove_block_requests_to_peer`, which internally
-  attempts to acquire another write lock. The fix explicitly drops the `responses`
-  lock before making the nested call.
+pr_size: medium
+description: 'Test configurations and imports in snarkOS were out of sync with upstream
+  snarkVM API changes (PR #2386). The snarkVM dependency rev was pinned to an outdated
+  commit (eefd27d), and test files referenced stale imports and constants (e.g., Committee::MAX_COMMITTEE_SIZE,
+  MIN_VALIDATOR_STAKE paths, Network trait imports) that no longer matched the updated
+  snarkVM API surface.'
 expected_findings:
-- file: node/sync/src/block_sync.rs
-  line: 451
-  summary: 'Potential deadlock: the `responses` write lock is still held at this point
-    when `remove_block_requests_to_peer` is called, which internally acquires another
-    write lock. The lock must be explicitly dropped before this call.'
+- file: Cargo.toml
+  line: 46
+  summary: 'snarkVM dependency pinned to outdated rev "eefd27d" — needs update to
+    match upstream API changes from snarkVM PR #2386'
+  line_side: pre_fix
+- file: node/bft/src/worker.rs
+  line: 554
+  summary: NUM_NODES uses Committee::<CurrentNetwork>::MAX_COMMITTEE_SIZE which may
+    have changed semantics or been renamed in the updated snarkVM dependency
+  line_side: pre_fix
+- file: node/bft/tests/components/mod.rs
+  line: 22
+  summary: Import references MIN_VALIDATOR_STAKE and other symbols whose paths or
+    names changed in the snarkVM update — tests will fail to compile
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

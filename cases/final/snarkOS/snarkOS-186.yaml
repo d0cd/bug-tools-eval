@@ -1,29 +1,44 @@
 id: snarkOS-186
 repo: ProvableHQ/snarkOS
-base_commit: 54000f0444b49edc7b5681c1530f98e401d168e7^
-head_commit: 54000f0444b49edc7b5681c1530f98e401d168e7
-fix_commit: 54000f0444b49edc7b5681c1530f98e401d168e7
-category: logic
-difficulty: easy
+base_commit: fcf66fe85e516e0459fa51dd7d7d85932473a229^
+head_commit: fcf66fe85e516e0459fa51dd7d7d85932473a229
+fix_commit: fcf66fe85e516e0459fa51dd7d7d85932473a229
+category: api-misuse
+difficulty: medium
 severity: high
 language: rust
-pr_size: tiny
-description: The expiry time comparison in the seen_blocks/seen_transactions deduplication
-  logic in peers.rs used an incorrect comparison direction, causing messages to be
-  incorrectly suppressed or propagated. The fix corrects the SystemTime comparison
-  operator so that expired entries are properly detected and messages are re-propagated
-  when appropriate.
+pr_size: medium
+description: The peer address was incorrectly derived from channel.address instead
+  of combining the channel IP with the version message's declared sender port. This
+  caused address mismatches during handshakes (breaking bootnode connections) and
+  prevented sync node selection on initial handshake since the version message was
+  discarded rather than propagated.
 expected_findings:
-- file: src/network/peers.rs
-  line: 80
-  summary: 'Incorrect time comparison direction in seen_blocks expiry check: the condition
-    for determining whether a previously-seen message has expired is inverted, causing
-    incorrect message propagation behavior'
-- file: src/network/peers.rs
-  line: 415
-  summary: "Same inverted expiry time check pattern in message propagation logic \u2014\
-    \ SystemTime comparison uses wrong operator direction when deciding whether to\
-    \ re-propagate a block/transaction"
+- file: network/src/server/message_handler.rs
+  line: 370
+  summary: peer_address uses channel.address directly instead of constructing from
+    channel IP + version message sender port, causing address mismatch with the handshake-registered
+    address
+  line_side: pre_fix
+- file: network/src/context/handshakes.rs
+  line: 75
+  summary: receive_any() discards the Version message after handshake, preventing
+    the caller from using peer chain height to initiate sync node selection
+  line_side: pre_fix
+- file: network/src/context/handshakes.rs
+  line: 107
+  summary: Verack branch constructs peer_address from ip()+port() separately instead
+    of using peer_message.address_sender directly, inconsistent with intended address
+    semantics
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,34 +1,34 @@
 id: discourse-050
 repo: discourse/discourse
-base_commit: 7d42b006a8234809bbd04b2d5753644ec6ec53cb^
-head_commit: 7d42b006a8234809bbd04b2d5753644ec6ec53cb
-fix_commit: 7d42b006a8234809bbd04b2d5753644ec6ec53cb
-category: api
-difficulty: easy
-severity: medium
-language: unknown
-pr_size: small
-description: DMenu components were using the deprecated `@class` attribute instead
-  of the correct `@triggerClass` attribute, causing styling to not be applied to the
-  trigger element. Additionally, a CSS rule was too broad and incorrectly styled dropdown
-  elements in the categories area. The fix migrates to `@triggerClass` and narrows
-  the CSS selector with `:not()` exclusions.
+base_commit: 6495e11bfe38b1f7b46ad679f6ddea7896759b5b^
+head_commit: 6495e11bfe38b1f7b46ad679f6ddea7896759b5b
+fix_commit: 6495e11bfe38b1f7b46ad679f6ddea7896759b5b
+category: api-misuse
+difficulty: medium
+severity: critical
+language: ruby
+pr_size: tiny
+description: During a two-phase table rename migration (ai_personas → ai_agents),
+  the intermediate step creates ai_agents as a PostgreSQL VIEW. Since views don't
+  expose primary key metadata, ActiveRecord raises UnknownPrimaryKey on every request
+  to the AiAgent model. The fix explicitly sets `self.primary_key = "id"` on the model,
+  which is a no-op after the post-migration completes the actual rename_table.
 expected_findings:
-- file: frontend/discourse/admin/components/admin-flag-item.gjs
-  line: 178
-  summary: "Incorrect DMenu attribute: `@class` should be `@triggerClass` \u2014 `@class`\
-    \ does not apply styling to the DMenu trigger element"
-- file: frontend/discourse/admin/components/api-key-item.gjs
-  line: 127
-  summary: "Incorrect DMenu attribute: `@class` should be `@triggerClass` \u2014 same\
-    \ migration issue as other DMenu usages"
-- file: app/assets/stylesheets/common/base/uc-modernize-foundation-theme.scss
-  line: 72
-  summary: 'CSS selector too broad: missing `:not()` exclusions for `.user-menu-tab`,
-    `.user-menu-tab-active`, and `.dropdown-select-box-header`, causing unintended
-    styling on categories dropdown'
+- file: plugins/discourse-ai/app/models/ai_agent.rb
+  line: 4
+  summary: 'Missing explicit primary key declaration: between the regular migration
+    (VIEW creation) and post-migration (rename_table), PostgreSQL views don''t expose
+    PK metadata, causing ActiveRecord::UnknownPrimaryKey on every request. Needs `self.primary_key
+    = "id"`'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

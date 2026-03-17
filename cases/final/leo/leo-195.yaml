@@ -1,33 +1,37 @@
 id: leo-195
 repo: ProvableHQ/leo
-base_commit: 5480671ccbbc54e00e35fdd8a2af02f248b8cdc3^
-head_commit: 5480671ccbbc54e00e35fdd8a2af02f248b8cdc3
-fix_commit: 5480671ccbbc54e00e35fdd8a2af02f248b8cdc3
-category: logic
-difficulty: medium
-severity: high
+base_commit: c57332baa99b41febb6ced9a35c728c886630918^
+head_commit: c57332baa99b41febb6ced9a35c728c886630918
+fix_commit: c57332baa99b41febb6ced9a35c728c886630918
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: large
-description: The SSA (Static Single Assignment) pass incorrectly attempted to rename
-  paths to external global variables when they shared the same name as a local variable.
-  This was especially problematic for external mapping accesses inside loops (e.g.,
-  `child.aleo/foo.get_or_use(...)` where `foo` is also a local variable name). The
-  fix adds a guard (`try_local_symbol()`) to only apply SSA renaming to genuinely
-  local symbols. A secondary fix corrects type inference for `get_or_use` so unsuffixed
-  numeric literals work correctly.
+pr_size: tiny
+description: The `leo build` command serialized a circuit to JSON and then immediately
+  deserialized it back, discarding the result. This unused deserialization logic (reading
+  the circuit file back and parsing it) was dead code that added unnecessary I/O and
+  complexity. The fix removes the unused read-back and deserialization calls.
 expected_findings:
-- file: compiler/passes/src/static_single_assignment/expression.rs
-  line: 211
-  summary: SSA renaming applied to all symbol paths without checking if they are local
-    variables. Paths to external global variables (e.g., `child.aleo/foo`) should
-    be excluded from SSA renaming; need to guard with `try_local_symbol()` before
-    replacing.
-- file: compiler/passes/src/type_checking/visitor.rs
-  line: 309
-  summary: Mapping intrinsic type checking (e.g., `get_or_use`) does not properly
-    infer types for unsuffixed numeric arguments. The argument destructuring and type
-    propagation pattern needs to match other intrinsics to allow type inference to
-    flow correctly.
+- file: leo/commands/build.rs
+  line: 29
+  summary: 'Dead code: circuit file is deserialized immediately after serialization
+    but the result is never used — remove the unused read_from() call and associated
+    variable'
+  line_side: pre_fix
+- file: leo/commands/build.rs
+  line: 148
+  summary: 'Dead code: second instance of unused circuit file deserialization that
+    should be removed'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

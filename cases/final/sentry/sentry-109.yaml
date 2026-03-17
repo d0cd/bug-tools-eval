@@ -1,0 +1,41 @@
+id: sentry-109
+repo: getsentry/sentry
+base_commit: 8ec1809d6c0172b2c0f319f3b8378790cc737034^
+head_commit: 8ec1809d6c0172b2c0f319f3b8378790cc737034
+fix_commit: 8ec1809d6c0172b2c0f319f3b8378790cc737034
+category: incomplete
+difficulty: easy
+severity: medium
+language: python
+pr_size: small
+description: The autofix agent refuses to re-run steps it has already completed because
+  the prompts lack instructions to override prior attempts. The fix adds 'disregard
+  the prior attempt' language to three prompt templates that generate artifacts, steering
+  the agent to retry instead of refusing.
+expected_findings:
+- file: src/sentry/seer/autofix/prompts.py
+  line: 19
+  summary: 'Missing retry instruction: prompt lacks guidance telling the agent to
+    disregard prior attempts when re-running this artifact generation step'
+  line_side: pre_fix
+- file: src/sentry/seer/autofix/prompts.py
+  line: 43
+  summary: 'Missing retry instruction: same pattern as above — agent will refuse to
+    regenerate this artifact without explicit override language'
+  line_side: pre_fix
+- file: src/sentry/seer/autofix/prompts.py
+  line: 70
+  summary: 'Missing retry instruction: same pattern as above — third prompt template
+    also lacks retry override language'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

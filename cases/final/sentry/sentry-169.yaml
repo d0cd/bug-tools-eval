@@ -1,0 +1,44 @@
+id: sentry-169
+repo: getsentry/sentry
+base_commit: e2ea2b2cb37f60ed6dce8a76324524bb31d3c8ed^
+head_commit: e2ea2b2cb37f60ed6dce8a76324524bb31d3c8ed
+fix_commit: e2ea2b2cb37f60ed6dce8a76324524bb31d3c8ed
+category: incomplete
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: small
+description: 'The Agents Traces Table widget had multiple rendering issues in the
+  widget viewer: it used `frameless` mode which disabled pagination, column widths
+  were too narrow causing text clipping, chart visualization was incorrectly enabled
+  for a table-only widget, and an incorrect `widgetType: WidgetType.SPANS` caused
+  spurious ''Open in Explore'' links. These are symptoms of the widget not being fully
+  adapted for the widget viewer context.'
+expected_findings:
+- file: static/app/views/dashboards/widgetCard/chart.tsx
+  line: 262
+  summary: The `frameless` prop is applied unconditionally but should be excluded
+    for the Agents Traces Table in the widget viewer, as it disables pagination controls
+  line_side: pre_fix
+- file: static/app/views/dashboards/utils/prebuiltConfigs/ai/aiAgentsOverview.ts
+  line: 21
+  summary: DEFAULT_TRACES_TABLE_WIDTHS values are too small, causing text clipping
+    in several columns; widths need to be increased to accommodate typical content
+  line_side: pre_fix
+- file: static/app/views/dashboards/utils/prebuiltConfigs/ai/aiAgentsOverview.ts
+  line: 163
+  summary: 'Widget definition includes `widgetType: WidgetType.SPANS` which incorrectly
+    enables ''Open in Explore'' links that are not applicable to this custom table
+    widget; remove the widgetType override'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

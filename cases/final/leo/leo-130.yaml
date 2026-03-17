@@ -1,27 +1,32 @@
 id: leo-130
 repo: ProvableHQ/leo
-base_commit: 4ce11080b5906162ade86a2176d5d66ff1d46d35^
-head_commit: 4ce11080b5906162ade86a2176d5d66ff1d46d35
-fix_commit: 4ce11080b5906162ade86a2176d5d66ff1d46d35
+base_commit: 84e972c9ad48e6f36bfa73268ee7ec425a985f6a^
+head_commit: 84e972c9ad48e6f36bfa73268ee7ec425a985f6a
+fix_commit: 84e972c9ad48e6f36bfa73268ee7ec425a985f6a
 category: logic
-difficulty: easy
+difficulty: medium
 severity: medium
-language: leo
-pr_size: medium
-description: 'The Leo parser incorrectly allowed inclusive loop ending bounds (e.g.,
-  `for i in 0..=10`), which was not part of the current language specification per
-  the ABNF grammar and Leo Reference. The fix sets `inclusive: false` in the loop
-  range parsing logic at two locations in statement.rs, and updates corresponding
-  test cases.'
+language: rust
+pr_size: small
+description: The ternary expression type checker in the ASG incorrectly handled the
+  case when the expected type was unknown (None). When `expected_type.is_none()` was
+  true, the false branch of the ternary was not properly type-resolved, causing implicit
+  and explicit type mismatches to go undetected or produce incorrect errors.
 expected_findings:
-- file: compiler/parser/src/parser/statement.rs
-  line: 140
-  summary: 'Incorrect inclusive range flag: `inclusive` is set to `true` but the language
-    spec disallows inclusive loop ending bounds; should be `inclusive: false`'
-- file: compiler/parser/src/parser/statement.rs
-  line: 152
-  summary: 'Incorrect inclusive range flag: `inclusive` is set to `true` but the language
-    spec disallows inclusive loop ending bounds; should be `inclusive: false`'
+- file: asg/src/expression/ternary.rs
+  line: 87
+  summary: 'Incorrect condition: `expected_type.is_none()` causes the if_false branch
+    to skip proper type inference when the expected type is unknown, leading to missed
+    or wrong type errors for ternary expressions with implicit types'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

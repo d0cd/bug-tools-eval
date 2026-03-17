@@ -1,26 +1,57 @@
 id: sentry-011
 repo: getsentry/sentry
-base_commit: bb421629a62a518940439e1934ff4d154506ca16^
-head_commit: bb421629a62a518940439e1934ff4d154506ca16
-fix_commit: bb421629a62a518940439e1934ff4d154506ca16
-category: logic
-difficulty: easy
+base_commit: 114168cf8fffdd0ddc3b29e7f4f8990b7b561dbb^
+head_commit: 114168cf8fffdd0ddc3b29e7f4f8990b7b561dbb
+fix_commit: 114168cf8fffdd0ddc3b29e7f4f8990b7b561dbb
+category: incomplete
+difficulty: medium
 severity: medium
 language: typescript
-pr_size: small
-description: Special-case formatting in dashboard chart legends replaced full aggregate
-  expressions like `p75(measurements.lcp)` with just `LCP`, making it impossible to
-  distinguish between different percentiles (e.g., p75 vs p50) of the same measurement
-  on the same chart. The fix removes the measurement-specific formatting so the full
-  aggregate name is preserved in legends.
+pr_size: tiny
+description: 'The ContributingIssues section in the metric detector triggered sidebar
+  was missing the chart/graph column that other issue types display. Additionally,
+  enabling the chart column without passing `groupStatsPeriod: ''auto''` causes the
+  charts to show a default 24-hour trend that mismatches the absolute time range used
+  for the issue list query.'
 expected_findings:
-- file: static/app/views/dashboards/widgets/timeSeriesWidget/formatters/formatTimeSeriesLabel.tsx
-  line: 50
-  summary: Measurement formatting logic incorrectly strips aggregate function from
-    label, replacing e.g. `p75(measurements.lcp)` with just `LCP`, causing ambiguous
-    legends when multiple aggregates of the same metric appear on one chart
+- file: static/app/views/issueDetails/streamline/sidebar/metricDetectorTriggeredSection.tsx
+  line: 308
+  summary: Contributing issues are rendered without the chart column enabled (`withChart`
+    not set), unlike other issue type sections in this component that include graph
+    visualizations
+  line_side: pre_fix
+- file: static/app/views/issueDetails/streamline/sidebar/metricDetectorTriggeredSection.tsx
+  line: 309
+  summary: 'When enabling the chart column, `groupStatsPeriod: ''auto''` must also
+    be passed so the chart''s time range aligns with the issue list''s absolute time
+    range instead of defaulting to a 24-hour trend'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110162
+reviewer_notes:
+- '[inline] **Bug:** The `ContributingIssues` component''s charts show a 24-hour trend,
+  which mismatches the absolute time range used for the issue list, because `groupStatsPeriod:
+  ''auto''` is missing. <sub>Severity: MEDIUM</sub> <!-- BUG_PREDICTION -->  <details>
+  <summary><b title="Reference ID: `11334011/0`">Su'
+reviewer_findings:
+- file: static/app/views/issueDetails/streamline/sidebar/metricDetectorTriggeredSection.tsx
+  line: 308
+  summary: '### Chart stats period misaligned with query time range  **Medium Severity**  <!--
+    DESCRIPTION START --> Enabling `withC'
+  line_side: pre_fix
+- file: static/app/views/issueDetails/streamline/sidebar/metricDetectorTriggeredSection.tsx
+  line: 308
+  summary: '@scttcper this looks like it''s right, we do want an auto stats period'
+  line_side: pre_fix
+- file: static/app/views/issueDetails/streamline/sidebar/metricDetectorTriggeredSection.tsx
+  line: 309
+  summary: '**Bug:** The `ContributingIssues` component''s charts show a 24-hour trend,
+    which mismatches the absolute time range used'
+  line_side: pre_fix
+quality_flags: []

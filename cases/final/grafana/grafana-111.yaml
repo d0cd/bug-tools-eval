@@ -1,0 +1,41 @@
+id: grafana-111
+repo: grafana/grafana
+base_commit: eae3d32aec88f973a3511bb2f7995854d41a8c17^
+head_commit: eae3d32aec88f973a3511bb2f7995854d41a8c17
+fix_commit: eae3d32aec88f973a3511bb2f7995854d41a8c17
+category: logic
+difficulty: medium
+severity: high
+language: typescript
+pr_size: medium
+description: The Alertmanager UI stored the selected Alertmanager in a single global
+  localStorage key (`alerting-alertmanager`) shared across all organizations. When
+  switching orgs, the stale key referenced an AM that no longer existed in the new
+  org context, rendering the UI in an unrecoverable error state with a disabled dropdown.
+  The fix scopes the key per organization (`alerting-alertmanager-org-{orgId}`) and
+  adds a graceful fallback to the built-in Grafana Alertmanager when the stored selection
+  is unavailable.
+expected_findings:
+- file: public/app/features/alerting/unified/state/AlertmanagerContext.tsx
+  line: 23
+  summary: localStorage key `alerting-alertmanager` is not scoped per organization
+    — switching orgs causes stale AM selection that may reference a non-existent datasource
+    in the current org context
+  line_side: pre_fix
+- file: public/app/features/alerting/unified/state/AlertmanagerContext.tsx
+  line: 37
+  summary: When the stored Alertmanager is not found among available AMs, the function
+    returns undefined instead of falling back to the built-in Grafana Alertmanager,
+    leaving the UI in an unrecoverable broken state
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

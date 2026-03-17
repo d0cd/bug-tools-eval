@@ -1,24 +1,32 @@
 id: snarkVM-172
 repo: ProvableHQ/snarkVM
-base_commit: f2b72d5179f1f1ac05e5c2925d673f3a36e54934^
-head_commit: f2b72d5179f1f1ac05e5c2925d673f3a36e54934
-fix_commit: f2b72d5179f1f1ac05e5c2925d673f3a36e54934
-category: api
+base_commit: e88b8facbdcf78956781cf84b3b1245a857999bc^
+head_commit: e88b8facbdcf78956781cf84b3b1245a857999bc
+fix_commit: e88b8facbdcf78956781cf84b3b1245a857999bc
+category: style
 difficulty: easy
-severity: high
+severity: low
 language: rust
 pr_size: tiny
-description: The clap derive attributes on the `run` CLI command incorrectly required
-  `--function` and `--inputs` long flags, breaking the intended positional argument
-  syntax (`snarkvm run hello 1u32 2u32`). Additionally, clap's default configuration
-  didn't support multiple input arguments. The fix removes the erroneous attributes
-  to restore positional argument behavior and enable multiple inputs.
+description: The PR corrects misleading documentation comments for the `matches_record`
+  function regarding ordering semantics. Incorrect doc comments could cause developers
+  to misunderstand the function's behavior, but this is purely a documentation fix
+  with no code logic changes.
 expected_findings:
-- file: vm/cli/commands/run.rs
-  line: 20
-  summary: Clap derive attributes incorrectly require long flags (`--function`, `--inputs`)
-    for what should be positional arguments, and missing configuration to allow multiple
-    input values.
+- file: synthesizer/process/src/stack/register_types/matches.rs
+  line: 168
+  summary: Incorrect documentation note about ordering for `matches_record` — the
+    comment does not accurately describe the function's behavior and should be corrected
+    or removed
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

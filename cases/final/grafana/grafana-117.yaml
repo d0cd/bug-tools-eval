@@ -1,0 +1,38 @@
+id: grafana-117
+repo: grafana/grafana
+base_commit: f5c6a94f080cf4a2788bdabe82dfe7298afcc70d^
+head_commit: f5c6a94f080cf4a2788bdabe82dfe7298afcc70d
+fix_commit: f5c6a94f080cf4a2788bdabe82dfe7298afcc70d
+category: security
+difficulty: easy
+severity: high
+language: unknown
+pr_size: medium
+description: The @grafana/llm dependency at version 1.0.2 pulls in @modelcontextprotocol/sdk
+  < 1.26.0, which is affected by CVE-2026-25536 — a cross-client data leak via shared
+  server/transport reuse (CVSS 7.1 HIGH). The fix bumps @grafana/llm to 1.0.3, which
+  declares @modelcontextprotocol/sdk >= 1.26.0.
+expected_findings:
+- file: package.json
+  line: 290
+  summary: 'Vulnerable dependency: @grafana/llm 1.0.2 transitively includes @modelcontextprotocol/sdk
+    < 1.26.0, affected by CVE-2026-25536 (cross-client data leak). Must upgrade to
+    @grafana/llm 1.0.3.'
+  line_side: pre_fix
+- file: public/app/plugins/datasource/loki/package.json
+  line: 7
+  summary: Loki plugin also pins @grafana/llm 1.0.2, inheriting the same CVE-2026-25536
+    vulnerability via transitive @modelcontextprotocol/sdk. Must be bumped in lockstep
+    with root package.json.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

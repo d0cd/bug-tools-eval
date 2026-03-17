@@ -1,22 +1,31 @@
 id: snarkOS-136
 repo: ProvableHQ/snarkOS
-base_commit: 503c711d6b4fa95be5868d630006e69f9df2f9b1^
-head_commit: 503c711d6b4fa95be5868d630006e69f9df2f9b1
-fix_commit: 503c711d6b4fa95be5868d630006e69f9df2f9b1
-category: logic
-difficulty: hard
-severity: critical
+base_commit: b27c12ae5cfab10d14d4c871033cb52a19ae2df1^
+head_commit: b27c12ae5cfab10d14d4c871033cb52a19ae2df1
+fix_commit: b27c12ae5cfab10d14d4c871033cb52a19ae2df1
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: The ledger revert (block rollback/reorganization) logic in snarkOS had
-  incorrect handling that could lead to inconsistent ledger state during chain reorganizations.
-  The fix improves the revert logic to properly handle edge cases when rolling back
-  blocks, ensuring ledger consistency is maintained.
+pr_size: tiny
+description: Hardcoded bootnode IP addresses were updated in config.rs. The change
+  replaces old bootnode IPs with new ones, which is a routine infrastructure update.
+  Hardcoding IP addresses rather than using a configuration file or DNS-based discovery
+  is itself a code smell.
 expected_findings:
-- file: ledger/src/state/ledger.rs
-  line: 0
-  summary: Ledger revert logic has incorrect rollback handling that can leave the
-    ledger in an inconsistent state during chain reorganizations
+- file: snarkos/config.rs
+  line: 32
+  summary: Hardcoded bootnode IP address '159.89.152.247:4131' is incorrect/outdated
+    and should be updated to the current bootnode endpoint
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

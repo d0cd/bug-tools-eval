@@ -1,24 +1,45 @@
 id: leo-058
 repo: ProvableHQ/leo
-base_commit: 32dad405210f99d07a1040795ba23cd12bc50af4^
-head_commit: 32dad405210f99d07a1040795ba23cd12bc50af4
-fix_commit: 32dad405210f99d07a1040795ba23cd12bc50af4
-category: type
+base_commit: 3c2da076ff4a04af5ad6f54f170159096b1f0d3e^
+head_commit: 3c2da076ff4a04af5ad6f54f170159096b1f0d3e
+fix_commit: 3c2da076ff4a04af5ad6f54f170159096b1f0d3e
+category: logic
 difficulty: medium
 severity: high
-language: leo
-pr_size: tiny
-description: The type inference pass incorrectly calculated the type of array spread
-  expressions. When spreading an array (e.g., `[...a, 3]`), the type checker failed
-  to unwrap the array type to extract the element type, causing valid spread expressions
-  to be rejected. The fix corrects the pattern match in the frame object to properly
-  extract the element type from `Type::Array`.
+language: rust
+pr_size: medium
+description: The compiler's flattening pass did not properly handle `console` statements
+  (e.g. `console.assert()`) inside conditional blocks. When flattening conditionals,
+  console statements were emitted without being guarded by the branch condition, causing
+  them to execute unconditionally. The fix adds logic to wrap console statements with
+  the appropriate condition during flattening.
 expected_findings:
-- file: type-inference/src/objects/frame.rs
-  line: 837
-  summary: Type inference for array spread does not correctly unwrap the Array type
-    to its element type; should match Type::Array(element_type) and return the inner
-    element type.
+- file: compiler/passes/src/flattening/flatten_statement.rs
+  line: 110
+  summary: Console statements inside conditional blocks are not guarded by the branch
+    condition during flattening. The flattener should wrap console.assert (and similar)
+    calls with the enclosing conditional's condition, but instead emits them unconditionally.
+  line_side: pre_fix
+- file: compiler/passes/src/flattening/flatten_statement.rs
+  line: 209
+  summary: Missing handling for console statements in the conditional flattening logic
+    — console statements should be transformed to include the condition as a conjunct
+    (e.g. `condition && assert_expr`) but are passed through unchanged.
+  line_side: pre_fix
+- file: compiler/passes/src/flattening/flattener.rs
+  line: 175
+  summary: Flattener helper does not account for console statement variants when constructing
+    conditional guards, causing console assertions in if/else branches to lose their
+    conditional context.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

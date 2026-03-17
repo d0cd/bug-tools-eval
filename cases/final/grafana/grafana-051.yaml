@@ -1,0 +1,37 @@
+id: grafana-051
+repo: grafana/grafana
+base_commit: 632791f79eaf937de4f680c363e2d3b107f9ef90^
+head_commit: 632791f79eaf937de4f680c363e2d3b107f9ef90
+fix_commit: 632791f79eaf937de4f680c363e2d3b107f9ef90
+category: logic
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: small
+description: The Combobox component did not reset its internal search/filter state
+  when the dropdown was closed and reopened. This caused the filtered option list
+  to persist stale results, leading to the wrong option being selected on subsequent
+  openings. The fix introduces a `resetSearch` function in the `useOptions` hook that
+  clears the search input and restores the full option list when the dropdown closes.
+expected_findings:
+- file: packages/grafana-ui/src/components/Combobox/Combobox.tsx
+  line: 1
+  summary: Combobox does not reset search/filter state when the dropdown closes, causing
+    stale filtered options to persist and the wrong item to appear selected on reopen
+  line_side: pre_fix
+- file: packages/grafana-ui/src/components/Combobox/useOptions.ts
+  line: 1
+  summary: useOptions hook exposes no mechanism to reset the internal search term
+    and filtered option list, so consumers cannot clear stale filter state
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 120004
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

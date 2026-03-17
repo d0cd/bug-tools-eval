@@ -1,34 +1,46 @@
 id: leo-239
 repo: ProvableHQ/leo
-base_commit: f214b855fb441b349e3977efd16b02b982b54ec3^
-head_commit: f214b855fb441b349e3977efd16b02b982b54ec3
-fix_commit: f214b855fb441b349e3977efd16b02b982b54ec3
-category: logic
-difficulty: hard
-severity: medium
-language: rust
-pr_size: xl
-description: The Leo compiler used the `static` keyword for circuit member functions,
-  which did not properly distinguish between functions that need read access to circuit
-  instance members (`self`) versus those that mutate them (`mut self`). This PR transitions
-  the language to use `self` and `mut self` keywords, enforcing proper mutability
-  checks on circuit member access and assignment.
+base_commit: f1ba77f9edffef0cb32594b90ccf28f322009e13^
+head_commit: f1ba77f9edffef0cb32594b90ccf28f322009e13
+fix_commit: f1ba77f9edffef0cb32594b90ccf28f322009e13
+category: constraint
+difficulty: medium
+severity: high
+language: leo
+pr_size: medium
+description: The `alloc_helper` function for address values unconditionally called
+  `value_gen()` and failed with `SynthesisError::AssignmentMissing` when the constraint
+  system was in setup mode, since no witness values are available during setup. The
+  fix passes the constraint system into `alloc_helper` and returns a default address
+  placeholder when `cs.is_in_setup_mode()` is true, allowing conditional address selections
+  to work correctly during both setup and proving phases.
 expected_findings:
-- file: compiler/src/expression/circuit/static_access.rs
-  line: 56
-  summary: "Static access resolution does not account for `self`/`mut self` function\
-    \ variants \u2014 circuit member functions accessed via `::` should only match\
-    \ functions without self parameter (true static functions)"
-- file: compiler/src/statement/assign/circuit_variable.rs
-  line: 61
-  summary: Circuit variable assignment does not check whether the function was called
-    with `mut self`, allowing mutation of circuit members without the required mutability
-    qualifier
-- file: compiler/src/function/function.rs
-  line: 42
-  summary: Function input processing does not handle `SelfKeyword` and `MutSelfKeyword`
-    input variants, failing to bind the circuit instance to `self` in the function
-    scope
+- file: compiler/src/value/address/address.rs
+  line: 88
+  summary: alloc_helper does not accept the constraint system and cannot check `is_in_setup_mode()`
+    — during setup, `value_gen()` returns Err which is unconditionally mapped to `SynthesisError::AssignmentMissing`
+    instead of falling back to a default address placeholder.
+  line_side: pre_fix
+- file: compiler/src/value/address/address.rs
+  line: 107
+  summary: alloc() calls `Self::alloc_helper(value_gen)` without passing the constraint
+    system, so alloc_helper cannot distinguish setup mode from proving mode and fails
+    on conditional address selections.
+  line_side: pre_fix
+- file: compiler/src/value/address/address.rs
+  line: 147
+  summary: alloc_input() has the same issue — calls alloc_helper without constraint
+    system, causing AssignmentMissing during setup mode for address inputs used in
+    conditional branches.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

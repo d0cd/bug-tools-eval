@@ -1,31 +1,38 @@
 id: snarkOS-121
 repo: ProvableHQ/snarkOS
-base_commit: a51e77be2c0d1f288774fc82486df47d6f2c93c6^
-head_commit: a51e77be2c0d1f288774fc82486df47d6f2c93c6
-fix_commit: a51e77be2c0d1f288774fc82486df47d6f2c93c6
-category: logic
-difficulty: medium
-severity: medium
+base_commit: a5d5019e9efc895951e6b2561154b0c977e8b9da^
+head_commit: a5d5019e9efc895951e6b2561154b0c977e8b9da
+fix_commit: a5d5019e9efc895951e6b2561154b0c977e8b9da
+category: cryptographic
+difficulty: hard
+severity: high
 language: rust
-pr_size: medium
-description: 'After PR #4043 changed the validator/client dev network configuration,
-  the CI benchmark scripts and devnet CI were not updated to match. Missing ''--dev-num-clients=0''
-  flags, incorrect validator index reservations, broken log-printing calls in utils.sh,
-  and a misaligned parse_development call in start.rs caused benchmarks and devnet
-  CI to fail.'
+pr_size: tiny
+description: The sonic_pc polynomial commitment implementation was not using the hiding
+  degree bound where required. The fix updates two call sites in sonic_pc/mod.rs to
+  pass or reference `supported_hiding_bound` instead of the non-hiding variant, which
+  is critical for the zero-knowledge (hiding) property of the polynomial commitment
+  scheme.
 expected_findings:
-- file: cli/src/commands/start.rs
-  line: 664
-  summary: 'parse_development call needs to be updated to pass trusted_peers and trusted_validators
-    correctly after the #4043 refactor changed the development configuration interface'
-- file: .ci/bench_bft_sync.sh
-  line: 53
-  summary: 'Missing ''--dev-num-clients=0'' flag required after #4043 separated client
-    count from validator configuration; without it, benchmarks spawn unexpected clients'
-- file: .ci/devnet_ci.sh
-  line: 409
-  summary: 'print_validator_logs call missing required arguments (total_validators,
-    total_clients) after the function signature changed in the #4043 refactor'
+- file: polycommit/src/sonic_pc/mod.rs
+  line: 158
+  summary: 'Wrong degree bound parameter used: should reference the hiding degree
+    bound (`supported_hiding_bound`) to preserve the hiding property of the polynomial
+    commitment'
+  line_side: pre_fix
+- file: polycommit/src/sonic_pc/mod.rs
+  line: 220
+  summary: 'Same incorrect bound usage: must use hiding degree bound to ensure zero-knowledge
+    guarantees are maintained in sonic_pc'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

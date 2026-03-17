@@ -1,22 +1,49 @@
 id: snarkOS-131
 repo: ProvableHQ/snarkOS
-base_commit: 228629552c772c76b1a1aaf200dc5a7e1689e5a2^
-head_commit: 228629552c772c76b1a1aaf200dc5a7e1689e5a2
-fix_commit: 228629552c772c76b1a1aaf200dc5a7e1689e5a2
-category: logic
-difficulty: easy
-severity: medium
+base_commit: b0a80c3bb231d30d9ffb44eeb4b1b43d97f14f34^
+head_commit: b0a80c3bb231d30d9ffb44eeb4b1b43d97f14f34
+fix_commit: b0a80c3bb231d30d9ffb44eeb4b1b43d97f14f34
+category: security
+difficulty: hard
+severity: critical
 language: rust
-pr_size: small
-description: A minor logic bug in the snarkOS consensus module (node/consensus/src/lib.rs).
-  The fix involves a small change (5 additions, 7 deletions) suggesting a condition
-  or control-flow correction. Without the diff, the exact nature of the bug cannot
-  be confirmed.
+pr_size: xl
+description: TransmissionID lacked a checksum field, allowing malicious validators
+  to submit malformed solutions or transactions that would be accepted by peers without
+  integrity verification. The fix adds a TransmissionChecksum to TransmissionID variants
+  and enforces checksum validation on all incoming peer transmissions across the BFT
+  consensus layer.
 expected_findings:
+- file: node/bft/src/worker.rs
+  line: 273
+  summary: Incoming peer transmissions are accepted without any integrity checksum
+    verification on the TransmissionID, enabling malformed solution/transaction attacks
+    by malicious validators
+  line_side: pre_fix
+- file: node/bft/src/primary.rs
+  line: 522
+  summary: TransmissionID::Solution is destructured and processed without verifying
+    a checksum, allowing a malicious peer to associate an incorrect solution with
+    a valid solution_id
+  line_side: pre_fix
 - file: node/consensus/src/lib.rs
-  line: 0
-  summary: "Unable to determine exact bug location \u2014 diff was unavailable. Manual\
-    \ review required to identify the specific incorrect logic in the consensus module."
+  line: 248
+  summary: Transmissions are mapped by ID during block creation without checksum validation,
+    so a tampered transmission could be included in a block
+  line_side: pre_fix
+- file: node/bft/src/helpers/ready.rs
+  line: 82
+  summary: TransmissionID::Solution match discards the checksum field with wildcard
+    (_), missing an opportunity to verify transmission integrity before queuing
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

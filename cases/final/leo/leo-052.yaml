@@ -1,21 +1,44 @@
 id: leo-052
 repo: ProvableHQ/leo
-base_commit: 470e2dc99df21b69b19314434acfad729373074c^
-head_commit: 470e2dc99df21b69b19314434acfad729373074c
-fix_commit: 470e2dc99df21b69b19314434acfad729373074c
-category: logic
+base_commit: 354610169f8636f44a4f06751739138d81b58bf2^
+head_commit: 354610169f8636f44a4f06751739138d81b58bf2
+fix_commit: 354610169f8636f44a4f06751739138d81b58bf2
+category: api-misuse
 difficulty: easy
-severity: low
+severity: medium
 language: rust
-pr_size: tiny
-description: A typo was present in a doc comment for a method in the lexer's tokenizer.
-  The fix corrects the wording in the comment describing the function that returns
-  a `char` if a character can be eaten, otherwise returns `None`.
+pr_size: medium
+description: The lexer's `&` handling returned `lexer_empty_input_tendril()` ("expected
+  more characters to lex but found none") when encountering `&` not followed by another
+  `&`, instead of the correct `lexer_expected_but_found()` error. This produced a
+  confusing, misleading error message for users. The fix also refactored `fn eat`
+  by extracting `single`, `followed_by`, and `twice` helper closures to eliminate
+  duplicated match-arm logic.
 expected_findings:
-- file: parser/src/tokenizer/lexer.rs
-  line: 62
-  summary: 'Typo in doc comment: the comment describing the return behavior of the
-    character-eating method contains a textual error that should be corrected.'
+- file: compiler/parser/src/tokenizer/lexer.rs
+  line: 172
+  summary: 'Wrong error variant: `&` match arm calls `lexer_empty_input_tendril()`
+    instead of `lexer_expected_but_found(found, ''&'')` when the next character is
+    not `&`, producing a misleading error message'
+  line_side: pre_fix
+- file: compiler/parser/src/tokenizer/lexer.rs
+  line: 229
+  summary: 'Code duplication: multiple single-character token arms repeat the same
+    `input.next(); Ok((1, Token::X))` pattern — should be extracted into a helper'
+  line_side: pre_fix
+- file: compiler/parser/src/tokenizer/lexer.rs
+  line: 286
+  summary: 'Code duplication: `followed_by` pattern (consume char, check next, branch)
+    is repeated for `!`, `<`, `>` — should be consolidated'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

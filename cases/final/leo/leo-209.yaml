@@ -1,33 +1,43 @@
 id: leo-209
 repo: ProvableHQ/leo
-base_commit: 2cb3f570c95ae91c241a976619a0dbf51e696298^
-head_commit: 2cb3f570c95ae91c241a976619a0dbf51e696298
-fix_commit: 2cb3f570c95ae91c241a976619a0dbf51e696298
+base_commit: d2f63432f804ac46b51c6d41e96ba7e1ddf469b6^
+head_commit: d2f63432f804ac46b51c6d41e96ba7e1ddf469b6
+fix_commit: d2f63432f804ac46b51c6d41e96ba7e1ddf469b6
 category: logic
-difficulty: hard
+difficulty: medium
 severity: high
 language: rust
-pr_size: xl
-description: The Leo compiler's flattening pass had a bug that incorrectly handled
-  certain expressions, causing the tictactoe example to fail. Additionally, codegen
-  for string literals was broken. The fix involved correcting the flattening logic
-  for expressions and statements, updating the SSA assigner to properly handle simple
-  assignments, and fixing string literal handling in the rename_expression pass.
+pr_size: medium
+description: The Leo compiler's canonicalization pass failed to properly replace `Self`
+  type references with the actual circuit name in circuit implied variable definitions.
+  The `canonicalize_circuit_implied_variable_definition` function was either missing
+  Self-replacement logic or applying it incorrectly, causing compilation failures
+  or incorrect AST transformations when circuits used `Self` in member variable definitions.
 expected_findings:
-- file: compiler/passes/src/flattening/flatten_expression.rs
-  line: 22
-  summary: "Flattening expression logic is incorrect \u2014 the expression flattening\
-    \ does not properly handle all expression types, leading to incorrect code generation\
-    \ for programs like tictactoe"
-- file: compiler/passes/src/static_single_assignment/rename_expression.rs
-  line: 84
-  summary: "String literals are incorrectly handled in SSA renaming \u2014 they should\
-    \ not be assigned to a new identifier variable, causing broken codegen for string\
-    \ expressions"
-- file: compiler/passes/src/flattening/flatten_statement.rs
-  line: 34
-  summary: Flattening of assignment statements does not correctly update circuit tracking
-    when the RHS is a circuit type, leading to incorrect flattened output
+- file: ast-passes/src/canonicalization/canonicalizer.rs
+  line: 133
+  summary: Missing or incorrect Self type replacement in canonicalize_circuit_implied_variable_definition
+    — `Self` references in circuit member variables are not being canonicalized to
+    the enclosing circuit name
+  line_side: pre_fix
+- file: ast-passes/src/canonicalization/canonicalizer.rs
+  line: 283
+  summary: canonicalize_circuit_implied_variable_definition does not handle Self replacement
+    in expression context, leaving unresolved Self references in the AST
+  line_side: pre_fix
+- file: ast-passes/src/canonicalization/canonicalizer.rs
+  line: 309
+  summary: canonicalize_circuit_implied_variable_definition missing Self canonicalization
+    for circuit member type annotations
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

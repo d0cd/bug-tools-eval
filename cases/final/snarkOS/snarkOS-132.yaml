@@ -1,22 +1,42 @@
 id: snarkOS-132
 repo: ProvableHQ/snarkOS
-base_commit: a8aa97a99a451ed0a4bf92c9b50c7889454f2c60^
-head_commit: a8aa97a99a451ed0a4bf92c9b50c7889454f2c60
-fix_commit: a8aa97a99a451ed0a4bf92c9b50c7889454f2c60
-category: logic
-difficulty: hard
+base_commit: b0be77d5fe23fab6ebc4eb100c65584f3b70bcb6^
+head_commit: b0be77d5fe23fab6ebc4eb100c65584f3b70bcb6
+fix_commit: b0be77d5fe23fab6ebc4eb100c65584f3b70bcb6
+category: code-smell
+difficulty: easy
 severity: low
 language: rust
-pr_size: xl
-description: Large refactoring PR that migrates modules from snarkVM, modularizes
-  node logic, and introduces prover logic. No specific bug-fix diff is available to
-  analyze, making it impossible to identify a concrete bug. The PR appears to be a
-  structural reorganization rather than a targeted bug fix.
+pr_size: medium
+description: The codebase used a deprecated `BlockHeaderHash` type alias instead of
+  the canonical `Digest` type from snarkos_storage. This PR removes all occurrences
+  of `BlockHeaderHash`, replacing them with `Digest` across network messages, sync
+  logic, serialization, tests, and storage validation. The change also updates related
+  imports (e.g., removing unused `BlockHeader` imports from snarkvm_dpc).
 expected_findings:
-- file: Cargo.toml
-  line: 6
-  summary: 'Structural refactor: workspace member list changed during module migration
-    from snarkVM; verify all crate references are updated consistently'
+- file: network/src/message/message.rs
+  line: 14
+  summary: Uses deprecated `BlockHeaderHash` type — should use `Digest` from snarkos_storage
+    instead
+  line_side: pre_fix
+- file: network/src/sync/blocks/interface.rs
+  line: 24
+  summary: Field typed with deprecated `BlockHeaderHash`; should be `Digest` to match
+    the canonical type
+  line_side: pre_fix
+- file: storage/src/validator.rs
+  line: 628
+  summary: References `tx_location.block_hash` using deprecated `BlockHeaderHash`
+    type; should use `Digest`
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

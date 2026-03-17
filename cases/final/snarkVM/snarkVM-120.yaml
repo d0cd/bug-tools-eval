@@ -1,31 +1,36 @@
 id: snarkVM-120
 repo: ProvableHQ/snarkVM
-base_commit: 6725ea36a9f498ee8cc038bb190e62fcae44f0e6^
-head_commit: 6725ea36a9f498ee8cc038bb190e62fcae44f0e6
-fix_commit: 6725ea36a9f498ee8cc038bb190e62fcae44f0e6
-category: api
-difficulty: medium
-severity: high
+base_commit: 8fb59ddd11e1164acd8451458d55ddd22a32982c^
+head_commit: 8fb59ddd11e1164acd8451458d55ddd22a32982c
+fix_commit: 8fb59ddd11e1164acd8451458d55ddd22a32982c
+category: logic
+difficulty: easy
+severity: medium
 language: rust
-pr_size: small
-description: The string parser trait in snarkVM was missing the `FromExternalError`
-  bound/import from nom's error types, causing string parsing to fail when external
-  errors needed conversion through `map_res` or similar nom combinators. The fix adds
-  `FromExternalError` to the nom error imports in the string trait definition and
-  updates the parse implementation accordingly.
+pr_size: tiny
+description: The `hash_many` instruction parser failed to call `Sanitizer::parse_whitespaces`
+  between successive operands, causing inputs like `hash_many.psd2 r1 r2 into r3 as
+  field` to fail while the concatenated form `r1r2` incorrectly passed. The fix adds
+  whitespace-skipping before each operand, consistent with other instruction parsers.
 expected_findings:
-- file: console/network/environment/src/traits/string.rs
-  line: 32
-  summary: "Missing `FromExternalError` in nom error imports \u2014 required for combinators\
-    \ like `map_res` that convert external errors into nom parse errors"
-- file: console/network/environment/src/traits/string.rs
-  line: 111
-  summary: Missing `FromExternalError` trait bound on the error type parameter for
-    the string parsing trait implementation
-- file: console/types/string/src/parse.rs
-  line: 92
-  summary: String parse implementation lacks proper external error handling due to
-    missing `FromExternalError` constraint on the nom parser
+- file: synthesizer/program/src/logic/instruction/operation/hash.rs
+  line: 379
+  summary: Missing Sanitizer::parse_whitespaces call before parsing each operand;
+    without it, space-separated operands (e.g. `r1 r2`) fail to parse
+  line_side: pre_fix
+- file: synthesizer/program/src/logic/instruction/operation/hash.rs
+  line: 394
+  summary: Same missing whitespace-skip issue in a second operand-parsing location
+    within the hash instruction parser
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

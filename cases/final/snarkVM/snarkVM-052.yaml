@@ -1,35 +1,38 @@
 id: snarkVM-052
 repo: ProvableHQ/snarkVM
-base_commit: e4a86e3f018fa376b60824a43f45a81ff265a380^
-head_commit: e4a86e3f018fa376b60824a43f45a81ff265a380
-fix_commit: e4a86e3f018fa376b60824a43f45a81ff265a380
-category: api
+base_commit: 38e7ad8e6b5b5a78b78f8ee9f021aa052ec9ffe5^
+head_commit: 38e7ad8e6b5b5a78b78f8ee9f021aa052ec9ffe5
+fix_commit: 38e7ad8e6b5b5a78b78f8ee9f021aa052ec9ffe5
+category: logic
 difficulty: medium
-severity: critical
+severity: high
 language: rust
 pr_size: medium
-description: The `FromBytes` implementations for `FunctionCore`, `ClosureCore`, and
-  `FinalizeCore` did not validate that the number of inputs, outputs, instructions,
-  and commands deserialized from bytes were within allowed maximums (e.g., `N::MAX_INPUTS`).
-  A maliciously crafted byte sequence could specify arbitrarily large counts, leading
-  to excessive memory allocation or potential denial-of-service. The fix adds bound
-  checks before deserializing each collection.
+description: The validator address was not being properly extracted from the `bond_validator`
+  transition's Future output, causing the MAX_COMMITTEE_SIZE check to be silently
+  bypassed. The fix corrects the argument extraction logic to properly identify the
+  validator address from the Future's arguments.
 expected_findings:
-- file: synthesizer/program/src/function/bytes.rs
-  line: 25
-  summary: 'Missing bounds check: `num_inputs` is read from untrusted bytes and used
-    to drive a deserialization loop without validating it against `N::MAX_INPUTS`,
-    allowing a crafted input to cause excessive allocation'
-- file: synthesizer/program/src/closure/bytes.rs
-  line: 23
-  summary: 'Missing bounds check: `num_inputs` is read from untrusted bytes and used
-    to drive a deserialization loop without validating it against `N::MAX_INPUTS`,
-    allowing a crafted input to cause excessive allocation'
-- file: synthesizer/program/src/finalize/bytes.rs
-  line: 23
-  summary: 'Missing bounds check: `num_inputs` is read from untrusted bytes and used
-    to drive a deserialization loop without validating it against `N::MAX_INPUTS`,
-    allowing a crafted input to cause excessive allocation'
+- file: synthesizer/src/vm/finalize.rs
+  line: 947
+  summary: Incorrect extraction of the validator address from the bond_validator Future
+    output — the wrong argument or field is used, causing the MAX_COMMITTEE_SIZE check
+    to always pass or be skipped
+  line_side: pre_fix
+- file: synthesizer/src/vm/finalize.rs
+  line: 1768
+  summary: Same incorrect validator address extraction pattern duplicated here — must
+    also extract the correct argument from the Future to properly validate committee
+    size
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

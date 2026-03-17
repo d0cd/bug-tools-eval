@@ -1,30 +1,33 @@
 id: discourse-029
 repo: discourse/discourse
-base_commit: 899a483d74c6aa9991dc4a9d617eee187da74217^
-head_commit: 899a483d74c6aa9991dc4a9d617eee187da74217
-fix_commit: 899a483d74c6aa9991dc4a9d617eee187da74217
+base_commit: 2a085cad2cef3ba935c7823bed7c4fbad0bc2ed9^
+head_commit: 2a085cad2cef3ba935c7823bed7c4fbad0bc2ed9
+fix_commit: 2a085cad2cef3ba935c7823bed7c4fbad0bc2ed9
 category: logic
 difficulty: medium
-severity: medium
+severity: high
 language: ruby
-pr_size: medium
-description: The server-side code that determines the initial value of `enabled_for`
-  on the upcoming changes page did not account for localized staff group names. This
-  caused the staff group to not be pre-selected on page load when the group name was
-  localized, even though it was actually enabled. The fix updates the server-side
-  matching logic to handle localized group names consistently with the UI changes
-  from the previous commit.
+pr_size: small
+description: In PostCreator, the `on(:topic_created)` and `on(:post_created)` event
+  triggers are called sequentially without exception isolation. If any registered
+  hook for `topic_created` raises an exception, execution halts and `post_created`
+  never fires, silently breaking all downstream listeners. The fix wraps the `topic_created`
+  trigger in exception handling so that `post_created` is guaranteed to fire regardless.
 expected_findings:
-- file: app/services/upcoming_changes/list.rb
-  line: 60
-  summary: "enabled_for group matching does not account for localized staff group\
-    \ names \u2014 will fail to match when the staff group name is translated"
-- file: lib/upcoming_changes.rb
-  line: 181
-  summary: Missing localization-aware comparison for staff group name when determining
-    setting_groups membership
+- file: lib/post_creator.rb
+  line: 266
+  summary: Exception in on(:topic_created) hooks will prevent on(:post_created) from
+    ever firing — needs begin/rescue isolation around topic_created dispatch so post_created
+    is not silently skipped
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

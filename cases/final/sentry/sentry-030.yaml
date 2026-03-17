@@ -1,32 +1,58 @@
 id: sentry-030
 repo: getsentry/sentry
-base_commit: 718f6364267979371b651cb86a69e0261a3a0ce4^
-head_commit: 718f6364267979371b651cb86a69e0261a3a0ce4
-fix_commit: 718f6364267979371b651cb86a69e0261a3a0ce4
-category: api
+base_commit: 272a5d9c3a1891dd786eb3b31e5228c78e1876e6^
+head_commit: 272a5d9c3a1891dd786eb3b31e5228c78e1876e6
+fix_commit: 272a5d9c3a1891dd786eb3b31e5228c78e1876e6
+category: logic
 difficulty: medium
-severity: high
+severity: low
 language: python
-pr_size: tiny
-description: The `authentication_classes` on `OrganizationPreprodRetentionEndpoint`
-  listed `SessionAuthentication` before token-based auth classes. When a request carried
-  both session cookies and a Bearer token, session auth would win, set `request.auth
-  = None`, and trigger a spurious `401 sso-required` error, preventing CLI token authentication
-  from working. The fix reorders authentication classes so token auth runs first and
-  adds the missing `OrgAuthTokenAuthentication`.
+pr_size: small
+description: Tests used midnight (00:00:00) as timestamps, causing flaky failures
+  when test execution straddled a day boundary. Date-arithmetic and time-window queries
+  produce different results depending on whether the current time is before or after
+  midnight relative to the test timestamp. The fix updates timestamps to mid-day values
+  for stable results.
 expected_findings:
-- file: src/sentry/preprod/api/endpoints/organization_preprod_retention.py
-  line: 49
-  summary: 'authentication_classes ordering is incorrect: SessionAuthentication precedes
-    token auth classes, causing session auth to win over Bearer tokens and return
-    spurious 401 sso-required. Token classes should come first, matching DEFAULT_AUTHENTICATION
-    ordering.'
-- file: src/sentry/preprod/api/endpoints/organization_preprod_retention.py
-  line: 49
-  summary: "Missing OrgAuthTokenAuthentication from authentication_classes \u2014\
-    \ org-scoped auth tokens cannot authenticate against this endpoint."
+- file: tests/sentry/api/endpoints/test_organization_traces.py
+  line: 95
+  summary: Midnight timestamp in test setup causes timing-dependent flakiness around
+    day boundaries; should use a non-midnight timestamp (e.g. noon) so date arithmetic
+    is stable regardless of when the test suite runs
+  line_side: pre_fix
+- file: tests/sentry/api/endpoints/test_organization_traces.py
+  line: 421
+  summary: 'Future timestamps when tests run before 10am UTC: using a time close to
+    midnight means the computed test day can shift depending on execution time, causing
+    spurious failures'
+  line_side: pre_fix
+- file: tests/snuba/api/endpoints/test_organization_events_timeseries_cross_trace.py
+  line: 1
+  summary: Timestamp set to midnight causes flaky failures when the test runs near
+    a day boundary; use a mid-day timestamp instead
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 109572
+reviewer_notes: []
+reviewer_findings:
+- file: tests/sentry/api/endpoints/test_organization_traces.py
+  line: 95
+  summary: hmm if all these are identical could we set it in setUp and reference that
+    variable instead?
+  line_side: pre_fix
+- file: tests/sentry/api/endpoints/test_organization_traces.py
+  line: 95
+  summary: Done
+  line_side: pre_fix
+- file: tests/sentry/api/endpoints/test_organization_traces.py
+  line: 421
+  summary: '### Future timestamps when tests run before 10am UTC  **Medium Severity**  <!--
+    DESCRIPTION START --> Several tests use '
+  line_side: pre_fix
+quality_flags: []

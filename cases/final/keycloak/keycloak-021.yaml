@@ -1,25 +1,34 @@
 id: keycloak-021
 repo: keycloak/keycloak
-base_commit: e53575d5d55cc97fae33e8e5f3052df26e0e9f8d^
-head_commit: e53575d5d55cc97fae33e8e5f3052df26e0e9f8d
-fix_commit: e53575d5d55cc97fae33e8e5f3052df26e0e9f8d
-category: logic
+base_commit: 40f39f0edc1cfc8015b8f564df4268a9986f60f7^
+head_commit: 40f39f0edc1cfc8015b8f564df4268a9986f60f7
+fix_commit: 40f39f0edc1cfc8015b8f564df4268a9986f60f7
+category: code-smell
 difficulty: easy
-severity: low
-language: unknown
-pr_size: tiny
-description: The confirmation message displayed when disabling an identity provider
-  had incorrect text, likely a broken MessageFormat placeholder with mismatched quotes
-  or curly braces in the i18n properties file. The fix corrects the message string
-  so the confirmation dialog displays the proper wording.
+severity: medium
+language: java
+pr_size: small
+description: The Keycloak operator's client controller did not check whether the server
+  had ready replicas before invoking admin API operations, leading to confusing errors
+  when the server was not yet available. The fix adds an `isServerReady()` pre-check,
+  but introduces a typo in the error message ("operatiorn") and throws a generic RuntimeException
+  instead of a domain-specific exception, which makes error handling less precise.
 expected_findings:
-- file: js/apps/admin-ui/maven-resources/theme/keycloak.v2/admin/messages/messages_en.properties
-  line: 1140
-  summary: 'Malformed MessageFormat string in disableConfirmIdentityProvider: broken
-    placeholder quoting (mismatched single-quotes or curly braces) causes garbled
-    confirmation dialog text'
+- file: operator/src/main/java/org/keycloak/operator/controllers/KeycloakClientBaseController.java
+  line: 295
+  summary: 'Typo in error message: ''operatiorn'' should be ''operation''. Also, throwing
+    a generic RuntimeException rather than a specific exception (e.g., ServerNotReadyException)
+    makes it impossible for callers to distinguish this condition from other failures
+    in error handling.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

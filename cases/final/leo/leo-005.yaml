@@ -1,25 +1,31 @@
 id: leo-005
 repo: ProvableHQ/leo
-base_commit: 35289cdf651794e98333711804b3bd27587088cb^
-head_commit: 35289cdf651794e98333711804b3bd27587088cb
-fix_commit: 35289cdf651794e98333711804b3bd27587088cb
+base_commit: 04c809c0dca904a042a9f2e6625932a4cc5eb588^
+head_commit: 04c809c0dca904a042a9f2e6625932a4cc5eb588
+fix_commit: 04c809c0dca904a042a9f2e6625932a4cc5eb588
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: large
-description: The Leo compiler's assignee resolution did not handle the case where
-  a mutable variable (wrapped in ConstrainedValue::Mutable) was accessed with nested
-  indexing (e.g., a[i] = ...). The code failed to unwrap the Mutable wrapper before
-  resolving array/tuple element access, causing assignments to elements of mutable
-  arrays to silently fail or error. The fix adds a match arm for ConstrainedValue::Mutable
-  to properly unwrap and recurse into the inner value.
+pr_size: xl
+description: The AST canonicalization reducer did not correctly handle slice assignment
+  for string types. The fix corrects the handling in `canonicalization.rs` to properly
+  process string slice assignments, and also removes valid-programming checks from
+  compiler phases, limiting checks to the AST level only.
 expected_findings:
-- file: compiler/src/statement/assign/assignee.rs
-  line: 34
-  summary: 'Missing match arm for ConstrainedValue::Mutable when resolving nested
-    assignees: mutable array/tuple element assignment (e.g., a[i] = value) fails because
-    the Mutable wrapper is not unwrapped before nested access resolution.'
+- file: ast/src/reducer/canonicalization.rs
+  line: 602
+  summary: 'Slice assignment for strings not handled correctly in canonicalization:
+    ArrayInline match arm produces incorrect AssignStatement for string slice targets'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,60 @@
+id: sentry-124
+repo: getsentry/sentry
+base_commit: 9cfaa85954bee1575734e14f9d3225dfa7a22b02^
+head_commit: 9cfaa85954bee1575734e14f9d3225dfa7a22b02
+fix_commit: 9cfaa85954bee1575734e14f9d3225dfa7a22b02
+category: type
+difficulty: medium
+severity: high
+language: typescript
+pr_size: small
+description: The `SpanResponseRaw` type declared `sentry.normalized_description` as
+  `string`, but the backend can return `null`. This type mismatch allowed null values
+  to flow unchecked to string-expecting consumers like the SQLish parser, causing
+  runtime TypeErrors. The fix widens the type to `string | null` and adds `?? ''`
+  fallbacks at all call sites.
+expected_findings:
+- file: static/app/views/insights/types.tsx
+  line: 1
+  summary: 'Type mismatch: `sentry.normalized_description` is typed as `string` but
+    the backend can return `null`. Should be `string | null` to prevent runtime TypeErrors
+    when null values reach string-expecting consumers like the SQLish parser.'
+  line_side: pre_fix
+- file: static/app/views/insights/database/components/tables/queriesTable.tsx
+  line: 1
+  summary: Passing potentially null `sentry.normalized_description` to a component
+    or parser expecting a non-null string without a `?? ''` fallback, causing TypeError
+    at runtime when the backend returns null.
+  line_side: pre_fix
+- file: static/app/views/insights/database/views/databaseSpanSummaryPage.tsx
+  line: 1
+  summary: Missing null guard when passing `sentry.normalized_description` to string-expecting
+    consumer; needs `?? ''` fallback to handle null values from the backend.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110186
+reviewer_notes:
+- '[inline] **Bug:** In `lineChartListWidget.tsx`, a `null` description value is passed
+  to `SpanDescriptionCell`, which can cause a `TypeError` when formatting database
+  queries. <sub>Severity: HIGH</sub> <!-- BUG_PREDICTION -->  <details> <summary><b
+  title="Reference ID: `11373673/0`">Suggested Fix</b></summary'
+- '[inline] This comment looks fully hallucinated, it''s not referencing the right
+  file, and it''s describing an error made impossible by the type system?'
+reviewer_findings:
+- file: static/app/views/insights/browser/resources/components/tables/resourceTable.tsx
+  line: 145
+  summary: '**Bug:** In `lineChartListWidget.tsx`, a `null` description value is passed
+    to `SpanDescriptionCell`, which can cause a '
+  line_side: pre_fix
+- file: static/app/views/insights/browser/resources/components/tables/resourceTable.tsx
+  line: 145
+  summary: This comment looks fully hallucinated, it's not referencing the right file,
+    and it's describing an error made impossible
+  line_side: pre_fix
+quality_flags: []

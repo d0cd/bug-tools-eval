@@ -1,32 +1,30 @@
 id: leo-223
 repo: ProvableHQ/leo
-base_commit: 3e4dfc830ff2628fdea74f98e5dc2287495d744a^
-head_commit: 3e4dfc830ff2628fdea74f98e5dc2287495d744a
-fix_commit: 3e4dfc830ff2628fdea74f98e5dc2287495d744a
-category: logic
-difficulty: medium
-severity: high
+base_commit: dc54eef1ee9eb7c014b36d3e57a856c12ad0e174^
+head_commit: dc54eef1ee9eb7c014b36d3e57a856c12ad0e174
+fix_commit: dc54eef1ee9eb7c014b36d3e57a856c12ad0e174
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: large
-description: A regression in the Leo interpreter caused tests not to run because the
-  source file collection logic did not properly associate main Leo files with their
-  modules. The fix restructures `Interpreter::new` to accept `(PathBuf, Vec<PathBuf>)`
-  tuples pairing each main file with its modules, and introduces `collect_leo_paths`/`collect_aleo_paths`
-  utilities to correctly gather and associate files from package programs.
+pr_size: tiny
+description: The help string for the `--install` CLI option in the devnet command
+  incorrectly referenced a wrong option name instead of `--snarkos-features`. The
+  fix corrects the help text to reference the actual option name.
 expected_findings:
-- file: interpreter/src/interpreter.rs
-  line: 65
-  summary: Interpreter::new signature accepts flat file list without module association,
-    causing modules to be incorrectly partitioned and not linked to their main files
-- file: leo/cli/commands/test.rs
-  line: 63
-  summary: Test command collects Leo source files without distinguishing main files
-    from modules, so the interpreter receives an incorrect file set and tests fail
-    to run
-- file: leo/cli/commands/build.rs
-  line: 139
-  summary: Build command uses a flat source directory scan instead of recursively
-    collecting and pairing main files with their modules
+- file: leo/cli/commands/devnet/mod.rs
+  line: 72
+  summary: Help string for `--install` references incorrect option name; should reference
+    `--snarkos-features` instead
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

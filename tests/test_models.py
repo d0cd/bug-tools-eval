@@ -221,3 +221,51 @@ class TestVisibility:
     def test_test_case_invalid_visibility(self) -> None:
         with pytest.raises(ValidationError):
             TestCase(**make_test_case(visibility="internal"))  # type: ignore[arg-type]
+
+
+class TestNewFields:
+    def test_introducing_commit_defaults_none(self) -> None:
+        case = TestCase(**make_test_case())  # type: ignore[arg-type]
+        assert case.introducing_commit is None
+
+    def test_introducing_commit_can_be_set(self) -> None:
+        case = TestCase(**make_test_case(introducing_commit="abc123"))  # type: ignore[arg-type]
+        assert case.introducing_commit == "abc123"
+
+    def test_pr_number_defaults_none(self) -> None:
+        case = TestCase(**make_test_case())  # type: ignore[arg-type]
+        assert case.pr_number is None
+
+    def test_reviewer_notes_defaults_empty(self) -> None:
+        case = TestCase(**make_test_case())  # type: ignore[arg-type]
+        assert case.reviewer_notes == []
+
+    def test_reviewer_findings_defaults_empty(self) -> None:
+        case = TestCase(**make_test_case())  # type: ignore[arg-type]
+        assert case.reviewer_findings == []
+
+    def test_quality_flags_defaults_empty(self) -> None:
+        case = TestCase(**make_test_case())  # type: ignore[arg-type]
+        assert case.quality_flags == []
+
+    def test_candidate_reviewer_findings_defaults_empty(self) -> None:
+        candidate = Candidate(**make_candidate())  # type: ignore[arg-type]
+        assert candidate.reviewer_findings == []
+
+    def test_category_api_removed(self) -> None:
+        with pytest.raises(ValidationError):
+            TestCase(**make_test_case(category="api"))  # type: ignore[arg-type]
+
+    def test_category_perf_removed(self) -> None:
+        with pytest.raises(ValidationError):
+            TestCase(**make_test_case(category="perf"))  # type: ignore[arg-type]
+
+    def test_category_api_misuse_valid(self) -> None:
+        case = TestCase(**make_test_case(category="api-misuse"))  # type: ignore[arg-type]
+        assert case.category == Category.api_misuse
+
+    def test_backward_compat_no_new_fields(self) -> None:
+        """YAML without new fields loads with defaults."""
+        case = TestCase(**make_test_case())  # type: ignore[arg-type]
+        assert case.introducing_commit is None
+        assert case.quality_flags == []

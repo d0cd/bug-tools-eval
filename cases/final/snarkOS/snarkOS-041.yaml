@@ -1,28 +1,33 @@
 id: snarkOS-041
 repo: ProvableHQ/snarkOS
-base_commit: b544b7ae173970b045b622e8273d668f1ea67fc0^
-head_commit: b544b7ae173970b045b622e8273d668f1ea67fc0
-fix_commit: b544b7ae173970b045b622e8273d668f1ea67fc0
-category: api
-difficulty: medium
+base_commit: 392b728d8dfbeaf1f038e3cea3806f10815e4248^
+head_commit: 6cd162d1ac
+fix_commit: 392b728d8dfbeaf1f038e3cea3806f10815e4248
+category: api-misuse
+difficulty: easy
 severity: high
 language: rust
-pr_size: small
-description: The rate limiter in the REST server used `.per_second()` which caused
-  requests per second to drop to 1 after the burst quota was exhausted. The fix switches
-  to `.per_nanosecond((1_000_000_000 / rest_rps) as u64)` to correctly replenish the
-  full burst rate every second, and adds proper HTTP 429 error responses for rate-limited
-  requests.
+pr_size: tiny
+description: The prover node was using `propagate_to_validators` instead of `propagate`
+  when broadcasting `UnconfirmedSolution` messages. This restricted solution propagation
+  to only validator peers, preventing solutions from reaching the full network. The
+  fix reverts to `propagate` which broadcasts to all connected peers, restoring correct
+  network-wide solution dissemination.
 expected_findings:
-- file: node/rest/src/lib.rs
-  line: 111
-  summary: 'Incorrect rate limiter API usage: `.per_second()` does not correctly replenish
-    the burst quota, causing RPS to drop to 1 after burst is exhausted. Should use
-    `.per_nanosecond((1_000_000_000 / rest_rps))` to distribute replenishment evenly.'
-- file: node/rest/src/lib.rs
-  line: 112
-  summary: 'Missing proper HTTP error response for rate-limited requests: should return
-    429 (Too Many Requests) instead of a generic error when the rate limit is exceeded.'
+- file: node/src/prover/mod.rs
+  line: 260
+  summary: 'Wrong propagation method: `propagate_to_validators` restricts UnconfirmedSolution
+    broadcast to validators only; should use `propagate` to reach all peers for proper
+    network-wide solution dissemination.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 2735
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

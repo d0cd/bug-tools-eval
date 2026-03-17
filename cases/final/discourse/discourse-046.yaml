@@ -1,28 +1,32 @@
 id: discourse-046
 repo: discourse/discourse
-base_commit: 9681c6d3fb632d1d843c4cf302643a639614cb55^
-head_commit: 9681c6d3fb632d1d843c4cf302643a639614cb55
-fix_commit: 9681c6d3fb632d1d843c4cf302643a639614cb55
-category: logic
+base_commit: 58b4853f1de2d7ef6a97f3af362d2838f79eba58^
+head_commit: 58b4853f1de2d7ef6a97f3af362d2838f79eba58
+fix_commit: 58b4853f1de2d7ef6a97f3af362d2838f79eba58
+category: api-misuse
 difficulty: easy
 severity: medium
-language: ruby
+language: unknown
 pr_size: small
-description: The chat thread lookup service did not check whether the thread's original
-  message had been deleted, allowing deleted threads to remain accessible via the
-  API. The fix adds an `original_message_not_deleted` policy check in the LookupThread
-  service and a corresponding 404 handler in the controller.
+description: "Dependency version bump of ember-resolver from 13.1.1 to 13.2.0. This\
+  \ is an automated dependency update PR that changes package.json version specifiers\
+  \ and updates the lockfile. Without the actual diff or changelog context, there\
+  \ is no visible bug or code-level issue to review \u2014 it is purely a dependency\
+  \ maintenance task."
 expected_findings:
-- file: plugins/chat/app/services/chat/lookup_thread.rb
-  line: 27
-  summary: 'Missing policy check: service should verify the thread''s original message
-    is not deleted before returning thread data'
-- file: plugins/chat/app/controllers/chat/api/channel_threads_controller.rb
-  line: 44
-  summary: 'Missing failure handler: controller does not handle the case where a looked-up
-    thread''s original message has been deleted'
+- file: frontend/discourse/package.json
+  line: 46
+  summary: 'Dependency bump: verify ember-resolver 13.2.0 changelog for breaking changes
+    or regressions before merging'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 38184
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

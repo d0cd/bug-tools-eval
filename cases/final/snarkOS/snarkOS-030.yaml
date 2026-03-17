@@ -1,28 +1,43 @@
 id: snarkOS-030
 repo: ProvableHQ/snarkOS
-base_commit: f50937e602347332cfa7021fba439c630d083efe^
-head_commit: f50937e602347332cfa7021fba439c630d083efe
-fix_commit: f50937e602347332cfa7021fba439c630d083efe
-category: logic
+base_commit: 2a30a6c6e872000e48d8adfa86f77c8548469a32^
+head_commit: 2a30a6c6e872000e48d8adfa86f77c8548469a32
+fix_commit: 2a30a6c6e872000e48d8adfa86f77c8548469a32
+category: performance
 difficulty: medium
-severity: critical
+severity: medium
 language: rust
 pr_size: medium
-description: Certificate validity was not checked before recursively fetching previous
-  certificates in the BFT consensus layer. An attacker could send an invalid certificate
-  that triggers unbounded recursive fetching, crashing the validator node. The fix
-  moves the certificate validity check earlier in the processing flow, before any
-  recursive operations.
+description: The longest_child_path operation used an application-level in-memory
+  cache (HashedMap) to store block children, which was inefficient and required repeated
+  Rust-side BFS traversal. This PR replaces that with a single SQL recursive CTE query
+  in the SQLite backend, removing the cache entirely. It also fixes an off-by-one
+  error in get_block_hashes where OLDEST_FORK_THRESHOLD was incremented by 1 unnecessarily.
 expected_findings:
-- file: node/bft/src/primary.rs
-  line: 955
-  summary: 'Missing early certificate validity check: incoming certificates should
-    be validated before recursively fetching previous certificates to prevent DoS
-    via crafted invalid certificates'
-- file: node/bft/src/helpers/storage.rs
-  line: 494
-  summary: Certificate storage operations proceed without prior validity verification,
-    enabling recursive fetch of previous certificates from an unvalidated source certificate
+- file: storage/src/storage/sync.rs
+  line: 131
+  summary: Iterative longest_child_path performs O(depth) DB queries with a naive
+    in-memory cache that grows unbounded and is never invalidated; should be replaced
+    with a single recursive SQL query
+  line_side: pre_fix
+- file: consensus/src/consensus/inner/mod.rs
+  line: 68
+  summary: 'Off-by-one: `OLDEST_FORK_THRESHOLD as u32 + 1` fetches one extra block
+    hash; should be `OLDEST_FORK_THRESHOLD as u32`'
+  line_side: pre_fix
+- file: storage/src/storage/sqlite/sync.rs
+  line: 158
+  summary: insert_block eagerly populates block_children_cache but the cache is never
+    invalidated on block removal, risking stale child references
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

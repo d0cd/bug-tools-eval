@@ -1,23 +1,34 @@
 id: grafana-022
 repo: grafana/grafana
-base_commit: e711f0e91494dd1a5cc3a42b1b061f3439385092^
-head_commit: e711f0e91494dd1a5cc3a42b1b061f3439385092
-fix_commit: e711f0e91494dd1a5cc3a42b1b061f3439385092
-category: api
-difficulty: easy
+base_commit: 34d4de6cdf8ec0d4902c7531a71672d06ab18040^
+head_commit: 34d4de6cdf8ec0d4902c7531a71672d06ab18040
+fix_commit: 34d4de6cdf8ec0d4902c7531a71672d06ab18040
+category: concurrency
+difficulty: medium
 severity: low
-language: unknown
-pr_size: tiny
-description: Workspace dependency files (go.mod/go.sum) were out of sync with the
-  rest of the monorepo. The fix ran `make update-workspace` to regenerate the module
-  files, updating indirect dependencies like grpc-gateway to their correct versions.
+language: go
+pr_size: small
+description: The `persistInitialConfig` function redundantly called `getTestHelper()`
+  internally, spinning up a second SQLite test database environment while a helper
+  was already passed in by the caller. This caused intermittent `database is locked`
+  (SQLITE_BUSY) errors due to two test environments competing for the same underlying
+  database. The fix removes the redundant `getTestHelper()` call so the function uses
+  the already-initialized helper.
 expected_findings:
-- file: pkg/infra/features/go.mod
-  line: 18
-  summary: 'Stale indirect dependency: grpc-gateway/v2 version is outdated and inconsistent
-    with the workspace root module'
+- file: pkg/tests/apis/alerting/notifications/receivers/receiver_test.go
+  line: 811
+  summary: persistInitialConfig internally calls getTestHelper(), creating a second
+    DB test environment that races with the caller's existing helper, causing intermittent
+    SQLITE_BUSY errors. Should use the helper passed via the function parameter instead.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

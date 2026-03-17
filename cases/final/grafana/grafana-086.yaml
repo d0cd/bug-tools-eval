@@ -1,0 +1,32 @@
+id: grafana-086
+repo: grafana/grafana
+base_commit: ba93414668c9e49a45965f80412c81e65afe189f^
+head_commit: ba93414668c9e49a45965f80412c81e65afe189f
+fix_commit: ba93414668c9e49a45965f80412c81e65afe189f
+category: api-misuse
+difficulty: easy
+severity: medium
+language: go
+pr_size: small
+description: StartGrafanaEnvWithDB used http.Get (Go's default client with no timeout)
+  for a health check, causing tests to hang indefinitely when the server wasn't ready.
+  The fix replaces this with a retry loop using a per-request timeout and an overall
+  deadline.
+expected_findings:
+- file: pkg/tests/testinfra/testinfra.go
+  line: 190
+  summary: http.Get used without timeout or retry for health check; Go's default HTTP
+    client has no timeout, so this call can block forever if the server is slow to
+    start
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

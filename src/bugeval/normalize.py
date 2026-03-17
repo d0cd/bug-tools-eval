@@ -14,6 +14,15 @@ from bugeval.pr_eval_models import EvalConfig, ToolType, load_eval_config
 from bugeval.result_models import Comment, CommentType, NormalizedResult, ResultMetadata
 
 
+def _parse_line(val: object) -> int:
+    """Parse a line number from int, str, or range string like '58-62' (takes start)."""
+    if not val:
+        return 0
+    s = str(val).strip()
+    m = re.match(r"^(\d+)", s)
+    return int(m.group(1)) if m else 0
+
+
 def normalize_pr_result(case_id: str, tool: str, raw_dir: Path) -> NormalizedResult:
     """Normalize PR-mode comments.json → NormalizedResult."""
     comments_path = raw_dir / "comments.json"
@@ -27,7 +36,7 @@ def normalize_pr_result(case_id: str, tool: str, raw_dir: Path) -> NormalizedRes
             comments.append(
                 Comment(
                     file=c.get("path", ""),
-                    line=int(c.get("line") or c.get("original_line") or 0),
+                    line=_parse_line(c.get("line") or c.get("original_line")),
                     body=c.get("body", ""),
                     type=CommentType.inline,
                 )
@@ -50,7 +59,7 @@ def normalize_api_result(
     comments = [
         Comment(
             file=item.get("path") or item.get("file", ""),
-            line=int(item.get("line") or 0),
+            line=_parse_line(item.get("line")),
             body=item.get("body") or item.get("summary", ""),
         )
         for item in raw
@@ -79,8 +88,13 @@ def normalize_agent_result(case_id: str, tool: str, raw_dir: Path) -> Normalized
     comments = [
         Comment(
             file=item.get("file", ""),
-            line=int(item.get("line") or 0),
-            body=item.get("summary") or item.get("body", ""),
+            line=_parse_line(item.get("line")),
+            body=(
+                item.get("summary")
+                or item.get("title")
+                or item.get("description")
+                or item.get("body", "")
+            ),
             confidence=item.get("confidence"),
             severity=item.get("severity"),
             category=item.get("category"),
@@ -126,6 +140,7 @@ _KNOWN_TOOLS = [
     "gemini-cli-flash",
     "claude-cli-sonnet",
     "claude-cli-haiku",
+    "claude-cli-opus",
     "codex-cli-mini",
     "codex-cli-o4",
     "claude-code-cli",

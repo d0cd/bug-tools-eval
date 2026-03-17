@@ -1,26 +1,37 @@
 id: leo-189
 repo: ProvableHQ/leo
-base_commit: 721852fd24408c00ff626549a5dfd5e2a3883c2e^
-head_commit: 721852fd24408c00ff626549a5dfd5e2a3883c2e
-fix_commit: 721852fd24408c00ff626549a5dfd5e2a3883c2e
-category: api
+base_commit: c09bd9904a42a610a5ee6b844a84ccf6f241376d^
+head_commit: c09bd9904a42a610a5ee6b844a84ccf6f241376d
+fix_commit: c09bd9904a42a610a5ee6b844a84ccf6f241376d
+category: logic
 difficulty: easy
 severity: medium
 language: rust
-pr_size: large
-description: The leo-abnf grammar crate had a dependency conflict with the abnf crate,
-  preventing it from being used. The fix patches the abnf dependency to version 0.12.0
-  in grammar/Cargo.toml and updates grammar/src/main.rs to work with the new API,
-  resolving the dependency conflict and restoring the leo-abnf crate.
+pr_size: small
+description: The Leo parser example (parser/examples/parser.rs) outputs the AST even
+  when parse errors occur. The fix adds an import of Handler from leo_errors::emitter
+  and introduces an error check after parsing, ensuring that when the parser encounters
+  errors the AST is not emitted as output.
 expected_findings:
-- file: grammar/Cargo.toml
-  line: 19
-  summary: Outdated or conflicting abnf crate version specified as dependency, causing
-    dependency resolution failure
-- file: grammar/src/main.rs
-  line: 38
-  summary: Code using old abnf crate API that is incompatible with the resolved dependency
-    version
+- file: parser/examples/parser.rs
+  line: 15
+  summary: Missing import of Handler from leo_errors::emitter — without it, parse
+    errors cannot be checked before outputting the AST
+  line_side: pre_fix
+- file: parser/examples/parser.rs
+  line: 55
+  summary: 'Missing error check after parsing: should verify Handler has no errors
+    before printing AST output, otherwise parse errors are silently ignored and invalid
+    AST is emitted'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

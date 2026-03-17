@@ -1,32 +1,38 @@
 id: snarkOS-015
 repo: ProvableHQ/snarkOS
-base_commit: d342b5fcd15b713c192f2cec4d83516c3de07f38^
-head_commit: d342b5fcd15b713c192f2cec4d83516c3de07f38
-fix_commit: d342b5fcd15b713c192f2cec4d83516c3de07f38
+base_commit: 189dc1cd72e940bdee3ebb7293f21b91e336094b^
+head_commit: 189dc1cd72e940bdee3ebb7293f21b91e336094b
+fix_commit: 189dc1cd72e940bdee3ebb7293f21b91e336094b
 category: logic
-difficulty: hard
-severity: high
+difficulty: easy
+severity: medium
 language: rust
-pr_size: medium
-description: The node's sync state was incorrectly updated during block request generation
-  instead of only when processing responses, new block locators, or disconnects. When
-  a peer disconnected and no block locators remained, the greatest peer height was
-  not cleared, leaving the node in a stale sync state instead of transitioning to
-  'unsynced'. A new `clear_greatest_peer_height` function was added and sync state
-  updates were moved to the correct lifecycle points.
+pr_size: tiny
+description: The `get_blocks` REST endpoint used inclusive bounds for both start and
+  end block heights, but the API contract specifies an exclusive end. This caused
+  off-by-one behavior where one extra block was returned (or the range semantics were
+  inconsistent with the documented interface). The fix updates the range handling
+  so the start is inclusive and the end is exclusive.
 expected_findings:
-- file: node/sync/src/block_sync.rs
-  line: 689
-  summary: Sync state is being updated during block request generation; this should
-    only happen when processing responses, block locators, or disconnects.
-- file: node/sync/src/block_sync.rs
-  line: 715
-  summary: Sync state update in request path can leave node in incorrect sync state
-    when greatest peer height decreases mid-request.
-- file: node/sync/src/block_sync.rs
-  line: 740
-  summary: 'Missing handling for peer disconnect: greatest peer height is not cleared
-    when no block locators remain, causing stale sync state.'
+- file: node/rest/src/routes.rs
+  line: 253
+  summary: 'Range boundary error: get_blocks uses inclusive end height but the API
+    documents exclusive end — the range iteration or slicing includes one extra block
+    beyond what callers expect'
+  line_side: pre_fix
+- file: node/rest/src/routes.rs
+  line: 21
+  summary: Documentation states end height is exclusive but the implementation treats
+    it as inclusive, creating a contract mismatch
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

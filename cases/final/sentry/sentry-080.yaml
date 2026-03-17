@@ -1,0 +1,31 @@
+id: sentry-080
+repo: getsentry/sentry
+base_commit: 659896f54b4f7e11a9b2f7ba5846a2a8992a04cd^
+head_commit: 659896f54b4f7e11a9b2f7ba5846a2a8992a04cd
+fix_commit: 659896f54b4f7e11a9b2f7ba5846a2a8992a04cd
+category: api-misuse
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: tiny
+description: The metric select field in the alerts UI was passing a `loading` prop
+  instead of the correct `isLoading` prop, so the component never showed a loading
+  indicator while fetching metric names. TypeScript's structural typing did not reject
+  the incorrect prop name, allowing the bug to slip through silently.
+expected_findings:
+- file: static/app/views/alerts/rules/metric/eapMetricsField.tsx
+  line: 216
+  summary: 'Wrong prop name: passing `loading` instead of `isLoading` to the select
+    component, so the loading state is never communicated to the user'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

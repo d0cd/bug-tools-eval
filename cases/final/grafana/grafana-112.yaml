@@ -1,0 +1,39 @@
+id: grafana-112
+repo: grafana/grafana
+base_commit: ebd84e44b0895fe333d3bfbf4e6f183cf079ce49^
+head_commit: ebd84e44b0895fe333d3bfbf4e6f183cf079ce49
+fix_commit: ebd84e44b0895fe333d3bfbf4e6f183cf079ce49
+category: logic
+difficulty: medium
+severity: low
+language: typescript
+pr_size: tiny
+description: When creating a new dashboard variable, the `isNewElement` flag that
+  drives auto-focus on the variable name input was always false after type selection.
+  The root cause is that `addVariable()` triggers `selectObject()` via `newObjectAddedToCanvas()`,
+  which resets the element's new-object state before the edit form renders, so `autoFocus={isNewElement}`
+  never fires. The fix ensures the new-element flag is correctly propagated through
+  the variable creation flow so the name input receives focus after type selection.
+expected_findings:
+- file: public/app/features/dashboard-scene/settings/variables/VariableAddEditableElement.tsx
+  line: 79
+  summary: addVariable() flow calls selectObject() which clears the isNewElement flag
+    before the edit form renders, causing autoFocus to never trigger on the variable
+    name input
+  line_side: pre_fix
+- file: public/app/features/dashboard-scene/settings/variables/VariableEditableElement.tsx
+  line: 50
+  summary: autoFocus={isNewElement} is always false for newly created variables because
+    the new-element state is lost during the add→select transition
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

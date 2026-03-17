@@ -1,26 +1,82 @@
 id: grafana-018
 repo: grafana/grafana
-base_commit: 80b05aa67c266acb1158ffb1f082f06dba97bdfa^
-head_commit: 80b05aa67c266acb1158ffb1f082f06dba97bdfa
-fix_commit: 80b05aa67c266acb1158ffb1f082f06dba97bdfa
-category: logic
-difficulty: medium
+base_commit: 29e28550926dc057adb67d19f92c9d44aedfea74^
+head_commit: 29e28550926dc057adb67d19f92c9d44aedfea74
+fix_commit: 29e28550926dc057adb67d19f92c9d44aedfea74
+category: code-smell
+difficulty: easy
 severity: medium
-language: unknown
-pr_size: tiny
-description: The `find` command in `pkgs-with-tests-named.sh` recursively searches
-  subdirectories when locating `*_test.go` files, causing packages to be incorrectly
-  included in CI test results when matching test functions only exist in subdirectory
-  packages. The fix adds `-maxdepth 1` to respect Go's package semantics where only
-  files in the same directory belong to a package.
+language: typescript
+pr_size: small
+description: The DataLinksActionsTooltip's tooltipWrapper CSS had no maxHeight or
+  overflow constraint, so when many data links were configured the tooltip extended
+  beyond the viewport edge, making off-screen links inaccessible. The fix adds a viewport-relative
+  maxHeight and overflowX:'hidden' to the tooltipWrapper style, but the reviewer noted
+  the styles should live in the CSS object (not inline on the floating element) and
+  that explicit overflowY was unnecessary since CSS spec coerces it automatically.
 expected_findings:
-- file: scripts/ci/backend-tests/pkgs-with-tests-named.sh
-  line: 60
-  summary: Missing `-maxdepth 1` on `find` command causes recursive search into subdirectories,
-    incorrectly matching test files that belong to child packages rather than the
-    target package
+- file: packages/grafana-ui/src/components/Table/DataLinksActionsTooltip.tsx
+  line: 121
+  summary: "tooltipWrapper CSS block has no maxHeight or overflow constraint \u2014\
+    \ when many data links are rendered the tooltip extends past the viewport, making\
+    \ links inaccessible; add explicit height cap (e.g. `maxHeight: calc(100vh - spacing)`)\
+    \ and overflow handling here"
+  line_side: pre_fix
+- file: packages/grafana-ui/src/components/Table/DataLinksActionsTooltip.tsx
+  line: 87
+  summary: Height/overflow styles should be added to the tooltipWrapper CSS object
+    rather than overwriting the inline floating styles on this element
+  line_side: pre_fix
+- file: packages/grafana-ui/src/components/Table/DataLinksActionsTooltip.tsx
+  line: 123
+  summary: "overflowX:'hidden' relies on implicit CSS overflow coercion to make overflowY:'auto'\
+    \ \u2014 this is fragile and unclear; either explicitly set overflowY or document\
+    \ the intent"
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119784
+reviewer_notes:
+- '[inline] instead of overwriting the inline floating styles these should be added
+  to the css in `tooltipWrapper`'
+reviewer_findings:
+- file: packages/grafana-ui/src/components/Table/DataLinksActionsTooltip.tsx
+  line: 87
+  summary: instead of overwriting the inline floating styles these should be added
+    to the css in `tooltipWrapper`
+  line_side: pre_fix
+- file: packages/grafana-ui/src/components/Table/DataLinksActionsTooltip.tsx
+  line: 87
+  summary: done
+  line_side: pre_fix
+- file: packages/grafana-ui/src/components/Table/DataLinksActionsTooltip.test.tsx
+  line: 30
+  summary: Please remove the console log mocking
+  line_side: pre_fix
+- file: packages/grafana-ui/src/components/Table/DataLinksActionsTooltip.test.tsx
+  line: 30
+  summary: done. good catch!
+  line_side: pre_fix
+- file: packages/grafana-ui/src/components/Table/DataLinksActionsTooltip.tsx
+  line: 123
+  summary: '```suggestion ```  I don''t think we need the overflowY here, just remember
+    to remove it from your test as well.'
+  line_side: pre_fix
+- file: packages/grafana-ui/src/components/Table/DataLinksActionsTooltip.tsx
+  line: 123
+  summary: Done.
+  line_side: pre_fix
+- file: packages/grafana-ui/src/components/Table/DataLinksActionsTooltip.tsx
+  line: 122
+  summary: '```suggestion       maxHeight: `calc(100vh - ${theme.spacing(4)})`, ```'
+  line_side: pre_fix
+- file: packages/grafana-ui/src/components/Table/DataLinksActionsTooltip.tsx
+  line: 122
+  summary: Done.
+  line_side: pre_fix
+quality_flags: []

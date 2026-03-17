@@ -1,34 +1,31 @@
 id: leo-230
 repo: ProvableHQ/leo
-base_commit: 8b15fffc1a7749e3f32f64c45d609fe9de61ad85^
-head_commit: 8b15fffc1a7749e3f32f64c45d609fe9de61ad85
-fix_commit: 8b15fffc1a7749e3f32f64c45d609fe9de61ad85
+base_commit: ea5bc5d693ff7647c98feb3d5b6905c76a817d81^
+head_commit: ea5bc5d693ff7647c98feb3d5b6905c76a817d81
+fix_commit: ea5bc5d693ff7647c98feb3d5b6905c76a817d81
 category: logic
-difficulty: medium
-severity: medium
+difficulty: easy
+severity: high
 language: rust
-pr_size: xl
-description: 'The Leo parser incorrectly allowed tuple destructuring syntax `let (x,
-  y): type = expr;` which did not match the ABNF grammar and posed a future compatibility
-  hazard. The fix simplifies tuple parsing by moving validation logic into the type
-  checker for better error messages, and removes the non-conforming destructuring
-  syntax from the parser.'
+pr_size: small
+description: Circuit initialization expression incorrectly set a mutability flag,
+  allowing mutable methods to be called on circuit members in an immutable context.
+  The fix corrects the boolean flag in the ASG circuit init code and adds a compiler
+  test to verify the behavior.
 expected_findings:
-- file: compiler/parser/src/parser/statement.rs
-  line: 103
-  summary: 'Parser incorrectly accepts tuple destructuring in definition statements
-    (`let (x, y): type = expr;`) which does not conform to the ABNF grammar and should
-    be rejected or deferred to pattern matching.'
-- file: compiler/parser/src/parser/type_.rs
-  line: 65
-  summary: Tuple type parsing logic is overly complex in the parser; validation for
-    tuple types (e.g. disallowing tuples in certain positions) should be handled in
-    the type checker instead for better error messages.
-- file: compiler/passes/src/type_checking/check_statements.rs
-  line: 45
-  summary: "Missing type checker validation for tuple types in definition statements\
-    \ \u2014 the type checker should enforce tuple restrictions and provide meaningful\
-    \ error messages rather than relying on parser-level checks."
+- file: asg/src/expression/circuit_init.rs
+  line: 67
+  summary: 'Incorrect mutability flag: circuit member initialized with wrong mutability
+    value, allowing mutable method calls in immutable contexts'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

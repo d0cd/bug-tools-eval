@@ -1,37 +1,38 @@
 id: grafana-006
 repo: grafana/grafana
-base_commit: 67afc3a2c1f684f41c4c38909df3bd69455522b0
-head_commit: 4b95c4f662c4f456541a7a579c9be487d05f9ab3
-fix_commit: 4b95c4f662c4f456541a7a579c9be487d05f9ab3
-category: api
+base_commit: 12cf21d7b3861d985fdd9a884999f67380cbb847^
+head_commit: 12cf21d7b3861d985fdd9a884999f67380cbb847
+fix_commit: 12cf21d7b3861d985fdd9a884999f67380cbb847
+category: logic
 difficulty: medium
 severity: high
-language: go
-pr_size: medium
-description: The legacy dashboard API did not properly handle Kubernetes-style dashboard
-  payloads with internal IDs. Dashboards could not be saved or updated via the legacy
-  API when using k8s objects because internal IDs were not extracted for lookups,
-  the SQL layer lacked support for querying by deprecated internal ID, and internal
-  IDs could leak into persisted specs. The fix adds proper internal ID extraction,
-  SQL query support for DeprecatedInternalID, overwrite conflict handling, and strips
-  internal IDs before saving.
+language: unknown
+pr_size: small
+description: 'The GitHub Actions E2E test workflow had two issues: the `required-playwright-tests`
+  job did not correctly handle the case where tests were skipped (failing due to missing
+  playwright report), and tests were incorrectly skipped on pushes to main when they
+  should always run. The fix consolidates gating behind a single `run-e2e-tests` output
+  and adjusts conditional steps.'
 expected_findings:
-- file: pkg/api/dashboard.go
-  line: 546
-  summary: saveDashboardViaK8s does not extract or handle legacy internal IDs from
-    the spec, causing k8s-style payloads with internal IDs to fail when saving through
-    the legacy API
-- file: pkg/registry/apis/dashboard/legacy/sql_dashboards.go
-  line: 154
-  summary: "Missing getLegacyIDSelector function to extract internal ID from label\
-    \ selectors \u2014 the SQL layer cannot look up dashboards by deprecated internal\
-    \ ID"
-- file: public/app/features/dashboard-scene/serialization/transformSceneToSaveModel.ts
-  line: 174
-  summary: Internal dashboard ID is not stripped before saving, allowing legacy internal
-    IDs to leak into k8s-style dashboard specs
+- file: .github/workflows/pr-e2e-tests.yml
+  line: 1
+  summary: The `required-playwright-tests` job lacks proper conditional guards for
+    when upstream E2E tests are skipped, causing it to fail when no playwright report
+    is produced
+  line_side: pre_fix
+- file: .github/workflows/pr-e2e-tests.yml
+  line: 1
+  summary: E2E tests are incorrectly skipped on pushes to main because the skip condition
+    does not exclude the `push` event trigger
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

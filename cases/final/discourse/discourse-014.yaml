@@ -1,30 +1,32 @@
 id: discourse-014
 repo: discourse/discourse
-base_commit: 09bbde38d1ea4c3be743384389607d03d5ee5ee9^
-head_commit: b89e514552fdc029b2b998adc7024e10b1049574
-fix_commit: 09bbde38d1ea4c3be743384389607d03d5ee5ee9
+base_commit: 16395aa94fb4559e81590ca1ab396d3f2d0950f9^
+head_commit: 16395aa94fb4559e81590ca1ab396d3f2d0950f9
+fix_commit: 16395aa94fb4559e81590ca1ab396d3f2d0950f9
 category: logic
-difficulty: medium
-severity: medium
-language: unknown
+difficulty: easy
+severity: high
+language: ruby
 pr_size: small
-description: After moving suggested-topic tabs into the table header (commit b89e514),
-  the tabs became invisible on mobile because the table header is hidden on mobile
-  via CSS. The fix forces the tabs to remain visible on mobile by overriding the header
-  visibility for the tabs container and injects the moreTopicsTabs service into the
-  topic-list component so it can conditionally render them.
+description: The AI tag suggester component referenced `model` instead of `this.model`
+  when filtering out already-applied tags from suggestions. This caused a runtime
+  error (undefined reference) whenever the tag suggester attempted to filter suggestions,
+  breaking the AI tag suggestion feature entirely.
 expected_findings:
-- file: app/assets/stylesheets/common/components/more-topics.scss
-  line: 53
-  summary: "Missing mobile override: suggested-topics tabs rendered inside table header\
-    \ are hidden on mobile because the header's display:none rule applies to the tabs\
-    \ container \u2014 needs explicit visibility rule for mobile"
-- file: frontend/discourse/app/components/topic-list/list.gjs
-  line: 34
-  summary: 'Missing moreTopicsTabs service injection: component cannot determine whether
-    to show tabs on mobile without access to the tab state service'
+- file: plugins/discourse-ai/assets/javascripts/discourse/components/suggestion-menus/ai-tag-suggester.gjs
+  line: 85
+  summary: 'Incorrect reference: `model` should be `this.model` — in a Glimmer/Ember
+    component, `model` without `this.` is not bound to the component instance, causing
+    an undefined reference error when filtering already-applied tags'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

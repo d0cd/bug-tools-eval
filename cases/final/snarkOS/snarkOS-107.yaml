@@ -1,23 +1,30 @@
 id: snarkOS-107
 repo: ProvableHQ/snarkOS
-base_commit: 4358ec441a4fd6ee3c5f31565c27cad8bd0b4ac9^
-head_commit: 4358ec441a4fd6ee3c5f31565c27cad8bd0b4ac9
-fix_commit: 4358ec441a4fd6ee3c5f31565c27cad8bd0b4ac9
-category: logic
+base_commit: 95a9e516f05e30e1900ec08d43849708f0b3817c^
+head_commit: 95a9e516f05e30e1900ec08d43849708f0b3817c
+fix_commit: 95a9e516f05e30e1900ec08d43849708f0b3817c
+category: style
 difficulty: easy
 severity: low
 language: rust
 pr_size: tiny
-description: 'Stricter peering rules introduced in PR #3163 caused router test connections
-  to fail when peers were not in the validator''s trusted peer set. The fix relaxes
-  the peering requirements in the test helper by changing a boolean flag to allow
-  validators to connect to non-trusted peers during testing.'
+description: A typo in a doc comment or identifier in the network server module. The
+  fix corrects a minor textual error in `src/network/server.rs`, likely in the doc
+  comment for a struct field around line 53.
 expected_findings:
-- file: node/router/tests/common/mod.rs
-  line: 111
-  summary: 'Test configuration too strict: the trusted-peers-only flag should be relaxed
-    (set to true/permissive) so router tests can connect validators to arbitrary peers
-    without requiring them in the trusted set.'
+- file: src/network/server.rs
+  line: 53
+  summary: Typo in doc comment `/// The ledger of the node.` — check for misspelling
+    or incorrect wording
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

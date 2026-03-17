@@ -1,31 +1,33 @@
 id: leo-141
 repo: ProvableHQ/leo
-base_commit: 558638a195db4d6f63b1067c7b27ecaeb8039f14^
-head_commit: 558638a195db4d6f63b1067c7b27ecaeb8039f14
-fix_commit: 558638a195db4d6f63b1067c7b27ecaeb8039f14
-category: logic
-difficulty: medium
-severity: high
+base_commit: 8f61a3db8960ddd177cb395cfeddc05b96d16a95^
+head_commit: 8f61a3db8960ddd177cb395cfeddc05b96d16a95
+fix_commit: 8f61a3db8960ddd177cb395cfeddc05b96d16a95
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: Leo compiler imports were not being canonicalized, causing import resolution
-  failures. The fix updates the import parsing in parse_symbol.rs to properly canonicalize
-  parsed programs and adjusts related error module imports to use consolidated paths
-  from leo_ast.
+pr_size: tiny
+description: 'The error message when no private key argument is provided and --discreet
+  is false was misleading, suggesting the key could be read from an environment variable
+  (PRIVATE_KEY), which this command does not support. The fix clarifies the message
+  to accurately state the two options: pass the key as an argument or use --discreet
+  for secure input.'
 expected_findings:
-- file: imports/src/parser/parse_symbol.rs
-  line: 54
-  summary: Parsed program is not canonicalized after parsing; leo_parser::parse result
-    needs canonicalization before further processing to resolve import symbols correctly.
-- file: imports/src/errors/import_parser.rs
-  line: 14
-  summary: Import paths for leo_ast types (AstError, FormattedError, Identifier, LeoError,
-    Span) are not using the canonical re-export path, leading to inconsistent type
-    resolution.
-- file: asg/src/error/mod.rs
-  line: 17
-  summary: Import paths for leo_ast types (AstError, FormattedError, LeoError) are
-    not canonicalized, should use consolidated import from leo_ast.
+- file: leo/cli/commands/account.rs
+  line: 286
+  summary: Misleading error message implies PRIVATE_KEY environment variable is supported
+    by this command, but it is not; message should clarify that the user must pass
+    the key as an argument or use --discreet
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

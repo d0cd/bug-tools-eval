@@ -1,25 +1,39 @@
 id: snarkVM-135
 repo: ProvableHQ/snarkVM
-base_commit: 2254ee67b20e19461b6479ccbb5449d82ec9c244^
-head_commit: 2254ee67b20e19461b6479ccbb5449d82ec9c244
-fix_commit: 2254ee67b20e19461b6479ccbb5449d82ec9c244
-category: logic
-difficulty: easy
-severity: low
+base_commit: b0dd5c524175ff17fa587c3c57933a7a0c0e981b^
+head_commit: b0dd5c524175ff17fa587c3c57933a7a0c0e981b
+fix_commit: b0dd5c524175ff17fa587c3c57933a7a0c0e981b
+category: concurrency
+difficulty: hard
+severity: high
 language: rust
-pr_size: small
-description: Fixed clippy warnings in Event and Operation enum match arms by replacing
-  catch-all patterns with proper `unreachable!()` macro calls that include the invalid
-  ID in the error message. Also switched CI resource_class from default to xlarge.
+pr_size: medium
+description: Race condition in Ledger where concurrent calls to prepare_next_beacon_block
+  and advance_to_next_block can read inconsistent state — the block height from one
+  state and the state_root from another — producing an invalid block that passes superficial
+  checks. The fix makes ledger reads atomic by acquiring a lock that prevents partial/inconsistent
+  reads across concurrent operations.
 expected_findings:
-- file: dpc/src/virtual_machine/event.rs
-  line: 149
-  summary: 'Clippy lint: catch-all match arm should use `unreachable!()` with a formatted
-    message including the invalid event_id'
-- file: dpc/src/virtual_machine/operation.rs
-  line: 176
-  summary: 'Clippy lint: catch-all match arm should use `unreachable!()` with a formatted
-    message including the invalid operation_id'
+- file: ledger/src/lib.rs
+  line: 133
+  summary: Ledger implements Sync but prepare_next_beacon_block reads current_block
+    and state_root in separate non-atomic steps, allowing a concurrent advance_to_next_block
+    to update state between reads, producing a block with mismatched height and state_root.
+  line_side: pre_fix
+- file: ledger/src/advance.rs
+  line: 21
+  summary: advance_to_next_block mutates current_block and state_root without holding
+    a read-side lock that would block concurrent prepare calls, enabling a TOCTOU
+    race where readers see partially-updated ledger state.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

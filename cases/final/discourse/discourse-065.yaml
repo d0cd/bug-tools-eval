@@ -1,25 +1,49 @@
 id: discourse-065
 repo: discourse/discourse
-base_commit: dba79d31a7e05fccf21cdf262a3dc6176cd4961a^
-head_commit: dba79d31a7e05fccf21cdf262a3dc6176cd4961a
-fix_commit: dba79d31a7e05fccf21cdf262a3dc6176cd4961a
-category: logic
-difficulty: easy
-severity: medium
-language: unknown
-pr_size: tiny
-description: The reviewable-claimed-topic component used a site-setting-based guard
-  instead of a user-based guard to control visibility of claim/unclaim actions. This
-  caused the claim and unclaim text to be incorrectly suppressed even when SiteSetting.force_old_reviewable_ui
-  was false, due to a missed update from a prior strategy change that deprecated that
-  site setting.
+base_commit: 929dca65e54c62ba33f9a07d6ce02790c3474845^
+head_commit: 929dca65e54c62ba33f9a07d6ce02790c3474845
+fix_commit: 929dca65e54c62ba33f9a07d6ce02790c3474845
+category: security
+difficulty: medium
+severity: high
+language: javascript
+pr_size: medium
+description: Category authors could restore chat messages that were deleted by someone
+  else, even without moderation privileges. The guardian check in `can_restore_chat?`
+  allowed any user whose `deleted_by_id` matched OR who had category-level permissions,
+  but did not properly gate non-self-deleted message restores behind `can_moderate_chat?`.
+  Additionally, the client-side subscription managers removed deleted messages from
+  the UI on live-delete events, causing moderators to lose visibility of deleted messages
+  without a full page reload.
 expected_findings:
-- file: app/assets/javascripts/discourse/app/components/reviewable-claimed-topic.gjs
-  line: 1
-  summary: 'Wrong guard condition: uses deprecated site-setting-based check instead
-    of user-based guard for controlling reviewable UI claim/unclaim visibility'
+- file: plugins/chat/lib/chat/guardian_extensions.rb
+  line: 246
+  summary: 'Authorization bypass: the restore guard allows category authors to restore
+    messages deleted by other users. The check should require `can_moderate_chat?`
+    when `deleted_by_id != current_user.id`, not just fall through on category-level
+    permissions.'
+  line_side: pre_fix
+- file: plugins/chat/assets/javascripts/discourse/lib/chat-message-interactor.js
+  line: 126
+  summary: 'Missing permission check: the restore action visibility condition uses
+    `canModerate` but does not account for whether the current user is the one who
+    deleted the message, allowing the UI to offer restore to unauthorized category
+    authors.'
+  line_side: pre_fix
+- file: plugins/chat/assets/javascripts/discourse/lib/chat-channel-subscription-manager.js
+  line: 184
+  summary: Live-delete handler unconditionally removes the message from the channel
+    message list. For moderators/admins, deleted messages should remain visible (marked
+    as deleted) so they can take action without a reload.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

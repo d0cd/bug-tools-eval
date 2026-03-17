@@ -1,0 +1,43 @@
+id: sentry-081
+repo: getsentry/sentry
+base_commit: 660717df15f75613f3f8ff10e0166562cc382b9b^
+head_commit: 8500e95
+fix_commit: 660717df15f75613f3f8ff10e0166562cc382b9b
+category: api-misuse
+difficulty: easy
+severity: high
+language: python
+pr_size: tiny
+description: After migrating to urllib3 connection pools (commit 8500e95), a default
+  5-second read timeout was introduced. The AI translate endpoints (translate and
+  translate-agentic) did not specify explicit timeouts, causing ReadTimeoutErrors
+  for requests that legitimately take longer than 5 seconds. The fix adds explicit
+  timeout parameters (30s and 10s respectively) to the Seer API call functions.
+expected_findings:
+- file: src/sentry/seer/endpoints/trace_explorer_ai_query.py
+  line: 41
+  summary: Missing explicit timeout on make_translate_query_request call; inherits
+    the 5-second default from the urllib3 connection pool, which is too short for
+    AI translation queries
+  line_side: pre_fix
+- file: src/sentry/seer/endpoints/trace_explorer_ai_translate_agentic.py
+  line: 82
+  summary: Missing explicit timeout on make_translate_agentic_request call; the default
+    5-second pool timeout is insufficient for agentic AI translation
+  line_side: pre_fix
+- file: src/sentry/seer/signed_seer_api.py
+  line: 370
+  summary: make_translate_query_request lacks a timeout parameter, so callers cannot
+    override the pool default timeout for long-running AI requests
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

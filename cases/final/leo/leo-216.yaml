@@ -1,31 +1,35 @@
 id: leo-216
 repo: ProvableHQ/leo
-base_commit: 87d6a31632144a542ced1ffc8910de9f0655f6da^
-head_commit: 87d6a31632144a542ced1ffc8910de9f0655f6da
-fix_commit: 87d6a31632144a542ced1ffc8910de9f0655f6da
+base_commit: d83763329b97e34f8f4a80f8654923c62215af0f^
+head_commit: d83763329b97e34f8f4a80f8654923c62215af0f
+fix_commit: d83763329b97e34f8f4a80f8654923c62215af0f
 category: logic
-difficulty: easy
+difficulty: medium
 severity: high
 language: rust
-pr_size: small
-description: The Leo import parser was looking for the deprecated `src/lib.leo` as
-  the main file entry point when resolving imported packages. Since `lib.leo` was
-  replaced by `main.leo` long ago, any import from an Aleo PM package would fail with
-  a 'Cannot find imported package' error. The fix updates the MAIN_FILE constant and
-  related path logic to reference `src/main.leo` instead.
+pr_size: medium
+description: Function inlining did not apply SSA (Static Single Assignment) renaming
+  to the reconstructed block, causing variable shadowing when the same function was
+  inlined multiple times or when inlined variable names collided with caller variables.
+  The fix runs an SsaFormingVisitor with rename_defs enabled on each inlined block
+  immediately after reconstruction, and removes the now-unnecessary global rename_defs
+  pass.
 expected_findings:
-- file: imports/src/parser/parse_symbol.rs
-  line: 19
-  summary: 'Wrong file path constant: MAIN_FILE points to deprecated `src/lib.leo`
-    instead of `src/main.leo`, causing all package imports to fail.'
-- file: imports/src/parser/parse_symbol.rs
-  line: 39
-  summary: Second occurrence of stale MAIN_FILE constant referencing `src/lib.leo`
-    instead of `src/main.leo`.
-- file: imports/src/parser/parse_package.rs
-  line: 72
-  summary: "Path resolution logic for imports directory may be incorrect \u2014 needs\
-    \ to account for the src/ folder structure when locating the main file."
+- file: compiler/passes/src/function_inlining/ast.rs
+  line: 60
+  summary: After reconstructing the inlined block via Replacer, no SSA renaming is
+    applied to the result. When the same function is inlined multiple times, the inlined
+    variables retain their original names, causing shadowing in the caller scope.
+    Must run SsaFormingVisitor with rename_defs:true on the reconstructed block.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,31 +1,44 @@
 id: leo-169
 repo: ProvableHQ/leo
-base_commit: 1674149c422291a9775684a89b828b18674f13c4^
-head_commit: 1674149c422291a9775684a89b828b18674f13c4
-fix_commit: 1674149c422291a9775684a89b828b18674f13c4
-category: api
+base_commit: b46451edfb714ce16e19fcdd1b3b2f2241892e3a^
+head_commit: b46451edfb714ce16e19fcdd1b3b2f2241892e3a
+fix_commit: b46451edfb714ce16e19fcdd1b3b2f2241892e3a
+category: api-misuse
 difficulty: medium
-severity: critical
+severity: medium
 language: rust
-pr_size: medium
-description: The 'leo build' command failed to compile programs because the Compiler::init()
-  call in the build command was using an outdated signature that no longer matched
-  the compiler's API. The fix updated the Compiler initialization in build.rs to pass
-  the correct parameters (including InputValue and Program types), added proper error
-  handling for current directory access, and updated tests to match the new model.
+pr_size: xl
+description: 'The Leo compiler, parser, and type-checker were hardcoded to `MainnetV0`
+  instead of being generic over the `Network` trait, preventing support for alternative
+  networks. This refactoring threads a generic `N: Network` parameter through `Compiler`,
+  `ParserContext`, and all type-checking passes, replacing concrete `MainnetV0` references
+  with the generic bound.'
 expected_findings:
-- file: leo/commands/build.rs
-  line: 63
-  summary: Compiler::init() call uses outdated/incorrect parameters that don't match
-    the current compiler API, causing 'leo build' to fail
-- file: leo/commands/build.rs
-  line: 94
-  summary: Second Compiler::init() call site also uses the old API signature and needs
-    to be updated
-- file: compiler/src/compiler.rs
-  line: 28
-  summary: Compiler struct/init method signature changed (now requires InputValue
-    and Program) but callers in build.rs were not updated
+- file: compiler/compiler/src/compiler.rs
+  line: 58
+  summary: Compiler struct is not generic over Network — hardcoded to a single network
+    type, making it impossible to compile programs targeting other networks without
+    duplicating the entire compiler.
+  line_side: pre_fix
+- file: compiler/parser/src/parser/expression.rs
+  line: 769
+  summary: 'Address literal parsing uses a concrete network type for validation. Should
+    be generic over `N: Network` so addresses are validated against the target network''s
+    parameters (prefix, encoding).'
+  line_side: pre_fix
+- file: compiler/parser/src/parser/context.rs
+  line: 43
+  summary: ParserContext is not parameterized by Network, forcing all parsed programs
+    to assume MainnetV0 semantics even when targeting a different network.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

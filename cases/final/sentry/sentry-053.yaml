@@ -1,26 +1,35 @@
 id: sentry-053
 repo: getsentry/sentry
-base_commit: 948dfedb37bd20bda491a233568f5e711899368a^
-head_commit: 948dfedb37bd20bda491a233568f5e711899368a
-fix_commit: 948dfedb37bd20bda491a233568f5e711899368a
-category: api
+base_commit: 3e591841d39f36a8a692c4c6286de0479d71a8d5^
+head_commit: 3e591841d39f36a8a692c4c6286de0479d71a8d5
+fix_commit: 3e591841d39f36a8a692c4c6286de0479d71a8d5
+category: code-smell
 difficulty: easy
-severity: medium
+severity: low
 language: python
-pr_size: small
-description: 'The artifact image endpoint uses a blanket `except Exception` to catch
-  all errors from objectstore, returning 500 and logging at exception level even when
-  the image simply doesn''t exist (a normal condition). The fix adds specific handling
-  for `RequestError` from `objectstore_client`: a 404 status returns a clean 404 response
-  without logging, while other statuses still log and return 500.'
+pr_size: tiny
+description: Two deobfuscation tests (`test_basic_resolving` and `test_inline_resolving`)
+  in `DeobfuscationViaSymbolicator` were unconditionally skipped due to a symbolicator
+  regression that has since been resolved. The fix re-enables the tests and updates
+  the expected `source_file` assertion values to reflect symbolicator's current behavior,
+  where source files are resolved from proguard mappings rather than preserving the
+  original input values.
 expected_findings:
-- file: src/sentry/preprod/api/endpoints/project_preprod_artifact_image.py
-  line: 43
-  summary: Blanket `except Exception` catches objectstore 404 (missing image) and
-    returns HTTP 500 with error logging; should catch `RequestError` first and return
-    404 for missing resources
+- file: tests/sentry/profiles/test_task.py
+  line: 1
+  summary: "Skipped tests (`@pytest.mark.skip` or `skipTest`) in `DeobfuscationViaSymbolicator`\
+    \ should be re-enabled \u2014 the upstream symbolicator regression they were gating\
+    \ on has been resolved. Leaving tests permanently skipped without a linked tracking\
+    \ issue is a code smell that hides coverage gaps."
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110379
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

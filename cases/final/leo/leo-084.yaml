@@ -1,24 +1,42 @@
 id: leo-084
 repo: ProvableHQ/leo
-base_commit: be17d03646a3d32f8460e29d64b329250ca8c7b6^
-head_commit: be17d03646a3d32f8460e29d64b329250ca8c7b6
-fix_commit: be17d03646a3d32f8460e29d64b329250ca8c7b6
+base_commit: 558638a195db4d6f63b1067c7b27ecaeb8039f14^
+head_commit: 558638a195db4d6f63b1067c7b27ecaeb8039f14
+fix_commit: 558638a195db4d6f63b1067c7b27ecaeb8039f14
 category: logic
 difficulty: medium
-severity: critical
+severity: high
 language: rust
-pr_size: tiny
-description: Position commands in the finalize executor were returned without incrementing
-  the instruction index, causing an infinite loop. The executor would repeatedly fetch
-  the same Position command since control flow never advanced past it. The fix increments
-  the instruction index when encountering a Position command, aligning with how other
-  commands advance control flow.
+pr_size: small
+description: Leo compiler imports were not being canonicalized, causing import resolution
+  failures. The fix updates the import parsing in parse_symbol.rs to properly canonicalize
+  parsed programs and adjusts related error module imports to use consolidated paths
+  from leo_ast.
 expected_findings:
-- file: interpreter/src/cursor_aleo.rs
-  line: 900
-  summary: Position(_) match arm returns without incrementing the instruction index,
-    causing an infinite loop as the executor repeatedly fetches the same Position
-    command
+- file: imports/src/parser/parse_symbol.rs
+  line: 54
+  summary: Parsed program is not canonicalized after parsing; leo_parser::parse result
+    needs canonicalization before further processing to resolve import symbols correctly.
+  line_side: pre_fix
+- file: imports/src/errors/import_parser.rs
+  line: 14
+  summary: Import paths for leo_ast types (AstError, FormattedError, Identifier, LeoError,
+    Span) are not using the canonical re-export path, leading to inconsistent type
+    resolution.
+  line_side: pre_fix
+- file: asg/src/error/mod.rs
+  line: 17
+  summary: Import paths for leo_ast types (AstError, FormattedError, LeoError) are
+    not canonicalized, should use consolidated import from leo_ast.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

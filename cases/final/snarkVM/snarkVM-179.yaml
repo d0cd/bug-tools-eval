@@ -1,29 +1,37 @@
 id: snarkVM-179
 repo: ProvableHQ/snarkVM
-base_commit: 177af4529b11bd7efa7e084ce8a289a431117356^
-head_commit: 177af4529b11bd7efa7e084ce8a289a431117356
-fix_commit: 177af4529b11bd7efa7e084ce8a289a431117356
-category: api
-difficulty: easy
-severity: high
+base_commit: f3cc409deb4b4388cf115dc227f16f0219cc688d^
+head_commit: f3cc409deb4b4388cf115dc227f16f0219cc688d
+fix_commit: f3cc409deb4b4388cf115dc227f16f0219cc688d
+category: performance
+difficulty: hard
+severity: medium
 language: rust
-pr_size: tiny
-description: 'DeploymentRequest was not serialized properly and DeploymentResponse
-  was not deserialized properly in the Aleo deployment command flow. The fix corrects
-  the serialization method used for the deployment field in DeploymentRequest and
-  the deserialization method used for the deployment field in DeploymentResponse.
-  This bug was introduced in PR #1000.'
+pr_size: medium
+description: The BHP circuit gadget in the field arithmetic implementation (fp.rs)
+  generated more non-zero entries than necessary in the R1CS constraint system. By
+  optimizing how BigInteger operations are expressed as constraints, the inner circuit
+  non-zero entries were reduced from ~538k to ~475k, yielding a 17% speedup in Marlin
+  proving time.
 expected_findings:
-- file: vm/package/deploy.rs
-  line: 68
-  summary: 'Incorrect serialization of the deployment field in DeploymentRequest:
-    wrong serialization method used (e.g., missing or incorrect conversion), causing
-    deployment data to be malformed when sent.'
-- file: vm/package/deploy.rs
-  line: 128
-  summary: 'Incorrect deserialization of the deployment field in DeploymentResponse:
-    the deserialization does not match the expected format, causing deployment responses
-    to fail parsing.'
+- file: gadgets/src/fields/fp.rs
+  line: 31
+  summary: BigInteger usage in field gadget creates unnecessary non-zero entries in
+    the constraint system; can be restructured to reduce R1CS density
+  line_side: pre_fix
+- file: gadgets/src/fields/fp.rs
+  line: 655
+  summary: Field multiplication/reduction constraint generation produces redundant
+    non-zero entries; restructure to minimize non-zero entries in A/B/C matrices
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

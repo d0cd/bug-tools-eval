@@ -1,0 +1,32 @@
+id: discourse-114
+repo: discourse/discourse
+base_commit: f3ab626bbca04dd70f15c265955f588eb633dc25^
+head_commit: f3ab626bbca04dd70f15c265955f588eb633dc25
+fix_commit: f3ab626bbca04dd70f15c265955f588eb633dc25
+category: style
+difficulty: easy
+severity: low
+language: ruby
+pr_size: tiny
+description: 'After PR #38420 removed or changed a wrapping div that previously made
+  the events onebox full-width by default, the inner table lost its full-width styling.
+  The fix adds an explicit width style to the table element so it spans the full container
+  width as before.'
+expected_findings:
+- file: plugins/discourse-calendar/plugin.rb
+  line: 589
+  summary: Table element for events onebox is missing a full-width style (e.g. width:100%);
+    the previously wrapping div provided full-width by default, but now the table
+    needs it explicitly
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

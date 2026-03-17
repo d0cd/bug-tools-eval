@@ -1,26 +1,43 @@
 id: snarkVM-007
 repo: ProvableHQ/snarkVM
-base_commit: 11132c399c6ce0575deb2f017a5e920c21ef1c93^
-head_commit: 11132c399c6ce0575deb2f017a5e920c21ef1c93
-fix_commit: 11132c399c6ce0575deb2f017a5e920c21ef1c93
-category: memory
+base_commit: 09a875e81ab819b255383dd920e908da0e5c8ae8^
+head_commit: 09a875e81ab819b255383dd920e908da0e5c8ae8
+fix_commit: 09a875e81ab819b255383dd920e908da0e5c8ae8
+category: api-misuse
 difficulty: medium
 severity: critical
 language: rust
-pr_size: medium
-description: "CircuitVerifyingKey::deserialize used derived CanonicalDeserialize which\
-  \ performed unbounded memory allocation for the circuit_commitments vector. A malicious\
-  \ input could specify an arbitrarily large length, causing the deserializer to allocate\
-  \ excessive memory and exhaust resources. The fix replaces the derived implementation\
-  \ with a custom one that bounds circuit_commitments to 12 elements (3 matrices \xD7\
-  \ 4 polynomials per the Varuna protocol)."
+pr_size: small
+description: Using `reqwest::blocking` for inclusion proof HTTP requests internally
+  spawns a Tokio runtime, which panics when called from within an existing Tokio executor
+  (nested runtimes are not allowed). The fix replaces `reqwest` with `ureq`, a synchronous
+  HTTP client with no Tokio dependency, allowing deploy/execute operations to work
+  correctly inside async server contexts.
 expected_findings:
-- file: algorithms/src/snark/varuna/data_structures/circuit_verifying_key.rs
-  line: 28
-  summary: "Derived CanonicalDeserialize on CircuitVerifyingKey allows unbounded memory\
-    \ allocation when deserializing circuit_commitments vector \u2014 a malicious\
-    \ input can specify an arbitrary length to exhaust memory. Needs a custom deserialize\
-    \ implementation with a bounded length check."
+- file: synthesizer/src/process/stack/inclusion/mod.rs
+  line: 57
+  summary: Using reqwest::blocking inside a potentially async (Tokio) context will
+    panic due to nested Tokio runtime creation. Replace with a sync HTTP client like
+    ureq that does not depend on Tokio.
+  line_side: pre_fix
+- file: synthesizer/src/process/stack/inclusion/mod.rs
+  line: 84
+  summary: Same reqwest::blocking misuse in another inclusion proof fetch path; will
+    crash when called from a Tokio executor.
+  line_side: pre_fix
+- file: synthesizer/src/process/stack/inclusion/mod.rs
+  line: 98
+  summary: Same reqwest::blocking misuse in a third inclusion proof fetch path; will
+    crash when called from a Tokio executor.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

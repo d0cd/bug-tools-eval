@@ -1,32 +1,39 @@
 id: snarkVM-116
 repo: ProvableHQ/snarkVM
-base_commit: 423fb30fcd29fd8a2c636103a40c74a2ad8614dc^
-head_commit: 423fb30fcd29fd8a2c636103a40c74a2ad8614dc
-fix_commit: 423fb30fcd29fd8a2c636103a40c74a2ad8614dc
-category: type
+base_commit: 8b97a9a5d4f10fbda01f0b5168ccb082c03dfacd^
+head_commit: 8b97a9a5d4f10fbda01f0b5168ccb082c03dfacd
+fix_commit: 8b97a9a5d4f10fbda01f0b5168ccb082c03dfacd
+category: logic
 difficulty: medium
-severity: high
+severity: critical
 language: rust
-pr_size: tiny
-description: The `Bech32ID` and `Bech32Object` types implemented `Borrow<F>`, which
-  allowed map functions to accept generic fields instead of their distinct wrapper
-  types. This meant `StateRoot`, `BlockHash`, `TransactionID`, and `TransitionID`
-  were all treated as equivalent field elements in map lookups, leading to incorrect
-  map operations. The fix removes the `Borrow<F>` trait bound from both types and
-  updates a call site in the block store that relied on the implicit `.into()` conversion.
+pr_size: small
+description: The byte (de)serialization implementations for the `get` and `get.or_use`
+  commands had incorrect field handling, likely reading or writing fields in the wrong
+  order or using incorrect byte conversions. The fix corrected the FromBytes/ToBytes
+  implementations to properly serialize and deserialize the mapping, key, destination
+  (and default for get_or_use) fields.
 expected_findings:
-- file: console/network/src/helpers/id.rs
-  line: 23
-  summary: Bech32ID implements Borrow<F>, allowing distinct ID wrapper types to be
-    used interchangeably as raw field elements in map lookups, defeating type safety
-- file: console/network/src/helpers/object.rs
-  line: 23
-  summary: "Bech32Object implements Borrow<F>, same leniency issue as Bech32ID\u2014\
-    wrapper types lose distinctness when used as map keys"
-- file: synthesizer/src/store/block/mod.rs
-  line: 359
-  summary: Map lookup uses `.into()` to convert a wrapper type to a raw field, exploiting
-    the overly permissive Borrow<F> bound instead of using the properly typed key
+- file: synthesizer/program/src/logic/command/get.rs
+  line: 265
+  summary: 'Incorrect byte deserialization of `Get` command: fields (mapping, key,
+    destination) are being read/written incorrectly in the FromBytes/ToBytes implementation,
+    causing serialization round-trip failures.'
+  line_side: pre_fix
+- file: synthesizer/program/src/logic/command/get_or_use.rs
+  line: 184
+  summary: 'Incorrect byte deserialization of `GetOrUse` command: fields (mapping,
+    key, default, destination) are being read/written incorrectly in the FromBytes/ToBytes
+    implementation, causing serialization round-trip failures.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,34 +1,32 @@
 id: leo-068
 repo: ProvableHQ/leo
-base_commit: fb5ae329aab7684b989a1db59056fa2cd648770e^
-head_commit: fb5ae329aab7684b989a1db59056fa2cd648770e
-fix_commit: fb5ae329aab7684b989a1db59056fa2cd648770e
-category: logic
-difficulty: medium
-severity: high
+base_commit: 4736a8f724c9358608cf47ec640996c8680ae1b3^
+head_commit: 4736a8f724c9358608cf47ec640996c8680ae1b3
+fix_commit: 4736a8f724c9358608cf47ec640996c8680ae1b3
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: 'The signed integer division algorithm fails when dividing by the minimum
-  value (e.g., -128 for i8) because it computes the two''s complement of the denominator,
-  and the minimum signed integer has no representable inverse. The fix adds special-case
-  checks: if the denominator is the minimum value, the result is 1 when numerator
-  equals denominator, and 0 otherwise, since division rounds toward zero.'
+pr_size: tiny
+description: The Leo config file name stored in the constant LEO_CONFIG_FILE was 'leo.config',
+  a non-standard name with no file extension indicating format. The PR renames it
+  to 'config.toml', which follows TOML naming conventions and makes the file format
+  explicit. This is a cosmetic/naming change with no behavioral impact beyond the
+  file path.
 expected_findings:
-- file: gadgets/src/signed_integer/arithmetic/div.rs
-  line: 23
-  summary: Division algorithm computes two's complement of the denominator without
-    checking if the denominator is the minimum signed integer value (e.g., -128 for
-    i8), which has no valid two's complement inverse and causes a failure.
-- file: gadgets/src/signed_integer/arithmetic/div.rs
-  line: 85
-  summary: The division macro does not handle the edge case where the denominator
-    is the minimum value; needs special-case logic to return 1 (if numerator == denominator)
-    or 0 (otherwise).
-- file: compiler/tests/integers/int_macro.rs
-  line: 115
-  summary: Test comment says 'make sure we can calculate the inverse of each number'
-    but does not test division by the minimum signed integer value, missing the edge
-    case that triggers the bug.
+- file: leo/config.rs
+  line: 29
+  summary: Config file constant uses non-standard name 'leo.config' — should use a
+    conventional extension like '.toml' to indicate the file format.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

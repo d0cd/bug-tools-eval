@@ -1,31 +1,34 @@
 id: snarkVM-131
 repo: ProvableHQ/snarkVM
-base_commit: ed5079dced24b4ac52a4894180a921ea660b591d^
-head_commit: ed5079dced24b4ac52a4894180a921ea660b591d
-fix_commit: ed5079dced24b4ac52a4894180a921ea660b591d
-category: perf
-difficulty: hard
-severity: medium
+base_commit: a44ec30adbcdd7e4e5d5d8ae22c21fb404005367^
+head_commit: a44ec30adbcdd7e4e5d5d8ae22c21fb404005367
+fix_commit: a44ec30adbcdd7e4e5d5d8ae22c21fb404005367
+category: logic
+difficulty: medium
+severity: high
 language: rust
-pr_size: medium
-description: The u128/i128 circuit division operations (div_wrapped, div_checked,
-  rem_wrapped, shr_wrapped) used an inefficient constraint-generation approach for
-  division. The fix optimizes these operations by using witness-based division checks
-  and removes a redundant zero-check on the divisor, reducing the number of constraints
-  generated in the arithmetic circuit.
+pr_size: small
+description: The committee member sorting comparator in `sorted_members()` included
+  the `is_open` boolean flag in the comparison by not destructuring the `(u64, bool)`
+  tuple. When validators had equal stake, the `is_open` flag could influence ordering,
+  making committee ordering non-deterministic and not SNARK-friendly. The fix destructures
+  to `(stake, _)` to ignore `is_open`.
 expected_findings:
-- file: circuit/types/integers/src/div_wrapped.rs
-  line: 44
-  summary: 'Inefficient u128 division implementation: should use `unsigned_division_via_witness`
-    for fewer constraints instead of the existing approach'
-- file: circuit/types/integers/src/rem_wrapped.rs
-  line: 42
-  summary: 'Inefficient u128 remainder implementation: should use witness-based division
-    (`unsigned_division_via_witness`) to reduce constraint count'
-- file: circuit/types/integers/src/div_checked.rs
-  line: 130
-  summary: Redundant zero-check for divisor in u128 checked division and inefficient
-    constraint generation for the division operation
+- file: ledger/committee/src/lib.rs
+  line: 201
+  summary: sorted_unstable_by closure receives full (u64, bool) tuples as stake1/stake2
+    instead of destructuring to (stake, _); the is_open flag is silently included
+    in cmp comparisons, causing non-deterministic committee ordering when stakes are
+    equal
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

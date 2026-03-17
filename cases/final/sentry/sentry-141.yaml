@@ -1,0 +1,32 @@
+id: sentry-141
+repo: getsentry/sentry
+base_commit: b05248b86eeefc61a98f98412e120ecabfe61550^
+head_commit: b05248b86eeefc61a98f98412e120ecabfe61550
+fix_commit: b05248b86eeefc61a98f98412e120ecabfe61550
+category: incomplete
+difficulty: easy
+severity: medium
+language: python
+pr_size: small
+description: When transaction alerts were migrated to EAP, the user_misery function
+  was not added to the list of EAP-recognized functions. This caused user_misery alerts
+  to fall through to discover function validation, which has different rules and rejected
+  the queries. The fix adds user_misery to the EAP functions list so it routes to
+  the correct validation path.
+expected_findings:
+- file: src/sentry/incidents/logic.py
+  line: 0
+  summary: user_misery is missing from the EAP functions list, causing alerts using
+    this metric to hit the wrong (discover) validation path after EAP migration
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 109604
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

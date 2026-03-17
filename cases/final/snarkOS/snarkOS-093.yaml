@@ -1,30 +1,42 @@
 id: snarkOS-093
 repo: ProvableHQ/snarkOS
-base_commit: 0c7c40d6d1ffdaf2202ad898100a969cad21e901^
-head_commit: 0c7c40d6d1ffdaf2202ad898100a969cad21e901
-fix_commit: 0c7c40d6d1ffdaf2202ad898100a969cad21e901
-category: logic
+base_commit: 7ff06a8615a85b41457257fe7ce9764986fae3ce^
+head_commit: 7ff06a8615a85b41457257fe7ce9764986fae3ce
+fix_commit: 7ff06a8615a85b41457257fe7ce9764986fae3ce
+category: memory
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: medium
-description: The `snarkos developer scan` command did not work on devnets because
-  the network handling logic was hardcoded or incomplete for devnet configurations.
-  The fix updates the scan command's network-related imports and logic across multiple
-  network type match arms to properly support devnet scanning.
+pr_size: small
+description: The validator requests cache map in the BFT gateway is never cleaned
+  up when a peer disconnects. Since the cache has no time-based expiry, entries accumulate
+  indefinitely as peers connect and disconnect (potentially from different IPs), leading
+  to unbounded memory growth. The fix clears the cached validator requests for a peer
+  upon disconnect.
 expected_findings:
-- file: cli/src/commands/developer/scan.rs
-  line: 14
-  summary: "Missing or incorrect network type handling in imports/match arms \u2014\
-    \ devnet variant not covered, causing scan to fail on devnets"
-- file: cli/src/commands/developer/scan.rs
-  line: 70
-  summary: "Network dispatch logic does not handle devnet case \u2014 scan command\
-    \ silently fails or errors when run against a devnet"
-- file: cli/src/commands/developer/scan.rs
-  line: 109
-  summary: "Incomplete network type matching \u2014 devnet configuration not wired\
-    \ through to scan execution path"
+- file: node/bft/src/gateway.rs
+  line: 1085
+  summary: Disconnect handler does not clear the validator requests cache for the
+    departing peer, allowing the cache to grow without bound
+  line_side: pre_fix
+- file: node/bft/src/helpers/cache.rs
+  line: 119
+  summary: Cache structure for validator requests lacks any eviction or cleanup mechanism
+    — entries are inserted but never removed
+  line_side: pre_fix
+- file: node/bft/src/helpers/cache.rs
+  line: 298
+  summary: No method exists to remove or clear entries for a specific peer from the
+    validator requests cache
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

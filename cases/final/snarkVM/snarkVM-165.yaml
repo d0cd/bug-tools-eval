@@ -1,27 +1,37 @@
 id: snarkVM-165
 repo: ProvableHQ/snarkVM
-base_commit: 70908ff63050dcbd905bd694a04d012566a3cfcc^
-head_commit: 70908ff63050dcbd905bd694a04d012566a3cfcc
-fix_commit: 70908ff63050dcbd905bd694a04d012566a3cfcc
-category: logic
+base_commit: dd2fecb9ef305d983012b681a8cdd7c416399cf2^
+head_commit: dd2fecb9ef305d983012b681a8cdd7c416399cf2
+fix_commit: dd2fecb9ef305d983012b681a8cdd7c416399cf2
+category: code-smell
 difficulty: easy
 severity: low
 language: rust
-pr_size: xl
-description: This PR is primarily a code quality and CI hardening change rather than
-  a true bug fix. It introduces `use_small_heuristics = "Max"` in `.rustfmt.toml`
-  for improved formatting, fixes various clippy warnings (e.g., non-shorthand field
-  patterns, redundant patterns), and adds `-Dwarnings` to RUSTFLAGS in CI to enforce
-  warning-free builds.
+pr_size: large
+description: Removes the unused `Metrics` inference implementation from `Function`
+  in the bytecode crate, along with associated `Count` tests. This is cleanup following
+  a design decision to compute constraint counts after synthesis rather than via a
+  dedicated `Metrics` trait.
 expected_findings:
-- file: .github/workflows/ci.yml
-  line: 12
-  summary: Missing `-Dwarnings` in RUSTFLAGS allows clippy and compiler warnings to
-    pass CI silently without failing the build
-- file: .rustfmt.toml
-  line: 5
-  summary: Missing `use_small_heuristics = "Max"` causes rustfmt to use default heuristics,
-    resulting in inconsistent line-width utilization and reduced readability
+- file: bytecode/src/function/mod.rs
+  line: 28
+  summary: 'Dead code: `Metrics` trait import and implementation for `Function` is
+    unused now that constraint counts are computed post-synthesis — remove the impl
+    block and related imports'
+  line_side: pre_fix
+- file: bytecode/src/function/mod.rs
+  line: 345
+  summary: 'Dead test code: `Count` tests for bytecode functions are testing removed
+    `Metrics` functionality and should be deleted'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

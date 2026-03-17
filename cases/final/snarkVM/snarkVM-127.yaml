@@ -1,32 +1,60 @@
 id: snarkVM-127
 repo: ProvableHQ/snarkVM
-base_commit: 3de2007be240db8e0c68435c169dfcfce6ab7508^
-head_commit: 3de2007be240db8e0c68435c169dfcfce6ab7508
-fix_commit: 3de2007be240db8e0c68435c169dfcfce6ab7508
-category: logic
-difficulty: medium
+base_commit: 9cf12dd5f9f14dbd41cba58c15cb2f3a102cc2c4^
+head_commit: 9cf12dd5f9f14dbd41cba58c15cb2f3a102cc2c4
+fix_commit: 9cf12dd5f9f14dbd41cba58c15cb2f3a102cc2c4
+category: concurrency
+difficulty: hard
 severity: high
 language: rust
-pr_size: medium
-description: The Varuna SNARK verifier did not validate the number of public inputs,
-  allowing more inputs than the circuit supports to be passed in. This could lead
-  to incorrect verification results. The fix adds a bounds check on the public input
-  count against the circuit's expected size, and rejects inputs that exceed the limit.
+pr_size: xl
+description: RocksDB write batches were only atomic within a single DataMap. When
+  multiple DataMaps participated in an atomic scope, each independently created and
+  flushed its own WriteBatch, so a crash between writes could leave the database in
+  a partially-committed, inconsistent state. The fix introduces a shared WriteBatch
+  on the RocksDB struct with depth tracking, deferring the physical write until the
+  outermost atomic scope completes.
 expected_findings:
-- file: algorithms/src/snark/varuna/varuna.rs
-  line: 657
-  summary: 'Missing validation: the loop iterates over all provided public inputs
-    without checking that the count does not exceed the circuit''s expected number
-    of public inputs.'
-- file: algorithms/src/snark/varuna/ahp/ahp.rs
-  line: 180
-  summary: "No bounds check on public inputs size before formatting \u2014 should\
-    \ verify that the number of public inputs does not exceed the circuit-specific\
-    \ state limit."
-- file: algorithms/src/snark/varuna/ahp/ahp.rs
-  line: 283
-  summary: Same missing bounds check on public inputs size in a second code path that
-    formats public inputs.
+- file: ledger/store/src/helpers/rocksdb/internal/mod.rs
+  line: 64
+  summary: Atomic write batch is scoped per-DataMap rather than shared across all
+    maps; concurrent readers can observe partial cross-map writes because each DataMap
+    flushes its own WriteBatch independently
+  line_side: pre_fix
+- file: ledger/store/src/helpers/rocksdb/internal/map.rs
+  line: 89
+  summary: DataMap performs its own atomic write without coordinating with sibling
+    DataMaps; checkpoint/rollback logic only tracks operations within this single
+    map, missing operations queued in other maps within the same logical transaction
+  line_side: pre_fix
+- file: ledger/store/src/helpers/rocksdb/internal/map.rs
+  line: 187
+  summary: 'Non-atomic cross-map writes: each DataMap independently calls `self.database.rocksdb.write(batch)`
+    in `finish_atomic()`. If multiple DataMaps participate in a logical atomic operation,
+    a crash between individual writes leaves the database in an inconsistent state.
+    The WriteBatch should be accumulated in a shared location and written only once.'
+  line_side: pre_fix
+- file: ledger/store/src/helpers/rocksdb/internal/map.rs
+  line: 176
+  summary: Per-map `WriteBatch::default()` created in `finish_atomic()` means each
+    map gets its own batch rather than contributing to a single cross-map atomic batch.
+    This breaks the atomicity guarantee when multiple DataMaps are involved in a single
+    logical transaction.
+  line_side: pre_fix
+- file: ledger/store/src/helpers/rocksdb/internal/map.rs
+  line: 90
+  summary: '`start_atomic()` does not track nesting depth across DataMaps. Without
+    a shared depth counter, `finish_atomic()` cannot determine whether it is the outermost
+    scope that should trigger the actual write, causing each map to write independently.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

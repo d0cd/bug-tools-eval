@@ -1,33 +1,43 @@
 id: snarkVM-151
 repo: ProvableHQ/snarkVM
-base_commit: f5d17ca041d0b35b4a13532409bc9baf5a432ebe^
-head_commit: f5d17ca041d0b35b4a13532409bc9baf5a432ebe
-fix_commit: f5d17ca041d0b35b4a13532409bc9baf5a432ebe
+base_commit: d0de94293ac69817e3d419dd6917a48869a19514^
+head_commit: d0de94293ac69817e3d419dd6917a48869a19514
+fix_commit: d0de94293ac69817e3d419dd6917a48869a19514
 category: logic
-difficulty: hard
+difficulty: medium
 severity: high
 language: rust
-pr_size: xl
-description: The DPC model upgrade simplifies the serial number nonce computation
-  to use the previous record's serial number, reduces outer circuit execution from
-  4 proofs to 1, and adds enforcement that input program IDs match output program
-  IDs or the noop program ID for each record pair. The prior model had incorrect or
-  overly complex state transition logic that failed to properly validate program ID
-  matching across input/output record pairs.
+pr_size: medium
+description: The coinbase solution processing pipeline did not filter out aborted
+  solutions before block creation. This meant that solutions marked for abortion could
+  be included in new blocks, leading to invalid blocks or consensus issues. The fix
+  adds an aborted-solution filter to CoinbaseSolution and propagates it through verification
+  and block advancement paths.
 expected_findings:
-- file: dpc/src/circuits/inner_circuit.rs
-  line: 26
-  summary: Inner circuit missing enforcement that input program ID matches output
-    program ID or noop program ID for each (input, output) record pair, allowing invalid
-    state transitions
-- file: dpc/src/circuits/outer_circuit.rs
-  line: 84
-  summary: Outer circuit unnecessarily verifies 4 proofs instead of 1; program commitment
-    verification logic is redundant and should be removed
-- file: dpc/src/dpc.rs
-  line: 60
-  summary: DPC state transition logic does not account for noop/add/remove/update/split/join/joinsplit
-    transition types, leading to incorrect serial number nonce derivation
+- file: ledger/src/advance.rs
+  line: 123
+  summary: 'Missing filter for aborted solutions before block creation: coinbase solutions
+    passed to block assembly may include solutions that were aborted, leading to invalid
+    blocks'
+  line_side: pre_fix
+- file: ledger/coinbase/src/lib.rs
+  line: 158
+  summary: check_solutions does not accept or filter aborted solution IDs, allowing
+    aborted solutions to pass validation
+  line_side: pre_fix
+- file: ledger/coinbase/src/helpers/coinbase_solution/mod.rs
+  line: 29
+  summary: CoinbaseSolution::new() does not accept aborted solution IDs to filter
+    out, constructing solutions that may include entries that should have been discarded
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,23 +1,35 @@
 id: snarkVM-072
 repo: ProvableHQ/snarkVM
-base_commit: a80466cdf1e16480c779b362f7f399a153ec1f73^
-head_commit: a80466cdf1e16480c779b362f7f399a153ec1f73
-fix_commit: a80466cdf1e16480c779b362f7f399a153ec1f73
+base_commit: 5276b048c6f5008c631e83023ffd06febb454a47^
+head_commit: 5276b048c6f5008c631e83023ffd06febb454a47
+fix_commit: 5276b048c6f5008c631e83023ffd06febb454a47
 category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: rust
 pr_size: tiny
-description: Incorrect validation check in the Narwhal subdag logic. The fix corrects
-  a conditional check (likely an incorrect comparison operator or wrong bound) in
-  the subdag verification code, which could allow invalid subdags to pass validation
-  or reject valid ones.
+description: The test `test_load_deployments_with_imports` used a non-deterministic
+  RNG seed, causing the lexicographical ordering of `deployment_transaction_ids()`
+  to sometimes align with the sequential deployment order. This meant the test would
+  intermittently fail to exercise the recursive loading of import programs before
+  parent programs, making it a flaky test. The fix pins the RNG seed to guarantee
+  the ordering exercises the intended code path.
 expected_findings:
-- file: ledger/narwhal/subdag/src/lib.rs
-  line: 0
-  summary: "Incorrect condition in subdag validation check \u2014 comparison operator\
-    \ or boundary value is wrong, allowing invalid subdags to pass or rejecting valid\
-    \ ones"
+- file: synthesizer/src/vm/mod.rs
+  line: 712
+  summary: 'Non-deterministic RNG in test causes flaky behavior: the random seed may
+    produce transaction IDs whose lexicographical order happens to match deployment
+    order, failing to test recursive import loading. Use a fixed seed to guarantee
+    the ordering exercises the intended code path.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

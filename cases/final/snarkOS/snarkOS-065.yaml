@@ -1,26 +1,42 @@
 id: snarkOS-065
 repo: ProvableHQ/snarkOS
-base_commit: a5d5019e9efc895951e6b2561154b0c977e8b9da^
-head_commit: a5d5019e9efc895951e6b2561154b0c977e8b9da
-fix_commit: a5d5019e9efc895951e6b2561154b0c977e8b9da
+base_commit: 568db45a176cf477e8eb4c2b3ad4c6745c67adc5^
+head_commit: 568db45a176cf477e8eb4c2b3ad4c6745c67adc5
+fix_commit: 568db45a176cf477e8eb4c2b3ad4c6745c67adc5
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: tiny
-description: In the Sonic PC polynomial commitment scheme, the code incorrectly used
-  the regular degree bound instead of the hiding degree bound in two locations. This
-  was fixed by replacing the parameter with `supported_hiding_bound` at lines 158
-  and 220, ensuring the hiding property of the commitment scheme is correctly enforced.
+pr_size: large
+description: The storage migration incorrectly attempted to carry over previous commit
+  state, which could corrupt data or cause migration failures. The fix removes the
+  commit state carryover from the migration path and also optimizes block tree fetching
+  and fork scanning into single SQLite queries.
 expected_findings:
-- file: polycommit/src/sonic_pc/mod.rs
-  line: 158
-  summary: 'Wrong bound used: should use `supported_hiding_bound` instead of the regular
-    degree bound to maintain the hiding property of the polynomial commitment'
-- file: polycommit/src/sonic_pc/mod.rs
-  line: 220
-  summary: 'Wrong bound used: should use `supported_hiding_bound` instead of the regular
-    degree bound to maintain the hiding property of the polynomial commitment'
+- file: storage/src/migrate.rs
+  line: 19
+  summary: Migration loop carries over previous commit state, which is invalid after
+    schema change and can corrupt the migrated database or cause migration failure
+  line_side: pre_fix
+- file: storage/src/storage/sqlite/sync.rs
+  line: 523
+  summary: Block tree query uses multiple round-trips instead of a single SQLite query,
+    causing inefficiency and potential inconsistency if state changes between queries
+  line_side: pre_fix
+- file: storage/src/storage/storage.rs
+  line: 139
+  summary: Fork scanning implemented at wrong abstraction level — should be a storage-owned
+    operation using a single query rather than external iteration over uncommitted
+    blocks
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

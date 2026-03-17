@@ -1,23 +1,31 @@
 id: snarkOS-128
 repo: ProvableHQ/snarkOS
-base_commit: b2ac620f4a07947c9e7f5541dfa6874b26e3d624^
-head_commit: b2ac620f4a07947c9e7f5541dfa6874b26e3d624
-fix_commit: b2ac620f4a07947c9e7f5541dfa6874b26e3d624
+base_commit: ae07f8c492ebcadd5246b94f8038d94ce3222bc0^
+head_commit: ae07f8c492ebcadd5246b94f8038d94ce3222bc0
+fix_commit: ae07f8c492ebcadd5246b94f8038d94ce3222bc0
 category: logic
 difficulty: easy
-severity: high
+severity: low
 language: rust
-pr_size: medium
-description: The CLI start command had an incorrect network ID check, likely using
-  a wrong comparison or validating against an incorrect value. The fix corrects the
-  network ID validation logic in cli/src/commands/start.rs so that the node connects
-  to the intended network.
+pr_size: tiny
+description: Flaky test caused by an incorrect range in `rng.gen_range()` within `test_block_requests_case_2cba`.
+  The range bounds could produce an empty or invalid range under certain conditions,
+  causing intermittent panics. The fix corrects the range boundaries to ensure the
+  random value is always generated from a valid, non-empty range.
 expected_findings:
-- file: cli/src/commands/start.rs
-  line: 0
-  summary: 'Incorrect network ID check: the condition used to validate or match the
-    network ID is wrong, causing the node to reject valid network IDs or accept invalid
-    ones'
+- file: src/helpers/block_requests.rs
+  line: 487
+  summary: Invalid or potentially empty range in `rng.gen_range(Client::<Testnet2>::MAXIMUM_FORK_DEPTH
+    + 2..…)` — the lower bound can equal or exceed the upper bound, causing a panic
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,32 @@
+id: grafana-069
+repo: grafana/grafana
+base_commit: 955a272807f21955ad6b4e925730fa64c2bfd57d^
+head_commit: 955a272807f21955ad6b4e925730fa64c2bfd57d
+fix_commit: 955a272807f21955ad6b4e925730fa64c2bfd57d
+category: logic
+difficulty: medium
+severity: low
+language: go
+pr_size: small
+description: The test's mock alertmanager server was not returning the actual stored
+  config, so the config hash comparison that prevents unnecessary updates in production
+  was ineffective in the test. This caused a spurious update call whose CreatedAt
+  timestamp varied depending on test execution speed, producing flaky results.
+expected_findings:
+- file: pkg/services/ngalert/remote/alertmanager_test.go
+  line: 1
+  summary: Mock server does not return the real stored config; the hash-based deduplication
+    that prevents unnecessary update calls is bypassed, causing timing-dependent flakiness
+    via differing CreatedAt timestamps
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119869
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

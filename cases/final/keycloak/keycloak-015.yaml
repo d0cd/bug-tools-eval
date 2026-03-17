@@ -1,25 +1,38 @@
 id: keycloak-015
 repo: keycloak/keycloak
-base_commit: fa592f882a6793fd81cc374fd0245c9f5850d9dd^
-head_commit: fa592f882a6793fd81cc374fd0245c9f5850d9dd
-fix_commit: fa592f882a6793fd81cc374fd0245c9f5850d9dd
-category: logic
+base_commit: 24a819eabc6ba88f1259c852ebefdccf8a61f9ee^
+head_commit: 24a819eabc6ba88f1259c852ebefdccf8a61f9ee
+fix_commit: 24a819eabc6ba88f1259c852ebefdccf8a61f9ee
+category: security
 difficulty: medium
 severity: high
-language: typescript
-pr_size: small
-description: The `useSetTimeout()` hook did not reset `didUnmountRef` to `false` when
-  the component remounted. With React StrictMode (and the new Root API), React automatically
-  unmounts and remounts components in development, causing the ref to stay `true`
-  after remount, which made all subsequent timeout scheduling silently fail.
+language: java
+pr_size: medium
+description: The FGAP (Fine-Grained Admin Permissions) schema was missing a scope
+  alias from the Users resource type's 'manage-group-membership' scope to the Groups
+  resource type's 'manage-membership' scope. This meant group-level deny policies
+  were silently ignored when evaluating user group membership updates, allowing membership
+  changes that should have been denied by group-scoped policies.
 expected_findings:
-- file: js/apps/admin-ui/src/utils/useSetTimeout.ts
-  line: 7
-  summary: 'Missing state reset on mount: useEffect cleanup sets `didUnmountRef.current
-    = true` but the effect never resets it to `false` on mount, so after React StrictMode
-    remounts the component, the ref permanently indicates unmounted.'
+- file: server-spi-private/src/main/java/org/keycloak/authorization/fgap/AdminPermissionsSchema.java
+  line: 534
+  summary: 'Missing scope alias: Users ''manage-group-membership'' does not map to
+    Groups ''manage-membership'', so group-level deny policies are never evaluated
+    for user membership changes — authorization bypass'
+  line_side: pre_fix
+- file: server-spi-private/src/main/java/org/keycloak/authorization/fgap/AdminPermissionsSchema.java
+  line: 85
+  summary: MANAGE_MEMBERSHIP_OF_MEMBERS scope definition lacks cross-resource-type
+    alias registration needed for deny policy propagation from Groups to Users
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

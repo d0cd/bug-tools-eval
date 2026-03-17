@@ -1,22 +1,26 @@
 id: snarkOS-096
 repo: ProvableHQ/snarkOS
-base_commit: 285a250325c8e6664467bc0ececd86018ac2ca51^
-head_commit: 285a250325c8e6664467bc0ececd86018ac2ca51
-fix_commit: 285a250325c8e6664467bc0ececd86018ac2ca51
-category: logic
+base_commit: 87366097ab684e7c677b9582af7891461e941971^
+head_commit: 87366097ab684e7c677b9582af7891461e941971
+fix_commit: 87366097ab684e7c677b9582af7891461e941971
+category: incomplete
 difficulty: hard
-severity: medium
+severity: low
 language: rust
 pr_size: xl
-description: Large modularization PR that migrates modules from snarkVM and restructures
-  node logic. No diff is available to identify a specific bug fix; the PR appears
-  to be primarily a refactoring/migration rather than a targeted bug fix, though it
-  was tagged with fix-related signals.
-expected_findings:
-- file: cli/src/commands/start.rs
-  line: 1
-  summary: "Unable to identify specific bug location \u2014 no diff available and\
-    \ PR is a large-scale modularization/migration rather than a targeted bug fix"
+description: Large architectural refactoring PR that migrates modules from snarkVM,
+  modularizes node logic for different node types, and introduces prover logic. No
+  specific bug fix is identifiable — the PR is a structural reorganization with no
+  diff available for analysis.
+expected_findings: []
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: null
+valid_for_code_review: false
+introducing_commit: null
+pr_number: 1992
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,32 @@
+id: cal.com-014
+repo: calcom/cal.com
+base_commit: 23067cd8af260b60e529075641741762b7e0516b^
+head_commit: 23067cd8af260b60e529075641741762b7e0516b
+fix_commit: 23067cd8af260b60e529075641741762b7e0516b
+category: api-misuse
+difficulty: easy
+severity: high
+language: typescript
+pr_size: tiny
+description: The `calendar.events.patch` call in `updateEvent` was not awaited, causing
+  promise rejections (e.g., from Google Calendar quota errors) to escape the surrounding
+  try/catch block. This resulted in unhandled rejection crashes in the API. The fix
+  simply adds `await` to the call.
+expected_findings:
+- file: packages/app-store/googlecalendar/lib/CalendarService.ts
+  line: 406
+  summary: 'Missing `await` on `calendar.events.patch()`: if this async call rejects
+    (e.g. quota exceeded), the error bypasses the enclosing try/catch and causes an
+    unhandled promise rejection crash'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

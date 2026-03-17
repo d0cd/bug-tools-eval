@@ -1,22 +1,51 @@
 id: snarkOS-150
 repo: ProvableHQ/snarkOS
-base_commit: 63f6f9bc28cdc6e57b6e1fc1e19ed141156885c7^
-head_commit: 63f6f9bc28cdc6e57b6e1fc1e19ed141156885c7
-fix_commit: 63f6f9bc28cdc6e57b6e1fc1e19ed141156885c7
-category: logic
+base_commit: c1a81db56474e4b845a4adec7372dbcb34097338^
+head_commit: c1a81db56474e4b845a4adec7372dbcb34097338
+fix_commit: c1a81db56474e4b845a4adec7372dbcb34097338
+category: concurrency
 difficulty: hard
-severity: medium
+severity: high
 language: rust
-pr_size: xl
-description: Large refactoring PR that migrates modules from snarkVM and modularizes
-  node logic. No diff is available and the PR description does not describe a specific
-  bug fix, making it impossible to identify a concrete defect. The 'fix' keyword signal
-  likely comes from incidental text rather than a targeted bug fix.
+pr_size: large
+description: 'PR #457 wrapped blocking network operations into individual spawned
+  tasks, which introduced race conditions around sync_handler_lock.try_lock() and
+  broke message ordering guarantees. Splitting previously sequential operations (channel
+  reads, message handling, sync, propagation) into independent tasks caused non-deterministic
+  lock contention and lost synchronization invariants. The revert restores the original
+  sequential execution model.'
 expected_findings:
-- file: cli/src/commands/start.rs
-  line: 1
-  summary: Unable to identify specific bug from available information; PR appears
-    to be a major refactor/migration rather than a targeted bug fix
+- file: network/src/internal/message_handler.rs
+  line: 37
+  summary: 'Wrapping message handling in a spawned task while using try_lock() on
+    sync_handler_lock creates a race condition: concurrent tasks compete for the lock
+    non-deterministically, and try_lock failures silently skip sync operations'
+  line_side: pre_fix
+- file: network/src/server.rs
+  line: 153
+  summary: Spawning server operations as independent tasks breaks the sequential guarantee
+    needed for sync_handler_lock.try_lock(); concurrent task execution causes lock
+    contention and missed sync updates
+  line_side: pre_fix
+- file: network/src/internal/connection_handler.rs
+  line: 80
+  summary: Wrapping connection handling in individual tasks removes sequential ordering
+    guarantees, allowing race conditions between connection setup and message processing
+  line_side: pre_fix
+- file: network/src/external/propagate.rs
+  line: 5
+  summary: Spawning transaction propagation as an independent task without proper
+    synchronization can cause messages to be sent out of order or after connection
+    state has changed
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

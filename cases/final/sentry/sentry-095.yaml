@@ -1,0 +1,39 @@
+id: sentry-095
+repo: getsentry/sentry
+base_commit: 7458e6f81db6adc2bafdf44ea8ffd87c6eee7fe1^
+head_commit: 7458e6f81db6adc2bafdf44ea8ffd87c6eee7fe1
+fix_commit: 7458e6f81db6adc2bafdf44ea8ffd87c6eee7fe1
+category: api-misuse
+difficulty: medium
+severity: high
+language: python
+pr_size: small
+description: The polling logic for GitHub Copilot tasks checked `task_status.status`
+  for completion, but the Copilot API returns lifecycle values (`queued`, `in_progress`,
+  `completed`, `failed`, `timed_out`) in the `state` field while `status` is always
+  an empty string. This caused Copilot tasks to remain stuck in RUNNING state indefinitely,
+  never syncing the PR URL or completion state back to Sentry.
+expected_findings:
+- file: src/sentry/seer/autofix/coding_agent.py
+  line: 558
+  summary: Polling checks `task_status.status == "completed"` but the Copilot API
+    uses the `state` field for lifecycle values; `status` is always empty string,
+    so this condition is never true and tasks stay stuck in RUNNING forever.
+  line_side: pre_fix
+- file: src/sentry/integrations/github_copilot/models.py
+  line: 72
+  summary: GithubCopilotTask model only has `status` field but the actual Copilot
+    API returns lifecycle values in a `state` field; model is missing the `state`
+    field needed for correct polling.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

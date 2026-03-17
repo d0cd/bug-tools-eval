@@ -1,27 +1,45 @@
 id: leo-086
 repo: ProvableHQ/leo
-base_commit: 1eb31185241987d6c7cc42b7e7a7954cc9863206^
-head_commit: 1eb31185241987d6c7cc42b7e7a7954cc9863206
-fix_commit: 1eb31185241987d6c7cc42b7e7a7954cc9863206
-category: logic
-difficulty: medium
-severity: high
+base_commit: 59510107c6e9936ca32aeb31b9275d3c4c6b7c2b^
+head_commit: 59510107c6e9936ca32aeb31b9275d3c4c6b7c2b
+fix_commit: 59510107c6e9936ca32aeb31b9275d3c4c6b7c2b
+category: constraint
+difficulty: hard
+severity: critical
 language: rust
-pr_size: medium
-description: Importing chains of dependent `.aleo` programs failed because the package
-  system did not preserve import ordering. The fix switches from unordered collections
-  to IndexMap/IndexSet to maintain dependency order, and adjusts dependency resolution
-  in the package to correctly handle existing dependencies when processing dependent
-  chains.
+pr_size: xl
+description: The Leo compiler incorrectly treated circuit inputs as constants when
+  performing to_usize conversions, which is a ZK soundness issue. When inputs are
+  allocated as constants rather than witnesses in the constraint system, the resulting
+  circuit does not properly constrain those values, potentially allowing invalid proofs.
+  The fix involved updating the snarkVM dependency and adjusting compiler gadget usage
+  across expression evaluation, conditionals, and relational operations.
 expected_findings:
-- file: leo/package/src/program.rs
-  line: 21
-  summary: Using unordered HashMap/HashSet for program imports loses dependency ordering;
-    should use IndexMap/IndexSet to preserve the order of dependent program chains.
-- file: leo/package/src/package.rs
-  line: 341
-  summary: Existing dependencies are not properly accounted for when resolving chained
-    imports, causing dependent programs to fail to resolve their own imports.
+- file: compiler/src/function/input/main_function_input.rs
+  line: 36
+  summary: Input values may be allocated as constants rather than witnesses in the
+    constraint system when used in to_usize; this breaks soundness because the circuit
+    does not constrain the actual input value
+  line_side: pre_fix
+- file: compiler/src/expression/array/access.rs
+  line: 29
+  summary: Array index access using to_usize on an input value treats it as a constant,
+    meaning the constraint system does not enforce the index equals the actual runtime
+    input
+  line_side: pre_fix
+- file: compiler/src/expression/conditional/conditional.rs
+  line: 20
+  summary: Ternary/conditional select gadget usage needs updated snarkVM API to correctly
+    handle non-constant operands in select operations
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

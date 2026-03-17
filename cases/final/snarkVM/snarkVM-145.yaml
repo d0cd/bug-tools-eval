@@ -1,30 +1,49 @@
 id: snarkVM-145
 repo: ProvableHQ/snarkVM
-base_commit: 6ca3abfdda1335b0d774d956245f6936287affc4^
-head_commit: 6ca3abfdda1335b0d774d956245f6936287affc4
-fix_commit: 6ca3abfdda1335b0d774d956245f6936287affc4
-category: type
-difficulty: medium
+base_commit: c891ca28c9647945ba1034868afe25b3c44d0cb0^
+head_commit: c891ca28c9647945ba1034868afe25b3c44d0cb0
+fix_commit: c891ca28c9647945ba1034868afe25b3c44d0cb0
+category: incomplete
+difficulty: hard
 severity: high
 language: rust
-pr_size: tiny
-description: The CommitInstruction::new constructor did not validate the destination
-  register's type, allowing potentially invalid destination types to be accepted.
-  Additionally, the FromBytes implementation constructed the instruction directly
-  instead of going through the ::new() constructor, bypassing any validation. The
-  fix adds a destination type sanity check in the constructor and updates FromBytes
-  to use the validated constructor path.
+pr_size: xl
+description: Bulk revert of multiple PRs to unblock a Testnet Beta patch release.
+  This removes the Canary network variant (circuit, console, parameters) and reverts
+  changes to literal type parsing, plaintext bit serialization, ledger query, and
+  CI configuration. Because the diff is unavailable and this is a multi-PR revert
+  driven by release management rather than a discrete code defect, there is no single
+  bug-introducing commit to identify.
 expected_findings:
-- file: synthesizer/program/src/logic/instruction/operation/commit.rs
-  line: 67
-  summary: "Missing destination type validation in CommitInstruction::new \u2014 the\
-    \ constructor should verify the destination register type is valid for commit\
-    \ operations before accepting it."
-- file: synthesizer/program/src/logic/instruction/operation/commit.rs
-  line: 326
-  summary: FromBytes implementation constructs CommitInstruction directly instead
-    of using ::new(), bypassing destination type validation. Should delegate to the
-    validated constructor.
+- file: circuit/environment/src/canary_circuit.rs
+  line: 1
+  summary: Canary circuit environment was added prematurely; this entire module needs
+    to be reverted as Canary network is not ready for the Testnet Beta release
+  line_side: pre_fix
+- file: circuit/program/src/data/plaintext/to_bits.rs
+  line: 23
+  summary: Plaintext to_bits_le encoding was changed (version tag bits) as part of
+    a premature feature addition that must be reverted to maintain Testnet Beta compatibility
+  line_side: pre_fix
+- file: console/program/src/data_types/literal_type/mod.rs
+  line: 23
+  summary: LiteralType enum was modified with new variants or reordered discriminants
+    that break compatibility with the current Testnet Beta network
+  line_side: pre_fix
+- file: console/program/src/data/identifier/parse.rs
+  line: 54
+  summary: Identifier parse validation reverted to use LiteralType::from_str check
+    — confirm the reverted logic still correctly rejects literal-type names as identifiers
+    after enum shrink
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

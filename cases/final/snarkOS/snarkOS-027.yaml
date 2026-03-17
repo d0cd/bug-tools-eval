@@ -1,26 +1,41 @@
 id: snarkOS-027
 repo: ProvableHQ/snarkOS
-base_commit: a1e4a28292c97c7921ad6fc78251b940f55b3727^
-head_commit: a1e4a28292c97c7921ad6fc78251b940f55b3727
-fix_commit: a1e4a28292c97c7921ad6fc78251b940f55b3727
-category: logic
+base_commit: 292d124dcbacb4a2d0babeaa31a07d6193515659^
+head_commit: 292d124dcbacb4a2d0babeaa31a07d6193515659
+fix_commit: 292d124dcbacb4a2d0babeaa31a07d6193515659
+category: concurrency
 difficulty: medium
-severity: medium
+severity: high
 language: rust
-pr_size: tiny
-description: The proposal cache path was always computed by navigating one directory
-  above the ledger path (using parent()), assuming the default directory structure.
-  When a custom storage path is configured, this assumption is invalid and causes
-  the proposal cache to be stored in an unexpected location outside the user's configured
-  directory. The fix conditionally uses the parent directory only for default paths,
-  and stores the cache directly in the configured directory for custom paths.
+pr_size: small
+description: Locks (sync_handler, peer_book, local_address) were held across `.await`
+  points in async connection/message handling code, which could cause the node to
+  halt due to deadlock-like conditions. The fix explicitly drops these locks before
+  awaiting async operations like writing blocks to channels.
 expected_findings:
-- file: node/bft/src/helpers/proposal_cache.rs
-  line: 30
-  summary: Proposal cache path unconditionally uses parent() of ledger path, which
-    only works for the default directory layout. When a custom storage path is configured,
-    the parent directory is arbitrary and the cache should be stored in the configured
-    directory instead.
+- file: network/src/server/connection_handler.rs
+  line: 140
+  summary: Lock guard `sync_handler` is held across an `.await` point; must be explicitly
+    dropped before the await to prevent halting/deadlock
+  line_side: pre_fix
+- file: network/src/server/message_handler.rs
+  line: 173
+  summary: Lock guard `peer_book` is held across an `.await` point; must be explicitly
+    dropped before the await to prevent halting
+  line_side: pre_fix
+- file: network/src/server/mod.rs
+  line: 96
+  summary: Lock held while calling `channel.write(&Block::new(data.clone())).await?`
+    — holding a lock across this await can block the entire server
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,32 @@
+id: sentry-097
+repo: getsentry/sentry
+base_commit: 7973d16b26cbb5f33346e9955360cc2a3b675a73^
+head_commit: 7973d16b26cbb5f33346e9955360cc2a3b675a73
+fix_commit: 7973d16b26cbb5f33346e9955360cc2a3b675a73
+category: logic
+difficulty: medium
+severity: high
+language: python
+pr_size: small
+description: The trace metrics dual write path was attaching the local (per-function)
+  sample rate instead of the effective (compounded) sample rate. This caused extrapolation
+  to produce incorrect results because the extrapolation factor was based on only
+  one layer of sampling rather than the full sampling chain.
+expected_findings:
+- file: src/sentry/metrics/sentry_sdk.py
+  line: 1
+  summary: Sample rate passed to dual-write metrics is the local function sample rate,
+    not the effective (compounded) sample rate; extrapolation will under/over-count
+    because it does not account for upstream sampling stages
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110104
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

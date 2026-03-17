@@ -1,32 +1,48 @@
 id: snarkVM-173
 repo: ProvableHQ/snarkVM
-base_commit: 09a875e81ab819b255383dd920e908da0e5c8ae8^
-head_commit: 09a875e81ab819b255383dd920e908da0e5c8ae8
-fix_commit: 09a875e81ab819b255383dd920e908da0e5c8ae8
-category: concurrency
-difficulty: medium
+base_commit: e9c435dba7108291fa419d1e9fa5382c0d28cf13^
+head_commit: e9c435dba7108291fa419d1e9fa5382c0d28cf13
+fix_commit: e9c435dba7108291fa419d1e9fa5382c0d28cf13
+category: logic
+difficulty: hard
 severity: critical
 language: rust
-pr_size: small
-description: Using `reqwest::blocking` for inclusion proof HTTP requests internally
-  spawns a Tokio runtime, which panics when called from within an existing Tokio executor
-  (nested runtimes are forbidden). The fix replaces `reqwest` with `ureq`, a synchronous
-  HTTP client that has no Tokio dependency, allowing the inclusion proof codepath
-  to be safely called from Tokio-based servers.
+pr_size: xl
+description: The block reward fee computation was incorrect, leading to wrong reward
+  calculations for validators. Additionally, a fee check was missing from the transaction
+  verification path, allowing transactions with invalid fees to pass validation. The
+  fix corrects the block_reward calculation in target.rs, fixes the fee amount methods,
+  and adds the missing fee verification in the VM's check_transaction flow.
 expected_findings:
-- file: synthesizer/src/process/stack/inclusion/mod.rs
-  line: 57
-  summary: Using `reqwest::blocking` here creates a nested Tokio runtime that will
-    panic if called from within an existing Tokio executor. Should use a non-Tokio
-    HTTP client like `ureq`.
-- file: synthesizer/src/process/stack/inclusion/mod.rs
-  line: 84
-  summary: 'Same nested Tokio runtime issue: `reqwest::blocking` call will crash when
-    invoked from a Tokio context.'
-- file: synthesizer/src/process/stack/inclusion/mod.rs
-  line: 98
-  summary: 'Same nested Tokio runtime issue: `reqwest::blocking` call will crash when
-    invoked from a Tokio context.'
+- file: ledger/block/src/helpers/target.rs
+  line: 17
+  summary: Block reward calculation is incorrect — the function computes the wrong
+    reward amount, which affects validator compensation and consensus correctness
+  line_side: pre_fix
+- file: synthesizer/src/vm/verify.rs
+  line: 32
+  summary: 'Missing fee verification check: transaction verification does not validate
+    the fee, allowing transactions with invalid or insufficient fees to pass'
+  line_side: pre_fix
+- file: ledger/block/src/transaction/fee/mod.rs
+  line: 90
+  summary: Fee amount computation returns incorrect value — the amount() method does
+    not properly account for the block reward component of the fee
+  line_side: pre_fix
+- file: ledger/block/src/verify.rs
+  line: 51
+  summary: Block verification uses incorrect expected_block_reward value derived from
+    the flawed fee computation, causing valid blocks to fail verification or invalid
+    blocks to pass
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

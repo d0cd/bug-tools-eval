@@ -1,24 +1,32 @@
 id: leo-036
 repo: ProvableHQ/leo
-base_commit: bf8ca5abc433e39d05b5f1a83da1a971287f591d^
-head_commit: bf8ca5abc433e39d05b5f1a83da1a971287f591d
-fix_commit: bf8ca5abc433e39d05b5f1a83da1a971287f591d
+base_commit: 2101933dd274fa131ee24bcae158a1b1919094e2^
+head_commit: 2101933dd274fa131ee24bcae158a1b1919094e2
+fix_commit: 2101933dd274fa131ee24bcae158a1b1919094e2
 category: logic
 difficulty: easy
-severity: low
+severity: high
 language: rust
 pr_size: tiny
-description: Two doc comments in the BinaryOperation enum had incorrect operation
-  descriptions, likely due to copy-paste errors. For example, a shift-right variant's
-  doc comment incorrectly described a shift-left operation (`.shl_wrapped()` instead
-  of `.shr_wrapped()`). The fix corrected the doc comment text to match the actual
-  enum variants.
+description: The registry cache directory was assumed to exist but was never created,
+  causing a runtime error when Leo tried to write to or read from a non-existent cache
+  path. The fix adds a check at line 134 that creates the directory if it doesn't
+  already exist using a standard filesystem mkdir-equivalent.
 expected_findings:
-- file: compiler/ast/src/expressions/binary.rs
-  line: 64
-  summary: 'Incorrect doc comment: describes `.shl_wrapped()` but the enum variant
-    represents a different operation (likely `.shr_wrapped()` or similar). Copy-paste
-    error in doc comment.'
+- file: leo/package/src/program.rs
+  line: 134
+  summary: 'Missing directory creation: code uses `cache_directory` without ensuring
+    it exists first, which will fail at runtime if the directory has not been previously
+    created.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

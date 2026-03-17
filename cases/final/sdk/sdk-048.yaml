@@ -1,31 +1,41 @@
 id: sdk-048
 repo: ProvableHQ/sdk
-base_commit: 01a51f130d83abdf12e2ab81d15fa1fc383b0b2b^
-head_commit: 01a51f130d83abdf12e2ab81d15fa1fc383b0b2b
-fix_commit: 01a51f130d83abdf12e2ab81d15fa1fc383b0b2b
-category: api
+base_commit: c9654b0b830c97f58931051d422c3a8290c4173c^
+head_commit: c9654b0b830c97f58931051d422c3a8290c4173c
+fix_commit: c9654b0b830c97f58931051d422c3a8290c4173c
+category: logic
 difficulty: easy
-severity: high
-language: typescript
-pr_size: xl
-description: 'TypeScript imports throughout the SDK lacked `.js` file extensions,
-  which broke module resolution under `moduleResolution: "nodenext"` (or `"node16"`).
-  The fix adds explicit `.js` extensions to all relative import paths and adds a nodenext
-  e2e test to prevent regression.'
+severity: medium
+language: rust
+pr_size: medium
+description: 'PR #1099 introduced a duplicate test module `record.rs` alongside the
+  existing `records.rs` in `wasm/src/utilities/test/`, causing ambiguous imports.
+  This fix removes the duplicate `record.rs` file and updates all import paths to
+  consistently reference `records::` instead of `record::`.'
 expected_findings:
-- file: sdk/src/account.ts
-  line: 7
-  summary: "Relative import missing `.js` extension \u2014 incompatible with TypeScript\
-    \ nodenext/node16 module resolution. Should be `\"./wasm.js\"` instead of `\"\
-    ./wasm\"`."
-- file: sdk/src/browser.ts
+- file: wasm/src/utilities/test/record.rs
   line: 1
-  summary: "Relative import missing `.js` extension \u2014 breaks nodenext module\
-    \ resolution. Should use `\"./polyfill/shared.js\"`."
-- file: sdk/src/function-key-provider.ts
-  line: 7
-  summary: "Relative import missing `.js` extension \u2014 breaks nodenext module\
-    \ resolution. Should use `\"./constants.js\"`."
+  summary: 'Duplicate module: `record.rs` duplicates the existing `records.rs` module
+    and should be removed.'
+  line_side: pre_fix
+- file: wasm/src/account/signature.rs
+  line: 220
+  summary: 'Incorrect module import: should reference `records::` (plural) not `record::`
+    for test record constants.'
+  line_side: pre_fix
+- file: wasm/src/utilities/encrypt.rs
+  line: 301
+  summary: 'Incorrect module import: should reference `utilities::test::records::`
+    (plural) not `record::`.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

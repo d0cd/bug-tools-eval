@@ -1,0 +1,33 @@
+id: keycloak-073
+repo: keycloak/keycloak
+base_commit: dc124ccf1197c47e25ca62b49e30927f73ad582f^
+head_commit: dc124ccf1197c47e25ca62b49e30927f73ad582f
+fix_commit: dc124ccf1197c47e25ca62b49e30927f73ad582f
+category: logic
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: tiny
+description: The PageHeader component used a simple falsy check (`customLogo || ...`)
+  to select the logo source, but empty strings are falsy yet were being returned by
+  LogoContext, causing the fallback to never trigger properly. The fix adds an explicit
+  trim check so that blank/whitespace-only custom logos fall through to the theme-provided
+  logo.
+expected_findings:
+- file: js/apps/admin-ui/src/PageHeader.tsx
+  line: 113
+  summary: Truthy check on `customLogo` treats empty string as falsy but LogoContext
+    can return an empty string that bypasses the intended fallback; needs explicit
+    `.trim()` guard to avoid blank logos overriding theme defaults
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

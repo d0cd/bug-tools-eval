@@ -1,28 +1,44 @@
 id: discourse-039
 repo: discourse/discourse
-base_commit: e7473effaac57becb2193a369f984734b2d67f85^
-head_commit: e7473effaac57becb2193a369f984734b2d67f85
-fix_commit: e7473effaac57becb2193a369f984734b2d67f85
-category: logic
-difficulty: easy
-severity: medium
+base_commit: 47728575f881ccbac093ef64ec86698e353729d0^
+head_commit: 47728575f881ccbac093ef64ec86698e353729d0
+fix_commit: 47728575f881ccbac093ef64ec86698e353729d0
+category: security
+difficulty: medium
+severity: high
 language: ruby
-pr_size: tiny
-description: Calling `map!` on `revision.modifications["raw"]` or `revision.modifications["cooked"]`
-  without a nil check causes a NoMethodError when only one modification type exists.
-  The fix adds the safe navigation operator (`&.`) before `map!` so nil values are
-  gracefully skipped.
+pr_size: medium
+description: The `upload_csv` endpoint in `invites_controller.rb` accepted arbitrary
+  user-controlled CSV column headers without validation, passing them directly into
+  invite hashes consumed by the BulkInvite job. This allowed potential mass-assignment-style
+  injection of unexpected keys. The fix adds an allowlist filtering accepted columns
+  to known values (`email`, `groups`, `topic_id`, `locale`, and valid UserField names).
 expected_findings:
-- file: app/jobs/regular/change_display_name.rb
-  line: 63
-  summary: 'NoMethodError: `modifications["raw"]` can be nil; needs safe navigation
-    (`&.`) before calling `map!`'
-- file: app/jobs/regular/change_display_name.rb
-  line: 64
-  summary: 'NoMethodError: `modifications["cooked"]` can be nil; needs safe navigation
-    (`&.`) before calling `map!`'
+- file: app/controllers/invites_controller.rb
+  line: 512
+  summary: CSV headers from user-uploaded file are zipped into hashes without filtering
+    against an allowlist; arbitrary keys flow into BulkInvite job, enabling mass-assignment-style
+    injection. Must filter columns to known values (email, groups, topic_id, locale,
+    valid UserField names).
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 38231
+reviewer_notes: []
+reviewer_findings:
+- file: spec/requests/invites_controller_spec.rb
+  line: 1930
+  summary: "```suggestion\r ```\r \r Mostly a nit but we already asserted for the\
+    \ exact keys in the invite above."
+  line_side: pre_fix
+- file: app/controllers/invites_controller.rb
+  line: 512
+  summary: "```suggestion\r             invite = csv_header.zip(row).map.to_h.filter\
+    \ do |k, v| \r               v.present? && (!valid_"
+  line_side: pre_fix
+quality_flags: []

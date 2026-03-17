@@ -1,23 +1,33 @@
 id: leo-097
 repo: ProvableHQ/leo
-base_commit: edb3c8ea16d36913321d617a3b43a8cca252b382^
-head_commit: edb3c8ea16d36913321d617a3b43a8cca252b382
-fix_commit: edb3c8ea16d36913321d617a3b43a8cca252b382
+base_commit: 5f46ccc026f9a9d9acb942f41413434ec83e3f7e^
+head_commit: 5f46ccc026f9a9d9acb942f41413434ec83e3f7e
+fix_commit: 5f46ccc026f9a9d9acb942f41413434ec83e3f7e
 category: logic
-difficulty: easy
-severity: low
+difficulty: medium
+severity: high
 language: rust
 pr_size: small
-description: The parser's error message for unexpected tokens was missing several
-  valid alternatives (e.g., 'inline', 'const') from its 'expected' list in file.rs.
-  The fix adds the missing token alternatives to the expected list so that parser
-  error messages correctly enumerate all valid options at that position.
+description: In Leo's ASG expression/call handling, a boolean flag controlling mutability
+  context checking was incorrectly set to `true` at line 71 of `call.rs`, allowing
+  mutable circuit member functions to be called from immutable contexts without error.
+  The fix corrected the boolean value so that the compiler properly rejects calls
+  to mutable methods when the calling context is immutable.
 expected_findings:
-- file: compiler/parser/src/parser/file.rs
-  line: 136
-  summary: 'Incomplete expected-token list: the parser error message is missing valid
-    alternatives (e.g., ''inline'', ''const'') that should be listed when an unexpected
-    token is encountered.'
+- file: asg/src/expression/call.rs
+  line: 71
+  summary: 'Incorrect mutability flag: boolean literal `true` should be `false` (or
+    vice versa), causing mutable circuit method calls to be permitted in immutable
+    contexts'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

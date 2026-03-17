@@ -1,32 +1,40 @@
 id: snarkVM-106
 repo: ProvableHQ/snarkVM
-base_commit: 5036d1d57f48b657255c7510a5c12175144f0fa0^
-head_commit: 5036d1d57f48b657255c7510a5c12175144f0fa0
-fix_commit: 5036d1d57f48b657255c7510a5c12175144f0fa0
-category: perf
-difficulty: hard
+base_commit: 7787e6e694ec25758b4b7f4fcae9be87fd5e77fa^
+head_commit: 7787e6e694ec25758b4b7f4fcae9be87fd5e77fa
+fix_commit: 7787e6e694ec25758b4b7f4fcae9be87fd5e77fa
+category: api-misuse
+difficulty: easy
 severity: medium
 language: rust
-pr_size: xl
-description: The LinearCombination implementation used a less efficient data structure
-  (likely BTreeMap or HashMap) causing poor performance characteristics in circuit
-  constraint operations. The fix switches to IndexMap for better insertion-order-preserving
-  lookups and updates, and also refactors the witness/inject traits to improve circuit
-  environment design.
+pr_size: medium
+description: The REST query client automatically detected whether the base URL contained
+  an API version string and appended '/v2' if it did not. After backwards compatibility
+  was added to REST API v1 (which remains the default), this forced version appending
+  caused incorrect API routing by overriding the intended default version. The fix
+  removes the automatic version detection and appending logic from the constructors.
 expected_findings:
-- file: circuits/environment/src/helpers/linear_combination.rs
-  line: 21
-  summary: LinearCombination uses a suboptimal map type (e.g., BTreeMap) instead of
-    IndexMap, leading to unnecessary overhead in constraint building and variable
-    lookups
-- file: circuits/environment/src/helpers/constraint.rs
-  line: 34
-  summary: Constraint evaluation calls value() in a potentially inefficient way due
-    to underlying LinearCombination data structure performance
-- file: circuits/environment/src/traits/inject.rs
-  line: 1
-  summary: Inject trait bundles type_name() method which should be separated into
-    a dedicated TypeName trait for cleaner abstraction
+- file: ledger/query/src/query/rest.rs
+  line: 33
+  summary: Constructor unconditionally stores base_url after appending '/v2' when
+    no version is detected, overriding the caller's intended API version
+  line_side: pre_fix
+- file: ledger/query/src/query/rest.rs
+  line: 154
+  summary: Same forced '/v2' appending logic duplicated in a second constructor path
+  line_side: pre_fix
+- file: ledger/query/src/query/rest.rs
+  line: 185
+  summary: Same forced '/v2' appending logic duplicated in a third constructor path
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

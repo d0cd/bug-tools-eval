@@ -1,0 +1,31 @@
+id: keycloak-065
+repo: keycloak/keycloak
+base_commit: c5225ac2e5a1aa6ad2dd142de590886769981047^
+head_commit: c5225ac2e5a1aa6ad2dd142de590886769981047
+fix_commit: c5225ac2e5a1aa6ad2dd142de590886769981047
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: The sample Keycloak Custom Resource YAML in the Operator rolling-updates
+  documentation had incorrect indentation, which would cause copy-pasted YAML to be
+  invalid or semantically wrong. The fix corrects the indentation of fields in the
+  example CR snippet.
+expected_findings:
+- file: docs/guides/operator/rolling-updates.adoc
+  line: 130
+  summary: 'Incorrect YAML indentation in sample Keycloak CR: ''enabled:'' field is
+    at wrong nesting level, making the example invalid if copy-pasted'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

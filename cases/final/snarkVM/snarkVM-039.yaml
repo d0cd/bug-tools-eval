@@ -1,30 +1,37 @@
 id: snarkVM-039
 repo: ProvableHQ/snarkVM
-base_commit: 276597b52eed4b27bf202a578cd774a6a38385c5^
-head_commit: 276597b52eed4b27bf202a578cd774a6a38385c5
-fix_commit: 276597b52eed4b27bf202a578cd774a6a38385c5
-category: logic
+base_commit: 24a0e7692aca0d87db40ba74b21821d26e53e325^
+head_commit: 24a0e7692aca0d87db40ba74b21821d26e53e325
+fix_commit: 24a0e7692aca0d87db40ba74b21821d26e53e325
+category: code-smell
 difficulty: easy
-severity: high
+severity: low
 language: rust
 pr_size: small
-description: The match statement in query.rs used the hardcoded value `3` for the
-  MainnetV0 network ID, when the correct value is `0`. This caused REST calls to credits.aleo
-  to fail on mainnet because the wrong network ID branch was matched. The fix replaces
-  the magic number with the `MainnetV0::ID` constant in all three match arms.
+description: 'Trail of Bits code quality finding addressing two issues: (1) copy-pasted
+  doc comments ''/// The size of the cache.'' appearing on multiple unrelated items
+  in lib.rs, and (2) incorrect field count in serialize_struct call for PuzzleSolutions
+  (hardcoded to 1 when it likely has more fields). These are minor correctness and
+  maintainability issues.'
 expected_findings:
-- file: ledger/query/src/query.rs
-  line: 66
-  summary: 'Wrong network ID: match arm uses hardcoded `3` for MainnetV0 but the correct
-    ID is `0`. Should use `console::network::MainnetV0::ID` constant instead.'
-- file: ledger/query/src/query.rs
-  line: 80
-  summary: 'Wrong network ID: match arm uses hardcoded `3` for MainnetV0 but the correct
-    ID is `0`. Should use `console::network::MainnetV0::ID` constant instead.'
-- file: ledger/query/src/query.rs
-  line: 93
-  summary: 'Wrong network ID: match arm uses hardcoded `3` for MainnetV0 but the correct
-    ID is `0`. Should use `console::network::MainnetV0::ID` constant instead.'
+- file: ledger/puzzle/src/lib.rs
+  line: 59
+  summary: Copy-pasted doc comment '/// The size of the cache.' is misleading — does
+    not accurately describe this item
+  line_side: pre_fix
+- file: ledger/puzzle/src/solutions/serialize.rs
+  line: 19
+  summary: serialize_struct field count is 1 but should match the actual number of
+    fields being serialized in PuzzleSolutions
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

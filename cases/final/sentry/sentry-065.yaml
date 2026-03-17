@@ -1,0 +1,38 @@
+id: sentry-065
+repo: getsentry/sentry
+base_commit: 4ffafba4b0e2c1b77e2d4a38f88556ff224e7e6a^
+head_commit: 4ffafba4b0e2c1b77e2d4a38f88556ff224e7e6a
+fix_commit: 4ffafba4b0e2c1b77e2d4a38f88556ff224e7e6a
+category: style
+difficulty: easy
+severity: low
+language: typescript
+pr_size: small
+description: The route error page previously directed users to open a GitHub issue
+  when something went wrong. This PR replaces that with a Zendesk troubleshooting
+  guide link and a support contact section with a diagnostic checklist. It also fulfills
+  a 10-year-old TODO to show additional resource links, using intentional inline styles
+  for graceful degradation when CSS/JS bundles fail to load.
+expected_findings:
+- file: static/app/views/routeError.tsx
+  line: 90
+  summary: Hardcoded external Zendesk URL embedded directly in component — consider
+    extracting to a constants file for maintainability
+  line_side: pre_fix
+- file: static/app/views/routeError.tsx
+  line: 100
+  summary: Inline styles used instead of CSS classes — though intentional for error-page
+    resilience, this deviates from the codebase's styling conventions and should be
+    documented with a comment
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

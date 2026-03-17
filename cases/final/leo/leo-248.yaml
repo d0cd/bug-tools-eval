@@ -1,31 +1,41 @@
 id: leo-248
 repo: ProvableHQ/leo
-base_commit: bbd41f81b6e9a3fc0f3ece6bcfd4f269967d3ac1^
-head_commit: bbd41f81b6e9a3fc0f3ece6bcfd4f269967d3ac1
-fix_commit: bbd41f81b6e9a3fc0f3ece6bcfd4f269967d3ac1
-category: type
+base_commit: fb5ae329aab7684b989a1db59056fa2cd648770e^
+head_commit: fb5ae329aab7684b989a1db59056fa2cd648770e
+fix_commit: fb5ae329aab7684b989a1db59056fa2cd648770e
+category: constraint
 difficulty: medium
 severity: high
-language: leo
-pr_size: xl
-description: The Leo compiler's type checker incorrectly rejected composite data types
-  (circuits/structs) as arguments to core algorithm functions like BHP hash/commit,
-  Pedersen hash/commit, and Poseidon hash. The fix redesigns the type checking methodology
-  for core functions to properly validate and accept composite data types alongside
-  primitive types.
+language: rust
+pr_size: medium
+description: 'The signed integer division algorithm in the ZK gadget unconditionally
+  computes the two''s complement of the denominator during calculation. For minimum
+  values (e.g., -128 for i8), the two''s complement does not exist in the same bit
+  width, causing the division to fail. The fix adds two special-case checks: when
+  the denominator is the minimum value, the result is 1 if the numerator equals the
+  denominator, and 0 otherwise.'
 expected_findings:
-- file: compiler/passes/src/type_checking/checker.rs
-  line: 174
-  summary: Core function type checking logic does not account for composite data types
-    (circuits/structs), incorrectly restricting inputs to primitive types only.
-- file: compiler/passes/src/type_checking/check_expressions.rs
-  line: 51
-  summary: Type validation for core function call arguments fails to handle composite
-    types, causing valid programs using structs with BHP/Pedersen/Poseidon to be rejected.
-- file: compiler/core/src/algorithms/mod.rs
-  line: 95
-  summary: Core algorithm type definitions only enumerate primitive types as valid
-    inputs, missing composite type support.
+- file: gadgets/src/signed_integer/arithmetic/div.rs
+  line: 23
+  summary: 'Division macro computes two''s complement of the denominator without guarding
+    against the minimum value (e.g., i8::MIN = -128), which has no valid two''s complement
+    in the same bit width. Must add a special case: if denominator == MIN, result
+    is 0 (or 1 if numerator == denominator).'
+  line_side: pre_fix
+- file: gadgets/src/signed_integer/arithmetic/div.rs
+  line: 85
+  summary: The signed division constraint synthesis does not account for the edge
+    case where the denominator is the type's minimum value, leading to constraint
+    unsatisfiability when the two's complement overflows.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

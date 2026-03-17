@@ -1,25 +1,39 @@
 id: keycloak-006
 repo: keycloak/keycloak
-base_commit: fa592f882a6793fd81cc374fd0245c9f5850d9dd^
-head_commit: fa592f882a6793fd81cc374fd0245c9f5850d9dd
-fix_commit: fa592f882a6793fd81cc374fd0245c9f5850d9dd
-category: logic
-difficulty: medium
-severity: medium
+base_commit: 0e441b9fb8f9eac18fdcd63663a46fd6c25d3e53^
+head_commit: 0e441b9fb8f9eac18fdcd63663a46fd6c25d3e53
+fix_commit: 0e441b9fb8f9eac18fdcd63663a46fd6c25d3e53
+category: api-misuse
+difficulty: easy
+severity: high
 language: typescript
 pr_size: small
-description: The `useSetTimeout()` hook used a `didUnmountRef` to track whether the
-  component was unmounted, but never reset it to `false` on mount. When React StrictMode
-  automatically unmounts and remounts components, the ref remained `true` after remount,
-  causing the hook to incorrectly believe the component was still unmounted. The fix
-  adds `didUnmountRef.current = false` at the start of the useEffect to properly reset
-  mounted state.
+description: The usePromise() hook awaited a Promise from the factory without a try-catch,
+  so any rejection (including AbortError on unmount) became an unhandled promise rejection.
+  The fix wraps the await in try-catch, silences AbortError (expected on unmount/dep
+  change), and rethrows other errors.
 expected_findings:
-- file: js/apps/admin-ui/src/utils/useSetTimeout.ts
-  line: 4
-  summary: useEffect cleanup sets `didUnmountRef.current = true` but the effect body
-    never resets it to `false` on mount. After React StrictMode's unmount/remount
-    cycle, the ref incorrectly remains `true`, breaking timeout scheduling.
+- file: js/apps/account-ui/src/utils/usePromise.ts
+  line: 55
+  summary: 'Unhandled promise rejection: `await factory(signal)` is not wrapped in
+    try-catch, so if the Promise rejects (e.g. network error or AbortError on unmount),
+    the error is never caught, causing an unhandled rejection that may crash the app
+    or silently fail.'
+  line_side: pre_fix
+- file: js/apps/account-ui/src/utils/usePromise.ts
+  line: 57
+  summary: 'Incorrect abort guard: checking `signal.aborted` after awaiting only prevents
+    calling `callback` on abort, but does not catch the AbortError exception that
+    rejected Promises throw, leading to unhandled rejections on component unmount.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

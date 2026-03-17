@@ -1,26 +1,31 @@
 id: sentry-047
 repo: getsentry/sentry
-base_commit: f5c0c94d9e41168525d8ee616e44b992ebdadb96^
-head_commit: f5c0c94d9e41168525d8ee616e44b992ebdadb96
-fix_commit: f5c0c94d9e41168525d8ee616e44b992ebdadb96
-category: perf
+base_commit: 3a518c5383902f4e22d0b8db108870eba63ce420^
+head_commit: 3a518c5383902f4e22d0b8db108870eba63ce420
+fix_commit: 3a518c5383902f4e22d0b8db108870eba63ce420
+category: api-misuse
 difficulty: easy
-severity: low
+severity: medium
 language: python
-pr_size: small
-description: The selenium plugin was being imported and loaded for all backend test
-  shards, including non-acceptance tests that don't use selenium. The fix adds a SENTRY_SKIP_SELENIUM_PLUGIN
-  environment variable to backend CI workflows and gates the plugin import in the
-  pytest init module on that variable, avoiding the overhead of loading the large
-  selenium plugin unnecessarily.
+pr_size: tiny
+description: A Snuba query filter uses `Op.IN` for a scalar (single) value instead
+  of the correct `Op.EQ` operator. While some query engines silently accept `IN` with
+  a scalar, this is semantically incorrect and may cause unexpected behavior or query
+  errors depending on the Snuba/ClickHouse version.
 expected_findings:
-- file: src/sentry/testutils/pytest/__init__.py
-  line: 13
-  summary: Selenium plugin is unconditionally imported for all test runs, including
-    non-acceptance tests that never use selenium. Should gate this import behind an
-    environment variable check to skip loading the large plugin when not needed.
+- file: src/sentry/tasks/summaries/utils.py
+  line: 211
+  summary: 'Wrong Snuba filter operator: `Op.IN` is used with a scalar value; should
+    be `Op.EQ` since the filter compares against a single value, not a list'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110693
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

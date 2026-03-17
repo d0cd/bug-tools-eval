@@ -1,28 +1,43 @@
 id: leo-170
 repo: ProvableHQ/leo
-base_commit: 2ddb474dce042b730538d2e0029998e3a9a11de2^
-head_commit: 2ddb474dce042b730538d2e0029998e3a9a11de2
-fix_commit: 2ddb474dce042b730538d2e0029998e3a9a11de2
-category: logic
+base_commit: b4852518f07dd7ff8823928c6f9cb7f4ab3d4429^
+head_commit: b4852518f07dd7ff8823928c6f9cb7f4ab3d4429
+fix_commit: b4852518f07dd7ff8823928c6f9cb7f4ab3d4429
+category: security
 difficulty: medium
-severity: medium
-language: leo
-pr_size: xl
-description: The Leo ABNF grammar for circuit definitions did not enforce that member
-  variables must appear before member functions, and did not properly support trailing
-  commas or semicolons after member variable declarations. The fix updates the grammar/parser
-  to enforce variable-before-function ordering and accept both semicolons and commas
-  as member variable delimiters.
+severity: critical
+language: rust
+pr_size: medium
+description: The `leo account sign` command exposed a `--seed` flag that allowed users
+  to seed the nonce used during signature generation. Reusing or controlling signature
+  nonces is a well-known cryptographic vulnerability that can lead to private key
+  recovery in Schnorr-based signature schemes. The fix removes the `--seed` flag entirely
+  to prevent accidental nonce reuse.
 expected_findings:
-- file: asg/tests/pass/form_ast.rs
-  line: 58
-  summary: Circuit member variable syntax uses comma delimiter instead of semicolon;
-    grammar should accept both but tests should standardize on semicolons
-- file: asg/tests/pass/circuits/member_variable_and_function.leo
-  line: 1
-  summary: Circuit definition does not enforce member variables before member functions,
-    and member variable delimiter (comma vs semicolon) is inconsistent with updated
-    grammar
+- file: leo/cli/commands/account.rs
+  line: 88
+  summary: 'Security: the Sign variant includes a seed parameter that allows user-controlled
+    signature nonces, enabling nonce reuse which can leak the private key in Schnorr-type
+    signatures'
+  line_side: pre_fix
+- file: leo/cli/commands/account.rs
+  line: 147
+  summary: 'Security: seed parameter is destructured and potentially passed to the
+    signing function, allowing deterministic/reusable nonces in signature generation'
+  line_side: pre_fix
+- file: leo/cli/commands/account.rs
+  line: 262
+  summary: 'Security: seed value is forwarded to the signature computation, undermining
+    nonce randomness required for signature security'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

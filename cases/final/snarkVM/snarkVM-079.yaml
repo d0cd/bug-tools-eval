@@ -1,33 +1,42 @@
 id: snarkVM-079
 repo: ProvableHQ/snarkVM
-base_commit: 91bb35962ce92afb88480e032e66e25a31eb74f1^
-head_commit: 91bb35962ce92afb88480e032e66e25a31eb74f1
-fix_commit: 91bb35962ce92afb88480e032e66e25a31eb74f1
+base_commit: 58b326dfa5808aeb08e354cd58da8f0c50dd38c7^
+head_commit: 58b326dfa5808aeb08e354cd58da8f0c50dd38c7
+fix_commit: 58b326dfa5808aeb08e354cd58da8f0c50dd38c7
 category: logic
 difficulty: hard
-severity: high
+severity: critical
 language: rust
 pr_size: xl
-description: Upgrades the DPC model by simplifying the serial number nonce computation
-  to use the previous record's serial number, reducing outer circuit execution from
-  4 proofs to 1, and adding enforcement that input/output program IDs match. The prior
-  model had incorrect or overly complex state transition logic that was refactored
-  into explicit noop/add/remove/update/split/join/joinsplit transitions.
+description: 'PR #2932 attempted to restore the PendingBlocks API but introduced a
+  regression that caused consensus halts during prerelease testing. The restored block
+  validation, ledger advancement, and store atomic-batch logic interacted incorrectly,
+  leading to the node halting. This revert removes all changes from #2932 to restore
+  stability.'
 expected_findings:
-- file: dpc/src/circuits/inner_circuit.rs
-  line: 26
-  summary: Inner circuit logic needed additional comparator gadget enforcement to
-    validate that input program ID matches output program ID or noop program ID for
-    each record pair
-- file: dpc/src/circuits/outer_circuit.rs
-  line: 84
-  summary: Outer circuit previously required 4 SNARK verification proofs; should be
-    reduced to 1, removing unnecessary program commitment verification
-- file: dpc/src/dpc.rs
-  line: 60
-  summary: DPC execute logic lacked proper state transition type enforcement; serial
-    number nonce computation was overly complex instead of using previous record's
-    serial number
+- file: ledger/src/check_next_block.rs
+  line: 15
+  summary: Restored PendingBlocks block-validation logic introduces incorrect validation
+    path that can cause consensus halt under certain block-ordering conditions
+  line_side: pre_fix
+- file: ledger/src/advance.rs
+  line: 92
+  summary: Modified advance logic for pending blocks does not correctly handle edge
+    cases in block sequencing, contributing to node halt
+  line_side: pre_fix
+- file: ledger/src/lib.rs
+  line: 147
+  summary: Re-added PendingBlocks API surface and associated state management that
+    interacts unsafely with the consensus pipeline, causing liveness failure
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

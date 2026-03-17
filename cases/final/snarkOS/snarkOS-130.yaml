@@ -1,31 +1,32 @@
 id: snarkOS-130
 repo: ProvableHQ/snarkOS
-base_commit: 10b2ee2f8c64270729a8cf62d7a3a7394683ddac^
-head_commit: 10b2ee2f8c64270729a8cf62d7a3a7394683ddac
-fix_commit: 10b2ee2f8c64270729a8cf62d7a3a7394683ddac
-category: logic
-difficulty: medium
+base_commit: afc2f12ce5070fd3e993b425273c0f8efa601d31^
+head_commit: afc2f12ce5070fd3e993b425273c0f8efa601d31
+fix_commit: afc2f12ce5070fd3e993b425273c0f8efa601d31
+category: api-misuse
+difficulty: easy
 severity: medium
 language: rust
-pr_size: medium
-description: The router's outbound send path did not proactively disconnect inactive
-  peers, leading to erroneous send attempts to peers that were no longer active. The
-  fix adds proactive disconnect calls in the heartbeat, outbound, and routing logic,
-  and removes redundant request handling to ensure stale peers are cleaned up before
-  sends are attempted.
+pr_size: tiny
+description: The logger attempted to create a log file without first ensuring that
+  the parent directories exist. If the configured log path included non-existent intermediate
+  directories, file creation would fail. The fix adds a recursive directory creation
+  call (e.g., `std::fs::create_dir_all`) before opening the log file.
 expected_findings:
-- file: node/router/src/outbound.rs
-  line: 52
-  summary: Missing check to proactively disconnect inactive peers before attempting
-    to send, causing erroneous sends to stale peer connections
-- file: node/router/src/heartbeat.rs
-  line: 65
-  summary: Oldest peer should be disconnected via self.router().disconnect() rather
-    than just being removed from the peer list, to ensure proper cleanup of the connection
-- file: node/router/src/routing.rs
-  line: 59
-  summary: Routing logic does not proactively disconnect peers that are no longer
-    active, allowing stale entries to persist and cause failed sends
+- file: cli/src/helpers/logger.rs
+  line: 51
+  summary: 'Missing parent directory creation: log file open will fail if intermediate
+    directories do not exist. Should call create_dir_all on the parent path before
+    creating the file.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

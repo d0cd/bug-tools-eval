@@ -1,31 +1,57 @@
 id: snarkVM-155
 repo: ProvableHQ/snarkVM
-base_commit: 6e182c6d6c9ec92a0140dbf543e9149699b68c60^
-head_commit: 6e182c6d6c9ec92a0140dbf543e9149699b68c60
-fix_commit: 6e182c6d6c9ec92a0140dbf543e9149699b68c60
-category: logic
+base_commit: d208ca879307d5101fbccfb88665a5ec155b5cff^
+head_commit: d208ca879307d5101fbccfb88665a5ec155b5cff
+fix_commit: d208ca879307d5101fbccfb88665a5ec155b5cff
+category: incomplete
 difficulty: medium
-severity: critical
+severity: high
 language: rust
-pr_size: large
-description: Missing limits on the number of imports, program depth, and function
-  call depth in snarkVM programs allowed potential resource exhaustion attacks. The
-  fix introduces upper bounds for imports per program, a maximum program/import depth,
-  limits each function to at most MAX_TRANSITIONS - 1 calls, and caches the call count
-  computation.
+pr_size: xl
+description: PR removes the entire snarkVM CLI and related features, but inadvertently
+  also removes the `file` and `package` Cargo features that downstream crates like
+  snarkOS depend on. Reviewer caught that these features must be preserved even though
+  the CLI is being removed. Additionally, empty lines were introduced in Cargo.toml
+  causing formatting issues.
 expected_findings:
-- file: synthesizer/program/src/lib.rs
-  line: 295
-  summary: 'Missing validation: no limit enforced on the number of imports a program
-    can declare, allowing unbounded import chains and potential DoS.'
-- file: synthesizer/process/src/stack/helpers/initialize.rs
-  line: 27
-  summary: No check on function call depth or program depth during stack initialization,
-    allowing deeply nested or excessively recursive program structures.
-- file: console/network/src/lib.rs
-  line: 160
-  summary: Missing MAX_PROGRAM_DEPTH constant to bound import/program nesting depth,
-    enabling arbitrarily deep program chains.
+- file: Cargo.toml
+  line: 111
+  summary: "The `file` and `package` Cargo features were removed along with the CLI\
+    \ feature, but downstream projects (snarkOS) depend on them \u2014 these features\
+    \ must be restored independently of the CLI removal"
+  line_side: pre_fix
+- file: Cargo.toml
+  line: 591
+  summary: Empty lines introduced in Cargo.toml causing formatting issues; cleanup
+    left artifacts in the manifest
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 2917
+reviewer_notes: []
+reviewer_findings:
+- file: Cargo.toml
+  line: 111
+  summary: '@copilot please restore the `file` and `package` features, existing projects
+    like snarkOS depend on them'
+  line_side: pre_fix
+- file: Cargo.toml
+  line: 111
+  summary: Restored the `file` and `package` features as requested. The features are
+    now available with their original functionalit
+  line_side: pre_fix
+- file: Cargo.toml
+  line: 591
+  summary: ??
+  line_side: pre_fix
+- file: Cargo.toml
+  line: 591
+  summary: Fixed the empty lines in Cargo.toml that were causing formatting issues.
+    Commit eb9a278.
+  line_side: pre_fix
+quality_flags: []

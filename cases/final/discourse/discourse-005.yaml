@@ -1,38 +1,33 @@
 id: discourse-005
 repo: discourse/discourse
-base_commit: 0626ec1a294d3c4ea97c767f5f93232ce78ee8f6^
-head_commit: 0626ec1a294d3c4ea97c767f5f93232ce78ee8f6
-fix_commit: 0626ec1a294d3c4ea97c767f5f93232ce78ee8f6
-category: api
-difficulty: hard
+base_commit: 03ad8f019169f7ec56f3596b095a171610aeb2cc^
+head_commit: 03ad8f019169f7ec56f3596b095a171610aeb2cc
+fix_commit: 03ad8f019169f7ec56f3596b095a171610aeb2cc
+category: security
+difficulty: easy
 severity: high
 language: ruby
-pr_size: small
-description: 'Passkey registration failed in two ways: (1) the CBOR public key extraction
-  naively sliced all remaining bytes after the credential ID, breaking when authenticators
-  included extension data like hmac-secret in their attestation response, and (2)
-  pubKeyCredParams used COSE::Algorithm.registered_algorithm_ids which includes symmetric
-  HMAC algorithms that strict authenticator firmware rejects with NotAllowedError.
-  The fix uses CBOR::Unpacker streaming decode to read exactly one CBOR object and
-  replaces the blanket algorithm list with an explicit allowlist of asymmetric signature
-  algorithms.'
+pr_size: tiny
+description: The Discourse subscriptions plugin's webhook endpoint did not enforce
+  the presence of a webhook secret, allowing requests to be processed even when the
+  secret was blank. The fix adds a guard that returns 403 Forbidden when the webhook
+  secret is not configured, preventing unauthenticated webhook payloads from being
+  accepted.
 expected_findings:
-- file: lib/discourse_webauthn/registration_service.rb
-  line: 118
-  summary: Naive byte slicing after credential ID assumes all remaining bytes are
-    the public key; fails when authenticators append extension data (e.g. hmac-secret)
-    to the attestation object
-- file: lib/discourse_webauthn.rb
-  line: 4
-  summary: Using COSE::Algorithm.registered_algorithm_ids includes symmetric HMAC
-    algorithms invalid for WebAuthn pubKeyCredParams, causing strict authenticators
-    to reject the request with NotAllowedError
-- file: lib/discourse_webauthn/registration_service.rb
-  line: 159
-  summary: Missing rescue for COSE::MalformedKeyError causes unhandled exceptions
-    to return HTTP 500 instead of a proper error response
+- file: plugins/discourse-subscriptions/app/controllers/discourse_subscriptions/hooks_controller.rb
+  line: 20
+  summary: 'Missing guard: webhook requests are processed even when webhook_secret
+    is blank, bypassing signature verification entirely. Should return 403 Forbidden
+    if the secret is not configured.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

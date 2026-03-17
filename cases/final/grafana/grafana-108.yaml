@@ -1,0 +1,31 @@
+id: grafana-108
+repo: grafana/grafana
+base_commit: e711f0e91494dd1a5cc3a42b1b061f3439385092^
+head_commit: e711f0e91494dd1a5cc3a42b1b061f3439385092
+fix_commit: e711f0e91494dd1a5cc3a42b1b061f3439385092
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: Workspace dependency files (go.mod/go.sum) were out of sync with the
+  project's workspace configuration. Running `make update-workspace` regenerated them
+  to match the current state. This is a routine housekeeping change with no behavioral
+  impact.
+expected_findings:
+- file: pkg/infra/features/go.mod
+  line: 18
+  summary: go.mod dependency version for grpc-gateway/v2 is stale and does not match
+    the workspace-level pin; needs regeneration via `make update-workspace`
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

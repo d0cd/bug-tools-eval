@@ -1,24 +1,46 @@
 id: keycloak-031
 repo: keycloak/keycloak
-base_commit: 7e7d902073935a1bd986f3a2286e1d2deb8aac8f^
-head_commit: 7e7d902073935a1bd986f3a2286e1d2deb8aac8f
-fix_commit: 7e7d902073935a1bd986f3a2286e1d2deb8aac8f
-category: logic
-difficulty: easy
-severity: low
-language: typescript
-pr_size: tiny
-description: The Select component in NewClientPolicyCondition was rendering its dropdown
-  menu at a default width instead of matching the trigger element's width. The fix
-  adds the width="trigger" prop to the Select component so the dropdown menu width
-  matches the trigger button.
+base_commit: 68a50ddd7b1f5a4d14bfc9ecb8c756dff8f6557b^
+head_commit: 68a50ddd7b1f5a4d14bfc9ecb8c756dff8f6557b
+fix_commit: 68a50ddd7b1f5a4d14bfc9ecb8c756dff8f6557b
+category: security
+difficulty: medium
+severity: critical
+language: java
+pr_size: medium
+description: The Authorization header parsing in AppAuthManager.java used indexOf('
+  ') to split the header value without validating that the scheme is 'Bearer' or that
+  a non-empty token follows. This pattern is repeated in three locations, allowing
+  malformed Authorization headers to bypass authentication checks (CVE-2026-0707).
+  The fix adds explicit Bearer prefix validation and non-empty token checks.
 expected_findings:
-- file: js/apps/admin-ui/src/realm-settings/NewClientPolicyCondition.tsx
-  line: 228
-  summary: Select component missing width="trigger" prop, causing dropdown menu to
-    render at incorrect width instead of matching the trigger element
+- file: services/src/main/java/org/keycloak/services/managers/AppAuthManager.java
+  line: 32
+  summary: Authorization header split on space via indexOf(' ') without validating
+    the scheme is 'Bearer' or that the token portion is non-empty, allowing auth bypass
+    with crafted headers
+  line_side: pre_fix
+- file: services/src/main/java/org/keycloak/services/managers/AppAuthManager.java
+  line: 41
+  summary: 'Same vulnerable pattern: naive space-based split of Authorization header
+    without Bearer scheme validation or empty-token check'
+  line_side: pre_fix
+- file: services/src/main/java/org/keycloak/services/managers/AppAuthManager.java
+  line: 62
+  summary: 'Third instance of the same vulnerable pattern: no Bearer prefix validation
+    before extracting token from Authorization header'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 46190
+reviewer_notes:
+- '[thread] ## Unreported flaky test detected If the flaky tests below are affected
+  by the changes, please review and update the changes accordingly. Otherwise, a maintainer
+  should report the flaky tests prior to merging the PR.  ### org.keycloak.testsuite.forms.LevelOfAssuranceFlowTest#testNonEssentialAcrMinim'
+reviewer_findings: []
+quality_flags: []

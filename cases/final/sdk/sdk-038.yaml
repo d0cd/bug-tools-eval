@@ -1,30 +1,40 @@
 id: sdk-038
 repo: ProvableHQ/sdk
-base_commit: 8f729e12477f45aef307fb737941d1c66c6ef493^
-head_commit: 8f729e12477f45aef307fb737941d1c66c6ef493
-fix_commit: 8f729e12477f45aef307fb737941d1c66c6ef493
-category: logic
-difficulty: medium
-severity: low
-language: typescript
-pr_size: large
-description: Circular dependency warnings in Rollup were caused by modules importing
-  from each other in a cycle. The fix reorganizes imports and moves declarations (e.g.,
-  `logAndThrow` into utils, wasm re-exports) to break the circular chains, and updates
-  test config to suppress unrelated warnings. No behavioral change.
+base_commit: 928a7d911047cd17acbd302b7e191b04a4f838bb^
+head_commit: 928a7d911047cd17acbd302b7e191b04a4f838bb
+fix_commit: 928a7d911047cd17acbd302b7e191b04a4f838bb
+category: api-misuse
+difficulty: easy
+severity: medium
+language: javascript
+pr_size: small
+description: The vite.config files across create-leo-app templates and the website
+  used CommonJS `require()` syntax which is incompatible with Vite's ESM module system,
+  causing build failures. The fix updates the vite configs to use proper ESM-compatible
+  configuration, resolving the `require is not defined` error at build time.
 expected_findings:
-- file: sdk/src/browser.ts
-  line: 1
-  summary: 'Circular dependency: browser.ts re-exports or imports symbols that form
-    a cycle with other modules; logAndThrow should be imported from utils instead.'
-- file: sdk/src/constants.ts
-  line: 1
-  summary: 'Circular dependency: constants.ts imports from wasm.ts which may transitively
-    import back, creating a circular module reference.'
-- file: sdk/rollup.config.js
-  line: 32
-  summary: Missing external declaration for 'core-js/proposals/json-parse-with-source.js'
-    causes Rollup warning about unresolved dependency.
+- file: create-leo-app/template-react-leo/vite.config.js
+  line: 4
+  summary: Vite config uses CommonJS require() which fails in ESM context; should
+    use ESM import or vite-compatible plugin configuration
+  line_side: pre_fix
+- file: create-leo-app/template-react-managed-worker/vite.config.js
+  line: 3
+  summary: Same require() incompatibility in vite config — needs ESM-compatible syntax
+  line_side: pre_fix
+- file: website/vite.config.js
+  line: 3
+  summary: Website vite config also uses require() pattern incompatible with Vite's
+    ESM module system
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,36 +1,40 @@
 id: snarkOS-157
 repo: ProvableHQ/snarkOS
-base_commit: e91eec0147e6c7f6b7534c2263927ed42600fa84^
-head_commit: e91eec0147e6c7f6b7534c2263927ed42600fa84
-fix_commit: e91eec0147e6c7f6b7534c2263927ed42600fa84
+base_commit: d54b866db3714035c1ba368733939f345febf2a6^
+head_commit: d54b866db3714035c1ba368733939f345febf2a6
+fix_commit: d54b866db3714035c1ba368733939f345febf2a6
 category: logic
 difficulty: medium
 severity: medium
 language: rust
-pr_size: xl
-description: The NUM_REDUNDANT_REQUESTS was a static constant that didn't scale with
-  the number of validators in the committee, causing either too many or too few redundant
-  fetch requests depending on network size. Additionally, the pending request count
-  used callbacks rather than actual sent TransmissionRequest/CertificateRequest events,
-  giving an inaccurate measure of redundancy. The fix replaces the constant with a
-  dynamic formula (1 + num_validators / 3) and switches to counting actual sent request
-  events.
+pr_size: small
+description: When CDN sync fails, the error handler unconditionally checks ledger
+  integrity and returns errors even when no sync progress was made (completed_height
+  == start_height). This causes misleading error logs and spurious integrity-check
+  failures when the sync fails immediately without downloading any blocks. The fix
+  wraps the integrity checks in a guard that only runs them if the sync actually made
+  progress.
 expected_findings:
-- file: node/bft/src/helpers/pending.rs
-  line: 13
-  summary: Static NUM_REDUNDANT_REQUESTS constant does not account for committee size;
-    should be a dynamic calculation based on the number of validators in the committee
-    lookback set.
-- file: node/bft/src/worker.rs
-  line: 90
-  summary: Redundancy check uses callback count (num_pending_requests) instead of
-    actual sent TransmissionRequest/CertificateRequest events, leading to inaccurate
-    redundancy measurement.
-- file: node/bft/src/sync/mod.rs
-  line: 410
-  summary: Sync module uses static redundancy limit rather than dynamic max_redundant_requests
-    based on committee size, causing suboptimal fetch behavior for varying network
-    sizes.
+- file: node/cdn/src/blocks.rs
+  line: 58
+  summary: 'Missing progress guard: ledger integrity check runs even when sync made
+    no progress (completed_height == start_height), producing misleading errors and
+    potentially returning false Err results to the caller.'
+  line_side: pre_fix
+- file: node/cdn/src/blocks.rs
+  line: 61
+  summary: 'Spurious error return: comparing node_height to completed_height and returning
+    an error is misleading when no blocks were actually synced, since completed_height
+    equals start_height and the ledger state hasn''t changed.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

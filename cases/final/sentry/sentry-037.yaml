@@ -1,26 +1,41 @@
 id: sentry-037
 repo: getsentry/sentry
-base_commit: f55826d027cfbac6db8d1ce7233ef89bbd30968e^
-head_commit: f55826d027cfbac6db8d1ce7233ef89bbd30968e
-fix_commit: f55826d027cfbac6db8d1ce7233ef89bbd30968e
-category: api
+base_commit: 2ca4ada5063d40c280ccc6cc2703c433f1dbc5af^
+head_commit: 2ca4ada5063d40c280ccc6cc2703c433f1dbc5af
+fix_commit: 2ca4ada5063d40c280ccc6cc2703c433f1dbc5af
+category: performance
 difficulty: medium
 severity: medium
-language: python
-pr_size: small
-description: handle_query_errors() caught RateLimitExceeded and converted it to a
-  generic Throttled exception, discarding rate-limit metadata (policy, quota_unit,
-  storage_key, quota_used, rejection_threshold). The fix re-raises RateLimitExceeded
-  so custom_exception_handler can capture the metadata onto the request for access
-  log middleware.
+language: typescript
+pr_size: medium
+description: All echarts widget instances on the dashboard were unconditionally connected
+  to the same sync group, causing every mousemove event to dispatch cursor-sync calls
+  to every chart—including those scrolled off-screen. The fix uses an IntersectionObserver
+  to dynamically add/remove charts from the echarts connect group based on viewport
+  visibility, significantly reducing the work echarts does on hover.
 expected_findings:
-- file: src/sentry/api/utils.py
-  line: 401
-  summary: RateLimitExceeded is caught and converted to Throttled, losing rate-limit
-    metadata (policy, quota_unit, storage_key, quota_used, rejection_threshold); should
-    re-raise RateLimitExceeded instead
+- file: static/app/views/dashboards/contexts/widgetSyncContext.tsx
+  line: 31
+  summary: 'Performance: `chart.group = groupName; echarts.connect(groupName)` registers
+    every chart into the sync group unconditionally. On dashboards with many widgets,
+    this causes expensive cross-chart cursor synchronization on every mousemove event,
+    even for off-screen charts. Should only connect charts that are currently visible
+    in the viewport.'
+  line_side: pre_fix
+- file: static/app/views/dashboards/widgets/timeSeriesWidget/timeSeriesWidgetVisualization.tsx
+  line: 452
+  summary: 'Missing cleanup: `registerWithWidgetSyncContext(instance)` is called on
+    chart ready but its return value (unregister callback) is discarded, so charts
+    are never removed from the sync group when unmounted or re-initialized.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

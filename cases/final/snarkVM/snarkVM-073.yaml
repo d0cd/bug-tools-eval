@@ -1,34 +1,31 @@
 id: snarkVM-073
 repo: ProvableHQ/snarkVM
-base_commit: 63e1c15ccb3d1b16e52af08feecc669db35b102d^
-head_commit: 63e1c15ccb3d1b16e52af08feecc669db35b102d
-fix_commit: 63e1c15ccb3d1b16e52af08feecc669db35b102d
-category: logic
+base_commit: 5298d4b41ae27b052c23133269e2cab956dd057f^
+head_commit: 5298d4b41ae27b052c23133269e2cab956dd057f
+fix_commit: 5298d4b41ae27b052c23133269e2cab956dd057f
+category: style
 difficulty: easy
 severity: low
 language: rust
 pr_size: tiny
-description: Error messages in version-checking code referred to the wrong object
-  type. For example, a request's version check might say 'Invalid state path version'
-  instead of 'Invalid request version'. The fix corrects the string literals in four
-  files to match their respective objects.
+description: A benchmark file was added before a repo-wide license header update,
+  so it retained the old license header format. The PR also includes a minor lockfile
+  adjustment. This is a convention violation where one file's license header doesn't
+  match the rest of the repository.
 expected_findings:
-- file: console/program/src/request/bytes.rs
-  line: 23
-  summary: 'Incorrect error message string: version check error does not match the
-    actual object type (request)'
-- file: console/program/src/state_path/bytes.rs
-  line: 23
-  summary: 'Incorrect error message string: version check error does not match the
-    actual object type (state path)'
-- file: synthesizer/src/block/transactions/bytes.rs
-  line: 24
-  summary: 'Incorrect error message string: version check error does not match the
-    actual object type (transactions)'
-- file: synthesizer/src/snark/proving_key/bytes.rs
-  line: 23
-  summary: 'Incorrect error message string: version check error does not match the
-    actual object type (proving key)'
+- file: synthesizer/process/benches/check_deployment.rs
+  line: 1
+  summary: License header does not match the updated format used across the rest of
+    the repository; should be updated to the current license convention.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

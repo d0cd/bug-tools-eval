@@ -1,31 +1,46 @@
 id: keycloak-003
 repo: keycloak/keycloak
-base_commit: 84e763b472cd6a3f4550e962d694cd0016660c24^
-head_commit: 84e763b472cd6a3f4550e962d694cd0016660c24
-fix_commit: 84e763b472cd6a3f4550e962d694cd0016660c24
-category: logic
+base_commit: 05ff44b8a0ea57ba9c68c4b416f8b90f5116bb83^
+head_commit: 05ff44b8a0ea57ba9c68c4b416f8b90f5116bb83
+fix_commit: 05ff44b8a0ea57ba9c68c4b416f8b90f5116bb83
+category: security
 difficulty: medium
-severity: medium
-language: typescript
-pr_size: large
-description: 'The KeyValueInput component always rendered at least one empty key-value
-  row even when no attributes were defined, causing issues with form state and submission
-  (issue #19254). The fix introduces an EmptyState component when no attributes exist
-  and corrects the key-value conversion logic to properly filter out empty entries,
-  along with fixing label styling and alignment.'
+severity: critical
+language: java
+pr_size: medium
+description: The Authorization header parsing in AppAuthManager used naive indexOf('
+  ') to split the Bearer token, lacking case-insensitive scheme validation, strict
+  whitespace enforcement, and RFC 6750 token format validation. This allowed malformed
+  or crafted Authorization headers to bypass validation (CVE-2026-0707 / GHSA-gv94-wp4h-vv8p).
+  The fix adds case-insensitive Bearer matching, enforces a single ASCII space separator,
+  rejects non-standard whitespace characters, and validates the token value against
+  the RFC 6750 b64token grammar.
 expected_findings:
-- file: js/apps/admin-ui/src/components/key-value-form/key-value-convert.ts
-  line: 22
-  summary: Conversion function does not filter out empty key-value entries, allowing
-    empty rows to be submitted as valid data
-- file: js/apps/admin-ui/src/components/key-value-form/KeyValueInput.tsx
-  line: 2
-  summary: "Component lacks an empty state \u2014 always renders at least one empty\
-    \ row even when no attributes are defined, leading to invalid form state"
-- file: js/apps/admin-ui/src/components/multi-line-input/MultiLineInput.tsx
-  line: 85
-  summary: Input name pattern uses index-based naming that doesn't account for empty/missing
-    entries correctly
+- file: services/src/main/java/org/keycloak/services/managers/AppAuthManager.java
+  line: 17
+  summary: 'Insufficient Authorization header parsing: indexOf('' '') does not validate
+    the scheme is ''Bearer'' (case-insensitive), allows multiple or non-standard whitespace
+    separators, and does not validate the token conforms to RFC 6750 b64token format.
+    This enables CVE-2026-0707.'
+  line_side: pre_fix
+- file: services/src/main/java/org/keycloak/services/managers/AppAuthManager.java
+  line: 42
+  summary: 'Same vulnerable pattern repeated: naive indexOf('' '') split without scheme
+    validation or token format checking on Authorization header.'
+  line_side: pre_fix
+- file: services/src/main/java/org/keycloak/services/managers/AppAuthManager.java
+  line: 63
+  summary: 'Same vulnerable pattern repeated a third time: indexOf('' '') split without
+    proper Bearer scheme or token validation.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

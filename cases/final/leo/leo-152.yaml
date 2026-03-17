@@ -1,31 +1,30 @@
 id: leo-152
 repo: ProvableHQ/leo
-base_commit: 0e11b6e757902906df71a406c74c8d1f851514f2^
-head_commit: 0e11b6e757902906df71a406c74c8d1f851514f2
-fix_commit: 0e11b6e757902906df71a406c74c8d1f851514f2
-category: logic
-difficulty: medium
-severity: medium
+base_commit: a04a76305d56cc4ddd8356e32563b39b78386c94^
+head_commit: a04a76305d56cc4ddd8356e32563b39b78386c94
+fix_commit: a04a76305d56cc4ddd8356e32563b39b78386c94
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: Using HashMap throughout the compiler produced non-deterministic iteration
-  order, meaning the same Leo program could yield different ASTs across runs. The
-  fix replaces all HashMap/HashSet usages with IndexMap/IndexSet, which preserve insertion
-  order and guarantee deterministic behavior.
+pr_size: tiny
+description: 'A typo in a filename string literal: "inital_ast.json" was misspelled
+  (missing the second ''i'' in ''initial''). The fix corrects it to "initial_ast.json".
+  This could cause confusion when looking for output files or break downstream tooling
+  that expects the correctly-spelled filename.'
 expected_findings:
-- file: ast/src/program.rs
-  line: 20
-  summary: HashMap does not guarantee iteration order; compiling the same program
-    multiple times can produce different ASTs. Should use an ordered map (IndexMap)
-    for deterministic output.
-- file: imports/src/parser/import_parser.rs
-  line: 17
-  summary: HashMap/HashSet used for import tracking causes non-deterministic ordering
-    of parsed imports, harming reproducibility.
-- file: symbol-table/src/symbol_table.rs
-  line: 19
-  summary: HashMap/HashSet in the symbol table leads to non-deterministic symbol resolution
-    order; should use IndexMap/IndexSet for reproducible compilation.
+- file: compiler/src/compiler.rs
+  line: 241
+  summary: 'Typo in filename string: "inital_ast.json" should be "initial_ast.json"'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

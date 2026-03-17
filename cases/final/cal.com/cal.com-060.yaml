@@ -1,0 +1,32 @@
+id: cal.com-060
+repo: calcom/cal.com
+base_commit: cfca703df07523d7cad19a00aff3a3d91a5e43f9^
+head_commit: cfca703df07523d7cad19a00aff3a3d91a5e43f9
+fix_commit: cfca703df07523d7cad19a00aff3a3d91a5e43f9
+category: security
+difficulty: easy
+severity: high
+language: typescript
+pr_size: tiny
+description: Permissive hostname validation using `hostname.includes('cal.com')` allows
+  domain spoofing attacks where an attacker-controlled domain like `cal.com.evil.com`
+  passes the check. The fix replaces `.includes()` with strict exact-match or `.endsWith('.')`
+  checks for both Cal.com and Daily.co domains.
+expected_findings:
+- file: companion/app/video/[bookingUid].tsx
+  line: 61
+  summary: 'Insecure hostname check: `hostname.includes("cal.com")` is vulnerable
+    to domain spoofing (e.g., `cal.com.evil.com` passes). Use exact match or `.endsWith(".cal.com")`
+    instead.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

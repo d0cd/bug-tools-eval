@@ -1,33 +1,37 @@
 id: snarkOS-161
 repo: ProvableHQ/snarkOS
-base_commit: 09c14db7be324ef130cac59886650beaa043a339^
-head_commit: 09c14db7be324ef130cac59886650beaa043a339
-fix_commit: 09c14db7be324ef130cac59886650beaa043a339
-category: logic
-difficulty: hard
-severity: critical
+base_commit: db28e57364b6d923dca84d117d97d870ad77adda^
+head_commit: db28e57364b6d923dca84d117d97d870ad77adda
+fix_commit: db28e57364b6d923dca84d117d97d870ad77adda
+category: performance
+difficulty: medium
+severity: high
 language: rust
 pr_size: medium
-description: In the Bullshark BFT consensus implementation, odd and even round advancement
-  logic was missing a quorum check for 2f+1 certificates. When the previous even round
-  leader was unseen, the code would immediately return true to advance rounds, allowing
-  a malicious node to send a batch header with a round number beyond the GC limit,
-  causing honest nodes to prematurely increment their BFT round. The fix adds an `is_ready`
-  quorum check at each round advancement decision point.
+description: Block synchronization stalled when processing large blocks because block
+  handling was performed synchronously on the router's main task, blocking progress.
+  The fix adds the rayon dependency and offloads heavy block processing to a parallel
+  thread pool, preventing the sync pipeline from being blocked by large blocks.
 expected_findings:
-- file: node/bft/src/bft.rs
-  line: 370
-  summary: 'Missing quorum check: odd round advancement returns true when previous
-    even round leader is unseen without verifying 2f+1 certificates threshold, allowing
-    premature round increment exploitable by malicious nodes'
-- file: node/bft/src/bft.rs
-  line: 226
-  summary: Even round advancement path lacks is_ready quorum check before allowing
-    the round to advance when a leader certificate is found
-- file: node/bft/src/bft.rs
-  line: 323
-  summary: Round advancement path missing is_ready quorum verification, allowing advancement
-    without sufficient certificate count
+- file: node/src/client/router.rs
+  line: 115
+  summary: Block processing is done synchronously via self.clone() on the main task;
+    large blocks will block the entire sync pipeline. Should offload to a rayon/spawn_blocking
+    thread pool.
+  line_side: pre_fix
+- file: node/src/validator/router.rs
+  line: 111
+  summary: Same synchronous block processing pattern as client router; large blocks
+    block the validator's sync progress.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

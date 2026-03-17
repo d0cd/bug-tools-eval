@@ -1,33 +1,43 @@
 id: snarkVM-101
 repo: ProvableHQ/snarkVM
-base_commit: 09c74268e9a7323e2bcecb58e8bcda8522608578^
-head_commit: 09c74268e9a7323e2bcecb58e8bcda8522608578
-fix_commit: 09c74268e9a7323e2bcecb58e8bcda8522608578
+base_commit: 70ee49d7e642cd1629d85211a6ef8c14dfea01a3^
+head_commit: 70ee49d7e642cd1629d85211a6ef8c14dfea01a3
+fix_commit: 70ee49d7e642cd1629d85211a6ef8c14dfea01a3
 category: logic
-difficulty: hard
-severity: critical
+difficulty: easy
+severity: high
 language: rust
-pr_size: large
-description: The field division circuit did not correctly handle the division-by-zero
-  case. When the divisor was zero in a non-constant mode, the circuit could produce
-  unsound results or fail to properly constrain the output. The fix adds explicit
-  zero-checks in the circuit division logic and updates constraint counts across all
-  dependent circuits.
+pr_size: small
+description: The deploy request used an address derived from the program ID (`program_id.to_address()`)
+  instead of the developer/owner's address from the manifest file. This caused deploy
+  requests to be sent with the wrong identity. A secondary bug had the serialization
+  field count as 1 instead of 3.
 expected_findings:
-- file: circuit/types/field/src/div.rs
-  line: 58
-  summary: 'Field division circuit missing division-by-zero guard: when `other` is
-    non-constant, the circuit must explicitly check whether the divisor is zero and
-    handle it to maintain soundness.'
-- file: circuit/types/field/src/div.rs
-  line: 97
-  summary: Division implementation for non-constant divisor lacks zero-check, allowing
-    unsound witness assignment when dividing by zero.
-- file: console/types/field/src/arithmetic.rs
-  line: 140
-  summary: Console-level field division does not match expected semantics for division
-    by zero; should return zero (or defined value) instead of potentially panicking
-    or returning an incorrect result.
+- file: vm/package/deploy.rs
+  line: 32
+  summary: 'Wrong address source: `program_id.to_address()` derives the program''s
+    own address, not the deploying developer''s address. Should use the manifest''s
+    `development_address()` instead.'
+  line_side: pre_fix
+- file: vm/package/deploy.rs
+  line: 70
+  summary: 'Incorrect serialize_struct field count: passing 1 but serializing 3 fields
+    (deployment, address, program_id). Should be 3.'
+  line_side: pre_fix
+- file: vm/package/deploy.rs
+  line: 155
+  summary: Call site uses `DeployRequest::try_from(deployment)` which internally derives
+    the wrong address. Should use `DeployRequest::new()` with the caller address from
+    the manifest.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,26 +1,31 @@
 id: keycloak-023
 repo: keycloak/keycloak
-base_commit: 770c4ab5ebf4e1f1afc2245ee843fc6c1c6b73a5^
-head_commit: 770c4ab5ebf4e1f1afc2245ee843fc6c1c6b73a5
-fix_commit: 770c4ab5ebf4e1f1afc2245ee843fc6c1c6b73a5
-category: api
-difficulty: medium
-severity: high
-language: java
-pr_size: small
-description: The TokenIntrospectionEndpoint reflected unsanitized user input from
-  the `token_type_hint` parameter directly into error response messages, creating
-  a potential injection vulnerability. The fix replaces the dynamic error message
-  with a static string and logs the token type hint server-side via event.detail()
-  for auditing without exposing it to clients.
+base_commit: 55ccc6dcfd044480c485a6c312814757b735cb5b^
+head_commit: 55ccc6dcfd044480c485a6c312814757b735cb5b
+fix_commit: 55ccc6dcfd044480c485a6c312814757b735cb5b
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: The sample Keycloak CR YAML snippet in the Operator rolling updates documentation
+  had incorrect indentation, which could mislead users into writing invalid YAML for
+  their Keycloak custom resource. The fix corrects the indentation of 2 lines so the
+  example parses correctly.
 expected_findings:
-- file: services/src/main/java/org/keycloak/protocol/oidc/endpoints/TokenIntrospectionEndpoint.java
-  line: 99
-  summary: Unsanitized user input (tokenTypeHint) is interpolated directly into the
-    error response message, enabling log injection and potential reflection attacks
-    in downstream systems. The error message should use a static string instead.
+- file: docs/guides/operator/rolling-updates.adoc
+  line: 130
+  summary: 'YAML indentation error: ''enabled:'' field is indented at the wrong level,
+    making the sample CR invalid YAML that users would copy-paste'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

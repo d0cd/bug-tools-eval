@@ -1,30 +1,43 @@
 id: snarkVM-070
 repo: ProvableHQ/snarkVM
-base_commit: fb526454e9f15ffd84939c5c8287904bec4092e0^
-head_commit: fb526454e9f15ffd84939c5c8287904bec4092e0
-fix_commit: fb526454e9f15ffd84939c5c8287904bec4092e0
-category: type
-difficulty: easy
-severity: high
+base_commit: 5050cb196bdc7b35c8bd543d0e77967048e38f8e^
+head_commit: 5050cb196bdc7b35c8bd543d0e77967048e38f8e
+fix_commit: 5050cb196bdc7b35c8bd543d0e77967048e38f8e
+category: concurrency
+difficulty: medium
+severity: critical
 language: rust
-pr_size: small
-description: Type compatibility issues in the Narwhal batch-certificate and batch-header
-  modules caused compilation failures. The fix updated type signatures or type conversions
-  in bytes.rs and lib.rs files for both batch-certificate and batch-header to ensure
-  proper type compatibility across the serialization and data structure boundaries.
+pr_size: medium
+description: 'When a block insert operation fails, atomic writes remain in a paused
+  state because the error path does not unpause them. On the next block insert attempt,
+  the code asserts that writes are not already paused (`assertion failed: !already_paused`),
+  causing a panic that crashes the node. The fix wraps the block insert in error handling
+  that ensures atomic writes are unpaused on failure before propagating the error.'
 expected_findings:
-- file: ledger/narwhal/batch-certificate/src/bytes.rs
-  line: 1
-  summary: "Type mismatch in batch certificate serialization/deserialization \u2014\
-    \ types used are incompatible with expected trait bounds or struct definitions"
-- file: ledger/narwhal/batch-certificate/src/lib.rs
-  line: 1
-  summary: Type definition or generic parameter in BatchCertificate is incompatible
-    with its usage in bytes.rs or batch-header
-- file: ledger/narwhal/batch-header/src/lib.rs
-  line: 1
-  summary: Type definition or generic parameter in BatchHeader is incompatible with
-    BatchCertificate's expected types
+- file: synthesizer/src/vm/mod.rs
+  line: 398
+  summary: 'Missing unpause of atomic writes on error path: if `self.block_store().insert(block)`
+    fails, atomic writes remain paused, causing a panic on the next insert attempt
+    due to `!already_paused` assertion.'
+  line_side: pre_fix
+- file: synthesizer/src/vm/mod.rs
+  line: 462
+  summary: 'Missing unpause of atomic writes on error path: if block_store insert
+    fails here, atomic writes are not unpaused before returning the error.'
+  line_side: pre_fix
+- file: synthesizer/src/vm/mod.rs
+  line: 486
+  summary: 'Missing unpause of atomic writes on error path: same pattern where block
+    insert error does not unpause atomic writes before propagating.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,22 +1,47 @@
 id: snarkVM-069
 repo: ProvableHQ/snarkVM
-base_commit: 8680d90c3534c05f8ac878d252c059ef5b3ee7a1^
-head_commit: 8680d90c3534c05f8ac878d252c059ef5b3ee7a1
-fix_commit: 8680d90c3534c05f8ac878d252c059ef5b3ee7a1
-category: logic
-difficulty: easy
+base_commit: 5036d1d57f48b657255c7510a5c12175144f0fa0^
+head_commit: 5036d1d57f48b657255c7510a5c12175144f0fa0
+fix_commit: 5036d1d57f48b657255c7510a5c12175144f0fa0
+category: constraint
+difficulty: hard
 severity: medium
 language: rust
-pr_size: tiny
-description: A constant value in synthesizer/src/vm/mod.rs was set to an incorrect
-  value. The fix changes the constant to the correct value, likely adjusting a numeric
-  limit or threshold that was previously misconfigured, causing incorrect behavior
-  in the VM's operation.
+pr_size: xl
+description: Large refactoring PR that introduces a `witness!` macro, updates circuit
+  traits (Inject, TypeName), and switches LinearCombination internals from BTreeMap
+  to IndexMap. The scope is broad, touching trait definitions, environment state management,
+  macro hygiene, and constraint helpers across the circuits environment crate. Without
+  the diff, the primary review concern is whether the IndexMap switch preserves deterministic
+  ordering required for R1CS constraint generation, and whether the witness macro
+  correctly manages the IN_WITNESS state flag across nested scopes.
 expected_findings:
-- file: synthesizer/src/vm/mod.rs
-  line: 0
-  summary: 'Incorrect constant value: the constant is set to a wrong numeric value
-    and needs to be corrected to ensure proper VM behavior.'
+- file: circuits/environment/src/helpers/linear_combination.rs
+  line: 21
+  summary: Switching from BTreeMap to IndexMap changes iteration order from sorted-by-Variable
+    to insertion-order; verify that R1CS constraint serialization and proof generation
+    do not depend on a canonical variable ordering
+  line_side: pre_fix
+- file: circuits/environment/src/circuit.rs
+  line: 25
+  summary: Thread-local IN_WITNESS flag uses RefCell<bool> with no RAII guard — if
+    witness! macro panics mid-execution, the flag may remain set to true, corrupting
+    subsequent constraint generation in the same thread
+  line_side: pre_fix
+- file: circuits/environment/src/helpers/converter.rs
+  line: 58
+  summary: Public variable allocation iterates over LinearCombination terms; with
+    IndexMap the iteration order changed — confirm the converter produces identical
+    R1CS instances as before the refactor
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

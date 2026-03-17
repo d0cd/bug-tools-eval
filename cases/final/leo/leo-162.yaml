@@ -1,34 +1,42 @@
 id: leo-162
 repo: ProvableHQ/leo
-base_commit: c6ea9ad06109f30e20503e665f8b71f828b7edfc^
-head_commit: c6ea9ad06109f30e20503e665f8b71f828b7edfc
-fix_commit: c6ea9ad06109f30e20503e665f8b71f828b7edfc
-category: logic
+base_commit: a6dd490a98cbba425fac4510f3b98e60e07c906d^
+head_commit: a6dd490a98cbba425fac4510f3b98e60e07c906d
+fix_commit: a6dd490a98cbba425fac4510f3b98e60e07c906d
+category: incomplete
 difficulty: medium
-severity: critical
+severity: medium
 language: rust
-pr_size: medium
-description: Comparing two values with mismatched types in Leo's relational operators
-  (eq, ge, gt, le, lt) caused a stack overflow. The synthesis error's Debug formatting
-  (`{:?}`) triggered recursive evaluation, leading to infinite recursion. The fix
-  changes error formatting from `{:?}` to `{}` (Display) and adds proper type-mismatch
-  handling in relational expression evaluation to return a compiler error instead
-  of recursing.
+pr_size: xl
+description: 'The Leo language had a ''char'' type and associated literals that needed
+  to be removed per language design decisions (issue #1824). This PR removes the char
+  type from the AST, parser, tokenizer, type checker, grammar specification, and updates
+  examples and tests accordingly. The palindrome example (which relied on char) was
+  deleted entirely.'
 expected_findings:
-- file: compiler/src/expression/relational/eq.rs
-  line: 102
-  summary: Mismatched types fall through to constraint evaluation which triggers a
-    synthesis error; the error handler's Debug formatting causes infinite recursion
-    / stack overflow. Should detect type mismatch and return a proper error before
-    reaching constraint evaluation.
-- file: compiler/src/errors/value/boolean.rs
-  line: 38
-  summary: Using `{:?}` (Debug) to format the synthesis error can trigger recursive
-    formatting leading to stack overflow. Should use `{}` (Display) instead.
-- file: compiler/src/errors/value/integer.rs
-  line: 39
-  summary: Using `{:?}` (Debug) to format the synthesis error can trigger recursive
-    formatting leading to stack overflow. Should use `{}` (Display) instead.
+- file: compiler/ast/src/types/type_.rs
+  line: 27
+  summary: The Type enum contains a Char variant that should be removed — the Leo
+    language no longer supports a char type
+  line_side: pre_fix
+- file: compiler/parser/src/tokenizer/lexer.rs
+  line: 205
+  summary: Lexer contains char literal tokenization logic (single-quote character
+    literals) that must be removed along with the char type
+  line_side: pre_fix
+- file: compiler/ast/src/expression/value.rs
+  line: 46
+  summary: Value expression enum has a Char variant (using crate::Char) that needs
+    removal to fully eliminate char support from the AST
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

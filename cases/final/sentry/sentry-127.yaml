@@ -1,0 +1,32 @@
+id: sentry-127
+repo: getsentry/sentry
+base_commit: 9f579a0bf2e9d4cfbee74a3c4a4d72051ed6e681^
+head_commit: 9f579a0bf2e9d4cfbee74a3c4a4d72051ed6e681
+fix_commit: 9f579a0bf2e9d4cfbee74a3c4a4d72051ed6e681
+category: logic
+difficulty: medium
+severity: high
+language: typescript
+pr_size: tiny
+description: The EAP FailureRateWidget query was missing the `is_transaction:true`
+  filter, causing it to compute failure rates over all spans rather than only transaction
+  root spans. This produces incorrect metrics since non-root spans dilute or skew
+  the failure rate that should only reflect top-level transactions.
+expected_findings:
+- file: static/app/views/performance/transactionSummary/transactionOverview/eapSidebarCharts.tsx
+  line: 43
+  summary: 'Missing `is_transaction:true` filter on the search query: without it,
+    the failure rate widget aggregates over all spans instead of transaction root
+    spans, producing incorrect results.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

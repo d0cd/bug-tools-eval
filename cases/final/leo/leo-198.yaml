@@ -1,29 +1,33 @@
 id: leo-198
 repo: ProvableHQ/leo
-base_commit: 0e2c0c35c3863b69d10f726262656159e166d30b^
-head_commit: 0e2c0c35c3863b69d10f726262656159e166d30b
-fix_commit: 0e2c0c35c3863b69d10f726262656159e166d30b
-category: api
+base_commit: c712882b527f23262baaaba54eee9f03c8a9cf68^
+head_commit: c712882b527f23262baaaba54eee9f03c8a9cf68
+fix_commit: c712882b527f23262baaaba54eee9f03c8a9cf68
+category: logic
 difficulty: easy
-severity: medium
+severity: high
 language: rust
-pr_size: small
-description: 'The `leo clean` command had two bugs: it would attempt to remove files
-  without first verifying that a project manifest exists, potentially deleting files
-  in the wrong directory. Additionally, it would fail with an error if the `outputs`
-  or `build` directories did not exist, instead of gracefully handling their absence.
-  The fix adds a manifest check before deletion and handles missing directories without
-  erroring.'
+pr_size: medium
+description: The `leo deploy` command used `BuildOptions::default()` which set `conditional_block_max_depth`
+  to `0`, causing a panic when building programs containing conditionals in async
+  function scope. The fix replaces the hardcoded default with a `#[clap(flatten)]`
+  BuildOptions field so users can pass (and defaults are sensible for) the conditional
+  block depth.
 expected_findings:
-- file: leo/cli/commands/clean.rs
-  line: 37
-  summary: 'Missing manifest existence check: `clean` proceeds to remove files without
-    verifying that a valid Leo manifest exists in the current directory, risking deletion
-    in non-project directories.'
-- file: leo/cli/commands/clean.rs
-  line: 14
-  summary: 'Missing error handling for non-existent directories: removing `outputs`
-    or `build` directories fails if they don''t exist instead of silently succeeding.'
+- file: leo/cli/commands/deploy.rs
+  line: 48
+  summary: Using `BuildOptions::default()` sets `conditional_block_max_depth` to 0,
+    which will panic on any program with conditionals in async scope. Should use caller-supplied
+    or properly-defaulted build options instead.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

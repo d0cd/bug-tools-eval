@@ -1,27 +1,45 @@
 id: snarkVM-169
 repo: ProvableHQ/snarkVM
-base_commit: 5eac11bfd7316309345b2b3551ef639cc602b54e^
-head_commit: 5eac11bfd7316309345b2b3551ef639cc602b54e
-fix_commit: 5eac11bfd7316309345b2b3551ef639cc602b54e
-category: api
+base_commit: e4a86e3f018fa376b60824a43f45a81ff265a380^
+head_commit: e4a86e3f018fa376b60824a43f45a81ff265a380
+fix_commit: e4a86e3f018fa376b60824a43f45a81ff265a380
+category: security
 difficulty: medium
 severity: high
 language: rust
-pr_size: tiny
-description: The `async_trait` macro was used without the `?Send` opt-out, which adds
-  an implicit `Send` bound on generated futures. This makes the Query trait incompatible
-  with wasm-bindgen, which operates in a single-threaded environment where `Send`
-  is not available. The fix changes `#[async_trait]` to `#[async_trait(?Send)]` in
-  both the trait definition and its implementation.
+pr_size: medium
+description: The `FromBytes` implementations for `FunctionCore`, `ClosureCore`, and
+  `FinalizeCore` did not validate that the deserialized counts for inputs, outputs,
+  instructions, and commands fall within allowed maximums. A crafted byte sequence
+  could specify arbitrarily large counts, leading to excessive memory allocation or
+  denial of service during deserialization. The fix adds bound checks comparing each
+  count against `N::MAX_INPUTS` and similar constants before allocating.
 expected_findings:
-- file: ledger/query/src/traits.rs
-  line: 14
-  summary: 'async_trait without ?Send: default `#[async_trait]` adds a `Send` bound
-    to futures, which is incompatible with wasm-bindgen. Should use `#[async_trait(?Send)]`.'
-- file: ledger/query/src/query.rs
-  line: 59
-  summary: 'async_trait without ?Send on impl block: must match the trait definition''s
-    `?Send` opt-out to avoid requiring `Send` on futures in wasm environments.'
+- file: synthesizer/program/src/function/bytes.rs
+  line: 25
+  summary: 'Missing bound check on `num_inputs` in `FromBytes`: deserialized u16 count
+    is not validated against `N::MAX_INPUTS` before allocating, allowing crafted bytes
+    to trigger excessive allocation'
+  line_side: pre_fix
+- file: synthesizer/program/src/closure/bytes.rs
+  line: 23
+  summary: 'Missing bound check on `num_inputs` in `ClosureCore::FromBytes`: no validation
+    of deserialized count against maximum before use in allocation loop'
+  line_side: pre_fix
+- file: synthesizer/program/src/finalize/bytes.rs
+  line: 23
+  summary: 'Missing bound check on `num_inputs` in `FinalizeCore::FromBytes`: deserialized
+    count not checked against `N::MAX_INPUTS`, allowing untrusted input to control
+    allocation size'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

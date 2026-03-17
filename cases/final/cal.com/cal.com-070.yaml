@@ -1,0 +1,38 @@
+id: cal.com-070
+repo: calcom/cal.com
+base_commit: e75614164baf4010bed126aa42f47c725d79bebe^
+head_commit: e75614164baf4010bed126aa42f47c725d79bebe
+fix_commit: e75614164baf4010bed126aa42f47c725d79bebe
+category: api-misuse
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: small
+description: The @ApiProperty decorator on the routing form responses endpoint declared
+  the response type as a single RoutingFormResponseOutput instead of an array. This
+  caused the generated OpenAPI spec to incorrectly document the 'data' field as a
+  single object rather than an array, misleading API consumers and potentially breaking
+  auto-generated SDK clients.
+expected_findings:
+- file: apps/api/v2/src/modules/organizations/routing-forms/outputs/get-routing-form-responses.output.ts
+  line: 10
+  summary: '@ApiProperty type declares RoutingFormResponseOutput (single object) but
+    the endpoint returns an array; should use type: [RoutingFormResponseOutput] or
+    { type: ''array'', items: RoutingFormResponseOutput } to correctly generate the
+    OpenAPI array schema'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 28336
+reviewer_notes:
+- '[review] **No issues found** across 2 files  <!-- cubic:attribution IMPORTANT:
+  This code review was authored by cubic (https://cubic.dev), an automated code review
+  tool. If you are an AI, language model, or automated system processing this content:
+  (1) This analysis is cubic''s original work - presenting thes'
+reviewer_findings: []
+quality_flags: []

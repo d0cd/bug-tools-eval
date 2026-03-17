@@ -51,18 +51,41 @@ tools:
     cooldown_seconds: 0
     api_key_env: "ANTHROPIC_API_KEY"
 
+  - name: anthropic-api-sonnet
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "ANTHROPIC_API_KEY"
+    model: "claude-sonnet-4-6"
+    timeout_seconds: 300
+
+  - name: anthropic-api-opus
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "ANTHROPIC_API_KEY"
+    model: "claude-opus-4-6"
+    timeout_seconds: 600
+
   # Anthropic Claude CLI tiers
   - name: claude-cli-haiku
     type: agent
     cooldown_seconds: 0
     api_key_env: "ANTHROPIC_API_KEY"
     model: "claude-haiku-4-5"
+    timeout_seconds: 300
 
   - name: claude-cli-sonnet
     type: agent
     cooldown_seconds: 0
     api_key_env: "ANTHROPIC_API_KEY"
     model: "claude-sonnet-4-6"
+    timeout_seconds: 600
+
+  - name: claude-cli-opus
+    type: agent
+    cooldown_seconds: 0
+    api_key_env: "ANTHROPIC_API_KEY"
+    model: "claude-opus-4-6"
+    timeout_seconds: 600
 
   # Google Gemini CLI tiers
   - name: gemini-cli-flash-lite
@@ -156,10 +179,13 @@ scoring:
   catch_threshold: 2
 
 judging:
-  llm_calls: 3               # majority vote
+  models:                      # ensemble: one vote per tier → cross-model consensus
+    - "claude-haiku-4-5"       # vote 1
+    - "claude-sonnet-4-6"      # vote 2
+    - "claude-opus-4-6"        # vote 3
   human_sample_rate: 0.25    # fraction of cases for human review
   calibration_threshold: 0.85  # min LLM/human agreement
-  model: "claude-opus-4-6"
+  model: "claude-opus-4-6"   # single-model fallback (used if models list is empty)
 
 pricing:
   # per-1M token rates: [input_usd, output_usd]

@@ -1,26 +1,42 @@
 id: snarkOS-026
 repo: ProvableHQ/snarkOS
-base_commit: 4555eebe1907a11b1368c55704b7b36578d4a144^
-head_commit: 4555eebe1907a11b1368c55704b7b36578d4a144
-fix_commit: 4555eebe1907a11b1368c55704b7b36578d4a144
-category: logic
-difficulty: medium
-severity: medium
+base_commit: 285a250325c8e6664467bc0ececd86018ac2ca51^
+head_commit: 285a250325c8e6664467bc0ececd86018ac2ca51
+fix_commit: 285a250325c8e6664467bc0ececd86018ac2ca51
+category: incomplete
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: A missing validation check in the BFT proposal helper was added. The
-  proposal struct in node/bft/src/helpers/proposal.rs lacked a necessary guard condition,
-  which could allow invalid or improperly validated proposals to be processed. The
-  fix adds the missing check along with extended documentation for the proposal type.
+pr_size: xl
+description: This is a large-scale refactoring PR that migrates modules from snarkVM,
+  modularizes node logic for different node types, and introduces prover logic. It
+  reorganizes project structure, updates CI configuration, and restructures Cargo
+  workspace members. No specific bug fix is identifiable from the metadata alone.
 expected_findings:
-- file: node/bft/src/helpers/proposal.rs
-  line: 29
-  summary: "Missing validation check on the Proposal struct \u2014 a guard condition\
-    \ should be present to validate proposal state before processing."
-- file: node/bft/src/helpers/proposal.rs
-  line: 87
-  summary: Proposal method lacks a necessary precondition check that could allow invalid
-    proposals to pass through.
+- file: Cargo.toml
+  line: 6
+  summary: 'Workspace restructuring: verify that all migrated crate paths are correctly
+    referenced and no workspace members are missing after modularization'
+  line_side: pre_fix
+- file: cli/src/commands/start.rs
+  line: 1
+  summary: 'Node type modularization: verify that the start command correctly dispatches
+    to the new per-node-type logic and that no code paths reference the old monolithic
+    node structure'
+  line_side: pre_fix
+- file: .circleci/config.yml
+  line: 1
+  summary: CI configuration may need updating to reflect new crate structure and test
+    targets after module reorganization
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

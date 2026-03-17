@@ -1,31 +1,46 @@
 id: snarkOS-178
 repo: ProvableHQ/snarkOS
-base_commit: db28e57364b6d923dca84d117d97d870ad77adda^
-head_commit: db28e57364b6d923dca84d117d97d870ad77adda
-fix_commit: db28e57364b6d923dca84d117d97d870ad77adda
-category: concurrency
+base_commit: ec4b5ae4029fc148f494b008be7c733c0fd72b16^
+head_commit: ec4b5ae4029fc148f494b008be7c733c0fd72b16
+fix_commit: ec4b5ae4029fc148f494b008be7c733c0fd72b16
+category: api-misuse
 difficulty: medium
-severity: high
+severity: medium
 language: rust
 pr_size: medium
-description: Block synchronization of large blocks was performed synchronously on
-  the async runtime, blocking the event loop and causing peer connection stalls and
-  sync failures. The fix adds rayon for parallel block processing and spawns heavy
-  block-sync work onto background threads using clone+spawn patterns in the client
-  and validator routers.
+description: The proposal cache storage path was hardcoded to the default Aleo ledger
+  directory, ignoring the `--storage` CLI option. The fix threads the `StorageMode`
+  parameter through the BFT, Primary, and consensus initialization paths so that `proposal_cache_path`
+  respects the user-configured storage location. The `clean` command was also updated
+  to remove the proposal cache from the correct directory.
 expected_findings:
-- file: node/src/client/router.rs
-  line: 115
-  summary: Block sync handler runs CPU-heavy block processing inline on the async
-    runtime; should spawn onto a blocking thread pool to avoid starving the executor
-- file: node/src/validator/router.rs
-  line: 111
-  summary: Validator block sync handler blocks the async runtime with heavy block
-    verification; needs to be offloaded to a background thread
-- file: node/router/src/inbound.rs
-  line: 76
-  summary: Inbound block processing lacks parallelism for large blocks; sequential
-    processing causes sync bottleneck
+- file: node/bft/src/helpers/proposal_cache.rs
+  line: 26
+  summary: proposal_cache_path computes its path using the default ledger directory
+    instead of accepting and using the configured StorageMode, causing the proposal
+    cache to always be written to the default location regardless of the --storage
+    CLI flag.
+  line_side: pre_fix
+- file: node/bft/src/primary.rs
+  line: 123
+  summary: Primary initialization does not pass the StorageMode to the proposal cache,
+    so the cache path is always the hardcoded default rather than the user-configured
+    storage directory.
+  line_side: pre_fix
+- file: cli/src/commands/clean.rs
+  line: 38
+  summary: The clean command does not account for the configured storage mode when
+    removing the proposal cache, potentially leaving stale cache files in custom storage
+    paths.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

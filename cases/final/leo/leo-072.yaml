@@ -1,24 +1,40 @@
 id: leo-072
 repo: ProvableHQ/leo
-base_commit: 817b7e01572f2290d71082f5a2c94229116eec8b^
-head_commit: 817b7e01572f2290d71082f5a2c94229116eec8b
-fix_commit: 817b7e01572f2290d71082f5a2c94229116eec8b
-category: logic
+base_commit: 4a02807dbca73dc4c6b0a6f40a6c9f6ebcc40ab3^
+head_commit: 4a02807dbca73dc4c6b0a6f40a6c9f6ebcc40ab3
+fix_commit: 4a02807dbca73dc4c6b0a6f40a6c9f6ebcc40ab3
+category: constraint
 difficulty: medium
 severity: high
 language: rust
-pr_size: xl
-description: In the AST canonicalization pass, compound assignment desugaring incorrectly
-  reversed the order of member/tuple accesses on the assignee (e.g., `a.0.1 += x`
-  would produce wrong code). The fix removes the erroneous reversal of the accesses
-  iterator and adds tests for compound assignments with nested tuple/member access
-  patterns.
+pr_size: medium
+description: The Leo type checker was missing a validation rule that prevents `function`s
+  (as opposed to `transition`s) from returning `record` types. Without this check,
+  a user could write a `function` that outputs a record, which violates Leo's execution
+  model where only transitions may handle records (private on-chain state). The fix
+  adds output-type checks in both the `Output::External` and `Output::Internal` branches
+  of the function output type-checking loop.
 expected_findings:
-- file: ast/src/reducer/canonicalization.rs
-  line: 472
-  summary: Accesses on the compound assignment target are iterated in the wrong order
-    (reversed when they should not be), causing incorrect desugaring of nested member/tuple
-    accesses like `a.0.1 += x`.
+- file: compiler/passes/src/type_checking/check_program.rs
+  line: 232
+  summary: 'Missing validation: the `Output::External` branch is a no-op (`{}`), but
+    external outputs are always records, so non-transition functions reaching this
+    branch should be rejected.'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_program.rs
+  line: 234
+  summary: 'Missing validation: the `Output::Internal` branch checks that the output
+    type is defined but never checks whether the type is a record. For non-transition
+    functions, returning a record type via an internal output should be an error.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

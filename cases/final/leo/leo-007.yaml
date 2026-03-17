@@ -1,33 +1,36 @@
 id: leo-007
 repo: ProvableHQ/leo
-base_commit: 16888656e1ce67f536805025b57078f1cfc27086^
-head_commit: 16888656e1ce67f536805025b57078f1cfc27086
-fix_commit: 16888656e1ce67f536805025b57078f1cfc27086
+base_commit: 062994e4fe5ab33507c73774584f0f73d8d10c00^
+head_commit: 062994e4fe5ab33507c73774584f0f73d8d10c00
+fix_commit: 062994e4fe5ab33507c73774584f0f73d8d10c00
 category: logic
-difficulty: medium
-severity: high
-language: rust
-pr_size: medium
-description: 'Three related import-handling bugs in the Leo compiler parser: (1) PackageAccess::Star
-  variant lacked span information, producing incomplete AST output; (2) the import
-  grammar was incorrect; (3) empty import lists like `import bar.();` were not rejected
-  by the parser. The fix adds span tracking to the Star variant, corrects the ABNF
-  grammar, adds an ''invalid_import_list'' error, and validates non-empty import lists
-  in the parser.'
+difficulty: easy
+severity: low
+language: leo
+pr_size: small
+description: 'A test file for non-printing characters had a duplicate variable name
+  ''in32'' where the second occurrence should have been ''in33''. This caused the
+  test to silently shadow or overwrite the earlier input, meaning one character value
+  was never actually tested. The compiler did not catch the duplicate (see issue #1282).'
 expected_findings:
-- file: ast/src/imports/package_access.rs
-  line: 21
-  summary: 'PackageAccess::Star variant is missing span information (should be `Star
-    { span: Span }` instead of bare `Star`) causing incomplete AST serialization for
-    star imports'
-- file: parser/src/parser/file.rs
-  line: 136
-  summary: "parse_package_accesses does not validate against empty import lists \u2014\
-    \ `import foo.();` should be rejected with an error but is silently accepted"
-- file: grammar/abnf-grammar.txt
-  line: 965
-  summary: "Import declaration grammar rule is incorrect \u2014 does not properly\
-    \ separate package-name from package-path, leading to grammar inconsistencies"
+- file: tests/compiler/char/nonprinting.leo
+  line: 37
+  summary: 'Duplicate variable name: ''in32'' appears twice in the function signature;
+    second occurrence should be ''in33'' to test the next non-printing character'
+  line_side: pre_fix
+- file: tests/compiler/char/nonprinting.leo
+  line: 72
+  summary: 'Duplicate variable name: ''in32'' repeated in second function signature;
+    should be ''in33'' to match the intended test coverage'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

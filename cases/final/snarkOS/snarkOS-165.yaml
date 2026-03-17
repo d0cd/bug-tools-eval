@@ -1,32 +1,47 @@
 id: snarkOS-165
 repo: ProvableHQ/snarkOS
-base_commit: 4d2d6a2194cb8b3982b3d0c987303e6053ee7767^
-head_commit: 4d2d6a2194cb8b3982b3d0c987303e6053ee7767
-fix_commit: 4d2d6a2194cb8b3982b3d0c987303e6053ee7767
-category: logic
-difficulty: medium
+base_commit: dfe5912f055fa9a670570a4523db23d7de2650ba^
+head_commit: dfe5912f055fa9a670570a4523db23d7de2650ba
+fix_commit: dfe5912f055fa9a670570a4523db23d7de2650ba
+category: incomplete
+difficulty: easy
 severity: medium
 language: rust
-pr_size: small
-description: 'Primary tests were failing because test setup did not inject connected
-  peers into the gateway. The fix removes the #[cfg(not(test))] guard in gateway.rs
-  that was skipping peer connectivity checks during tests, and updates the test helpers
-  in primary.rs to properly register accounts as connected peers before running assertions.'
+pr_size: large
+description: The Canary network trait (CanaryV0) was previously reverted for testing
+  isolation and needs to be re-introduced across the codebase. The fix mechanically
+  adds CanaryV0 to all network-variant match arms, imports, CLI options, and updates
+  the snarkVM dependency revision to a version that includes Canary support.
 expected_findings:
-- file: node/narwhal/src/gateway.rs
-  line: 418
-  summary: 'The #[cfg(not(test))] annotation skips connected-peer validation during
-    tests, masking a real dependency that primary operations require connected peers
-    to function correctly.'
-- file: node/narwhal/src/primary.rs
-  line: 1290
-  summary: Test iterates over accounts but does not inject them as connected peers
-    in the gateway, causing primary operations to fail when peer connectivity is actually
-    checked.
-- file: node/narwhal/src/primary.rs
-  line: 1472
-  summary: 'Same missing connected-peer injection pattern: accounts are iterated for
-    test setup without being registered as connected peers.'
+- file: cli/src/commands/start.rs
+  line: 189
+  summary: Missing CanaryV0 variant in network match arm — all locations handling
+    MainnetV0/TestnetV0 must also handle CanaryV0 or the node cannot start on the
+    Canary network
+  line_side: pre_fix
+- file: Cargo.toml
+  line: 46
+  summary: snarkVM dependency pinned to a revision that lacks Canary network support;
+    needs updating to a revision that includes CanaryV0
+  line_side: pre_fix
+- file: cli/src/commands/developer/mod.rs
+  line: 119
+  summary: Missing CanaryV0::ID => "canary" match arm in network-to-string mapping;
+    Canary network commands will fail at runtime
+  line_side: pre_fix
+- file: node/router/src/lib.rs
+  line: 401
+  summary: No bootstrap peers defined for CanaryV0 — Canary network nodes cannot discover
+    peers
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

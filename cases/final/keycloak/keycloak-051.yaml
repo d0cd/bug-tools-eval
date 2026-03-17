@@ -1,24 +1,36 @@
 id: keycloak-051
 repo: keycloak/keycloak
-base_commit: 24193928c385713fa3889078bde31e27eed231c6^
-head_commit: 24193928c385713fa3889078bde31e27eed231c6
-fix_commit: 24193928c385713fa3889078bde31e27eed231c6
-category: api
+base_commit: 99ed9d9c1d1a8aa72d78cc1ab593d2007d75a206^
+head_commit: 99ed9d9c1d1a8aa72d78cc1ab593d2007d75a206
+fix_commit: 99ed9d9c1d1a8aa72d78cc1ab593d2007d75a206
+category: logic
 difficulty: easy
 severity: medium
 language: java
 pr_size: small
-description: JAR file paths obtained from URIs were not being decoded before use,
-  causing failures when paths contained spaces (encoded as %20). The fix adds URI
-  decoding (e.g., URLDecoder or URI.getPath()) to the file path before opening the
-  JAR file.
+description: The `show-config` command was displaying configuration entries with null
+  values in its output. The fix adds null-value filtering so that properties whose
+  resolved value is null are excluded from the displayed configuration, preventing
+  confusing 'null' strings in the output.
 expected_findings:
-- file: quarkus/deployment/src/main/java/org/keycloak/quarkus/deployment/KeycloakProcessor.java
-  line: 0
-  summary: URI-derived path used directly to open JAR file without decoding; paths
-    with spaces (%20) or other encoded characters will fail to resolve
+- file: quarkus/runtime/src/main/java/org/keycloak/quarkus/runtime/cli/command/ShowConfig.java
+  line: 92
+  summary: configValue is assigned without a null check on value; null values will
+    be printed as the string 'null' in show-config output
+  line_side: pre_fix
+- file: quarkus/runtime/src/main/java/org/keycloak/quarkus/runtime/cli/command/ShowConfig.java
+  line: 103
+  summary: 'Same missing null guard: configValue assigned from a potentially null
+    value, causing ''null'' to appear in output'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

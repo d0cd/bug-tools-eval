@@ -1,22 +1,33 @@
 id: leo-013
 repo: ProvableHQ/leo
-base_commit: 1f3240089dcbc0d50254d129441bd01be4ee6d19^
-head_commit: 1f3240089dcbc0d50254d129441bd01be4ee6d19
-fix_commit: 1f3240089dcbc0d50254d129441bd01be4ee6d19
-category: logic
+base_commit: 0e82808c7dd3a5092f7394ad031bd34937a7d700^
+head_commit: 0e82808c7dd3a5092f7394ad031bd34937a7d700
+fix_commit: 0e82808c7dd3a5092f7394ad031bd34937a7d700
+category: type
 difficulty: easy
-severity: low
+severity: high
 language: rust
-pr_size: small
-description: Duplicate struct/record member error diagnostics pointed to the entire
-  struct/record span instead of the specific duplicate member's span. The fix changes
-  the span passed to the error constructor from the parent struct/record span to the
-  individual member's span, making it easier to locate the exact duplicate.
+pr_size: tiny
+description: The tokenizer's unexpected_token error handler used byte-level string
+  slicing (`&input[index..index+1]`) to extract the offending character. For multi-byte
+  UTF-8 characters like emoji (e.g., 🦀), this panics because slicing at a non-character
+  boundary is invalid in Rust. The fix replaces byte slicing with `.chars().next().unwrap()`
+  to correctly extract the first character regardless of its byte width.
 expected_findings:
-- file: compiler/passes/src/type_checking/program.rs
-  line: 225
-  summary: Duplicate member error uses the struct/record-level span instead of the
-    specific member's span; should pass the member's own span to pinpoint the duplicate.
+- file: parser/src/tokenizer/mod.rs
+  line: 84
+  summary: Byte-level string slicing `&input[index..index+1]` will panic on multi-byte
+    UTF-8 characters; should use `.chars().next().unwrap()` to safely extract the
+    character at this position.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

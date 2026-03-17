@@ -1,24 +1,45 @@
 id: snarkOS-032
 repo: ProvableHQ/snarkOS
-base_commit: 4d4805796036709c367add54e3ab31f5900fa196^
-head_commit: 4d4805796036709c367add54e3ab31f5900fa196
-fix_commit: 4d4805796036709c367add54e3ab31f5900fa196
-category: logic
-difficulty: easy
-severity: low
+base_commit: 2b086093d48105c154fa331a1e5ffe4ccc67c15b^
+head_commit: 2b086093d48105c154fa331a1e5ffe4ccc67c15b
+fix_commit: 2b086093d48105c154fa331a1e5ffe4ccc67c15b
+category: concurrency
+difficulty: hard
+severity: high
 language: rust
-pr_size: tiny
-description: A format string placeholder (e.g., `{e}`) was used inside a regular string
-  literal rather than inside a formatting macro like `format!` or `eprintln!`. This
-  caused the literal text `{e}` to appear in the output instead of the interpolated
-  error value. The fix wraps the string in the appropriate formatting macro or uses
-  proper string interpolation.
+pr_size: medium
+description: Two concurrent bilateral handshake attempts with the same peer could
+  cause a race condition where a later duplicate handshake invalidated a former successful
+  one, downgrading the peer from its established status (e.g. TrustedPeer) to CandidatePeer.
+  Additionally, the gateway made redundant duplicate outbound connection attempts
+  to trusted validators, increasing the likelihood of triggering the race.
 expected_findings:
-- file: cli/src/helpers/logger.rs
-  line: 98
-  summary: Format string syntax `{e}` used in a plain string outside a formatting
-    macro (e.g., `format!`, `eprintln!`). The variable will not be interpolated and
-    the literal text `{e}` will be output instead of the error value.
+- file: node/router/src/handshake.rs
+  line: 93
+  summary: Handshake returns error on duplicate connection attempt instead of treating
+    it as a benign no-op; this causes the caller to downgrade an already-connected
+    peer back to CandidatePeer status during concurrent bilateral handshakes
+  line_side: pre_fix
+- file: node/bft/src/gateway.rs
+  line: 421
+  summary: Outbound connection attempts to trusted validators are not deduplicated;
+    multiple concurrent connect calls to the same validator increase the chance of
+    duplicate handshake races that trigger peer downgrade
+  line_side: pre_fix
+- file: node/router/src/helpers/peer.rs
+  line: 29
+  summary: Peer state machine allows transition from a connected/trusted state back
+    to CandidatePeer when a duplicate connection is treated as an error, rather than
+    preserving the existing higher-trust status
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,22 +1,38 @@
 id: snarkVM-113
 repo: ProvableHQ/snarkVM
-base_commit: 3c85ab0c39572b6e4e6cbc631345a18e1a0fce96^
-head_commit: 3c85ab0c39572b6e4e6cbc631345a18e1a0fce96
-fix_commit: 3c85ab0c39572b6e4e6cbc631345a18e1a0fce96
-category: logic
-difficulty: easy
-severity: low
+base_commit: 85585a2fcd586ab5f4e927fe5e8735c75456a99a^
+head_commit: 85585a2fcd586ab5f4e927fe5e8735c75456a99a
+fix_commit: 85585a2fcd586ab5f4e927fe5e8735c75456a99a
+category: constraint
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: A documentation-only change that adds a note explaining why the benchmark
-  code in `benches/instruction.rs` was commented out. This is not a functional bug
-  fix but rather a maintenance comment to prevent future confusion about disabled
-  benchmark code.
+pr_size: medium
+description: The string equality check in the ZK circuit was incorrect, failing to
+  properly verify that two strings are equal. The fix updates the equality comparison
+  logic in the circuit string type and adjusts the from_bits helper and field import
+  to support the corrected implementation. This is noted as a temporary fix pending
+  a larger string design rearchitecture.
 expected_findings:
-- file: synthesizer/benches/instruction.rs
-  line: 11
-  summary: Commented-out benchmark code lacks explanation for why it was disabled;
-    should include a note documenting the reason.
+- file: circuit/types/string/src/equal.rs
+  line: 25
+  summary: 'String equality check is unsound: the byte-size comparison or element-wise
+    equality constraints do not correctly enforce that two circuit strings are equal,
+    potentially allowing a prover to pass unequal strings as equal.'
+  line_side: pre_fix
+- file: circuit/types/string/src/helpers/from_bits.rs
+  line: 21
+  summary: Mode determination in from_bits may produce incorrect circuit mode for
+    the string, affecting downstream equality checks and constraint generation.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

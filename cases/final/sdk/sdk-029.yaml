@@ -1,33 +1,32 @@
 id: sdk-029
 repo: ProvableHQ/sdk
-base_commit: 0650454f7e9ff03a2fcaba0fe1a56204abddd879^
-head_commit: 0650454f7e9ff03a2fcaba0fe1a56204abddd879
-fix_commit: 0650454f7e9ff03a2fcaba0fe1a56204abddd879
-category: logic
-difficulty: medium
-severity: high
-language: javascript
-pr_size: small
-description: String-to-bytes encoding for message signing and verification used a
-  naive encoding method (likely charCodeAt) that fails on multi-byte Unicode characters,
-  producing incorrect byte arrays. This caused false positives in signature verification
-  on aleo.tools. The fix replaces the custom encoding with the standard TextEncoder
-  API which correctly handles UTF-8.
+base_commit: 670acdd0e709b031b8755c391c250fc66aec7ef5^
+head_commit: 670acdd0e709b031b8755c391c250fc66aec7ef5
+fix_commit: 670acdd0e709b031b8755c391c250fc66aec7ef5
+category: performance
+difficulty: easy
+severity: medium
+language: rust
+pr_size: tiny
+description: Logging the full Aleo program bytecode in the `buildProvingRequest` call
+  produced excessive log output, causing issues in GCP for deployed services like
+  the USDCx bridge. The fix replaces the verbose log statement with one that only
+  logs the function name instead of the entire program bytecode.
 expected_findings:
-- file: website/src/utils/Utils.js
-  line: 1
-  summary: String encoding utility uses naive byte conversion (e.g. charCodeAt) that
-    silently corrupts multi-byte Unicode characters; should use TextEncoder for correct
-    UTF-8 encoding
-- file: website/src/tabs/account/SignMessage.js
-  line: 25
-  summary: Message signing encodes the input string using a method that fails on non-ASCII
-    characters, producing incorrect signatures for some messages
-- file: website/src/tabs/account/VerifyMessage.js
-  line: 9
-  summary: Signature verification re-encodes the message with the same flawed encoding,
-    causing verification to produce false positives when the original signing also
-    used the broken encoding
+- file: wasm/src/programs/manager/proving_request.rs
+  line: 63
+  summary: 'Excessive logging: log statement includes full program bytecode which
+    can be very large, causing performance issues in production logging infrastructure.
+    Should log only the function name or a summary instead.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,32 @@
+id: sentry-079
+repo: getsentry/sentry
+base_commit: 65586cd3b3f9d25c82356f221eb6f783645ef89f^
+head_commit: 65586cd3b3f9d25c82356f221eb6f783645ef89f
+fix_commit: 65586cd3b3f9d25c82356f221eb6f783645ef89f
+category: code-smell
+difficulty: easy
+severity: low
+language: python
+pr_size: tiny
+description: This PR adds sentry_sdk.set_tags() calls to attach org_id, project_id,
+  and group_id to autofix task transactions for observability filtering. It is a pure
+  instrumentation/observability enhancement with no bug being fixed — there is no
+  pre-existing defect for a reviewer to catch.
+expected_findings:
+- file: src/sentry/seer/autofix/issue_summary.py
+  line: 169
+  summary: Newly added sentry_sdk.set_tags() call — verify that org_id, project_id,
+    and group_id are not None before tagging, as null tag values can cause noisy/misleading
+    data in the performance UI
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

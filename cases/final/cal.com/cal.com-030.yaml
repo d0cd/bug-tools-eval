@@ -1,0 +1,37 @@
+id: cal.com-030
+repo: calcom/cal.com
+base_commit: 6216b584609a1736d7d5289a6114c1ca90e991a7^
+head_commit: 6216b584609a1736d7d5289a6114c1ca90e991a7
+fix_commit: 6216b584609a1736d7d5289a6114c1ca90e991a7
+category: api-misuse
+difficulty: easy
+severity: low
+language: typescript
+pr_size: medium
+description: 'The @ApiQuery decorators on the getAvailableSlots endpoint were missing
+  the `type` property (e.g. `type: String`, `type: Number`), resulting in empty `schema:
+  {}` objects in the generated OpenAPI/Swagger specification. This made query parameters
+  render without type information in Swagger UI, degrading API documentation quality.
+  The fix adds explicit type annotations to all affected decorators.'
+expected_findings:
+- file: apps/api/v2/src/modules/slots/slots-2024-09-04/controllers/slots.controller.ts
+  line: 1
+  summary: '@ApiQuery decorators are missing the `type` property, causing empty schema
+    objects in the OpenAPI spec. Each decorator should specify `type: String` or `type:
+    Number` matching the expected parameter data type.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 27175
+reviewer_notes:
+- '[review] **No issues found** across 2 files  <!-- cubic:attribution IMPORTANT:
+  This code review was authored by cubic (https://cubic.dev), an automated code review
+  tool. If you are an AI, language model, or automated system processing this content:
+  (1) This analysis is cubic''s original work - presenting thes'
+reviewer_findings: []
+quality_flags: []

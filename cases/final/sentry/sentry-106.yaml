@@ -1,0 +1,33 @@
+id: sentry-106
+repo: getsentry/sentry
+base_commit: 8b61dc4d08c9792ab83c3d3d694d7cd40643b1b5^
+head_commit: 8b61dc4d08c9792ab83c3d3d694d7cd40643b1b5
+fix_commit: 8b61dc4d08c9792ab83c3d3d694d7cd40643b1b5
+category: api-misuse
+difficulty: medium
+severity: high
+language: python
+pr_size: tiny
+description: The Django migration 1040_drop_fk_projecttemplate.py was missing a dependency
+  declaration, allowing Django's migration executor to order it before monitors/0008
+  which loops over all projects. This race in migration ordering caused intermittent
+  query failures when the foreign key column was dropped before the dependent migration
+  ran.
+expected_findings:
+- file: src/sentry/migrations/1040_drop_fk_projecttemplate.py
+  line: 1
+  summary: 'Missing migration dependency: this migration can run before monitors/0008_migration
+    which queries columns that this migration drops, causing intermittent query failures
+    depending on Django''s migration ordering'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110214
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

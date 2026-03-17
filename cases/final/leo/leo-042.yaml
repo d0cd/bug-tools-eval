@@ -1,29 +1,33 @@
 id: leo-042
 repo: ProvableHQ/leo
-base_commit: 7938064ea533373172e2f0a401c012bad43a05b4^
-head_commit: 7938064ea533373172e2f0a401c012bad43a05b4
-fix_commit: 7938064ea533373172e2f0a401c012bad43a05b4
-category: logic
+base_commit: 298ab907204ad3349e2948ab416b9e74ae20129a^
+head_commit: 298ab907204ad3349e2948ab416b9e74ae20129a
+fix_commit: 298ab907204ad3349e2948ab416b9e74ae20129a
+category: api-misuse
 difficulty: easy
-severity: low
+severity: medium
 language: rust
-pr_size: small
-description: Documentation comments in the parser were incorrect or misleading. The
-  fix corrects doc-comment references (e.g., wrong AST node type names like `SpreadOrExpression`)
-  and adjusts visibility comments in the file parser to accurately reflect their purpose.
+pr_size: tiny
+description: The `nodeploy` flag on the `leo node start` command was not annotated
+  with `#[structopt(long)]`, so structopt did not recognize it as a CLI flag. Users
+  had to pass it as a raw trailing argument via `-- --nodeploy` instead of the expected
+  `--nodeploy`. The fix adds the missing structopt attribute and updates the upstream
+  Aleo dependency revision.
 expected_findings:
-- file: parser/src/parser/expression.rs
-  line: 386
-  summary: Doc comment references wrong AST node type (`SpreadOrExpression`); should
-    reference the correct type returned by this function.
-- file: parser/src/parser/expression.rs
-  line: 416
-  summary: Doc comment references wrong AST node type (`SpreadOrExpression`); should
-    reference the correct type returned by this function.
-- file: parser/src/parser/file.rs
-  line: 162
-  summary: Misleading or incorrect comment about public visibility rationale; comment
-    does not accurately describe the item's purpose.
+- file: leo/commands/node.rs
+  line: 30
+  summary: Missing `#[structopt(long)]` attribute on the `nodeploy` field — without
+    it, the flag is not registered as a CLI option and must be passed awkwardly via
+    `-- --nodeploy`
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

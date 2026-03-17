@@ -1,28 +1,33 @@
 id: leo-234
 repo: ProvableHQ/leo
-base_commit: bfc995be344a5960fb4e5fe51468d8ded26a6ab0^
-head_commit: bfc995be344a5960fb4e5fe51468d8ded26a6ab0
-fix_commit: bfc995be344a5960fb4e5fe51468d8ded26a6ab0
+base_commit: edb3c8ea16d36913321d617a3b43a8cca252b382^
+head_commit: edb3c8ea16d36913321d617a3b43a8cca252b382
+fix_commit: edb3c8ea16d36913321d617a3b43a8cca252b382
 category: logic
-difficulty: medium
-severity: high
+difficulty: easy
+severity: low
 language: rust
-pr_size: large
-description: The Leo compiler's canonicalization pass failed to replace `Self` with
-  the actual circuit name in static method calls, causing compilation failures or
-  incorrect behavior when using `Self::method()` syntax. The fix adds Self canonicalization
-  for static call expressions in the AST reducer. Additional changes address Rust
-  1.54 clippy warnings across the codebase.
+pr_size: small
+description: The parser's error-reporting path for unexpected tokens inside a program
+  block was missing several valid alternatives (Token::Const, Token::Async, Token::RightCurly)
+  from the expected-token list passed to `unexpected_item()`. This caused confusing
+  error messages that didn't enumerate all syntactically valid options at that position.
+  A minor typo in a nearby comment ('don't' missing 'we') was also fixed.
 expected_findings:
-- file: ast/src/reducer/canonicalization.rs
-  line: 47
-  summary: "Missing canonicalization of `Self` type in static call expressions \u2014\
-    \ `Self::foo()` is not rewritten to `ActualCircuitName::foo()`, causing downstream\
-    \ resolution failures."
-- file: ast/src/reducer/reconstructing_director.rs
-  line: 50
-  summary: The reconstructing director's expression reduction does not account for
-    the new canonicalization of static call targets involving `Self`.
+- file: compiler/parser/src/parser/file.rs
+  line: 149
+  summary: 'Incomplete expected-token list in `unexpected_item()` call: missing Token::Const,
+    Token::Async, and Token::RightCurly which are all handled by earlier match arms
+    but omitted from the error message''s ''expected'' enumeration.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

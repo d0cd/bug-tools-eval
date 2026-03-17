@@ -1,32 +1,46 @@
 id: leo-016
 repo: ProvableHQ/leo
-base_commit: db1c910623d68356eb252fcf605360556512fe07^
-head_commit: db1c910623d68356eb252fcf605360556512fe07
-fix_commit: db1c910623d68356eb252fcf605360556512fe07
+base_commit: 11b4a2702afba4bc4647d85a455f057f8dae68e6^
+head_commit: 11b4a2702afba4bc4647d85a455f057f8dae68e6
+fix_commit: 11b4a2702afba4bc4647d85a455f057f8dae68e6
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: medium
-description: The deploy and execute CLI commands did not fetch and include network
-  dependencies (imported programs) before submitting deployment/execution transactions.
-  This caused deployments of programs with imports to fail because the required dependency
-  programs were not resolved from the network and included in the transaction.
+pr_size: large
+description: Collection of parser and tokenizer bugs in the Leo compiler including
+  incorrect column-stop calculation in the canonicalizer (off-by-one byte indexing
+  for escape sequences), wrong error emission in the parser for non-identifier tokens,
+  broken character literal parsing in the lexer (escape, hex, unicode handling), incorrect
+  span/line tracking in the tokenizer, and a test framework bug that silently skipped
+  test files or mismatched expected outputs.
 expected_findings:
-- file: leo/cli/commands/deploy.rs
-  line: 88
-  summary: Missing step to fetch and add imported program dependencies from the network
-    before calling handle_deploy. Programs that import other on-chain programs will
-    fail to deploy without resolving these dependencies first.
-- file: leo/cli/commands/execute.rs
-  line: 349
-  summary: Missing network dependency resolution before executing transactions. Imported
-    programs must be fetched from the network endpoint before the transaction can
-    be constructed.
-- file: leo/cli/commands/common/query.rs
-  line: 88
-  summary: HTTP 200 response handling for program queries may need updating to support
-    fetching dependency programs from the network.
+- file: compiler/ast-passes/src/canonicalization/canonicalizer.rs
+  line: 550
+  summary: 'Incorrect col_stop calculation: byte-level check `bytes[col_start - 1]
+    == b''\\''` uses wrong index or logic for determining escaped character span boundaries,
+    causing wrong source spans for char literals in canonicalized AST.'
+  line_side: pre_fix
+- file: compiler/parser/src/tokenizer/lexer.rs
+  line: 66
+  summary: eat_char function has incorrect control flow for escaped/hex/unicode character
+    parsing — fails to properly handle edge cases like overlong unicode escapes (e.g.
+    \u{110000}) and unterminated escape sequences, producing wrong tokens or panics.
+  line_side: pre_fix
+- file: compiler/parser/src/tokenizer/mod.rs
+  line: 56
+  summary: Span calculation `input[line_start..].find('\n').unwrap_or(input.len())`
+    is incorrect — when no newline is found, it should use the remaining length from
+    line_start, not total input length, producing wrong column numbers in error spans.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

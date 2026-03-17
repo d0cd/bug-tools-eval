@@ -1,32 +1,46 @@
 id: snarkVM-053
 repo: ProvableHQ/snarkVM
-base_commit: c432b6dc5c24975b12675f327b5d6ed72426fc02^
-head_commit: c432b6dc5c24975b12675f327b5d6ed72426fc02
-fix_commit: c432b6dc5c24975b12675f327b5d6ed72426fc02
+base_commit: a02dcdbf20edc525aacb04920841c981baffc26f^
+head_commit: a02dcdbf20edc525aacb04920841c981baffc26f
+fix_commit: 3acee60f8d999d16f9887cc9680be03336d32bfc
 category: logic
-difficulty: easy
+difficulty: hard
 severity: high
 language: rust
 pr_size: small
-description: New opcodes (including hash.keccak256 and likely other hash/commit variants)
-  were missing from the register type validation checklists in initialize.rs. Without
-  these entries, the new opcodes would fail validation or be incorrectly rejected.
-  The fix adds the missing opcode strings to three separate checklist blocks around
-  lines 570, 607, and 639.
+description: The `shl_checked` implementation for signed integers incorrectly rejected
+  valid shift-left operations. For example, `-1i8 << 7u8` should yield `-128i8` (a
+  valid i8 value), but the intermediate computation `2^7 = 128` overflows i8, causing
+  a spurious failure. The fix replaces num_traits' `CheckedShl` with a custom trait
+  that computes the power as unsigned, then handles the signed MIN edge case, and
+  updates both the circuit and VM test validation accordingly.
 expected_findings:
-- file: synthesizer/process/src/stack/register_types/initialize.rs
-  line: 570
-  summary: 'Missing opcode entries in checklist: new opcodes like ''hash.keccak256''
-    are not included in this validation/match block, causing them to be unrecognized
-    or rejected.'
-- file: synthesizer/process/src/stack/register_types/initialize.rs
-  line: 607
-  summary: 'Missing opcode entries in second checklist block: same set of new opcodes
-    not present, leading to incomplete validation coverage.'
-- file: synthesizer/process/src/stack/register_types/initialize.rs
-  line: 639
-  summary: 'Missing opcode entries in third checklist block: new opcodes omitted from
-    this validation list as well.'
+- file: circuit/types/integers/src/shl_checked.rs
+  line: 69
+  summary: 'Missing signed/unsigned distinction in shl_checked: computes `base.pow_checked(rhs)`
+    as signed, causing spurious overflow when shift result is the minimum signed value
+    (e.g., -1i8 << 7 = -128i8 is valid but 2^7 overflows i8)'
+  line_side: pre_fix
+- file: console/types/integers/src/bitwise.rs
+  line: 154
+  summary: Uses num_traits CheckedShl which delegates to Rust's bitwise shift semantics;
+    does not handle the signed edge case where the shift result equals the minimum
+    signed value
+  line_side: pre_fix
+- file: vm/compiler/src/program/instruction/operation/macros.rs
+  line: 729
+  summary: Test validation uses Rust's `checked_shl` which has different semantics
+    than the intended ZK checked_shl; incorrectly marks valid signed shift-left operations
+    as failures
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

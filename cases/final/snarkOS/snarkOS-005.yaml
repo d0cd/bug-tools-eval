@@ -1,25 +1,49 @@
 id: snarkOS-005
 repo: ProvableHQ/snarkOS
-base_commit: 6bfce605ba610dd732fc2790f4f98830da36cdb1^
-head_commit: 6bfce605ba610dd732fc2790f4f98830da36cdb1
-fix_commit: 6bfce605ba610dd732fc2790f4f98830da36cdb1
+base_commit: 09c14db7be324ef130cac59886650beaa043a339^
+head_commit: 09c14db7be324ef130cac59886650beaa043a339
+fix_commit: 09c14db7be324ef130cac59886650beaa043a339
 category: logic
-difficulty: medium
-severity: high
+difficulty: hard
+severity: critical
 language: rust
-pr_size: small
-description: The GroupEncryption PublicKey FromBytes implementation incorrectly deserialized
-  the affine point by only reading/using the x-coordinate (via from_x_coordinate)
-  instead of properly reading the full affine representation that ToBytes wrote. This
-  caused public keys to fail round-trip serialization. The fix corrects the FromBytes
-  implementation to properly read the affine coordinates and adds a round-trip serialization
-  test.
+pr_size: medium
+description: The BFT round advancement functions (`is_even_round_ready_for_next_round`
+  and `is_leader_quorum_or_nonleaders_available`) were missing quorum threshold (2f+1)
+  checks before allowing round progression. In odd rounds, if the previous even-round
+  leader was unseen, the code returned true immediately without verifying quorum,
+  allowing a malicious node to send a batch header beyond the GC limit and force premature
+  round advancement. The fix adds mandatory quorum checks at the top of both functions
+  before any other conditions are evaluated.
 expected_findings:
-- file: algorithms/src/encryption/group.rs
-  line: 29
-  summary: 'Incorrect deserialization: FromBytes uses from_x_coordinate to reconstruct
-    the affine point, but this doesn''t match what ToBytes serializes. The full affine
-    point bytes should be read, not just the x-coordinate.'
+- file: node/bft/src/bft.rs
+  line: 370
+  summary: 'Missing quorum threshold check: `is_leader_quorum_or_nonleaders_available`
+    returns true when leader certificate is None without first verifying that 2f+1
+    certificates exist for the current round, allowing premature odd-round advancement
+    exploitable by a malicious node.'
+  line_side: pre_fix
+- file: node/bft/src/bft.rs
+  line: 339
+  summary: 'Missing quorum threshold check: `is_even_round_ready_for_next_round` returns
+    true when the leader certificate matches the current round without verifying quorum
+    (2f+1 certificates), allowing even-round advancement without sufficient validator
+    participation.'
+  line_side: pre_fix
+- file: node/bft/src/bft.rs
+  line: 347
+  summary: 'Quorum check only on timer-expiry path: the function checks `is_quorum_threshold_reached`
+    only when the timer has expired, but the leader-certificate-present path at line
+    339 bypasses this check entirely.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

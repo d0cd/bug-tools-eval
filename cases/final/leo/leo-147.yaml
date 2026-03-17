@@ -1,24 +1,44 @@
 id: leo-147
 repo: ProvableHQ/leo
-base_commit: b5d3d09b17f8a62a3b5d32212429ebf2a37e2c23^
-head_commit: b5d3d09b17f8a62a3b5d32212429ebf2a37e2c23
-fix_commit: b5d3d09b17f8a62a3b5d32212429ebf2a37e2c23
+base_commit: 97080a3997ceed227955959e4ea5bddb8d19b3a7^
+head_commit: 97080a3997ceed227955959e4ea5bddb8d19b3a7
+fix_commit: 97080a3997ceed227955959e4ea5bddb8d19b3a7
 category: logic
-difficulty: medium
+difficulty: hard
 severity: high
 language: rust
 pr_size: medium
-description: The Leo compiler's ASG construction for iteration (loop) statements did
-  not validate that loop range bounds are constant expressions. In a ZK circuit language,
-  loop bounds must be known at compile time since they determine circuit structure.
-  The fix adds a constness check in the iteration statement ASG builder and introduces
-  a corresponding compiler error for non-constant loop bounds.
+description: During loop unrolling, local symbol tables were cloned without generating
+  fresh NodeIDs, causing multiple unrolled iterations to share the same scope identities.
+  The fix introduces `enter_scope_duped` on SymbolTable and `in_scope_duped` on Duplicator,
+  ensuring each reconstructed scope gets a unique NodeID and independent local table.
 expected_findings:
-- file: asg/src/statement/iteration.rs
-  line: 57
-  summary: Missing validation that iteration range start/stop expressions are constant.
-    Loop bounds in a ZK circuit language must be compile-time constants; variable
-    or input-dependent bounds should be rejected.
+- file: compiler/passes/src/loop_unrolling/duplicate.rs
+  line: 30
+  summary: Scope duplication during loop unrolling clones the symbol table without
+    generating fresh NodeIDs, causing scope identity collisions across unrolled iterations.
+    Should use a duplication method that allocates new NodeIDs.
+  line_side: pre_fix
+- file: compiler/passes/src/loop_unrolling/duplicate.rs
+  line: 56
+  summary: reconstruct_block enters a cloned scope instead of a properly duplicated
+    scope with fresh NodeID, leading to shared scope identities between unrolled loop
+    bodies.
+  line_side: pre_fix
+- file: compiler/passes/src/common/symbol_table/mod.rs
+  line: 95
+  summary: Missing `enter_scope_duped` method that would properly duplicate a local
+    scope from an existing one while generating a fresh NodeID internally, maintaining
+    correct parent/child relationships.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

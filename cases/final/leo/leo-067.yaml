@@ -1,26 +1,30 @@
 id: leo-067
 repo: ProvableHQ/leo
-base_commit: fac3c4df085f5bcc86fa730b9eb49d17ab2c2d59^
-head_commit: fac3c4df085f5bcc86fa730b9eb49d17ab2c2d59
-fix_commit: fac3c4df085f5bcc86fa730b9eb49d17ab2c2d59
-category: logic
+base_commit: 470e2dc99df21b69b19314434acfad729373074c^
+head_commit: 470e2dc99df21b69b19314434acfad729373074c
+fix_commit: 470e2dc99df21b69b19314434acfad729373074c
+category: style
 difficulty: easy
-severity: high
+severity: low
 language: rust
 pr_size: tiny
-description: The zip package creation logic excluded the `inputs` directory but did
-  not exclude files within it (e.g., `inputs/<pack_name>.state`). This produced a
-  malformed zip containing file entries under a directory that was itself excluded,
-  causing the apm-backend server to fail when attempting to create files at nonexistent
-  paths. The fix adds a `path.starts_with(INPUTS_DIRECTORY_NAME)` check to filter
-  out all entries under the inputs directory.
+description: A typo in a doc comment on the lexer's character-eating helper function.
+  The fix corrects the wording in the documentation string without any functional
+  code change.
 expected_findings:
-- file: package/src/root/zip.rs
-  line: 114
-  summary: 'Missing path exclusion: files inside the `inputs/` directory are not filtered
-    out when building the zip, even though the directory itself is excluded. Should
-    check `path.starts_with(INPUTS_DIRECTORY_NAME)` to skip all entries under the
-    inputs directory.'
+- file: parser/src/tokenizer/lexer.rs
+  line: 62
+  summary: 'Typo in doc comment: the description for the character-consumption helper
+    contains a misspelling that should be corrected.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

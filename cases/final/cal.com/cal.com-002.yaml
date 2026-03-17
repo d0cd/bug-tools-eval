@@ -1,0 +1,36 @@
+id: cal.com-002
+repo: calcom/cal.com
+base_commit: 02824b17c38317724354d373c8467fab593fddb2^
+head_commit: 02824b17c38317724354d373c8467fab593fddb2
+fix_commit: 02824b17c38317724354d373c8467fab593fddb2
+category: style
+difficulty: easy
+severity: low
+language: typescript
+pr_size: small
+description: This PR updates UI text in the API key creation modal (changing platform
+  link copy and URL from cal.com/platform to cal.com/integrate) and reorders the developer
+  settings sidebar to place OAuth above API keys. These are purely cosmetic/copy changes
+  driven by user feedback with no functional logic change.
+expected_findings:
+- file: apps/web/modules/ee/api-keys/components/ApiKeyDialogForm.tsx
+  line: 164
+  summary: URL changed from cal.com/platform to cal.com/integrate — verify the new
+    destination exists and is correct
+  line_side: pre_fix
+- file: apps/web/public/static/locales/en/common.json
+  line: 1448
+  summary: Locale string changed but only in en/common.json — check whether other
+    locale files need corresponding updates to avoid inconsistent translations
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,28 +1,32 @@
 id: sentry-040
 repo: getsentry/sentry
-base_commit: 2d3faf35bf52137af1fe4f872bf89b5881d1b436^
-head_commit: 2d3faf35bf52137af1fe4f872bf89b5881d1b436
-fix_commit: 2d3faf35bf52137af1fe4f872bf89b5881d1b436
-category: logic
+base_commit: 30ae70ae9be41b2a9f8961edf12f40cc0f520956^
+head_commit: 0210bfc1ba405d89bf35a724fc0e5ba86fdb6ab6
+fix_commit: 30ae70ae9be41b2a9f8961edf12f40cc0f520956
+category: incomplete
 difficulty: easy
-severity: low
-language: typescript
+severity: medium
+language: python
 pr_size: tiny
-description: The FeedbackButton in the Logs and Metrics explore pages was sized as
-  'xs', while the same button in Traces, Profiles, and Releases used the default 'sm'
-  size, creating visual inconsistency. The fix removes the explicit 'xs' size prop
-  from the two outlier pages so all five use the same default size.
+description: 'PR #110141 replaced the test helper `store_trace_metrics` with `store_eap_items`
+  across the codebase but missed one call site in `test_organization_events_trace_metrics.py`.
+  This caused a test failure in CI because the old method no longer exists after the
+  consolidation.'
 expected_findings:
-- file: static/app/views/explore/logs/content.tsx
-  line: 112
-  summary: FeedbackButton size prop set to 'xs' inconsistent with other explore pages
-    that use default 'sm' size
-- file: static/app/views/explore/metrics/content.tsx
-  line: 94
-  summary: FeedbackButton size prop set to 'xs' inconsistent with other explore pages
-    that use default 'sm' size
+- file: tests/snuba/api/endpoints/test_organization_events_trace_metrics.py
+  line: 737
+  summary: 'Call to `self.store_trace_metrics(trace_metrics)` references a method
+    that was removed/renamed to `store_eap_items` in PR #110141 — this will cause
+    an AttributeError at runtime'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

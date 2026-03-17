@@ -1,0 +1,32 @@
+id: sentry-189
+repo: getsentry/sentry
+base_commit: feb4898ddb6a99ecf7f9423c2c21558de214690d^
+head_commit: feb4898ddb6a99ecf7f9423c2c21558de214690d
+fix_commit: feb4898ddb6a99ecf7f9423c2c21558de214690d
+category: incomplete
+difficulty: easy
+severity: medium
+language: python
+pr_size: tiny
+description: The explorer client's create_pr payload was missing the on_completion_hook
+  parameter, so upon creating a PR via Seer's explorer, Sentry would not receive the
+  webhook needed to post a Slack update. The fix passes on_completion_hook through
+  to the create_pr payload.
+expected_findings:
+- file: src/sentry/seer/explorer/client.py
+  line: 523
+  summary: 'Missing on_completion_hook in create_pr payload: the dict is constructed
+    without including the hook, so the webhook callback for Slack notifications will
+    never fire'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

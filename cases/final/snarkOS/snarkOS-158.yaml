@@ -1,31 +1,39 @@
 id: snarkOS-158
 repo: ProvableHQ/snarkOS
-base_commit: 8f7f6d99d96e6dda3d825885d35017d0633da368^
-head_commit: 8f7f6d99d96e6dda3d825885d35017d0633da368
-fix_commit: 8f7f6d99d96e6dda3d825885d35017d0633da368
+base_commit: d69bab74a28435c97c20d6acc75f3126516b97f0^
+head_commit: d69bab74a28435c97c20d6acc75f3126516b97f0
+fix_commit: d69bab74a28435c97c20d6acc75f3126516b97f0
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: xl
-description: The Router's connect logic and restricted peer insertion had incorrect
-  handling, likely allowing connections to restricted peers or failing to properly
-  restrict/disconnect peers under certain conditions. The fix updates the connect
-  flow at multiple call sites in lib.rs and refines the insert_restricted_peer logic
-  to correctly manage peer restrictions.
+pr_size: small
+description: The recursive CTE `total_tip` in `longest_child_path` was seeded with
+  the wrong column (`preferred_tip.sub` instead of `preferred_tip.parent`) and an
+  off-by-one initial remaining count (`length - 1` instead of `length`), causing the
+  function to return an incorrect block chain path. The final SELECT also incorrectly
+  used a UNION with `preferred_tip` rows, further corrupting the result.
 expected_findings:
-- file: node/router/src/lib.rs
-  line: 129
-  summary: Router connect logic does not properly check or handle restricted peers
-    before establishing a TCP connection
-- file: node/router/src/lib.rs
-  line: 184
-  summary: Second connect call site has the same missing restricted-peer guard, allowing
-    connections that should be blocked
-- file: node/router/src/lib.rs
-  line: 389
-  summary: "insert_restricted_peer logic is incorrect \u2014 may fail to properly\
-    \ restrict a peer or use wrong conditions when updating the restricted peers set"
+- file: storage/src/storage/sqlite/sync.rs
+  line: 503
+  summary: 'Logic error: total_tip CTE seeded with `preferred_tip.sub` (wrong column)
+    and `preferred_tip.length - 1` (off-by-one); should be `preferred_tip.parent`
+    and `preferred_tip.length` to correctly traverse the chain back from the tip'
+  line_side: pre_fix
+- file: storage/src/storage/sqlite/sync.rs
+  line: 511
+  summary: 'Logic error: final SELECT uses UNION of preferred_tip row and total_tip
+    rows with mismatched column aliases (`total_tip.parent, total_tip.remaining as
+    hash`); should simply select from total_tip only'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

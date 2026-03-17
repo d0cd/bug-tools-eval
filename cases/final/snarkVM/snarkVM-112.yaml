@@ -1,21 +1,36 @@
 id: snarkVM-112
 repo: ProvableHQ/snarkVM
-base_commit: 590a8de94c0770dafaf625a4b86f12eabcf07fa2^
-head_commit: 590a8de94c0770dafaf625a4b86f12eabcf07fa2
-fix_commit: 590a8de94c0770dafaf625a4b86f12eabcf07fa2
-category: logic
+base_commit: 807988eb4ee620a78c85d760ed59c26983345791^
+head_commit: 807988eb4ee620a78c85d760ed59c26983345791
+fix_commit: 807988eb4ee620a78c85d760ed59c26983345791
+category: performance
 difficulty: easy
 severity: low
 language: rust
-pr_size: small
-description: A test in synthesizer/src/vm/mod.rs used a non-deterministic random number
-  generator, causing potential test flakiness. The fix switches to TestRng::fixed(123456789)
-  to make the test fully deterministic and reproducible.
+pr_size: xl
+description: The benchmark file `benches/instruction.rs` uses heavy macro expansion
+  that significantly increases build and clippy times for the synthesizer crate. The
+  fix disables the benchmark by removing it from `Cargo.toml`'s `[[bench]]` entries
+  and commenting out or removing the benchmark source.
 expected_findings:
-- file: synthesizer/src/vm/mod.rs
-  line: 713
-  summary: 'Non-deterministic RNG usage in test: should use TestRng::fixed() instead
-    of a non-deterministic RNG to ensure test reproducibility'
+- file: synthesizer/Cargo.toml
+  line: 28
+  summary: Benchmark target for `instruction.rs` should be disabled — its heavy macro
+    usage causes excessive build/clippy times
+  line_side: pre_fix
+- file: synthesizer/benches/instruction.rs
+  line: 1
+  summary: Benchmark file uses macros that expand to ~1000+ lines, significantly increasing
+    compile times; consider disabling or gating behind a feature flag
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

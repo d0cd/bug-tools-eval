@@ -1,24 +1,47 @@
 id: snarkVM-176
 repo: ProvableHQ/snarkVM
-base_commit: 1501b2b3665a83ec3b453dcd689f1b93c93b137e^
-head_commit: 1501b2b3665a83ec3b453dcd689f1b93c93b137e
-fix_commit: 1501b2b3665a83ec3b453dcd689f1b93c93b137e
-category: api
-difficulty: easy
+base_commit: ef1f6733840d3d4dc9b80fa201e099609c657051^
+head_commit: ef1f6733840d3d4dc9b80fa201e099609c657051
+fix_commit: ef1f6733840d3d4dc9b80fa201e099609c657051
+category: logic
+difficulty: medium
 severity: high
 language: rust
-pr_size: tiny
-description: The warp route definition for the GET /testnet3/statePath/{commitment}
-  endpoint incorrectly parsed the commitment path parameter. The path filter macro
-  was not properly configured to deserialize the commitment type from the URL, causing
-  the endpoint to fail. The fix corrects the warp::path! macro usage to properly parse
-  the commitment parameter.
+pr_size: small
+description: When looking up the built-in `credits.aleo` program, the code passed
+  through whatever `edition` value was requested instead of always using edition 0.
+  Since `credits.aleo` is a genesis/built-in program that only exists at version 0,
+  requesting any other edition would fail to find it or return incorrect results.
+  The fix forces edition 0 for `credits.aleo` lookups across all relevant code paths.
 expected_findings:
-- file: rest/src/routes.rs
-  line: 94
-  summary: 'Incorrect warp path filter: the path macro for the statePath endpoint
-    does not correctly parse the commitment parameter from the URL, causing request
-    handling to fail.'
+- file: ledger/src/get.rs
+  line: 254
+  summary: credits.aleo lookup uses caller-supplied `edition` instead of hardcoding
+    edition 0; credits.aleo is a genesis program that only exists at edition 0, so
+    non-zero editions will fail to find it
+  line_side: pre_fix
+- file: ledger/store/src/transaction/deployment.rs
+  line: 392
+  summary: program_map().get_confirmed() passes variable `edition` for credits.aleo;
+    should always use edition 0 for this built-in program
+  line_side: pre_fix
+- file: ledger/store/src/transaction/deployment.rs
+  line: 414
+  summary: 'Same edition bug: credits.aleo lookup should hardcode edition 0 instead
+    of using the passed-in edition parameter'
+  line_side: pre_fix
+- file: ledger/store/src/transaction/deployment.rs
+  line: 428
+  summary: Same edition bug repeated in another lookup path for credits.aleo
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

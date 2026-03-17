@@ -87,6 +87,18 @@ def apply_patch_check(patch_path: Path, cwd: Path) -> bool:
         return False
 
 
+def clone_repo_local(src: Path, dest: Path, timeout: int = 60) -> Path:
+    """Clone from a local path using hardlinks (fast)."""
+    cmd = ["git", "clone", "--local", str(src), str(dest)]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise GitError(cmd, f"Clone timed out after {timeout}s")
+    if result.returncode != 0:
+        raise GitError(cmd, result.stderr)
+    return dest
+
+
 def clone_repo(url: str, dest: Path, branch: str | None = None, timeout: int = 600) -> Path:
     """Clone a git repository. Returns the destination path."""
     args = ["git", "clone", url, str(dest)]

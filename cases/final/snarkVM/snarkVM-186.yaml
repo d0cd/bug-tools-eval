@@ -1,22 +1,41 @@
 id: snarkVM-186
 repo: ProvableHQ/snarkVM
-base_commit: a1d9b33ce1e0ef67b8c617b884a91f3b74f0ee7d^
-head_commit: a1d9b33ce1e0ef67b8c617b884a91f3b74f0ee7d
-fix_commit: a1d9b33ce1e0ef67b8c617b884a91f3b74f0ee7d
-category: api
+base_commit: fdd7b0818c27a111e569d3be65eeba057b3d24ef^
+head_commit: fdd7b0818c27a111e569d3be65eeba057b3d24ef
+fix_commit: fdd7b0818c27a111e569d3be65eeba057b3d24ef
+category: style
 difficulty: easy
 severity: low
 language: rust
-pr_size: tiny
-description: Clippy lint warning in the Varuna AHP matrices module. The fix adds 2
-  lines (likely clippy allow attributes or idiomatic Rust corrections) to satisfy
-  Clippy's static analysis checks without removing any existing code.
+pr_size: medium
+description: CI configuration used a pinned older Rust image (1.64) and ran clippy
+  on nightly instead of stable, while source code carried an unnecessary `#[allow(clippy::redundant_clone)]`
+  suppression. The PR updates the CI images, switches clippy to the stable toolchain,
+  and removes the now-unneeded allow attribute.
 expected_findings:
-- file: algorithms/src/snark/varuna/ahp/matrices.rs
-  line: 0
-  summary: 'Clippy lint violation: code uses a non-idiomatic Rust pattern (e.g., redundant
-    clone, unnecessary reference, or suboptimal API usage) that triggers a Clippy
-    warning'
+- file: rest/src/routes.rs
+  line: 25
+  summary: Unnecessary `#[allow(clippy::redundant_clone)]` suppression — the redundant
+    clone should be removed rather than silenced
+  line_side: pre_fix
+- file: .circleci/config.yml
+  line: 127
+  summary: Pinned to outdated Rust image `cimg/rust:1.64`; should track a more recent
+    stable version
+  line_side: pre_fix
+- file: .rusty-hook.toml
+  line: 1
+  summary: Pre-commit hook uses `cargo +nightly clippy` instead of stable clippy,
+    masking lint differences between nightly and the CI toolchain
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

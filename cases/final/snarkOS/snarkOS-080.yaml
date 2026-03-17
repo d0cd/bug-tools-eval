@@ -1,22 +1,31 @@
 id: snarkOS-080
 repo: ProvableHQ/snarkOS
-base_commit: 6cdaf83e7adf4bdd638b017b203bee8618545408^
-head_commit: 6cdaf83e7adf4bdd638b017b203bee8618545408
-fix_commit: 6cdaf83e7adf4bdd638b017b203bee8618545408
-category: concurrency
-difficulty: medium
-severity: high
+base_commit: 6d07533f99762d0c19a8521c0fc42fb7cf9a795a^
+head_commit: 6d07533f99762d0c19a8521c0fc42fb7cf9a795a
+fix_commit: 6d07533f99762d0c19a8521c0fc42fb7cf9a795a
+category: api-misuse
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: The network ledger's async event loop in snarkOS did not properly handle
-  the Ctrl+C (SIGINT) shutdown signal, preventing the node from gracefully terminating.
-  The fix likely adds or corrects a shutdown signal branch in the ledger's main select
-  loop to propagate the termination and cleanly exit all spawned tasks.
+pr_size: tiny
+description: Dependabot automated dependency bump of jsonrpc-http-server from 14.1.0
+  to 14.2.0. The change only modifies Cargo.toml and Cargo.lock version pins. There
+  is no application code change or bug fix involved.
 expected_findings:
-- file: src/network/ledger.rs
-  line: 0
-  summary: "Missing or incorrect shutdown/signal handling in the ledger's async event\
-    \ loop \u2014 Ctrl+C signal is not caught or propagated, preventing graceful shutdown"
+- file: rpc/Cargo.toml
+  line: 29
+  summary: Dependency version pin for jsonrpc-http-server was outdated at 14.0.5 while
+    other jsonrpc crates were already at 14.2.x, creating a version skew within the
+    jsonrpc family
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

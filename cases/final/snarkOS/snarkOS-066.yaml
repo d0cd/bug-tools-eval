@@ -1,24 +1,43 @@
 id: snarkOS-066
 repo: ProvableHQ/snarkOS
-base_commit: 5d4de0286964a72ecd2b0c4ace30a938ef269086^
-head_commit: 5d4de0286964a72ecd2b0c4ace30a938ef269086
-fix_commit: 5d4de0286964a72ecd2b0c4ace30a938ef269086
-category: api
-difficulty: medium
+base_commit: 5c3f6c22f472c64bdb90fbc95999aec8459385a3^
+head_commit: 5c3f6c22f472c64bdb90fbc95999aec8459385a3
+fix_commit: 5c3f6c22f472c64bdb90fbc95999aec8459385a3
+category: logic
+difficulty: hard
 severity: high
 language: rust
 pr_size: small
-description: Outbound TCP connections in the TCP module did not bind to the address
-  configured via the `--node` flag before connecting. On multi-homed hosts, this caused
-  peers to use the wrong source IP address, leading to incorrect socket address propagation
-  during handshakes and preventing concurrent connections to co-located nodes.
+description: When calculating the stake of certificate authors, the code retrieved
+  the lookback committee for the round before the certificate round instead of the
+  certificate round itself. Although currently the two happen to be equal, this is
+  semantically incorrect and could lead to wrong stake calculations if the lookback
+  logic changes. The fix corrects the round parameter in committee lookback retrievals
+  in both bft.rs and sync/mod.rs.
 expected_findings:
-- file: node/tcp/src/tcp.rs
-  line: 225
-  summary: Outbound TCP connection does not bind to the configured local address before
-    connecting. Should create a socket, bind it to `self.config().listener_ip`, then
-    connect, rather than using a plain `TcpStream::connect` which lets the OS pick
-    the source address.
+- file: node/bft/src/bft.rs
+  line: 514
+  summary: 'Off-by-one: committee lookback is retrieved for the wrong round (round
+    before the certificate round instead of the certificate round itself)'
+  line_side: pre_fix
+- file: node/bft/src/bft.rs
+  line: 528
+  summary: 'Off-by-one: second committee lookback retrieval also uses the wrong round;
+    should use the certificate''s round'
+  line_side: pre_fix
+- file: node/bft/src/sync/mod.rs
+  line: 509
+  summary: 'Off-by-one: committee lookback in sync module uses the wrong round for
+    certificate stake calculation'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

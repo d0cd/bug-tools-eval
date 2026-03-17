@@ -1,0 +1,33 @@
+id: grafana-103
+repo: grafana/grafana
+base_commit: dbb3f1a11b3ebce10652a2c4f653a22df6351b6c^
+head_commit: dbb3f1a11b3ebce10652a2c4f653a22df6351b6c
+fix_commit: dbb3f1a11b3ebce10652a2c4f653a22df6351b6c
+category: logic
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: tiny
+description: The MultiCombobox component calculated the number of hidden/truncated
+  selected items using the length of `shownItems` instead of `visibleItems`, causing
+  an incorrect count to be displayed when the component is focused. The fix swaps
+  the variable to `visibleItems` so the truncation indicator reflects the actual number
+  of items not visible.
+expected_findings:
+- file: packages/grafana-ui/src/components/Combobox/MultiCombobox.tsx
+  line: 1
+  summary: 'Wrong variable used for truncated item count: uses `shownItems` length
+    instead of `visibleItems` length, producing an incorrect hidden-items indicator
+    when the combobox is focused'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119922
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

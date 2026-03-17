@@ -1,32 +1,37 @@
 id: snarkOS-042
 repo: ProvableHQ/snarkOS
-base_commit: 2cb54446ac306304ad83d2acd51ac93ddf3ed712^
-head_commit: 2cb54446ac306304ad83d2acd51ac93ddf3ed712
-fix_commit: 2cb54446ac306304ad83d2acd51ac93ddf3ed712
-category: logic
-difficulty: medium
-severity: high
+base_commit: 39448912f9db287968f88f468258a34791c4de80^
+head_commit: 39448912f9db287968f88f468258a34791c4de80
+fix_commit: 39448912f9db287968f88f468258a34791c4de80
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: Block requests on the gateway were not being cached, unlike validator
-  requests, which meant they could not be rate-limited or matched to inbound block
-  responses. The fix adds caching infrastructure for block requests in the Cache helper
-  and updates the gateway event handling to insert/check block requests against the
-  cache, mirroring existing validator request caching logic.
+pr_size: tiny
+description: The orphan block metric counter was not being incremented when orphan
+  blocks were detected during the consensus commit process. Two code paths — handling
+  `BlockStatus::Unknown` and `ForkDescription::Orphan` — logged debug messages about
+  orphan blocks but failed to increment the `metrics::blocks::ORPHANS` counter, making
+  orphan block occurrences invisible to monitoring.
 expected_findings:
-- file: node/bft/src/gateway.rs
-  line: 546
-  summary: 'Missing cache check/insert for BlockRequest events: block requests are
-    processed without rate-limiting or deduplication, unlike validator requests which
-    are cached'
-- file: node/bft/src/gateway.rs
-  line: 988
-  summary: Inbound block responses are not validated against cached outbound block
-    requests, allowing unsolicited block responses to be processed
-- file: node/bft/src/helpers/cache.rs
-  line: 33
-  summary: Cache struct lacks fields for tracking outbound and inbound block requests,
-    preventing rate-limiting and request-response matching for block data
+- file: consensus/src/consensus/inner/commit.rs
+  line: 52
+  summary: Missing `metrics::increment_counter!(metrics::blocks::ORPHANS)` call when
+    a block is orphaned — orphan rate metric is silently dropped
+  line_side: pre_fix
+- file: consensus/src/consensus/inner/commit.rs
+  line: 119
+  summary: Missing `metrics::increment_counter!(metrics::blocks::ORPHANS)` call at
+    second orphan-handling site — same metric omission
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

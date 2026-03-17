@@ -1,0 +1,40 @@
+id: grafana-118
+repo: grafana/grafana
+base_commit: f936c23c199a95ed0dd6078a755ba556edb73ddb^
+head_commit: f936c23c199a95ed0dd6078a755ba556edb73ddb
+fix_commit: f936c23c199a95ed0dd6078a755ba556edb73ddb
+category: security
+difficulty: easy
+severity: medium
+language: go
+pr_size: medium
+description: The FixFolderMetadata job action was accepted and processed even when
+  the provisioningFolderMetadata feature flag was disabled, allowing users to trigger
+  functionality that should have been gated. The fix adds a feature-flag check in
+  authorizeJob so that requests return 400 Bad Request when the flag is off, and inlines
+  the PullRequest action validation that was previously in a separate validateJobAction
+  method.
+expected_findings:
+- file: pkg/registry/apis/provisioning/jobs.go
+  line: 238
+  summary: 'Missing feature-flag gate: FixFolderMetadata jobs are accepted without
+    checking whether provisioningFolderMetadata is enabled, allowing access to ungated
+    functionality'
+  line_side: pre_fix
+- file: pkg/registry/apis/provisioning/jobs.go
+  line: 329
+  summary: PullRequest action validation is split across validateJobAction and authorizeJob
+    creating indirection; the check should live in authorizeJob alongside the new
+    feature-flag gate for consistency
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

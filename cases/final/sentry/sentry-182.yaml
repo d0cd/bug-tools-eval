@@ -1,0 +1,33 @@
+id: sentry-182
+repo: getsentry/sentry
+base_commit: f4cc105e2dbb2d5cd7e79e00e06122e2e5fcbbef^
+head_commit: f4cc105e2dbb2d5cd7e79e00e06122e2e5fcbbef
+fix_commit: f4cc105e2dbb2d5cd7e79e00e06122e2e5fcbbef
+category: type
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: tiny
+description: The `git_pr_number` field was listed in `SENTRY_PREPROD_STRING_TAGS`
+  but PR numbers are integers. The backend already treats it as numeric (in `numeric_keys`
+  in `artifact_search.py`), so the frontend explore view was fetching and presenting
+  it with the wrong type, causing incorrect filtering or display. The fix moves the
+  field to `SENTRY_PREPROD_NUMBER_TAGS`.
+expected_findings:
+- file: static/app/views/explore/constants.tsx
+  line: 1
+  summary: '`git_pr_number` is listed in the string tags constant but PR numbers are
+    integers; this should be in the number tags constant to match backend treatment
+    and enable correct numeric filtering/display'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110040
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

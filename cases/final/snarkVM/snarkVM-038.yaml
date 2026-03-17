@@ -1,24 +1,32 @@
 id: snarkVM-038
 repo: ProvableHQ/snarkVM
-base_commit: fbbec6c2ffe299415dd2e182012c8090c668fabf^
-head_commit: fbbec6c2ffe299415dd2e182012c8090c668fabf
-fix_commit: fbbec6c2ffe299415dd2e182012c8090c668fabf
-category: logic
-difficulty: hard
-severity: high
+base_commit: 24185ff684cefb92c4ff5481e167cedc34fb056e^
+head_commit: 807988eb4ee620a78c85d760ed59c26983345791
+fix_commit: 24185ff684cefb92c4ff5481e167cedc34fb056e
+category: performance
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: The code used the wrong committee when calculating the next block timestamp.
-  In the subdag match arm around line 239 of advance.rs, the current committee was
-  used instead of the next/correct committee for timestamp computation, which could
-  lead to incorrect block timestamps and consensus issues. The fix ensures the proper
-  committee is used for the timestamp calculation.
+pr_size: xl
+description: The synthesizer/benches/instruction.rs benchmark file uses heavy macro
+  expansion that significantly increases build and clippy times for all developers.
+  The fix comments out the [[bench]] entry in Cargo.toml to disable the benchmark
+  from default builds while preserving the source for manual use.
 expected_findings:
-- file: ledger/src/advance.rs
-  line: 239
-  summary: 'Wrong committee used for next timestamp calculation: should use the next/updated
-    committee rather than the current committee when computing the block timestamp
-    from the subdag.'
+- file: synthesizer/Cargo.toml
+  line: 31
+  summary: The [[bench]] entry for 'instruction' benchmark should be removed or commented
+    out — its macro-heavy implementation in benches/instruction.rs causes excessive
+    build and clippy times without providing value in CI or regular development workflows.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

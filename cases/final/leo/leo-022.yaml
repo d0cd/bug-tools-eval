@@ -1,29 +1,45 @@
 id: leo-022
 repo: ProvableHQ/leo
-base_commit: ecd1c7fe0ea980e983d9bfc017ad380ec62e0e21^
-head_commit: ecd1c7fe0ea980e983d9bfc017ad380ec62e0e21
-fix_commit: ecd1c7fe0ea980e983d9bfc017ad380ec62e0e21
-category: logic
+base_commit: 179fba27fcbc03350c5b0ffbb79c589f1f0380dd^
+head_commit: 179fba27fcbc03350c5b0ffbb79c589f1f0380dd
+fix_commit: 179fba27fcbc03350c5b0ffbb79c589f1f0380dd
+category: style
 difficulty: easy
 severity: low
 language: rust
-pr_size: small
-description: Documentation comments in the parser were inaccurate. Several rustdoc
-  comments in context.rs and file.rs referenced incorrect types or described behavior
-  incorrectly, and were fixed to match the actual code behavior.
+pr_size: large
+description: Multiple source files were missing the required copyright/license header
+  boilerplate. The PR adds the standard Aleo Systems Inc. license comment block to
+  13 files that were created without it, which is a compliance/style issue rather
+  than a functional bug.
 expected_findings:
-- file: compiler/parser/src/parser/context.rs
-  line: 201
-  summary: 'Incorrect doc comment: description of opening/closing delimiters does
-    not match actual function behavior'
-- file: compiler/parser/src/parser/file.rs
-  line: 296
-  summary: 'Incorrect doc comment: claims to return an `Input` AST node but the function
-    likely returns a different type'
-- file: compiler/parser/src/parser/file.rs
-  line: 377
-  summary: 'Incorrect doc comment: duplicated wrong `Input` type reference in rustdoc
-    that should reference the correct return type'
+- file: ast/src/console/console_assert.rs
+  line: 1
+  summary: "Missing required copyright/license header \u2014 file starts with code\
+    \ instead of the standard Aleo license boilerplate"
+  line_side: pre_fix
+- file: compiler/src/console/assert.rs
+  line: 1
+  summary: "Missing required copyright/license header \u2014 file starts with code\
+    \ instead of the standard Aleo license boilerplate"
+  line_side: pre_fix
+- file: typed/src/console/console_function.rs
+  line: 1
+  summary: "Missing required copyright/license header \u2014 file starts with code\
+    \ instead of the standard Aleo license boilerplate"
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 337
+reviewer_notes:
+- '[thread] # [Codecov](https://codecov.io/gh/AleoHQ/leo/pull/337?src=pr&el=h1) Report
+  > Merging [#337](https://codecov.io/gh/AleoHQ/leo/pull/337?src=pr&el=desc) into
+  [master](https://codecov.io/gh/AleoHQ/leo/commit/6fc3393f5cb7341793f1a9df8540aabca93b950d?el=desc)
+  will **decrease** coverage by `0.36%`. > The d'
+reviewer_findings: []
+quality_flags: []

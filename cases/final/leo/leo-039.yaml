@@ -1,25 +1,50 @@
 id: leo-039
 repo: ProvableHQ/leo
-base_commit: 4617c3ba35c2a5f4c3dc1391cf98e3749034bc7a^
-head_commit: 4617c3ba35c2a5f4c3dc1391cf98e3749034bc7a
-fix_commit: 4617c3ba35c2a5f4c3dc1391cf98e3749034bc7a
-category: logic
-difficulty: easy
-severity: low
+base_commit: 23e962221291ba8186b1cf7928e54788256c30fb^
+head_commit: 23e962221291ba8186b1cf7928e54788256c30fb
+fix_commit: 23e962221291ba8186b1cf7928e54788256c30fb
+category: type
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: Fixes typos in code comments uncovered by a spell checker in VS Code.
-  The changes are in identifier.rs and symbol.rs, correcting misspelled words in documentation/comments
-  without affecting runtime behavior.
+pr_size: xl
+description: The Leo compiler's CharValue type treated all characters as Unicode scalar
+  values without distinguishing non-scalar code points (surrogates like U+DDDD). This
+  meant the AST, constraint system, and output serialization had no way to represent
+  or correctly handle non-scalar characters, potentially leading to under-specified
+  ZK constraints and incorrect output for programs using surrogate code points.
 expected_findings:
-- file: compiler/ast/src/common/identifier.rs
-  line: 32
-  summary: 'Typo in comment: misspelled word in documentation comment about Serialize/Deserialize
-    implementation'
-- file: leo/span/src/symbol.rs
-  line: 73
-  summary: 'Typo in comment: misspelled word in comment describing base case for single
-    identifier'
+- file: ast/src/chars/char_value.rs
+  line: 1
+  summary: "CharValue enum lacks Scalar/NonScalar variant distinction \u2014 all characters\
+    \ are treated as Unicode scalar values, but surrogate code points (U+D800\u2013\
+    U+DFFF) are not scalar values and need separate handling"
+  line_side: pre_fix
+- file: compiler/src/value/char/char.rs
+  line: 31
+  summary: Char constraint allocation does not encode whether the character is a scalar
+    or non-scalar code point, so ZK circuit constraints may be under-specified for
+    non-scalar character inputs
+  line_side: pre_fix
+- file: compiler/src/output/mod.rs
+  line: 47
+  summary: Output serialization writes all char values identically without labeling
+    them as scalar vs non-scalar, producing ambiguous output for surrogate code points
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 1036
+reviewer_notes:
+- '[review] Looks good!  Relies on Rust''s std::char::from_u32 returning None for
+  a non-scalar value, which should be fine, but we should remain aware of the dependency.'
+- '[thread] # [Codecov](https://codecov.io/gh/AleoHQ/leo/pull/1036?src=pr&el=h1&utm_medium=referral&utm_source=github&utm_content=comment&utm_campaign=pr+comments&utm_term=AleoHQ)
+  Report > Merging [#1036](https://codecov.io/gh/AleoHQ/leo/pull/1036?src=pr&el=desc&utm_medium=referral&utm_source=github&utm_content'
+- '[thread] @bendyarm, I could change the `col_start` and `col_stop` fields on the
+  span if that''s what you want? The other''s should stay the same for error reporting.'
+reviewer_findings: []
+quality_flags: []

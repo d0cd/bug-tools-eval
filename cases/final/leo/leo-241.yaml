@@ -1,31 +1,32 @@
 id: leo-241
 repo: ProvableHQ/leo
-base_commit: f5071a0d380fd80177ed8a2c25d23b2f26f23db1^
-head_commit: f5071a0d380fd80177ed8a2c25d23b2f26f23db1
-fix_commit: f5071a0d380fd80177ed8a2c25d23b2f26f23db1
+base_commit: f2c4d8d07818d85863bd7c4182888411846f0dbc^
+head_commit: f2c4d8d07818d85863bd7c4182888411846f0dbc
+fix_commit: f2c4d8d07818d85863bd7c4182888411846f0dbc
 category: logic
 difficulty: easy
-severity: medium
+severity: low
 language: rust
-pr_size: large
-description: The `leo init` and `leo new` CLI commands did not create input files,
-  and file extensions were incorrect or inconsistent. The fix updates input files
-  to use the `.in` extension stored under `{root}/inputs/{package_name}.in`, adds
-  `InputsFile` creation to the `init` and `new` commands, and updates the compiler
-  to use `parse_inputs` for the new file format.
+pr_size: tiny
+description: A misspelled AST output filename string in the compiler's lib.rs caused
+  the JSON file to be written with an incorrect name. The fix corrects the spelling
+  of the AST filename (e.g., 'initial_ast.json') so downstream tools and users can
+  find the file at the expected path.
 expected_findings:
-- file: leo/commands/init.rs
-  line: 3
-  summary: 'Missing InputsFile import and creation: `leo init` does not generate an
-    input file for the new package, leaving users without a default inputs file.'
-- file: leo/commands/new.rs
-  line: 3
-  summary: 'Missing InputsFile import and creation: `leo new` does not generate an
-    input file for the new package, leaving users without a default inputs file.'
-- file: leo/files/inputs.rs
-  line: 1
-  summary: InputsFile implementation missing or using wrong file extension/path structure;
-    should store inputs as `{root}/inputs/{package_name}.in`.
+- file: compiler/compiler/src/lib.rs
+  line: 82
+  summary: Misspelled filename string in ast.to_json_file_without_keys() call; the
+    AST output JSON filename contains a typo and should be corrected to the proper
+    spelling.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

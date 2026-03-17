@@ -1,26 +1,42 @@
 id: leo-056
 repo: ProvableHQ/leo
-base_commit: 5f80cc46420a13247bdeb958559d445e5c85a274^
-head_commit: 5f80cc46420a13247bdeb958559d445e5c85a274
-fix_commit: 5f80cc46420a13247bdeb958559d445e5c85a274
-category: api
-difficulty: easy
-severity: critical
+base_commit: 3933fa805efb239f10fad68455b56fab75bdcc2b^
+head_commit: 3933fa805efb239f10fad68455b56fab75bdcc2b
+fix_commit: 3933fa805efb239f10fad68455b56fab75bdcc2b
+category: api-misuse
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: The code contained `.unwrap()` calls and explicit panics in error paths
-  that could cause unrecoverable crashes. The fix replaces the `unwrap()` with proper
-  pattern matching and folds a `panic!` into the `Result::Err` case, allowing errors
-  to propagate gracefully instead of crashing the program.
+pr_size: small
+description: Duplicate `#[clap(flatten)]` of `EnvOptions` in both the parent `LeoDevnode`
+  command and its `Start`/`Advance` subcommands. Because `EnvOptions` fields use `global
+  = true`, clap's debug assertions detected duplicate global arg registration, crashing
+  `leo devnode start` in debug builds. The fix removes the redundant flatten from
+  the subcommands and threads the private key from the parent's `EnvOptions` through
+  the `Input` associated type.
 expected_findings:
-- file: compiler/src/expression/identifier/identifier.rs
-  line: 49
-  summary: 'Potential panic in error path: code uses an explicit panic or unwrap where
-    the enclosing function returns a Result, should propagate the error with `?` instead'
-- file: leo/commands/run.rs
-  line: 61
-  summary: Unnecessary `.unwrap()` call that can panic at runtime; should use `?`
-    operator or pattern matching to handle the error case gracefully
+- file: leo/cli/commands/devnode/start.rs
+  line: 41
+  summary: Duplicate `#[clap(flatten)]` of `EnvOptions` here conflicts with the same
+    flatten in the parent `LeoDevnode` command, since `EnvOptions` fields are marked
+    `global = true`. This causes clap to panic on duplicate global arg registration
+    in debug builds.
+  line_side: pre_fix
+- file: leo/cli/commands/devnode/advance.rs
+  line: 24
+  summary: Duplicate `#[clap(flatten)]` of `EnvOptions` — same issue as in `start.rs`.
+    The `EnvOptions` is already flattened in the parent `LeoDevnode` struct with `global
+    = true` fields, so flattening again in the subcommand triggers clap's duplicate
+    global arg assertion.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

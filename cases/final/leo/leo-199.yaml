@@ -1,22 +1,37 @@
 id: leo-199
 repo: ProvableHQ/leo
-base_commit: f823b19024964e5b964662f33830542407d75261^
-head_commit: 7b88c3eb7e68cc7c0e21e46b638f7179d9ba4d09
-fix_commit: f823b19024964e5b964662f33830542407d75261
-category: logic
+base_commit: c74772cfac6f26ec80d1388d9f6b19dd1241c86b^
+head_commit: c74772cfac6f26ec80d1388d9f6b19dd1241c86b
+fix_commit: c74772cfac6f26ec80d1388d9f6b19dd1241c86b
+category: api-misuse
 difficulty: medium
-severity: medium
-language: leo
-pr_size: medium
-description: 'The Leo compiler had a bug with future type inference (issue #28312)
-  that was previously fixed around commit 7b88c3eb. This PR adds a regression test
-  case from the original bug report to ensure the future type inference behavior remains
-  correct.'
+severity: critical
+language: rust
+pr_size: small
+description: The type checker in `visit_function` called `.unwrap()` on `lookup_struct`
+  without verifying the type exists first, causing a panic (crash) when a function
+  references an undefined data type. The fix introduces an `assert_type_is_defined`
+  helper in the checker that validates type existence before the lookup, converting
+  the panic into a proper compiler error.
 expected_findings:
-- file: tests/tests/compiler/futures/future_type_inference.leo
-  line: 1
-  summary: 'Test case for future type inference bug: compiler previously failed to
-    correctly infer types for futures, which was fixed in an earlier commit'
+- file: compiler/passes/src/type_checking/check_program.rs
+  line: 243
+  summary: 'Missing existence check before unwrapping `lookup_struct` result: undefined
+    types cause an unwrap panic instead of a compiler error'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_statements.rs
+  line: 201
+  summary: Unreachable arm for Type::Err does not account for undefined types that
+    could now flow through after the type-existence check
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

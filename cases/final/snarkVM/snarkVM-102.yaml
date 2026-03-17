@@ -1,31 +1,33 @@
 id: snarkVM-102
 repo: ProvableHQ/snarkVM
-base_commit: 7cdcf4496f92c0843353f91aa2318ef4425bd046^
-head_commit: 7cdcf4496f92c0843353f91aa2318ef4425bd046
-fix_commit: 7cdcf4496f92c0843353f91aa2318ef4425bd046
+base_commit: 710b12db9fd2569e02985c23b367c58774299b70^
+head_commit: 710b12db9fd2569e02985c23b367c58774299b70
+fix_commit: 710b12db9fd2569e02985c23b367c58774299b70
 category: logic
-difficulty: hard
-severity: high
+difficulty: medium
+severity: critical
 language: rust
-pr_size: large
-description: Bug in the `div_wrapped` circuit implementation for integers, producing
-  incorrect results for wrapped division operations. The fix corrects the division
-  logic in `div_wrapped.rs` across constant, public, and private input modes, and
-  also redefines `shl_checked` as an arithmetic shift left. Additional cleanup replaces
-  manual eject/inject patterns with the `witness!` macro.
+pr_size: tiny
+description: Block validation in verify.rs had an incorrect ratification count check,
+  allowing blocks with fewer than the required minimum number of ratifications to
+  pass verification. The fix corrects the ensure! macro condition at line 221 to properly
+  enforce that blocks must contain at least 2 ratifications. This was identified during
+  an NCC Group security audit (JBV finding).
 expected_findings:
-- file: circuit/types/integers/src/div_wrapped.rs
-  line: 21
-  summary: "Incorrect division logic in div_wrapped for constant case \u2014 the wrapped\
-    \ division circuit produces wrong results for certain input combinations"
-- file: circuit/types/integers/src/div_wrapped.rs
-  line: 133
-  summary: "Incorrect division logic in div_wrapped for non-constant signed integer\
-    \ case \u2014 quotient/remainder constraint circuit is wrong"
-- file: circuit/types/integers/src/div_wrapped.rs
-  line: 182
-  summary: "Incorrect division logic in div_wrapped for non-constant unsigned integer\
-    \ case \u2014 quotient/remainder constraint circuit is wrong"
+- file: ledger/block/src/verify.rs
+  line: 221
+  summary: 'Incorrect ratification count validation: the ensure! check has a wrong
+    boundary condition, allowing blocks with insufficient ratifications to pass verification.
+    Should enforce `self.ratifications.len() >= 2`.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

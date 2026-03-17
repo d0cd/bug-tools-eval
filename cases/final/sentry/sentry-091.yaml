@@ -1,0 +1,36 @@
+id: sentry-091
+repo: getsentry/sentry
+base_commit: 718f6364267979371b651cb86a69e0261a3a0ce4^
+head_commit: 718f6364267979371b651cb86a69e0261a3a0ce4
+fix_commit: 718f6364267979371b651cb86a69e0261a3a0ce4
+category: api-misuse
+difficulty: medium
+severity: high
+language: python
+pr_size: tiny
+description: The `OrganizationPreprodRetentionEndpoint` had `SessionAuthentication`
+  listed before token authentication classes. When a request carried both session
+  cookies and a Bearer token, session auth would win, set `request.auth = None`, and
+  trigger an SSO check — returning a spurious `401 sso-required` error, preventing
+  CLI token-based access entirely. The fix reorders `authentication_classes` to place
+  token classes first (matching the framework's `DEFAULT_AUTHENTICATION` order) and
+  adds the missing `OrgAuthTokenAuthentication`.
+expected_findings:
+- file: src/sentry/preprod/api/endpoints/organization_preprod_retention.py
+  line: 49
+  summary: 'authentication_classes ordering is wrong: SessionAuthentication precedes
+    UserAuthTokenAuthentication, so session auth wins over Bearer tokens and triggers
+    spurious SSO 401 errors. Token auth classes should come first, and OrgAuthTokenAuthentication
+    is missing entirely.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

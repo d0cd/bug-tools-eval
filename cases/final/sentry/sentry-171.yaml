@@ -1,0 +1,33 @@
+id: sentry-171
+repo: getsentry/sentry
+base_commit: e39af361a3f4328d28c04e13ccb793fc360fd5be^
+head_commit: e39af361a3f4328d28c04e13ccb793fc360fd5be
+fix_commit: e39af361a3f4328d28c04e13ccb793fc360fd5be
+category: api-misuse
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: tiny
+description: The `usePopulateLinkedDashboards` hook queries for prebuilt dashboards
+  by ID but does not include the `showHidden` filter, causing the API to exclude hidden
+  dashboards (such as mobile vitals detail dashboards) from results. This breaks detail
+  links for any dashboard marked as hidden. The fix adds `showHidden` to the query
+  parameters so hidden dashboards are resolved correctly.
+expected_findings:
+- file: static/app/views/dashboards/utils/usePopulateLinkedDashboards.tsx
+  line: 45
+  summary: 'Missing `showHidden` filter in dashboard query: hidden dashboards (e.g.
+    mobile vitals detail dashboards) are excluded from results, breaking linked dashboard
+    detail links'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

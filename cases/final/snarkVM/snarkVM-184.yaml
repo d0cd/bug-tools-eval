@@ -1,30 +1,47 @@
 id: snarkVM-184
 repo: ProvableHQ/snarkVM
-base_commit: 46f2625223c0ce162d43552f03426cad422f2aed^
-head_commit: 46f2625223c0ce162d43552f03426cad422f2aed
-fix_commit: 46f2625223c0ce162d43552f03426cad422f2aed
+base_commit: fbffb188d24e0da78fa2cea248e96ca0d0660bf4^
+head_commit: fbffb188d24e0da78fa2cea248e96ca0d0660bf4
+fix_commit: fbffb188d24e0da78fa2cea248e96ca0d0660bf4
 category: logic
-difficulty: medium
+difficulty: hard
 severity: high
 language: rust
-pr_size: medium
-description: The `cost_in_microcredits` function did not account for the cost of finalizing
-  futures, resulting in underestimated execution costs. The fix modifies the cost
-  calculation to include finalize costs and caches the computed cost per function
-  in `Stack` to avoid redundant recomputation.
+pr_size: xl
+description: The coinbase target and proof target calculation methods incorrectly
+  relied on timestamps and reference heights (last_coinbase_height), which introduced
+  unnecessary complexity and potential inaccuracy in difficulty adjustment. The fix
+  removes the last_coinbase_height field from block header metadata and simplifies
+  the target computation functions in ledger/src/helpers/target.rs, propagating the
+  removal through serialization, genesis construction, block validation, and VM finalization.
 expected_findings:
-- file: synthesizer/process/src/cost.rs
-  line: 60
-  summary: cost_in_microcredits does not include the cost of finalizing futures in
-    the root transition, leading to underestimated execution costs
-- file: synthesizer/process/src/stack/mod.rs
-  line: 36
-  summary: Stack lacks a finalize_costs cache, causing redundant recalculation of
-    cost_in_microcredits for each function
-- file: synthesizer/program/src/traits/stack_and_registers.rs
-  line: 80
-  summary: StackProgram trait missing method to return expected finalize cost for
-    a given function name, needed for complete cost accounting
+- file: ledger/src/helpers/target.rs
+  line: 12
+  summary: Target calculation functions use timestamp-based and reference-height-based
+    parameters (last_coinbase_height) that introduce incorrect or unnecessary coupling
+    in difficulty adjustment logic; these parameters should be removed from the coinbase_target
+    and proof_target computations.
+  line_side: pre_fix
+- file: ledger/block/src/header/metadata/mod.rs
+  line: 43
+  summary: Block metadata struct carries a last_coinbase_height field that is used
+    in target calculations but should not be — this field and its accessors should
+    be removed as the target methods no longer need reference heights.
+  line_side: pre_fix
+- file: ledger/src/advance.rs
+  line: 129
+  summary: Block advancement logic passes last_coinbase_height() to coinbase target
+    construction, propagating the flawed timestamp/reference-height dependency into
+    new block headers.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

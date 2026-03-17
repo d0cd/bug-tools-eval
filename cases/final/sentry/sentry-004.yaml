@@ -1,37 +1,33 @@
 id: sentry-004
 repo: getsentry/sentry
-base_commit: 2a2ebfe0e9b1fa477fbdedc27b6b0b9cf37eb844^
-head_commit: 2a2ebfe0e9b1fa477fbdedc27b6b0b9cf37eb844
-fix_commit: 2a2ebfe0e9b1fa477fbdedc27b6b0b9cf37eb844
-category: logic
-difficulty: medium
+base_commit: 070c5030ddba9045c21b34fa5c3fcc0aae456b8f^
+head_commit: 070c5030ddba9045c21b34fa5c3fcc0aae456b8f
+fix_commit: 070c5030ddba9045c21b34fa5c3fcc0aae456b8f
+category: api-misuse
+difficulty: easy
 severity: medium
-language: typescript
-pr_size: medium
-description: Duration formatting functions in charts.tsx assumed all duration values
-  were in milliseconds, but trace metrics can report durations in other units (days,
-  weeks, etc.). This caused values like 95 weeks to be displayed as 95 milliseconds.
-  The fix normalizes the input value to milliseconds using DURATION_UNIT_MULTIPLIERS
-  before passing it to the downstream formatting helpers.
+language: python
+pr_size: small
+description: The truncation limit for GitHub Copilot's `problem_statement` field was
+  set to 29,900 raw characters, but JSON encoding expansion (escaping newlines, quotes,
+  backslashes) could push the serialized payload beyond the 30,000 character API limit,
+  causing request rejections. The fix lowers the truncation threshold to 25,000 characters
+  to provide sufficient headroom.
 expected_findings:
-- file: static/app/utils/discover/charts.tsx
-  line: 55
-  summary: "tooltipFormatterUsingAggregateOutputType 'duration' case divides value\
-    \ by 1000 assuming it is always in milliseconds, but the value's actual unit may\
-    \ be days, weeks, etc. \u2014 must multiply by the unit's duration multiplier\
-    \ first"
-- file: static/app/utils/discover/charts.tsx
-  line: 119
-  summary: "axisLabelFormatterUsingAggregateOutputType 'duration' case passes raw\
-    \ value to axisDuration without converting to milliseconds \u2014 values in non-ms\
-    \ units (weeks, days) render incorrectly on the y-axis"
-- file: static/app/utils/discover/charts.tsx
-  line: 195
-  summary: "getDurationUnit computes range min/max/avg directly from raw series values\
-    \ without unit conversion \u2014 duration categorization is wrong when data is\
-    \ not in milliseconds"
+- file: src/sentry/integrations/github_copilot/client.py
+  line: 45
+  summary: Truncation limit of 29,900 is too close to the 30,000 API limit; JSON encoding
+    of special characters (\n, \", \\) can expand the serialized length beyond the
+    limit. Should use a lower threshold with sufficient headroom.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

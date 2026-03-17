@@ -1,0 +1,38 @@
+id: sentry-191
+repo: getsentry/sentry
+base_commit: ff359093ac3651b7a019108ab0b426fc1eedbc60^
+head_commit: ff359093ac3651b7a019108ab0b426fc1eedbc60
+fix_commit: ff359093ac3651b7a019108ab0b426fc1eedbc60
+category: security
+difficulty: medium
+severity: high
+language: python
+pr_size: small
+description: The ProjectPreprodBuildDistributionLatestEndpoint only accepted distribution-scoped
+  tokens, which are hard to mint (only via custom integrations). The fix creates a
+  new union permission class (ProjectDistributionOrProjectPermission) that accepts
+  either distribution-scoped or regular project-scoped user tokens, broadening access
+  to the endpoint.
+expected_findings:
+- file: src/sentry/preprod/api/endpoints/public/project_preprod_build_distribution_latest.py
+  line: 1
+  summary: "Endpoint permission_classes is too restrictive \u2014 only distribution-scoped\
+    \ tokens are accepted, but regular project-scoped user tokens should also be allowed\
+    \ since distribution tokens are hard to mint (only via custom integrations)"
+  line_side: pre_fix
+- file: src/sentry/api/bases/project.py
+  line: 1
+  summary: Missing a union permission class that combines ProjectDistributionPermission
+    and ProjectPermission to allow either token type
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110430
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

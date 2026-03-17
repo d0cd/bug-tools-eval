@@ -1,23 +1,46 @@
 id: leo-061
 repo: ProvableHQ/leo
-base_commit: 1d1e86c8dea00ad6bd37e4d8d52ac76ca2784bfa^
-head_commit: 1d1e86c8dea00ad6bd37e4d8d52ac76ca2784bfa
-fix_commit: 1d1e86c8dea00ad6bd37e4d8d52ac76ca2784bfa
+base_commit: 402a8e4015713b90e606d3c2d74cff864540a4f0^
+head_commit: 402a8e4015713b90e606d3c2d74cff864540a4f0
+fix_commit: 402a8e4015713b90e606d3c2d74cff864540a4f0
 category: logic
-difficulty: easy
-severity: medium
+difficulty: hard
+severity: high
 language: rust
-pr_size: small
-description: The Leo compiler's expression evaluator failed when applying the not
-  (!) operator to a mutable boolean variable. The enforce_operand call in expression.rs
-  did not correctly handle mutable boolean expressions, causing a runtime error. The
-  fix corrects the operand enforcement logic and adds a test case for not on mutable
-  booleans.
+pr_size: xl
+description: The Leo compiler's type checker and static analyzer did not properly
+  validate future types, allowing futures to be incorrectly placed in tuples, accessed
+  as tuple elements, and passed as function parameters without generating appropriate
+  errors. The fix introduces a dedicated future_checker static analysis pass and tightens
+  future consumption tracking across multiple type-checking expression and statement
+  handlers.
 expected_findings:
-- file: compiler/src/expression/expression.rs
-  line: 138
-  summary: enforce_operand does not handle mutable boolean expressions correctly when
-    evaluating the not (!) operator, causing an error for mutable bool operands
+- file: compiler/passes/src/type_checking/checker.rs
+  line: 1220
+  summary: 'Incomplete future type validation: `matches!(&input_var.type_(), Type::Future(_))`
+    check is insufficient — does not properly enforce constraints on how futures can
+    be used in variable contexts.'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_expressions.rs
+  line: 147
+  summary: Future consumption logic is missing or incorrect — futures are not being
+    properly tracked/consumed when used in expressions, allowing invalid future usage
+    patterns to pass type checking.
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_statements.rs
+  line: 23
+  summary: insert_variable call does not properly handle future types — missing validation
+    that futures cannot be stored in certain variable contexts (e.g., tuple bindings),
+    allowing misplaced futures to go undetected.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

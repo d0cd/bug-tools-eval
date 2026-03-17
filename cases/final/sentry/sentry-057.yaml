@@ -1,31 +1,95 @@
 id: sentry-057
 repo: getsentry/sentry
-base_commit: baec781d01c7cf21273f595d32c5d7b3c2316cd1^
-head_commit: baec781d01c7cf21273f595d32c5d7b3c2316cd1
-fix_commit: baec781d01c7cf21273f595d32c5d7b3c2316cd1
-category: logic
+base_commit: 47e615a6438d74ee97c801261e37fe6de9e0da1e^
+head_commit: 47e615a6438d74ee97c801261e37fe6de9e0da1e
+fix_commit: 47e615a6438d74ee97c801261e37fe6de9e0da1e
+category: api-misuse
 difficulty: medium
-severity: medium
-language: typescript
-pr_size: small
-description: 'Table widgets on dashboards displayed too few rows (3 or 5 instead of
-  20) because a prior refactor (PR #107954) started respecting widget.limit for all
-  display types, inadvertently exposing stale limit values left over from when a Table
-  widget was previously a different chart type (e.g., Top N with limit: 3). The fix
-  ensures Table display types always use the hardcoded TABLE_ITEM_LIMIT (20) and strips
-  the stale limit from the derived tableWidget in the viewer modal.'
+severity: high
+language: python
+pr_size: medium
+description: Projects pending deletion or already being deleted could still have events
+  routed through the workflow engine pipeline. Because their detectors had already
+  been removed, `build_workflow_event_data_from_event()` would crash with unhandled
+  `Detector.DoesNotExist` exceptions. The fix adds an early project-status check that
+  raises a dedicated `ProjectNotActiveError`, which calling tasks gracefully ignore.
 expected_findings:
-- file: static/app/views/dashboards/sortableWidget.tsx
-  line: 0
-  summary: For DisplayType.TABLE, widget.limit may contain a stale value from a previous
-    chart type; should always use TABLE_ITEM_LIMIT (20) instead of widget.limit ??
-    TABLE_ITEM_LIMIT
-- file: static/app/components/modals/widgetViewerModal.tsx
-  line: 0
-  summary: Derived tableWidget inherits stale limit from source Table widget; should
-    strip limit so FULL_TABLE_ITEM_LIMIT is used consistently from first load
+- file: src/sentry/workflow_engine/tasks/utils.py
+  line: 92
+  summary: 'Missing project-status guard: `build_workflow_event_data_from_event` proceeds
+    without checking whether the project is active/pending-deletion, leading to `Detector.DoesNotExist`
+    crashes when detectors have already been cleaned up'
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/tasks/workflows.py
+  line: 98
+  summary: Task entry point does not catch or handle the case where the project is
+    inactive, allowing the `Detector.DoesNotExist` exception to propagate as an unhandled
+    error instead of being gracefully ignored
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/tasks/actions.py
+  line: 84
+  summary: '`trigger_action` path does not exclude `Project.DoesNotExist` and `Group.DoesNotExist`
+    from its error handling, meaning these transient-state exceptions are not properly
+    ignored or captured'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110553
+reviewer_notes:
+- "[inline] \U0001F914 - maybe we should put the `Group.DoesNotExist` in the `ignore_and_capture`\
+  \ bit, so we can keep getting reports for it?  there's some work i'm thinking of\
+  \ doing around caching that might impact this error, just thinking having it around\
+  \ might be helpful if i bork something there."
+- '[inline] Unactionable rambling:  I have mixed feelings about how much error configuration
+  we push to the retry decorator. I think for smaller tasks it is reasonable and convenient,
+  but as they get larger, it starts putting awareness of failure patterns of code
+  a few layers away into one place where arguably'
+reviewer_findings:
+- file: src/sentry/workflow_engine/tasks/actions.py
+  line: 84
+  summary: This function is called by `trigger_action` as well, which for some reason
+    didn't exclude Project.DoesNotExist and Group
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/tasks/actions.py
+  line: 84
+  summary: 'huh. I suspect this is because Group existence is usually not transient
+    so if it is absent, we''d find it in the earlier '
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/tasks/actions.py
+  line: 84
+  summary: "\U0001F914 - maybe we should put the `Group.DoesNotExist` in the `ignore_and_capture`\
+    \ bit, so we can keep getting reports for it?"
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/tasks/actions.py
+  line: 84
+  summary: Okay sounds good - moved to `Group.DoesNotExist` to `ingore_and_capture`
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/tasks/utils.py
+  line: 92
+  summary: I think this is great, we need to be checking project validity before taking
+    action.  We _do_, however, already fetch th
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/tasks/utils.py
+  line: 92
+  summary: Good call! I like this better
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/tasks/utils.py
+  line: 93
+  summary: 'nit: this is also fetching the project (from the cache) twice, not sure
+    if we can modify fetch event to take a project o'
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/tasks/utils.py
+  line: 91
+  summary: "nice, really like using this exception for flow control here \U0001F389"
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/tasks/workflows.py
+  line: 98
+  summary: 'Unactionable rambling:  I have mixed feelings about how much error configuration
+    we push to the retry decorator. I think'
+  line_side: pre_fix
+quality_flags: []

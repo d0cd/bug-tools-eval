@@ -1,29 +1,41 @@
 id: snarkOS-054
 repo: ProvableHQ/snarkOS
-base_commit: a928e3ad41959e7170bbd65302f047eed00e3a64^
-head_commit: a928e3ad41959e7170bbd65302f047eed00e3a64
-fix_commit: a928e3ad41959e7170bbd65302f047eed00e3a64
-category: logic
-difficulty: hard
-severity: critical
+base_commit: 4555eebe1907a11b1368c55704b7b36578d4a144^
+head_commit: 4555eebe1907a11b1368c55704b7b36578d4a144
+fix_commit: 4555eebe1907a11b1368c55704b7b36578d4a144
+category: constraint
+difficulty: medium
+severity: high
 language: rust
 pr_size: small
-description: The BFT primary used `current_round` instead of `certificate_round` for
-  committee lookback selection when checking quorum thresholds. Since peers can be
-  on different rounds, using `current_round` could select an incorrect committee,
-  undermining the safety of the dynamic committee feature. The fix replaces `current_round`
-  with `certificate_round` at the two quorum-check sites.
+description: The `Proposal::read_le` deserialization path did not validate that transmission
+  IDs in the batch header matched the keys in the transmissions map, violating a struct
+  invariant that `Proposal::new` enforced. A malformed or malicious serialized proposal
+  could bypass this invariant check, potentially causing inconsistent BFT state. The
+  fix adds the missing validation in `read_le` and also fixes test code that was constructing
+  proposals with mismatched ordering due to HashMap non-determinism.
 expected_findings:
-- file: node/bft/src/primary.rs
-  line: 765
-  summary: 'Incorrect round variable: `current_round` is used for committee lookback
-    but should be `certificate_round`, since batch certificates may come from peers
-    on different rounds.'
-- file: node/bft/src/primary.rs
-  line: 795
-  summary: 'Same bug: `current_round` used instead of `certificate_round` for quorum
-    threshold committee selection, leading to potentially wrong committee being used
-    for validation.'
+- file: node/bft/src/helpers/proposal.rs
+  line: 221
+  summary: 'Missing invariant check: `read_le` constructs a Proposal without verifying
+    that `batch_header.transmission_ids()` matches `transmissions.keys()`, unlike
+    the `new()` constructor which enforces this. A deserialized proposal can violate
+    the struct invariant.'
+  line_side: pre_fix
+- file: node/bft/src/helpers/proposal.rs
+  line: 194
+  summary: Missing type annotation on `batch_header` means the compiler cannot infer
+    the concrete `BatchHeader<N>` type, which could lead to ambiguous deserialization
+    in generic contexts.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

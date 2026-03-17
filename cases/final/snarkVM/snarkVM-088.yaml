@@ -1,31 +1,37 @@
 id: snarkVM-088
 repo: ProvableHQ/snarkVM
-base_commit: d7334ef27af62efab92d7228f045bb06797c13e2^
-head_commit: d7334ef27af62efab92d7228f045bb06797c13e2
-fix_commit: d7334ef27af62efab92d7228f045bb06797c13e2
+base_commit: 629cccc116194fe1c02566f2cad54de6a5647f1d^
+head_commit: 629cccc116194fe1c02566f2cad54de6a5647f1d
+fix_commit: 629cccc116194fe1c02566f2cad54de6a5647f1d
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: tiny
-description: The Circuit::reset methods did not reset the `in_witness` flag to `false`,
-  leaving the circuit in an inconsistent state if a reset/rollback occurred while
-  in witness mode. The fix adds `in_witness = false` to all three reset variants so
-  the circuit returns to a consistent non-witness state.
+pr_size: large
+description: When deserializing an Authorization from string with a call stack containing
+  multiple transitions, the structural assertion logic would erroneously fail. The
+  fix corrects the assertion logic without changing the underlying structure or order
+  of Authorization fields.
 expected_findings:
-- file: circuit/environment/src/circuit.rs
-  line: 271
-  summary: 'Missing reset of `in_witness` flag: Circuit reset method does not set
-    `in_witness` to `false`, leaving inconsistent state if reset is called during
-    witness mode.'
-- file: circuit/environment/src/circuit.rs
-  line: 290
-  summary: 'Missing reset of `in_witness` flag: second reset variant also fails to
-    clear witness mode, causing state inconsistency on rollback.'
-- file: circuit/environment/src/circuit.rs
-  line: 306
-  summary: 'Missing reset of `in_witness` flag: third reset variant also fails to
-    clear witness mode, causing state inconsistency on rollback.'
+- file: synthesizer/process/src/stack/authorization/mod.rs
+  line: 59
+  summary: Structural assertion logic in Authorization deserialization is incorrect
+    for call stacks with multiple transitions — the assertion condition does not properly
+    account for multi-transition authorization structures
+  line_side: pre_fix
+- file: synthesizer/process/src/stack/authorization/mod.rs
+  line: 72
+  summary: Related assertion logic that fails when deserializing authorizations containing
+    more than one transition in the call stack
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

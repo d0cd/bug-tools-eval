@@ -1,34 +1,39 @@
 id: snarkOS-077
 repo: ProvableHQ/snarkOS
-base_commit: 9ede2e85128855fd1a12a89a244c701c121cf661^
-head_commit: 9ede2e85128855fd1a12a89a244c701c121cf661
-fix_commit: 9ede2e85128855fd1a12a89a244c701c121cf661
-category: logic
-difficulty: hard
-severity: medium
+base_commit: 6bf506233d5338a626ebc465e47492224a7b6507^
+head_commit: 6bf506233d5338a626ebc465e47492224a7b6507
+fix_commit: 6bf506233d5338a626ebc465e47492224a7b6507
+category: api-misuse
+difficulty: medium
+severity: high
 language: rust
-pr_size: xl
-description: This PR separates the ledger module from consensus in the snarkOS node
-  architecture. The entangling of ledger and consensus logic caused incorrect resource
-  allocation and module boundaries, leading to potential issues in node operation.
-  The fix restructures the codebase by extracting consensus into its own crate with
-  proper memory pool management and correcting CPU/resource allocation logic.
+pr_size: small
+description: The challenge request deserialization strictly required a 40-byte snarkOS
+  commit hash via `<[u8; 40]>::read_le`, causing handshake failures with peers that
+  omit or send an invalid commit hash. The fix makes the commit hash field optional
+  during deserialization so that connections succeed even when the field is absent
+  or malformed.
 expected_findings:
-- file: cli/src/commands/start.rs
-  line: 219
-  summary: "Incorrect resource allocation: CPU core distribution between mining and\
-    \ node tasks uses wrong calculation \u2014 min(4) for one pool and saturating_sub(4).max(1)\
-    \ for another may starve tasks when ledger and consensus are not properly separated."
-- file: node/consensus/src/memory_pool/solutions.rs
-  line: 52
-  summary: 'Redundant read-lock acquisition on unconfirmed_solutions: the contains_key
-    check before insert creates a TOCTOU race where another thread could insert the
-    same solution between the check and subsequent write lock.'
-- file: node/consensus/src/memory_pool/transactions.rs
-  line: 41
-  summary: 'Same TOCTOU pattern as solutions pool: read lock for contains_key check
-    followed by separate write lock for insertion allows duplicate transaction entries
-    under concurrent access.'
+- file: node/bft/events/src/challenge_request.rs
+  line: 60
+  summary: Strict deserialization of snarkos_sha as `<[u8; 40]>::read_le` will fail
+    and reject the entire handshake if the peer does not send a commit hash. Should
+    handle missing/invalid hash gracefully instead of propagating the read error.
+  line_side: pre_fix
+- file: node/router/messages/src/challenge_request.rs
+  line: 59
+  summary: Same strict `<[u8; 40]>::read_le` deserialization for snarkos_sha in the
+    router message variant. Missing or short data from peers that don't send a commit
+    hash will cause handshake rejection.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

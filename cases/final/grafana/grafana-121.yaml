@@ -1,0 +1,38 @@
+id: grafana-121
+repo: grafana/grafana
+base_commit: fe4c007f4db3db374364509aac978773f3f0feb7^
+head_commit: fe4c007f4db3db374364509aac978773f3f0feb7
+fix_commit: fe4c007f4db3db374364509aac978773f3f0feb7
+category: code-smell
+difficulty: easy
+severity: medium
+language: go
+pr_size: medium
+description: The dual writer's error handling lacked per-resource-type context in
+  log messages and had no Prometheus metric to track background synchronization errors.
+  This made it difficult to diagnose which resource types were experiencing issues
+  with unified storage. The fix adds a new error counter metric and enriches log lines
+  with the resource's GroupVersionResource.
+expected_findings:
+- file: pkg/storage/legacysql/dualwrite/dualwriter.go
+  line: 54
+  summary: Error logging in the dual writer does not include the resource type (GVR),
+    making it impossible to determine which resource is failing in unified storage
+    synchronization.
+  line_side: pre_fix
+- file: pkg/storage/legacysql/dualwrite/service.go
+  line: 68
+  summary: No Prometheus metric is registered to track background dual-write errors;
+    failures are only logged and not observable via monitoring/alerting.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

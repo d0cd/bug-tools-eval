@@ -1,28 +1,34 @@
 id: keycloak-039
 repo: keycloak/keycloak
-base_commit: 8df79202a0180eac876103cf931d338c91bc51c5^
-head_commit: 8df79202a0180eac876103cf931d338c91bc51c5
-fix_commit: 8df79202a0180eac876103cf931d338c91bc51c5
-category: logic
-difficulty: easy
-severity: low
-language: unknown
-pr_size: tiny
-description: The Keycloak organization members documentation incorrectly stated or
-  implied that a user could only belong to a single organization. The fix updates
-  the docs (managing-members.adoc) to clarify that realm users can have a link to
-  one or more organizations, and updates an accompanying screenshot.
+base_commit: 7c6bae2cbadbcfe1acdde09b5707ab3610314608^
+head_commit: 7c6bae2cbadbcfe1acdde09b5707ab3610314608
+fix_commit: 7c6bae2cbadbcfe1acdde09b5707ab3610314608
+category: api-misuse
+difficulty: medium
+severity: high
+language: java
+pr_size: small
+description: Prometheus requires all meters with the same name to have identical tag
+  key sets, but the Keycloak user event metrics listener was conditionally including
+  tag keys — omitting them when the value was absent. This caused inconsistent tag
+  key sets across counters with the same metric name, leading to Prometheus ingestion
+  failures or silent data loss. The fix always includes configured tag keys, using
+  an empty string as the default value when the actual value is null.
 expected_findings:
-- file: docs/documentation/server_admin/topics/organizations/managing-members.adoc
-  line: 4
-  summary: Documentation incorrectly describes organization membership as single-org;
-    should state users can be members of multiple organizations
-- file: docs/documentation/server_admin/topics/organizations/managing-members.adoc
-  line: 21
-  summary: Repeated incorrect single-organization membership language needs updating
-    to reflect multi-org support
+- file: quarkus/runtime/src/main/java/org/keycloak/quarkus/runtime/services/metrics/events/MicrometerUserEventMetricsEventListenerProvider.java
+  line: 126
+  summary: Tag keys are only added conditionally when the value is present. Prometheus
+    requires all meters with the same name to have identical tag key sets — tags must
+    always be included, using an empty string default when the value is absent.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

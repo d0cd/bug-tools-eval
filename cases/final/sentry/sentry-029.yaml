@@ -1,27 +1,31 @@
 id: sentry-029
 repo: getsentry/sentry
-base_commit: 926e6a825d9c2d21e3fbd9e0045e757002d5e176^
-head_commit: 926e6a825d9c2d21e3fbd9e0045e757002d5e176
-fix_commit: 926e6a825d9c2d21e3fbd9e0045e757002d5e176
-category: logic
+base_commit: 2678032cb276e9122acbe9c2cdb7269c80b0490f^
+head_commit: 2678032cb276e9122acbe9c2cdb7269c80b0490f
+fix_commit: 2678032cb276e9122acbe9c2cdb7269c80b0490f
+category: style
 difficulty: easy
-severity: high
+severity: low
 language: python
-pr_size: medium
-description: The processing-error TraceItem producer was not including the required
-  `received` timestamp value when building trace items. This caused the EAP consumer
-  to crash on invalid data due to the missing field, creating a processing backlog.
+pr_size: small
+description: Adding missing type annotations to the group-merge code path. The author
+  was investigating SENTRY-T64, did not find the root cause, but added types that
+  were missing or incorrect and impeding code comprehension. This is a pure typing/annotation
+  cleanup with no behavioral change.
 expected_findings:
-- file: src/sentry/processing_errors/eap/producer.py
-  line: 67
-  summary: "Missing `received` field when constructing TraceItem \u2014 EAP consumer\
-    \ expects this value and will crash without it"
-- file: src/sentry/processing_errors/eap/producer.py
-  line: 108
-  summary: "Missing `received` field in second TraceItem construction path \u2014\
-    \ same omission as line 67"
+- file: src/sentry/tasks/merge.py
+  line: 1
+  summary: Missing type annotations on merge task functions make the code harder to
+    reason about and may mask type errors
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110229
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

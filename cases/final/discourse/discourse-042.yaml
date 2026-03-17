@@ -1,25 +1,34 @@
 id: discourse-042
 repo: discourse/discourse
-base_commit: 03ad8f019169f7ec56f3596b095a171610aeb2cc^
-head_commit: 03ad8f019169f7ec56f3596b095a171610aeb2cc
-fix_commit: 03ad8f019169f7ec56f3596b095a171610aeb2cc
-category: api
-difficulty: easy
-severity: high
-language: ruby
+base_commit: 4f373a02ec78b76c48b64a19fb677d3ada19a92c^
+head_commit: 4f373a02ec78b76c48b64a19fb677d3ada19a92c
+fix_commit: 4f373a02ec78b76c48b64a19fb677d3ada19a92c
+category: logic
+difficulty: medium
+severity: medium
+language: unknown
 pr_size: tiny
-description: The Discourse subscriptions webhook controller did not validate that
-  a webhook secret was configured before processing incoming Stripe webhooks. Without
-  this check, an empty or blank webhook secret would allow unverified webhook payloads
-  to be processed, bypassing signature verification. The fix adds a guard clause returning
-  403 Forbidden when the webhook secret is blank.
+description: 'The `raw-topic-link` element in Horizon high-context cards contains
+  an inner span that can become the event target on click. When the span is the target
+  instead of the link itself, the client-side routing logic fails to recognize it
+  as a navigable link, causing a full page reload instead of an SPA transition. The
+  fix ensures clicks on the inner span are attributed to the parent `raw-topic-link`,
+  likely via `pointer-events: none` on the child span.'
 expected_findings:
-- file: plugins/discourse-subscriptions/app/controllers/discourse_subscriptions/hooks_controller.rb
-  line: 20
-  summary: 'Missing validation: webhook secret is not checked for blank/empty value
-    before use, allowing unauthenticated webhook processing when no secret is configured'
+- file: themes/horizon/scss/high-context-cards.scss
+  line: 186
+  summary: 'Inner span of `raw-topic-link` can capture click events, breaking client-side
+    routing; child element needs `pointer-events: none` so clicks delegate to the
+    parent link'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

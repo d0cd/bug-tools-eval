@@ -1,33 +1,33 @@
 id: sentry-056
 repo: getsentry/sentry
-base_commit: 4e71a22712808cf07b700b0cc1255350e49e663f^
-head_commit: 4e71a22712808cf07b700b0cc1255350e49e663f
-fix_commit: 4e71a22712808cf07b700b0cc1255350e49e663f
-category: api
+base_commit: 45b07af020e64e9ee4bfc759d5105267cdd8dad9^
+head_commit: 45b07af020e64e9ee4bfc759d5105267cdd8dad9
+fix_commit: 45b07af020e64e9ee4bfc759d5105267cdd8dad9
+category: security
 difficulty: easy
 severity: medium
 language: python
-pr_size: small
-description: The GitLab integration was not catching ApiForbiddenError and ApiUnauthorizedError,
-  causing unhandled exceptions to propagate as noise. The fix adds these error types
-  to the existing exception handler tuples and adds an explicit catch for IntegrationConfigurationError
-  in the SCM repository base class.
+pr_size: medium
+description: The dashboard API accepted arbitrary widget layout dimensions without
+  server-side validation, allowing external clients (e.g. LLMs, scripts) to persist
+  invalid layouts such as width exceeding the grid maximum of 6 columns. The fix replaces
+  the permissive custom LayoutField with a LayoutSerializer that uses DRF IntegerField
+  validators to enforce dimension constraints at the API boundary.
 expected_findings:
-- file: src/sentry/integrations/gitlab/integration.py
-  line: 39
-  summary: "Missing ApiForbiddenError in exception handler tuple \u2014 API 403 responses\
-    \ will propagate as unhandled exceptions instead of being caught and handled gracefully"
-- file: src/sentry/integrations/gitlab/integration.py
-  line: 161
-  summary: "Missing ApiForbiddenError in second exception handler \u2014 same unhandled\
-    \ 403 issue in a different code path"
-- file: src/sentry/integrations/source_code_management/repository.py
-  line: 133
-  summary: "IntegrationConfigurationError not caught in SCM repository base class\
-    \ \u2014 misconfigured integrations generate noisy unhandled exceptions instead\
-    \ of being handled cleanly"
+- file: src/sentry/api/serializers/rest_framework/dashboard.py
+  line: 103
+  summary: 'Missing server-side validation on widget layout dimensions: the LayoutField
+    accepts arbitrary integer values for width/height without enforcing grid constraints
+    (e.g. max width of 6), allowing invalid layouts to be persisted via the API.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

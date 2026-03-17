@@ -1,31 +1,39 @@
 id: leo-250
 repo: ProvableHQ/leo
-base_commit: 1c88ea938bf21080b46e4b19bc1f5fb42e877445^
-head_commit: 1c88ea938bf21080b46e4b19bc1f5fb42e877445
-fix_commit: 1c88ea938bf21080b46e4b19bc1f5fb42e877445
-category: type
-difficulty: medium
-severity: medium
+base_commit: fcd852f38ca5b8f84f19d8043ff995b7d2ff9665^
+head_commit: fcd852f38ca5b8f84f19d8043ff995b7d2ff9665
+fix_commit: fcd852f38ca5b8f84f19d8043ff995b7d2ff9665
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: large
-description: The Leo compiler's type checker was missing type checking for circuit
-  member accesses (e.g., `<expr>.<identifier>`) and had inconsistencies in how types
-  were validated. The fix implements proper circuit member access checking, cleans
-  up literal expression handling (renaming ValueExpression to Literal), and fixes
-  core type conflict checking to accept the correct argument types.
+pr_size: small
+description: Multiple typos in comments and a panic message string across compiler
+  passes. The fixes are purely cosmetic, correcting spelling errors in documentation
+  comments and one panic string literal.
 expected_findings:
-- file: compiler/passes/src/type_checker/check_expressions.rs
-  line: 63
-  summary: Type checker does not validate circuit member access expressions, allowing
-    invalid member accesses to pass unchecked
-- file: compiler/passes/src/type_checker/check_statements.rs
-  line: 28
-  summary: "check_core_type_conflict called with incorrect argument type \u2014 should\
-    \ accept Option<Type> reference rather than bare reference"
-- file: compiler/passes/src/type_checker/checker.rs
-  line: 86
-  summary: Missing or incorrect error emission pattern for type checker errors; handler.emit_err
-    needs consistent error conversion
+- file: compiler/passes/src/const_propagation/expression.rs
+  line: 139
+  summary: 'Typo in panic message string: incorrect spelling makes error output misleading
+    to developers debugging failures'
+  line_side: pre_fix
+- file: compiler/passes/src/common/symbol_table/mod.rs
+  line: 162
+  summary: Typo in doc comment for scope navigation function
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/expression.rs
+  line: 902
+  summary: Typo in code comment explaining why expression visitor is used instead
+    of visit_identifier
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

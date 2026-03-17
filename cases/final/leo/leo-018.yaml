@@ -1,23 +1,36 @@
 id: leo-018
 repo: ProvableHQ/leo
-base_commit: 94579410c45edcdf8a9769fa07d1fbb9f2c07b74^
-head_commit: 94579410c45edcdf8a9769fa07d1fbb9f2c07b74
-fix_commit: 94579410c45edcdf8a9769fa07d1fbb9f2c07b74
-category: logic
-difficulty: medium
-severity: high
+base_commit: 14cc19b926f70e68df03afc0d96b5ea238080dc0^
+head_commit: 14cc19b926f70e68df03afc0d96b5ea238080dc0
+fix_commit: 14cc19b926f70e68df03afc0d96b5ea238080dc0
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: The type checker did not add function input parameters to the type table.
-  This caused type checking failures when function inputs were used in certain contexts
-  such as else-branch assignments. The fix adds function inputs to the type table
-  during the type checking pass so their types are available for subsequent lookups.
+pr_size: medium
+description: This PR renames imported type aliases from the ast module (e.g., 'RecordAst'
+  to 'AstRecord', 'InputAst' to 'AstInput') for naming consistency, and adds documentation
+  comments to utility functions in the state module. There is no bug fix; this is
+  purely a cosmetic renaming and documentation change.
 expected_findings:
-- file: compiler/passes/src/type_checking/checker.rs
-  line: 1239
-  summary: Function input parameters are not inserted into the type table, causing
-    type lookups to fail when inputs are referenced in expressions (e.g., else-branch
-    assignments). Function inputs should be added to the type table here.
+- file: state/src/record_commitment/dpc_record_values.rs
+  line: 15
+  summary: Type alias renamed from 'RecordAst' to 'AstRecord' for naming convention
+    consistency — cosmetic change only
+  line_side: pre_fix
+- file: state/src/utilities/input_value.rs
+  line: 19
+  summary: Documentation comments added to previously undocumented utility functions
+    — no functional change
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

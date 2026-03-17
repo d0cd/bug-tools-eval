@@ -1,28 +1,45 @@
 id: keycloak-024
 repo: keycloak/keycloak
-base_commit: e79505d38712bf34b0f48027c7dbd7a85ee1ebef^
-head_commit: e79505d38712bf34b0f48027c7dbd7a85ee1ebef
-fix_commit: e79505d38712bf34b0f48027c7dbd7a85ee1ebef
-category: api
+base_commit: 5823af9d9420e233e2d82fc2d461eab409ea3900^
+head_commit: 5823af9d9420e233e2d82fc2d461eab409ea3900
+fix_commit: 5823af9d9420e233e2d82fc2d461eab409ea3900
+category: security
 difficulty: easy
-severity: low
+severity: high
 language: java
-pr_size: small
-description: Configuration description strings in CIMD client policy classes incorrectly
-  stated that domain matching uses regex patterns, when the actual implementation
-  uses wildcard pattern matching (e.g. '*.example.org'). The fix corrects the help
-  text to accurately describe the wildcard-based matching behavior.
+pr_size: medium
+description: The `byteArrayToResolverProviderId` method in `ArtifactBindingUtils`
+  did not validate that the input byte array had at least 4 bytes before accessing
+  elements for the type code and endpoint index, causing an `ArrayIndexOutOfBoundsException`
+  on malformed SAML artifacts. The fix adds a length check throwing `IllegalArgumentException`
+  for arrays shorter than 4 bytes, and the callers in `SamlService` now catch `IllegalArgumentException`
+  alongside `ArtifactResolverProcessingException` to handle malformed input gracefully.
 expected_findings:
-- file: services/src/main/java/org/keycloak/protocol/oauth2/cimd/clientpolicy/condition/ClientIdUriSchemeConditionFactory.java
-  line: 44
-  summary: Config description incorrectly says 'regex' but the implementation uses
-    wildcard pattern matching; should say 'wildcard pattern matching (e.g. *.example.org)'
-- file: services/src/main/java/org/keycloak/protocol/oauth2/cimd/clientpolicy/executor/AbstractClientIdMetadataDocumentExecutorFactory.java
-  line: 89
-  summary: Config description incorrectly says 'regex' but the implementation uses
-    wildcard pattern matching; should say 'wildcard pattern matching (e.g. *.example.org)'
+- file: server-spi-private/src/main/java/org/keycloak/protocol/saml/util/ArtifactBindingUtils.java
+  line: 11
+  summary: 'Missing length validation: byteArrayToResolverProviderId accesses array
+    indices 0-3 without checking that the input has at least 4 bytes, causing ArrayIndexOutOfBoundsException
+    on short/malformed SAML artifacts'
+  line_side: pre_fix
+- file: services/src/main/java/org/keycloak/protocol/saml/SamlService.java
+  line: 387
+  summary: Catch block only handles ArtifactResolverProcessingException but not IllegalArgumentException,
+    so a malformed artifact that triggers an unchecked exception will propagate as
+    a 500 instead of being handled gracefully
+  line_side: pre_fix
+- file: services/src/main/java/org/keycloak/protocol/saml/SamlService.java
+  line: 1218
+  summary: Same missing IllegalArgumentException catch as the other SAML artifact
+    handling path — both code paths need to handle malformed artifact input consistently
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,33 +1,39 @@
 id: snarkVM-185
 repo: ProvableHQ/snarkVM
-base_commit: 22bbb3b5c02cc6f61a79d638ceb8c797353c4931^
-head_commit: 22bbb3b5c02cc6f61a79d638ceb8c797353c4931
-fix_commit: 22bbb3b5c02cc6f61a79d638ceb8c797353c4931
-category: logic
+base_commit: fda2fa375874b5b373087f059bfaa840d06635f5^
+head_commit: fda2fa375874b5b373087f059bfaa840d06635f5
+fix_commit: fda2fa375874b5b373087f059bfaa840d06635f5
+category: api-misuse
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: medium
-description: The block verification logic only checked that transaction IDs from the
-  subdag existed in the ledger, but failed to verify that puzzle solution commitments
-  (solutions) also existed. This PR extends the verification functions to return and
-  check both solution commitments and transaction IDs, ensuring complete validation
-  of subdag transmissions against the ledger.
+pr_size: small
+description: The GET /testnet3/program/{program_id} endpoint did not handle the built-in
+  `credits.aleo` program, which is not stored in the ledger's program storage but
+  is a special built-in program. Requesting it returned an error instead of the program
+  definition. The fix adds a special case to return `Program::credits()` when `credits.aleo`
+  is requested.
 expected_findings:
-- file: ledger/block/src/verify.rs
-  line: 35
-  summary: 'Missing return of existing solution IDs: verification functions only return
-    transaction IDs but should also return puzzle commitment IDs for solutions that
-    need ledger existence checks.'
-- file: ledger/src/check_next_block.rs
-  line: 83
-  summary: 'Incomplete ledger existence check: only transaction IDs from the subdag
-    are verified against the ledger, but solution/puzzle commitments are not checked,
-    allowing invalid or missing solutions to pass validation.'
-- file: synthesizer/src/vm/finalize.rs
-  line: 1249
-  summary: Finalize logic does not account for verifying existing solution commitments
-    alongside transaction IDs when processing subdag transmissions.
+- file: rest/src/routes.rs
+  line: 228
+  summary: 'Missing special-case handling for built-in `credits.aleo` program: `ledger.read().get_program(program_id)`
+    will fail for `credits.aleo` since it is not stored in the ledger''s program storage.
+    Should check for `credits.aleo` and return `Program::credits()` instead.'
+  line_side: pre_fix
+- file: rest/src/routes.rs
+  line: 225
+  summary: GET program endpoint does not handle the built-in `credits.aleo` program;
+    requests for it will fail even though it is a core system program that should
+    always be available
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

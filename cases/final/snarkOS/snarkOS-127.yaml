@@ -1,27 +1,34 @@
 id: snarkOS-127
 repo: ProvableHQ/snarkOS
-base_commit: b55162b1a8fa923df4686d3b8a2992bfb7355ec5^
-head_commit: b55162b1a8fa923df4686d3b8a2992bfb7355ec5
-fix_commit: b55162b1a8fa923df4686d3b8a2992bfb7355ec5
+base_commit: ad3ab7f2086aed5ea4e0beefd6c349733f57bbca^
+head_commit: ad3ab7f2086aed5ea4e0beefd6c349733f57bbca
+fix_commit: ad3ab7f2086aed5ea4e0beefd6c349733f57bbca
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: medium
-description: Nodes would recursively fetch missing certificates from peers even while
-  syncing via blocks. The bug was a missing `is_synced` guard check in the certificate
-  fetching path, causing nodes to enter a wasteful cycle of requesting certificates
-  instead of focusing on block sync. The fix adds an `is_synced` check to short-circuit
-  recursive certificate fetching when the node should be syncing via blocks.
+pr_size: tiny
+description: The miner's failure counter was incremented for all mining errors, including
+  expected terminations caused by receiving a canon block. After 10 such terminations
+  (which happen regularly during normal operation), the miner would permanently stop.
+  The fix distinguishes between actual failures and expected miner termination by
+  checking the error type (ConsensusError::PoswError(PoswError::SnarkError(SNARKError::Terminated))),
+  only counting genuine failures toward the limit.
 expected_findings:
-- file: node/bft/src/sync/mod.rs
-  line: 557
-  summary: 'Missing `is_synced` guard: recursive certificate fetching proceeds even
-    when the node is not synced and should be syncing via blocks instead'
-- file: node/sync/src/block_sync.rs
-  line: 453
-  summary: The `is_block_synced` state update logic may momentarily report the node
-    as synced, allowing certificate fetching to trigger before block sync completes
+- file: network/src/sync/miner.rs
+  line: 97
+  summary: Failure counter increments unconditionally on miner task error; should
+    distinguish expected termination (canon block received) from actual mining failures
+    using ConsensusError variant
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

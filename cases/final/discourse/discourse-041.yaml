@@ -1,26 +1,34 @@
 id: discourse-041
 repo: discourse/discourse
-base_commit: 1fd259accf033ed9d9ffd24db91fda094df6cbc6^
-head_commit: 1fd259accf033ed9d9ffd24db91fda094df6cbc6
-fix_commit: 1fd259accf033ed9d9ffd24db91fda094df6cbc6
-category: logic
-difficulty: easy
-severity: low
-language: unknown
-pr_size: tiny
-description: The description for the `hide_user_profiles_from_public` setting incorrectly
-  stated it hides the user directory. The fix corrects the description to accurately
-  reflect the setting's behavior (hiding user cards and profiles from anonymous users),
-  since disabling the user directory requires the separate `enable_user_directory`
-  setting.
+base_commit: 4dbe3d2931389ffeada875c8168c335103e41832^
+head_commit: 4dbe3d2931389ffeada875c8168c335103e41832
+fix_commit: 4dbe3d2931389ffeada875c8168c335103e41832
+category: security
+difficulty: medium
+severity: high
+language: ruby
+pr_size: medium
+description: The ChannelsArchivesController#create action allows staff users to archive
+  a chat channel into an existing topic without verifying the user has access to that
+  destination topic. While the user cannot see the resulting archived content, the
+  action itself bypasses topic-level access controls, allowing unauthorized writes
+  to restricted topics.
 expected_findings:
-- file: config/locales/server.en.yml
-  line: 2437
-  summary: 'Misleading setting description: `hide_user_profiles_from_public` description
-    incorrectly claims it hides user directory; it only hides user cards and profiles
-    from anonymous users'
+- file: plugins/chat/app/controllers/chat/api/channels_archives_controller.rb
+  line: 15
+  summary: 'Missing authorization check: when archiving to an existing topic (not
+    new_topic), the controller does not verify the current user can access or post
+    to the destination topic. Should guard with a topic access/permission check before
+    proceeding.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

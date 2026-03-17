@@ -1,36 +1,32 @@
 id: snarkVM-045
 repo: ProvableHQ/snarkVM
-base_commit: 03b2f6c462a95f1847095b9ce077a9c50e7c23e8^
-head_commit: 03b2f6c462a95f1847095b9ce077a9c50e7c23e8
-fix_commit: 03b2f6c462a95f1847095b9ce077a9c50e7c23e8
+base_commit: 2c1043d3cd93d05ae9dd079ec1d19425f9fe380c^
+head_commit: 2c1043d3cd93d05ae9dd079ec1d19425f9fe380c
+fix_commit: 2c1043d3cd93d05ae9dd079ec1d19425f9fe380c
 category: logic
-difficulty: medium
-severity: high
+difficulty: easy
+severity: medium
 language: rust
-pr_size: medium
-description: In `VM::atomic_speculate`, `enumerate` was used to assign indices to
-  `ConfirmedTransaction`s, but this produces sequential indices (0, 1, 2...) that
-  don't account for aborted transactions creating gaps. This caused `VM::check_speculate`
-  to fail with 'The transactions after speculation do not match the transactions in
-  the block' because the indices didn't align properly. The fix replaces `enumerate`
-  with an explicit counter that correctly tracks transaction indices across both confirmed
-  and aborted transactions.
+pr_size: tiny
+description: The finalize cost calculation for `hash.psd` on `Address` type was incorrect.
+  `LiteralType::Address` was grouped with `LiteralType::Group` in a match arm assigning
+  a cost of 600,000 microcredits, but Address should have a different cost. The fix
+  moves Address into the correct match arm with the appropriate cost value.
 expected_findings:
-- file: synthesizer/src/vm/finalize.rs
-  line: 204
-  summary: Using `enumerate` to index ConfirmedTransactions does not account for aborted
-    transactions, causing index misalignment. Should use an explicit counter that
-    increments for all transactions (not just confirmed ones).
-- file: synthesizer/src/vm/finalize.rs
-  line: 219
-  summary: 'Same `enumerate` indexing bug: indices will be wrong when prior transactions
-    are aborted, as enumerate only counts iterations rather than tracking the true
-    transaction position.'
-- file: synthesizer/src/vm/finalize.rs
-  line: 232
-  summary: 'Same `enumerate` indexing bug in a third code path: confirmed transaction
-    index derived from enumerate does not reflect actual position when aborted transactions
-    are present.'
+- file: synthesizer/src/program/finalize/mod.rs
+  line: 104
+  summary: 'Incorrect cost: LiteralType::Address is grouped with LiteralType::Group
+    at 600,000 cost, but Address should have a different finalize cost for hash.psd
+    operations'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,26 +1,34 @@
 id: sentry-021
 repo: getsentry/sentry
-base_commit: 69aff585588a4e8575c5b694de2c98fc69e0ff7d^
-head_commit: 69aff585588a4e8575c5b694de2c98fc69e0ff7d
-fix_commit: 69aff585588a4e8575c5b694de2c98fc69e0ff7d
-category: logic
+base_commit: 1bd1f3c54ee0e150d9deb93e33bc80ea57cf6260^
+head_commit: 1bd1f3c54ee0e150d9deb93e33bc80ea57cf6260
+fix_commit: 1bd1f3c54ee0e150d9deb93e33bc80ea57cf6260
+category: security
 difficulty: medium
-severity: medium
-language: typescript
-pr_size: small
-description: When all threshold max values were cleared in the widget builder, the
-  entire thresholds config was set to null, discarding the preferredPolarity setting.
-  This caused the polarity to silently reset to the default ('lower is better') when
-  the user re-entered threshold values. The fix preserves preferredPolarity in the
-  thresholds config even when all max values are cleared.
+severity: high
+language: python
+pr_size: tiny
+description: The objectstore proxy endpoint used the default OrganizationPermission
+  which requires org:write/org:admin scopes, making it inaccessible to CI tools and
+  sentry-cli that authenticate with project:releases or org:ci tokens. The fix switches
+  to OrganizationReleasePermission, consistent with all other comparable upload/download
+  endpoints (ChunkUpload, ArtifactBundles, ArtifactLookup, debug files).
 expected_findings:
-- file: static/app/views/dashboards/widgetBuilder/components/thresholds.tsx
-  line: 97
-  summary: Setting thresholds to null when all max values are cleared discards the
-    preferredPolarity; should preserve polarity by keeping a partial thresholds object
-    with just preferredPolarity intact
+- file: src/sentry/objectstore/endpoints/organization.py
+  line: 39
+  summary: Endpoint uses default OrganizationPermission which requires org:write/org:admin
+    scopes — too restrictive for a file upload/download endpoint. Should use OrganizationReleasePermission
+    to accept project:releases and org:ci tokens, consistent with all other release-related
+    endpoints.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

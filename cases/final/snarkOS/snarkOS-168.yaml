@@ -1,22 +1,45 @@
 id: snarkOS-168
 repo: ProvableHQ/snarkOS
-base_commit: 1a134a2c470e34916723e4e26106d323fe652cdb^
-head_commit: 1a134a2c470e34916723e4e26106d323fe652cdb
-fix_commit: 1a134a2c470e34916723e4e26106d323fe652cdb
-category: perf
-difficulty: easy
-severity: medium
+base_commit: e10df3c56855f195cca1b92ca64b407c52a734a7^
+head_commit: e10df3c56855f195cca1b92ca64b407c52a734a7
+fix_commit: e10df3c56855f195cca1b92ca64b407c52a734a7
+category: security
+difficulty: hard
+severity: critical
 language: rust
-pr_size: tiny
-description: 'The connection timeout was set too low, causing connection failures
-  under normal network conditions. The fix bumps CONNECTION_TIMEOUT_IN_MILLIS to 1000ms
-  (1 second) to alleviate timeout-related connectivity issues reported in #2039 and
-  #2040.'
+pr_size: medium
+description: The handshake protocol signs only the challenge nonce in the ChallengeResponse,
+  allowing an attacker to craft a preimage matching the nonce range, trick a peer
+  into signing it during a handshake, and replay that signature as an authenticity
+  proof in non-handshake contexts. The fix adds a randomly generated response_nonce
+  to ChallengeResponse that is co-signed with the original nonce, binding the signature
+  to a specific handshake session and preventing cross-context replay.
 expected_findings:
-- file: node/router/src/lib.rs
-  line: 128
-  summary: CONNECTION_TIMEOUT_IN_MILLIS is set too low, causing premature connection
-    timeouts under normal network latency; should be increased to 1000ms
+- file: node/router/src/handshake.rs
+  line: 164
+  summary: 'Signature forgery: ChallengeResponse signs only the request nonce without
+    a response_nonce, allowing an attacker to brute-force a matching preimage and
+    replay the signed nonce in non-handshake contexts'
+  line_side: pre_fix
+- file: node/bft/src/gateway.rs
+  line: 1176
+  summary: 'Same signature forgery vulnerability in BFT gateway handshake: response_nonce
+    is generated but not included in the signed payload, enabling cross-context signature
+    replay'
+  line_side: pre_fix
+- file: node/router/messages/src/challenge_response.rs
+  line: 25
+  summary: ChallengeResponse message struct lacks a response_nonce field, so the signed
+    data does not include session-binding material to prevent replay attacks
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

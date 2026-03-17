@@ -1,24 +1,36 @@
 id: leo-001
 repo: ProvableHQ/leo
-base_commit: 5f46ccc026f9a9d9acb942f41413434ec83e3f7e^
-head_commit: 5f46ccc026f9a9d9acb942f41413434ec83e3f7e
-fix_commit: 5f46ccc026f9a9d9acb942f41413434ec83e3f7e
-category: logic
-difficulty: medium
-severity: high
+base_commit: 0178e67ca767febe6bab1c10fa380981888bc154^
+head_commit: 0178e67ca767febe6bab1c10fa380981888bc154
+fix_commit: 0178e67ca767febe6bab1c10fa380981888bc154
+category: api-misuse
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: In Leo's ASG expression/call handling, a boolean flag controlling mutability
-  context checking was incorrectly set to `true` at line 71 of `call.rs`, allowing
-  mutable circuit member functions to be called from immutable contexts without error.
-  The fix corrected the boolean value so that the compiler properly rejects calls
-  to mutable methods when the calling context is immutable.
+pr_size: tiny
+description: The Leo CLI was sending HTTP requests with non-standard or incorrect
+  HTTP headers (X-Leo-Version using CARGO_PKG_VERSION). The fix updates these headers
+  to more appropriate defaults, ensuring proper identification and compatibility in
+  network calls.
 expected_findings:
-- file: asg/src/expression/call.rs
-  line: 71
-  summary: 'Incorrect mutability flag: boolean literal `true` should be `false` (or
-    vice versa), causing mutable circuit method calls to be permitted in immutable
-    contexts'
+- file: leo/cli/commands/mod.rs
+  line: 287
+  summary: HTTP header 'X-Leo-Version' set with CARGO_PKG_VERSION may be incorrect
+    or non-standard; should use a more sensible default header value
+  line_side: pre_fix
+- file: utils/retriever/src/retriever/mod.rs
+  line: 523
+  summary: Same non-standard HTTP header pattern duplicated here; 'X-Leo-Version'
+    with CARGO_PKG_VERSION should be updated to match corrected header convention
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

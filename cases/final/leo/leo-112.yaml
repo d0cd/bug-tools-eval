@@ -1,32 +1,44 @@
 id: leo-112
 repo: ProvableHQ/leo
-base_commit: 23615c685825bcbefcce255b351e491a83c50c4d^
-head_commit: 23615c685825bcbefcce255b351e491a83c50c4d
-fix_commit: 23615c685825bcbefcce255b351e491a83c50c4d
-category: logic
-difficulty: medium
-severity: high
-language: rust
+base_commit: 716633a7403a09bc98f483d8ce8edf2de361a787^
+head_commit: 716633a7403a09bc98f483d8ce8edf2de361a787
+fix_commit: 716633a7403a09bc98f483d8ce8edf2de361a787
+category: style
+difficulty: easy
+severity: low
+language: leo
 pr_size: small
-description: The Leo compiler's code generation pass incorrectly handled ExpressionStatements
-  containing function calls. The visit_statements handler for Expression::Call did
-  not properly emit call instructions when a call was used as a standalone statement,
-  and the external call formatting in visit_expressions also needed correction to
-  generate valid Aleo instructions.
+description: 'Documentation fixes across several Leo example files: correcting README
+  instructions, fixing duplicate or misleading section headings in groups/README.md,
+  updating run commands in bubblesort/README.md, and fixing comments in simple_token/src/main.leo.
+  These are cosmetic corrections to example documentation with no functional code
+  impact.'
 expected_findings:
-- file: compiler/passes/src/code_generation/visit_statements.rs
-  line: 128
-  summary: "Expression::Call match arm in expression statement codegen does not correctly\
-    \ handle call expressions used as standalone statements \u2014 missing or incorrect\
-    \ instruction emission"
-- file: compiler/passes/src/code_generation/visit_expressions.rs
-  line: 280
-  summary: External call format string generates incorrect Aleo bytecode instruction
-    for call expressions (wrong format for 'call {external}.aleo/{function}')
-- file: compiler/passes/src/code_generation/visit_expressions.rs
-  line: 304
-  summary: "Duplicate external call formatting issue \u2014 same incorrect call instruction\
-    \ format as line 280"
+- file: examples/groups/README.md
+  line: 12
+  summary: 'Duplicate ''## Overview'' heading: multiple identical section headers
+    make the document structure confusing and suggest copy-paste without updating
+    headings'
+  line_side: pre_fix
+- file: examples/bubblesort/README.md
+  line: 9
+  summary: Incorrect run command 'leo run bubble_sort' does not match the actual function
+    name or expected invocation
+  line_side: pre_fix
+- file: examples/simple_token/src/main.leo
+  line: 11
+  summary: Duplicate or misleading comment about 'specified number of tokens assigned
+    to the specified receiver' appears on multiple transitions where it does not accurately
+    describe the logic
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

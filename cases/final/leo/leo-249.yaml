@@ -1,35 +1,33 @@
 id: leo-249
 repo: ProvableHQ/leo
-base_commit: a583cd527a68b9d281faf3a65d7f56c29e134e96^
-head_commit: a583cd527a68b9d281faf3a65d7f56c29e134e96
-fix_commit: a583cd527a68b9d281faf3a65d7f56c29e134e96
-category: logic
-difficulty: medium
+base_commit: fb600537d21c96180ba3fa50fcc6019806393cd7^
+head_commit: fb600537d21c96180ba3fa50fcc6019806393cd7
+fix_commit: fb600537d21c96180ba3fa50fcc6019806393cd7
+category: type
+difficulty: easy
 severity: high
 language: rust
-pr_size: xl
-description: Compound assignment operators `<<=`, `>>=`, and `**=` bypassed type-checking
-  because they were represented as distinct 'complex assign' AST nodes that did not
-  route through the binary operation type-checker. The fix removes the complex assignment
-  notion from the AST and has the parser desugar them into simple assignments with
-  the corresponding binary operation (e.g., `x <<= y` becomes `x = x << y`), ensuring
-  proper type-checking.
+pr_size: medium
+description: The type checker for MemberAccess expressions handling `self.caller`
+  and `self.signer` resolved the type to `Type::Address` but never compared it against
+  the `expected` type parameter. This allowed programs using these expressions in
+  contexts expecting incompatible types to compile without errors. The fix adds the
+  missing type comparison/unification with `expected`.
 expected_findings:
-- file: compiler/ast/src/statements/assign/mod.rs
-  line: 34
-  summary: AssignStatement carries compound assign operation variants (ShlAssign,
-    ShrAssign, PowAssign) that bypass the type-checker for binary operations, allowing
-    type errors to go undetected.
-- file: compiler/parser/src/parser/statement.rs
-  line: 55
-  summary: Parser emits complex assign statements directly without desugaring them
-    into a simple assignment plus binary expression, which means the type-checking
-    pass never validates the operand types for shift/pow assigns.
-- file: compiler/passes/src/static_single_assignment/rename_statement.rs
-  line: 70
-  summary: SSA rename pass handles complex assignments separately, reconstructing
-    them without converting to binary expressions, perpetuating the type-check gap
-    for shift-assign and pow-assign operations.
+- file: compiler/passes/src/type_checking/expression.rs
+  line: 89
+  summary: 'Missing type check: `self.caller`/`self.signer` sets `ty = Type::Address`
+    but never unifies or compares it against `expected`, allowing type mismatches
+    to pass silently.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

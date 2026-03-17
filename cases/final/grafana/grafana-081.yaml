@@ -1,0 +1,32 @@
+id: grafana-081
+repo: grafana/grafana
+base_commit: b2e27f466b7a71063bfe7b4f43f4d44750cb2de5^
+head_commit: b2e27f466b7a71063bfe7b4f43f4d44750cb2de5
+fix_commit: b2e27f466b7a71063bfe7b4f43f4d44750cb2de5
+category: logic
+difficulty: easy
+severity: high
+language: typescript
+pr_size: small
+description: The Pure Git provisioning wizard hardcoded 'main' as the fallback when
+  the branch field was empty, causing a 'branch not found' error for repositories
+  using 'master' or other default branches. The fix sends an empty string instead,
+  allowing the backend to auto-detect the correct default branch.
+expected_findings:
+- file: public/app/features/provisioning/utils/data.ts
+  line: 25
+  summary: 'Incorrect fallback: `data.branch || ''main''` should send an empty string
+    when branch is unset, letting the backend auto-detect the default branch instead
+    of hardcoding ''main'''
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

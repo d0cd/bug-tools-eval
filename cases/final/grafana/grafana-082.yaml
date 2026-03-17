@@ -1,0 +1,39 @@
+id: grafana-082
+repo: grafana/grafana
+base_commit: b3038d3b5b6138985f501501d104f410570a6a02^
+head_commit: b3038d3b5b6138985f501501d104f410570a6a02
+fix_commit: b3038d3b5b6138985f501501d104f410570a6a02
+category: logic
+difficulty: medium
+severity: high
+language: typescript
+pr_size: small
+description: The `convertFieldsToVariableFields` function used `if (meta)` to guard
+  access to meta fields, but an empty object `{}` is truthy in JavaScript. When the
+  query type was switched, meta was reset to `{}` instead of `undefined`, causing
+  the function to skip the legacy Scenario 4 fallback path and return raw JSON blob
+  fields as variable values. The fix tightens the guard to check for actual meta content
+  and resets meta to `undefined` on structural changes.
+expected_findings:
+- file: public/app/plugins/datasource/elasticsearch/ElasticsearchVariableUtils.ts
+  line: 39
+  summary: Truthy check `if (meta)` is insufficient — empty object `{}` passes the
+    guard but has no textField/valueField, skipping the legacy fallback. Should be
+    `if (meta?.textField || meta?.valueField)`.
+  line_side: pre_fix
+- file: public/app/plugins/datasource/elasticsearch/ElasticsearchVariableEditor.tsx
+  line: 20
+  summary: Meta is reset to `{}` on query-type change instead of `undefined`, leaving
+    a truthy-but-empty object that defeats the fallback guard in convertFieldsToVariableFields.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

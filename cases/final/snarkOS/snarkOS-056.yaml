@@ -1,30 +1,44 @@
 id: snarkOS-056
 repo: ProvableHQ/snarkOS
-base_commit: 8112e53cdf5cd6a6317efe5f8a843e50438ba092^
-head_commit: 8112e53cdf5cd6a6317efe5f8a843e50438ba092
-fix_commit: 8112e53cdf5cd6a6317efe5f8a843e50438ba092
-category: logic
+base_commit: 4ba77605b10f3347d4c03b0062d70adbef4982aa^
+head_commit: 4ba77605b10f3347d4c03b0062d70adbef4982aa
+fix_commit: 4ba77605b10f3347d4c03b0062d70adbef4982aa
+category: performance
 difficulty: medium
 severity: medium
 language: rust
-pr_size: small
-description: The ToBytes implementation for EventOrBytes<N> in the BFT event codec
-  was incorrect, causing serialization/deserialization roundtrip property tests to
-  fail. The fix corrects the byte encoding logic in codec.rs and updates the proptest
-  assertion in primary_ping.rs to properly validate the roundtrip.
+pr_size: medium
+description: The longest_child_path implementation used an application-level HashMap
+  cache (block_children_cache) that required repeated round-trips to the database
+  for each tree level, leading to poor performance. The fix replaces it with a single
+  recursive SQL CTE query and also corrects an off-by-one error in the canon hash
+  fetch (OLDEST_FORK_THRESHOLD + 1 should be just OLDEST_FORK_THRESHOLD).
 expected_findings:
-- file: node/bft/events/src/helpers/codec.rs
-  line: 108
-  summary: "ToBytes implementation for EventOrBytes<N> produces incorrect byte output,\
-    \ breaking serialization roundtrip (FromBytes \u2218 ToBytes \u2260 identity)"
-- file: node/bft/events/src/helpers/codec.rs
-  line: 361
-  summary: ToBytes impl for EventOrBytes<N> in test/proptest context does not match
-    the FromBytes deserialization format
-- file: node/bft/events/src/primary_ping.rs
-  line: 124
-  summary: Proptest assertion does not correctly validate PrimaryPing serialization
-    roundtrip
+- file: storage/src/storage/sync.rs
+  line: 131
+  summary: Cache-based longest_child_path iterates level-by-level with get_block_children
+    calls and an unreliable app-level cache; should be replaced with a single recursive
+    database query for correctness and performance
+  line_side: pre_fix
+- file: consensus/src/consensus/inner/mod.rs
+  line: 68
+  summary: 'Off-by-one: get_block_hashes called with OLDEST_FORK_THRESHOLD + 1 fetches
+    one extra block beyond the intended threshold; should be just OLDEST_FORK_THRESHOLD'
+  line_side: pre_fix
+- file: storage/src/storage/sqlite/sync.rs
+  line: 158
+  summary: insert_block eagerly populates block_children_cache but this cache can
+    become stale and is never invalidated on block removal, risking incorrect fork
+    resolution
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

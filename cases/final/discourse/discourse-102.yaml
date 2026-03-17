@@ -1,0 +1,33 @@
+id: discourse-102
+repo: discourse/discourse
+base_commit: e3491e63ddb3358bd383fea097e9d8371c448806^
+head_commit: e8287d22b08587fa77dbb72c1c8f2d56304b184d
+fix_commit: e3491e63ddb3358bd383fea097e9d8371c448806
+category: incomplete
+difficulty: easy
+severity: high
+language: ruby
+pr_size: medium
+description: After renaming the Data Explorer plugin routes from /admin/plugins/explorer
+  to /admin/plugins/discourse-data-explorer, the initial commit only redirected browser-facing
+  GET routes but missed redirecting API mutation endpoints (POST, PUT, DELETE). This
+  broke API consumers still hitting the old POST /admin/plugins/explorer/queries/:id/run
+  and similar endpoints.
+expected_findings:
+- file: plugins/discourse-data-explorer/config/routes.rb
+  line: 32
+  summary: Missing legacy route redirects for non-GET endpoints (POST create, PUT
+    update, DELETE destroy, POST run). Only GET redirects were added in the prior
+    commit, leaving API callers broken on mutation routes.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,28 +1,34 @@
 id: sentry-010
 repo: getsentry/sentry
-base_commit: 01db71e59a227bc131a05e22cefe328f43e03659^
-head_commit: 01db71e59a227bc131a05e22cefe328f43e03659
-fix_commit: 01db71e59a227bc131a05e22cefe328f43e03659
+base_commit: 103688e93ea99204c009e1f1a3846952a779918b^
+head_commit: 103688e93ea99204c009e1f1a3846952a779918b
+fix_commit: 103688e93ea99204c009e1f1a3846952a779918b
 category: logic
 difficulty: medium
 severity: high
-language: python
+language: typescript
 pr_size: medium
-description: Impersonated sessions (e.g., staff impersonating a user) were not subject
-  to data secrecy checks in the access control layer, potentially allowing access
-  to restricted data. The fix adds DataSecrecyError checks at multiple access control
-  paths in access.py to enforce data secrecy for impersonated sessions.
+description: The checkout form's useEffect unconditionally calls fetchBillingConfig()
+  whenever the subscription object changes. When payment details are updated via the
+  SubscriptionStore, this triggers a re-fetch of billing config which resets the form
+  state (including plan selection) back to defaults. The fix uses a useRef guard to
+  ensure fetchBillingConfig() is only called once on mount.
 expected_findings:
-- file: src/sentry/auth/access.py
-  line: 916
-  summary: "Missing DataSecrecyError check for impersonated sessions \u2014 impersonated\
-    \ access bypasses data secrecy restrictions"
-- file: src/sentry/auth/access.py
-  line: 1015
-  summary: "Missing DataSecrecyError check for impersonated sessions \u2014 second\
-    \ access path also lacks data secrecy enforcement"
+- file: static/gsApp/views/amCheckout/index.tsx
+  line: 577
+  summary: useEffect calls fetchBillingConfig() unconditionally on every subscription
+    change. This resets the checkout form (plan selection, etc.) whenever the SubscriptionStore
+    updates — e.g., when payment details are entered. Should guard with a ref or similar
+    mechanism to only fetch once.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

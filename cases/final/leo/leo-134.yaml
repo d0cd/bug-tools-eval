@@ -1,32 +1,37 @@
 id: leo-134
 repo: ProvableHQ/leo
-base_commit: b3ae194ef7ee288119792163d60b93b93f54270d^
-head_commit: b3ae194ef7ee288119792163d60b93b93f54270d
-fix_commit: b3ae194ef7ee288119792163d60b93b93f54270d
+base_commit: 89d6599313c229a384255dddc19adb8d7ebf4652^
+head_commit: 89d6599313c229a384255dddc19adb8d7ebf4652
+fix_commit: 89d6599313c229a384255dddc19adb8d7ebf4652
 category: logic
-difficulty: medium
+difficulty: easy
 severity: medium
 language: rust
-pr_size: medium
-description: The Leo compiler incorrectly allowed 1-element tuple types and parenthesized
-  single-variable definitions like `let (x) = ...`. The fix adds a `parened` field
-  to Definition AST nodes to track whether variables are parenthesized, then rejects
-  single-variable parenthesized definitions during canonicalization and disallows
-  1-element tuple types.
+pr_size: small
+description: The Leo compiler's type checker accepted string literals even though
+  snarkVM does not yet support strings, leading to failures downstream when compiling
+  to the VM. The fix adds a type-checker error that rejects string literals at the
+  type-checking pass, and updates the checker to emit a 'strings are not yet supported'
+  error when a Literal::String is encountered.
 expected_findings:
-- file: ast-passes/src/canonicalization/canonicalizer.rs
-  line: 376
-  summary: 'Missing validation: single-variable definitions wrapped in parentheses
-    (e.g., `let (x) = ...`) should be rejected as invalid 1-element tuples, but no
-    check exists for the `parened` state.'
-- file: parser/src/parser/statement.rs
-  line: 295
-  summary: Parser does not track whether definition variables are parenthesized, losing
-    information needed to reject 1-element tuple variable declarations during canonicalization.
-- file: ast/src/statements/definition/mod.rs
-  line: 33
-  summary: Definition AST node lacks a `parened` field to distinguish `let x` from
-    `let (x)`, preventing downstream validation of 1-element tuple declarations.
+- file: compiler/passes/src/type_checking/check_expressions.rs
+  line: 609
+  summary: Literal::String arm in type checker does not reject unsupported string
+    literals — should emit an error since snarkVM does not support strings yet.
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/checker.rs
+  line: 390
+  summary: Type checker assert_type and related methods do not account for string
+    types being unsupported; should reject Type::String as invalid.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

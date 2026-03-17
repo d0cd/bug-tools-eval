@@ -1,0 +1,33 @@
+id: cal.com-004
+repo: calcom/cal.com
+base_commit: 0d5560e0d1d848f2da6b5bc5777cbc477dd9607c^
+head_commit: 0d5560e0d1d848f2da6b5bc5777cbc477dd9607c
+fix_commit: 0d5560e0d1d848f2da6b5bc5777cbc477dd9607c
+category: api-misuse
+difficulty: easy
+severity: high
+language: typescript
+pr_size: tiny
+description: The team creation payment redirect used `req.nextUrl.origin` (which reflects
+  the server's local origin, e.g. `localhost:3000`) instead of the configured `WEBAPP_URL`
+  environment constant. This caused users to be redirected to the wrong host after
+  paying for a team. The fix replaces `req.nextUrl.origin` with `WEBAPP_URL`, consistent
+  with other redirects in the same file and codebase.
+expected_findings:
+- file: apps/web/app/api/teams/create/route.ts
+  line: 133
+  summary: 'Incorrect URL origin: `req.nextUrl.origin` returns the server-side origin
+    (e.g. localhost:3000), not the configured public-facing URL. Should use `WEBAPP_URL`
+    instead, consistent with the onboarding redirect on line 127 and the upgrade route.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

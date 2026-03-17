@@ -1,30 +1,33 @@
 id: snarkVM-093
 repo: ProvableHQ/snarkVM
-base_commit: ef336729cf13aa173efd723505dc5b3dbc9d4e57^
-head_commit: ef336729cf13aa173efd723505dc5b3dbc9d4e57
-fix_commit: ef336729cf13aa173efd723505dc5b3dbc9d4e57
-category: perf
-difficulty: easy
-severity: low
+base_commit: 679c3134d4fea151da4f7121fff3cdc9f598f07b^
+head_commit: 679c3134d4fea151da4f7121fff3cdc9f598f07b
+fix_commit: 679c3134d4fea151da4f7121fff3cdc9f598f07b
+category: logic
+difficulty: medium
+severity: high
 language: rust
-pr_size: medium
-description: Multiple Rust clippy lint violations across the codebase, likely including
-  unnecessary clones, redundant closures, suboptimal iterator usage, or other idiomatic
-  Rust issues. Fixed by applying clippy-suggested transformations across 12 files
-  in dpc, fields, marlin, polycommit, r1cs, and utilities crates.
+pr_size: small
+description: When parsing a line comment `// ...` that ends without a trailing newline
+  (i.e., at EOF), the sanitizer neglected to verify that the comment contains no unsafe
+  characters. This could allow unsafe characters to bypass validation in comments
+  that happen to be the last content in the input. The fix adds the missing safety
+  check for the EOF-terminated line comment path.
 expected_findings:
-- file: r1cs/src/optional_vec.rs
-  line: 1
-  summary: 'Clippy lint violation: likely unnecessary clone, redundant pattern match,
-    or suboptimal iterator usage'
-- file: polycommit/src/sonic_pc/mod.rs
-  line: 1
-  summary: 'Clippy lint violation: likely unnecessary allocation or non-idiomatic
-    Rust pattern'
-- file: utilities/src/bytes.rs
-  line: 1
-  summary: 'Clippy lint violation: likely redundant conversion or suboptimal byte
-    handling pattern'
+- file: console/network/environment/src/helpers/sanitizer.rs
+  line: 84
+  summary: 'Missing unsafe-character check: when a line comment ends at EOF (no trailing
+    newline), the parser returns the comment without validating that all characters
+    pass is_char_supported, unlike the newline-terminated path which does validate.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

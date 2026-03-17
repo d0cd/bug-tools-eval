@@ -1,28 +1,34 @@
 id: snarkVM-060
 repo: ProvableHQ/snarkVM
-base_commit: 7ade894069761f2c787917aeedfdc11219edec33^
-head_commit: 7ade894069761f2c787917aeedfdc11219edec33
-fix_commit: 7ade894069761f2c787917aeedfdc11219edec33
-category: logic
-difficulty: hard
-severity: critical
+base_commit: 3f446a7f6d2f8b42139c385c509788237e2ef50c^
+head_commit: 3f446a7f6d2f8b42139c385c509788237e2ef50c
+fix_commit: 3f446a7f6d2f8b42139c385c509788237e2ef50c
+category: code-smell
+difficulty: medium
+severity: medium
 language: rust
-pr_size: medium
-description: The Edwards BLS12 curve generator was using a hardcoded constant that
-  was not derived via the cryptographically secure hash_to_curve method. The fix switches
-  the generator derivation to use hash_to_curve, ensuring the generator is a verifiable
-  nothing-up-my-sleeve number, and updates the resulting generator coordinates in
-  parameters.rs.
+pr_size: small
+description: 'The `verify_authority` function contained unreachable dead code: a match
+  on `expected_height == 0` included a genesis block beacon check that could never
+  execute, since genesis blocks never pass through this path with a `previous_round`
+  or `previous_height`. The fix removes the dead genesis branch and hoists the quorum
+  block check unconditionally.'
 expected_findings:
-- file: curves/src/edwards_bls12/parameters.rs
-  line: 120
-  summary: Hardcoded Edwards BLS12 generator constant is not derived via hash_to_curve;
-    should use a verifiable nothing-up-my-sleeve generator derivation for cryptographic
-    soundness.
-- file: console/algorithms/src/blake2xs/hash_to_curve.rs
-  line: 36
-  summary: The hash_to_curve implementation needed to support generator derivation
-    for Edwards BLS12; missing or incorrect round evaluation logic.
+- file: ledger/block/src/verify.rs
+  line: 143
+  summary: 'Unreachable genesis block check: `match expected_height == 0 { true =>
+    ensure!(self.authority.is_beacon(), ...)` is dead code because this function is
+    never called for genesis blocks (previous_height is never such that expected_height
+    == 0), giving a false sense of genesis validation coverage'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

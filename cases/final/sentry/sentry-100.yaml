@@ -1,0 +1,32 @@
+id: sentry-100
+repo: getsentry/sentry
+base_commit: 7ed7c92e50ce57d000a6bc1bf0d398da1b28f701^
+head_commit: 7ed7c92e50ce57d000a6bc1bf0d398da1b28f701
+fix_commit: 7ed7c92e50ce57d000a6bc1bf0d398da1b28f701
+category: logic
+difficulty: easy
+severity: medium
+language: python
+pr_size: tiny
+description: The backend widget serializer's limit validation had no case for TABLE
+  display type, causing it to fall through to the default max of 10. The frontend
+  hardcodes a table limit of 20, so saving table widgets with 11-20 rows would fail
+  backend validation. The fix adds TABLE as a recognized display type with max_allowed=20.
+expected_findings:
+- file: src/sentry/api/serializers/rest_framework/dashboard.py
+  line: 558
+  summary: 'Missing TABLE case in display_type limit validation: table widgets fall
+    through to default max of 10, but frontend allows up to 20, causing validation
+    failures when saving table widgets with limit > 10'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,23 +1,32 @@
 id: sdk-024
 repo: ProvableHQ/sdk
-base_commit: 216aa7ec2ebb42bf45a167683be4c1f5819e7d1b^
-head_commit: 216aa7ec2ebb42bf45a167683be4c1f5819e7d1b
-fix_commit: 216aa7ec2ebb42bf45a167683be4c1f5819e7d1b
+base_commit: 5d78f438d5b849c1d0114cec1748948d7fa51cfc^
+head_commit: 5d78f438d5b849c1d0114cec1748948d7fa51cfc
+fix_commit: 5d78f438d5b849c1d0114cec1748948d7fa51cfc
 category: logic
 difficulty: easy
 severity: medium
-language: rust
-pr_size: medium
-description: A typo in the CI release workflow (.github/workflows/release.yml) caused
-  the M1/aarch64 Apple Silicon release build to fail. The fix corrects the path or
-  command used to move the aarch64-apple-darwin release binary. Additionally, an 'update'
-  CLI subcommand was added to allow users to update Aleo to the latest version.
+language: javascript
+pr_size: small
+description: The fee record field was unconditionally required for on-chain program
+  execution, but it should only be required when the user selects private fee mode.
+  The fix adds a conditional check so the fee record is only validated/required when
+  the private fee toggle is enabled.
 expected_findings:
-- file: .github/workflows/release.yml
-  line: 124
-  summary: "Typo in the mv command for the aarch64-apple-darwin (M1) release binary\
-    \ \u2014 likely an incorrect path or directory name in 'mv target/aarch64-apple-darwin/release/aleo\
-    \ tempdir'"
+- file: website/src/tabs/develop/execute/index.jsx
+  line: 115
+  summary: Fee record is always required for execution but should only be required
+    when private fee is selected. The condition guarding fee record validation is
+    missing a check for the private fee toggle state.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

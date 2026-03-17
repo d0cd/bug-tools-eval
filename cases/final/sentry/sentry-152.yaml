@@ -1,0 +1,33 @@
+id: sentry-152
+repo: getsentry/sentry
+base_commit: c2885920fa6da33f022774bf90c7d28d4ea414cb^
+head_commit: c2885920fa6da33f022774bf90c7d28d4ea414cb
+fix_commit: c2885920fa6da33f022774bf90c7d28d4ea414cb
+category: api-misuse
+difficulty: medium
+severity: high
+language: python
+pr_size: small
+description: The endpoint constructed the objectstore key as `{org_id}/{project_id}/{image_id}`,
+  but `get_preprod_session()` already scopes URLs by usecase, org, and project. This
+  caused org and project IDs to appear twice in the resulting objectstore URL, making
+  all image lookups from the frontend fail with 404. The fix passes only `image_id`
+  as the key.
+expected_findings:
+- file: src/sentry/preprod/api/endpoints/project_preprod_artifact_image.py
+  line: 33
+  summary: 'Redundant key construction: session.get() is called with a key that includes
+    org_id/project_id, but the session is already scoped to org and project. Should
+    pass only `image_id`, not `f"{org_id}/{project_id}/{image_id}"`.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

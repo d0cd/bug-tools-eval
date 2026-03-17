@@ -1,28 +1,45 @@
 id: leo-190
 repo: ProvableHQ/leo
-base_commit: a157944215bf02c55b8f1edfd4c248c7640ea460^
-head_commit: a157944215bf02c55b8f1edfd4c248c7640ea460
-fix_commit: a157944215bf02c55b8f1edfd4c248c7640ea460
+base_commit: c1847d0fa59406e736b09c380561d566cdf4b960^
+head_commit: c1847d0fa59406e736b09c380561d566cdf4b960
+fix_commit: c1847d0fa59406e736b09c380561d566cdf4b960
 category: logic
 difficulty: medium
 severity: medium
 language: rust
-pr_size: large
-description: The ABNF-to-Markdown converter in grammar/src/main.rs was missing support
-  for `%s` (case-sensitive strings), which is part of the ABNF standard. The converter
-  skipped this rule because the Rust ABNF package does not natively support it. The
-  fix adds explicit handling for `%s` case-sensitive string literals and updates the
-  generated Markdown output accordingly.
+pr_size: medium
+description: The compiler's static access resolution did not handle the `Self` keyword
+  as a valid circuit identifier when resolving nested static function calls. When
+  a static function like `Foo::baz()` tried to call `Self::bar()`, the compiler failed
+  because `Self` was not recognized in the circuit identifier match expression. The
+  fix adds `Self` / `SelfType` as a recognized variant throughout the AST parsing
+  pipeline and resolves it to the enclosing circuit type during static access compilation.
 expected_findings:
-- file: grammar/src/main.rs
-  line: 198
-  summary: 'Missing handling for ABNF `%s` case-sensitive string rules: the converter
-    silently skips `%s` literals instead of converting them to the appropriate Markdown
-    representation'
-- file: grammar/abnf-grammar.md
-  line: 84
-  summary: Generated Markdown is missing `%s` case-sensitive string notation (e.g.
-    %s"Ab") due to the converter not supporting this ABNF construct
+- file: compiler/src/expression/circuit/static_access.rs
+  line: 36
+  summary: Static access resolution does not handle `Self` as a valid circuit identifier
+    expression — `Self::method()` calls from within a static function will fail to
+    resolve
+  line_side: pre_fix
+- file: ast/src/leo.pest
+  line: 369
+  summary: Grammar rule for circuit identifiers in static access expressions does
+    not include `type_self` as a valid alternative, preventing `Self::` syntax from
+    parsing in static contexts
+  line_side: pre_fix
+- file: ast/src/common/keyword_or_identifier.rs
+  line: 29
+  summary: KeywordOrIdentifier enum lacks a SelfType variant, so the `Self` keyword
+    cannot flow through the AST as a valid identifier in expression positions
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

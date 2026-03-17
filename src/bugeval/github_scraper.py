@@ -171,8 +171,12 @@ def _batch_fetch_pr_reviews_graphql(
     }}
     reviewThreads(first: 50) {{
       nodes {{
+        path
+        line
+        originalLine
+        isResolved
         comments(first: 10) {{
-          nodes {{ body author {{ login }} }}
+          nodes {{ body author {{ login }} diffHunk }}
         }}
       }}
     }}
@@ -208,7 +212,15 @@ def _batch_fetch_pr_reviews_graphql(
 
         for thread in (pr_data.get("reviewThreads") or {}).get("nodes") or []:
             for comment in (thread.get("comments") or {}).get("nodes") or []:
-                items.append({"body": comment.get("body") or "", "state": "", "_source": "inline"})
+                items.append({
+                    "body": comment.get("body") or "",
+                    "state": "",
+                    "_source": "inline",
+                    "_path": thread.get("path"),
+                    "_line": thread.get("line"),
+                    "_original_line": thread.get("originalLine"),
+                    "_diff_hunk": comment.get("diffHunk"),
+                })
 
         for comment in (pr_data.get("comments") or {}).get("nodes") or []:
             items.append({"body": comment.get("body") or "", "state": "", "_source": "thread"})
@@ -242,14 +254,16 @@ def enrich_with_reviews(repo: str, candidates: list[Candidate], top_n: int = 50)
         if not reviews:
             continue
         rev_signals, rev_notes = extract_reviewer_bug_signals(reviews)
-        if rev_signals:
-            enriched[i] = cand.model_copy(
-                update={
-                    "signals": list(dict.fromkeys(cand.signals + rev_signals)),
-                    "reviewer_notes": cand.reviewer_notes + rev_notes,
-                    "confidence": min(cand.confidence + 0.2, 1.0),
-                }
-            )
+        rev_findings = _parse_reviewer_findings(reviews)
+        if rev_signals or rev_findings:
+            update: dict[str, Any] = {
+                "reviewer_findings": cand.reviewer_findings + rev_findings,
+            }
+            if rev_signals:
+                update["signals"] = list(dict.fromkeys(cand.signals + rev_signals))
+                update["reviewer_notes"] = cand.reviewer_notes + rev_notes
+                update["confidence"] = min(cand.confidence + 0.2, 1.0)
+            enriched[i] = cand.model_copy(update=update)
     return enriched
 
 
@@ -327,6 +341,31 @@ def extract_reviewer_bug_signals(
             signals.append("reviewer_changes_requested")
 
     return signals, notes
+
+
+def _parse_reviewer_findings(review_items: list[dict[str, Any]]) -> list[ExpectedFinding]:
+    """Convert inline review items (with path/line metadata) into ExpectedFinding objects."""
+    findings: list[ExpectedFinding] = []
+    for item in review_items:
+        if item.get("_source") != "inline":
+            continue
+        path = item.get("_path")
+        if not path:
+            continue
+        line = item.get("_line") or item.get("_original_line")
+        if line is None:
+            continue
+        body = str(item.get("body") or "").strip()
+        summary = body[:120].replace("\n", " ") if body else "reviewer inline comment"
+        findings.append(
+            ExpectedFinding(
+                file=str(path),
+                line=int(line),
+                summary=summary,
+                line_side="pre_fix",
+            )
+        )
+    return findings
 
 
 def _parse_hunk_ranges(patch: str) -> list[tuple[int, int]]:
@@ -444,6 +483,11 @@ def score_candidate(issue: dict[str, Any], pr: dict[str, Any]) -> tuple[float, l
     if any(kw in pr_title_lower for kw in fix_keywords):
         confidence += 0.1
         signals.append("fix_keywords_in_title")
+
+    # Revert PRs are nearly always bug fixes
+    if pr_title_lower.startswith("revert"):
+        confidence += 0.2
+        signals.append("revert_pr")
 
     # Has any linked issue in body (even if not this specific issue)
     if "pr_references_issue" not in signals and referenced:

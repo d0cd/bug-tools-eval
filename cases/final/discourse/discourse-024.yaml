@@ -1,25 +1,38 @@
 id: discourse-024
 repo: discourse/discourse
-base_commit: 16395aa94fb4559e81590ca1ab396d3f2d0950f9^
-head_commit: 16395aa94fb4559e81590ca1ab396d3f2d0950f9
-fix_commit: 16395aa94fb4559e81590ca1ab396d3f2d0950f9
-category: logic
+base_commit: 201fa52f58ad245b44342e2f2f8be101575e4f9b^
+head_commit: 201fa52f58ad245b44342e2f2f8be101575e4f9b
+fix_commit: 201fa52f58ad245b44342e2f2f8be101575e4f9b
+category: code-smell
 difficulty: easy
-severity: medium
+severity: low
 language: ruby
-pr_size: small
-description: The AI tag suggester component referenced `model` instead of `this.model`
-  when filtering out already-applied tags, causing a runtime error because `model`
-  was undefined in that scope. The fix adds the proper `this.` prefix to correctly
-  access the component's model property.
+pr_size: tiny
+description: 'Flaky system spec in the checklist rich editor extension. The test assertions
+  at two locations used exact item count checks (`have_items(count: 1)`) that were
+  timing-sensitive in a system/integration test, causing intermittent failures. The
+  fix likely replaces or adjusts these assertions to be more resilient to async rendering
+  timing.'
 expected_findings:
-- file: plugins/discourse-ai/assets/javascripts/discourse/components/suggestion-menus/ai-tag-suggester.gjs
-  line: 85
-  summary: "Missing `this.` prefix: `model.get(\"tags\")` should be `this.model.get(\"\
-    tags\")` \u2014 `model` is not in scope here, causing a ReferenceError when filtering\
-    \ suggested tags"
+- file: plugins/checklist/spec/system/rich_editor_extension_spec.rb
+  line: 99
+  summary: 'Flaky assertion: `expect(checklist).to have_items(count: 1)` is timing-sensitive
+    in a system spec; should use a more resilient wait-based matcher or relax the
+    exact count check'
+  line_side: pre_fix
+- file: plugins/checklist/spec/system/rich_editor_extension_spec.rb
+  line: 129
+  summary: 'Same flaky pattern: `expect(checklist).to have_items(count: 1)` repeated
+    here; both sites need the same timing-resilient fix'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

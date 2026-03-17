@@ -1,26 +1,35 @@
 id: sdk-011
 repo: ProvableHQ/sdk
-base_commit: 0f17de7e990cae40a78342c753e4fe311aa610b7^
-head_commit: 0f17de7e990cae40a78342c753e4fe311aa610b7
-fix_commit: 0f17de7e990cae40a78342c753e4fe311aa610b7
-category: api
+base_commit: 1b7c283653e8122a3cd7cca87a7c30e56e094243^
+head_commit: 1b7c283653e8122a3cd7cca87a7c30e56e094243
+fix_commit: 1b7c283653e8122a3cd7cca87a7c30e56e094243
+category: api-misuse
 difficulty: easy
 severity: medium
 language: rust
-pr_size: tiny
-description: The REST API route paths for 'latest height' and 'latest hash' endpoints
-  included an extra '/block/' segment, making them inconsistent with the corresponding
-  snarkOS endpoints. The fix removes '/block/' from the routes, changing '/testnet3/latest/block/height'
-  to '/testnet3/latest/height' and '/testnet3/latest/block/hash' to '/testnet3/latest/hash'.
+pr_size: small
+description: Incorrect Cargo.toml settings (likely profile configuration or feature
+  flags) caused issues with benchmarks and tests. The fix corrects the Cargo profile/settings
+  and updates affected benchmark and test files to align with the corrected configuration.
 expected_findings:
-- file: cli/helpers/server.rs
-  line: 144
-  summary: "Incorrect API route: endpoint path includes extra '/block/' segment \u2014\
-    \ should be '/testnet3/latest/height' not '/testnet3/latest/block/height'"
-- file: cli/helpers/server.rs
-  line: 145
-  summary: "Incorrect API route: endpoint path includes extra '/block/' segment \u2014\
-    \ should be '/testnet3/latest/hash' not '/testnet3/latest/block/hash'"
+- file: Cargo.toml
+  line: 1
+  summary: Incorrect Cargo profile or dependency setting that needs to be fixed to
+    ensure benchmarks and tests compile/run correctly
+  line_side: pre_fix
+- file: tests/new.rs
+  line: 1
+  summary: Test file referencing incorrect configuration or using wrong API due to
+    misconfigured Cargo settings
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

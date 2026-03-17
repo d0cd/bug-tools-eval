@@ -1,32 +1,44 @@
 id: snarkOS-153
 repo: ProvableHQ/snarkOS
-base_commit: b7a8012da3bfc066547772cda8ca63ddac814cb3^
-head_commit: b7a8012da3bfc066547772cda8ca63ddac814cb3
-fix_commit: b7a8012da3bfc066547772cda8ca63ddac814cb3
-category: logic
+base_commit: c7ccc4f2b88d557aeb614bec92891f3efc288c32^
+head_commit: c7ccc4f2b88d557aeb614bec92891f3efc288c32
+fix_commit: c7ccc4f2b88d557aeb614bec92891f3efc288c32
+category: api-misuse
 difficulty: medium
-severity: medium
+severity: high
 language: rust
-pr_size: large
-description: The devnet peering logic in cli/src/helpers/dev.rs incorrectly determined
-  how nodes connect to each other, causing unreliable devnet startup. The fix reworks
-  peer connections so each client connects to two validators and adjusts the port
-  calculation logic. Additionally, CI shell scripts had various shellcheck warnings
-  and lacked error handling for node failures during devnet setup.
+pr_size: medium
+description: The Scan CLI command used a hardcoded testnet3 CDN endpoint regardless
+  of which network (mainnet, testnet, canary) was being scanned, causing incorrect
+  block fetching on non-testnet3 networks. Additionally, the CDN HTTP client used
+  native_tls which does not support the TLS configuration required by the new blocks.aleo.org
+  endpoint, so all CDN block syncing would fail.
 expected_findings:
-- file: cli/src/helpers/dev.rs
-  line: 13
-  summary: 'Incorrect peer connection logic: devnet nodes are not connecting to the
-    right peers. Clients should connect to two validators, and the peer address calculation
-    needs reworking.'
-- file: scripts/devnet.sh
-  line: 74
-  summary: 'Missing error handling: if a node fails during devnet setup, the script
-    does not detect the failure and shut down, leading to a silently broken devnet.'
-- file: .ci/devnet_ci.sh
-  line: 16
-  summary: Node verbosity and peering configuration in CI devnet script does not match
-    the corrected devnet peer topology, leading to CI failures.
+- file: cli/src/commands/developer/scan.rs
+  line: 34
+  summary: Hardcoded CDN_ENDPOINT points to testnet3 S3 bucket regardless of which
+    network is being scanned; should be network-aware (mainnet/testnet/canary) using
+    the shared CDN_BASE_URL
+  line_side: pre_fix
+- file: node/cdn/src/blocks.rs
+  line: 107
+  summary: Client::builder().build() uses default native_tls which is incompatible
+    with the blocks.aleo.org endpoint; should use .use_rustls_tls() to support the
+    required TLS configuration
+  line_side: pre_fix
+- file: node/cdn/Cargo.toml
+  line: 42
+  summary: reqwest dependency missing 'rustls-tls' feature flag needed to enable rustls
+    TLS backend for CDN requests
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

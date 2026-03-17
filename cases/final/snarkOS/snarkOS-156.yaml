@@ -1,30 +1,43 @@
 id: snarkOS-156
 repo: ProvableHQ/snarkOS
-base_commit: dfe5912f055fa9a670570a4523db23d7de2650ba^
-head_commit: dfe5912f055fa9a670570a4523db23d7de2650ba
-fix_commit: dfe5912f055fa9a670570a4523db23d7de2650ba
+base_commit: d342b5fcd15b713c192f2cec4d83516c3de07f38^
+head_commit: d342b5fcd15b713c192f2cec4d83516c3de07f38
+fix_commit: d342b5fcd15b713c192f2cec4d83516c3de07f38
 category: logic
-difficulty: easy
-severity: high
+difficulty: medium
+severity: medium
 language: rust
-pr_size: large
-description: 'The Canary network trait and its associated handling were missing after
-  a bulk revert (PR #3272). This PR re-introduces CanaryV0 support across CLI commands,
-  router, and REST node, adding the missing match arms, imports, and network-specific
-  logic so the Canary network can be used again.'
+pr_size: medium
+description: The node's sync state was incorrectly updated during block request generation,
+  and there was no mechanism to clear the greatest peer height when all peers disconnected.
+  This caused nodes to remain in a 'synced' state with misleading log messages even
+  when not connected to any peers. The fix restricts sync state changes to response
+  processing, new block locators, and disconnects, adding a `clear_greatest_peer_height`
+  function that transitions the node to 'unsynced' when no block locators remain.
 expected_findings:
-- file: cli/src/commands/developer/mod.rs
-  line: 119
-  summary: Missing match arm for `CanaryV0::ID` in network-to-string mapping; Canary
-    network requests would hit an unhandled case or default incorrectly.
-- file: node/rest/src/lib.rs
-  line: 121
-  summary: Missing match arm for `CanaryV0::ID` in the REST server's network dispatch;
-    Canary network API requests would fail or be misrouted.
-- file: cli/src/commands/start.rs
-  line: 189
-  summary: Missing CanaryV0 variant in the node start command's network selection
-    logic; attempting to start a Canary node would fail.
+- file: node/sync/src/block_sync.rs
+  line: 689
+  summary: Sync state is mutated during block request generation; state changes here
+    should only occur when processing responses, block locators, or disconnects
+  line_side: pre_fix
+- file: node/sync/src/block_sync.rs
+  line: 715
+  summary: 'Same issue: sync state update in block request path can cause node to
+    appear synced when it has no peers'
+  line_side: pre_fix
+- file: node/sync/src/block_sync/sync_state.rs
+  line: 57
+  summary: SyncStatus lacks a mechanism to clear greatest peer height on disconnect,
+    causing stale synced state when all peers are gone
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

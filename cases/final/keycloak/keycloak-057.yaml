@@ -1,0 +1,32 @@
+id: keycloak-057
+repo: keycloak/keycloak
+base_commit: bb492174094b8881e63e547211b4c8637a8b69d0^
+head_commit: bb492174094b8881e63e547211b4c8637a8b69d0
+fix_commit: bb492174094b8881e63e547211b4c8637a8b69d0
+category: security
+difficulty: medium
+severity: high
+language: java
+pr_size: medium
+description: ClientAccessTypeCondition in Keycloak did not handle RESOURCE_OWNER_PASSWORD_CREDENTIALS_REQUEST
+  events, creating a policy enforcement gap. Clients could bypass access-type-based
+  client policies by using the Resource Owner Password Credentials (direct access
+  grant) flow. The fix adds the missing case to the switch statement and updates the
+  lax security profile configuration.
+expected_findings:
+- file: services/src/main/java/org/keycloak/services/clientpolicy/condition/ClientAccessTypeCondition.java
+  line: 70
+  summary: Missing case for RESOURCE_OWNER_PASSWORD_CREDENTIALS_REQUEST in event switch
+    — password grant requests bypass client access type policy enforcement entirely
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

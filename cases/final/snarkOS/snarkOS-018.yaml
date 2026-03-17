@@ -1,30 +1,63 @@
 id: snarkOS-018
 repo: ProvableHQ/snarkOS
-base_commit: 9a13681eb8ee20c75fe5458b6dced26402752b16^
-head_commit: 9a13681eb8ee20c75fe5458b6dced26402752b16
-fix_commit: 9a13681eb8ee20c75fe5458b6dced26402752b16
-category: api
+base_commit: 1cd070fc0752cd1c74ad3f2522e5fd9fd6e4912e^
+head_commit: 770c8b63cb5d5040c038296bc27e7066179b868e
+fix_commit: 1cd070fc0752cd1c74ad3f2522e5fd9fd6e4912e
+category: code-smell
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: medium
-description: The deployment_cost function was called with a Process that did not have
-  its imports loaded, causing deployment of programs with imports (nested deployments)
-  to fail. The fix ensures a Process with all necessary imports loaded is passed to
-  the deployment_cost determination logic.
+pr_size: small
+description: The PR switches the default storage backend from RocksDB to SQLite, removing
+  the feature-gated `sqlite` option and making SQLite unconditional. However, the
+  RocksDB code is left as a commented-out block rather than deleted, and the validator
+  guard now permanently blocks `--validate-storage` since SQLite is the only backend
+  and the validator was never implemented for it.
 expected_findings:
-- file: cli/src/commands/developer/deploy.rs
-  line: 147
-  summary: Process passed to deployment_cost lacks loaded imports; must construct
-    a Process with all program imports loaded before computing deployment cost.
-- file: cli/src/commands/developer/deploy.rs
-  line: 171
-  summary: 'Same issue on a different code path: Process used for cost determination
-    does not include required imports for programs with dependencies.'
-- file: cli/src/commands/developer/deploy.rs
-  line: 185
-  summary: 'Same issue on a third code path: Process missing loaded imports when passed
-    to deployment_cost function.'
+- file: errors/Cargo.toml
+  line: 16
+  summary: rocksdb and curl are unconditional required dependencies but should be
+    optional — they contain native C bindings that block compilation on restricted
+    targets
+  line_side: pre_fix
+- file: algorithms/src/crh/pedersen.rs
+  line: 9
+  summary: Unconditional `use rayon::prelude::*` import forces rayon as a hard dependency;
+    should be gated behind a feature flag for environments where parallel execution
+    is not available
+  line_side: pre_fix
+- file: parameters/src/inner_snark_pk/inner_snark_pk.rs
+  line: 5
+  summary: Unconditional `use curl::easy::Easy` and direct curl usage in load_remote()
+    makes curl a hard dependency; should be feature-gated behind a `remote` flag
+  line_side: pre_fix
+- file: snarkos/main.rs
+  line: 130
+  summary: 'Commented-out dead code: the entire RocksDB storage path is wrapped in
+    `/* ... */` instead of being removed. Dead code should be deleted, not commented
+    out — version control preserves history.'
+  line_side: pre_fix
+- file: snarkos/main.rs
+  line: 123
+  summary: 'Permanent feature breakage: `validate-storage` now always hits the `error!("validator
+    not implemented for sqlite")` early return because SQLite is the only backend.
+    This config flag is effectively dead and should be removed or the validator should
+    be implemented.'
+  line_side: pre_fix
+- file: storage/src/storage/sync.rs
+  line: 150
+  summary: 'Debug log regression: changed from `longest_path.last()` (shows the actual
+    terminal block hash) to `longest_path.len()` (shows only count), losing useful
+    diagnostic information for fork debugging.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

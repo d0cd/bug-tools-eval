@@ -1,27 +1,34 @@
 id: leo-235
 repo: ProvableHQ/leo
-base_commit: a0dc00bbd3db3626c6e9fb6d145bff354bc2e85b^
-head_commit: a0dc00bbd3db3626c6e9fb6d145bff354bc2e85b
-fix_commit: a0dc00bbd3db3626c6e9fb6d145bff354bc2e85b
+base_commit: edcf90580eb72a3d74c8e15bc3b5538ad9476b3c^
+head_commit: edcf90580eb72a3d74c8e15bc3b5538ad9476b3c
+fix_commit: edcf90580eb72a3d74c8e15bc3b5538ad9476b3c
 category: logic
 difficulty: medium
 severity: high
-language: leo
-pr_size: xl
-description: The Leo parser and ABNF grammar were misaligned regarding equality operators
-  (== and !=). The parser did not correctly handle equality expressions, preventing
-  chained equality comparisons like `(a == b) == c` from working properly. The fix
-  aligned the ABNF grammar with the parser implementation and corrected equality operator
-  parsing in the expression parser.
+language: rust
+pr_size: medium
+description: The AST reconstructor pass failed to properly rename variables in certain
+  expression contexts during function inlining. This caused incorrect variable references
+  after inlining, potentially leading to wrong program behavior. The fix corrects
+  the renaming logic in the reconstructor to handle these cases (such as struct init
+  expressions and tuple returns from inlined functions).
 expected_findings:
-- file: parser/src/parser/expression.rs
-  line: 187
-  summary: Equality operator parsing (Token::Eq, Token::Ne) was incorrectly handled,
-    preventing proper boolean-result equality expressions and chained comparisons.
-- file: grammar/abnf-grammar.txt
-  line: 453
-  summary: ABNF grammar for package-name and expression rules was misaligned with
-    the actual parser implementation, causing inconsistencies in accepted syntax.
+- file: compiler/ast/src/passes/reconstructor.rs
+  line: 114
+  summary: 'Variable renaming during function inlining is incomplete: certain expression
+    forms (e.g., struct init shorthand, tuple expressions) are not having their identifiers
+    properly renamed when reconstructing the AST after inlining, leading to stale/incorrect
+    variable references.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

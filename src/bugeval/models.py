@@ -12,9 +12,15 @@ class Category(StrEnum):
     logic = "logic"
     memory = "memory"
     concurrency = "concurrency"
-    api = "api"
+    api_misuse = "api-misuse"
     type = "type"
-    perf = "perf"
+    cryptographic = "cryptographic"
+    constraint = "constraint"
+    code_smell = "code-smell"
+    security = "security"
+    performance = "performance"
+    style = "style"
+    incomplete = "incomplete"
 
 
 class Difficulty(StrEnum):
@@ -47,6 +53,7 @@ class ExpectedFinding(BaseModel):
     file: str
     line: int
     summary: str
+    line_side: str = "pre_fix"  # "pre_fix" (- side) or "post_fix" (+ side)
 
 
 class CaseStats(BaseModel):
@@ -74,6 +81,14 @@ class TestCase(BaseModel):
     needs_manual_review: bool = False
     verified: bool = False
     verified_by: str | None = None
+    valid_for_code_review: bool = True
+    introducing_commit: str | None = None
+    """SHA of the commit that first introduced this issue. Analysis-only — never
+    passed to evaluation agents. None when unknown (PR-scraped cases)."""
+    pr_number: int | None = None
+    reviewer_notes: list[str] = []
+    reviewer_findings: list[ExpectedFinding] = []
+    quality_flags: list[str] = []
 
 
 class Candidate(BaseModel):
@@ -93,6 +108,7 @@ class Candidate(BaseModel):
     language: str
     pr_size: PRSize
     reviewer_notes: list[str] = []  # reviewer comments that identified the bug
+    reviewer_findings: list[ExpectedFinding] = []  # structured inline review positions
 
 
 class ScrapeState(BaseModel):

@@ -1,21 +1,40 @@
 id: leo-053
 repo: ProvableHQ/leo
-base_commit: 1dcd226656120ac25e834f23c4c24a0b8f32a42f^
-head_commit: 1dcd226656120ac25e834f23c4c24a0b8f32a42f
-fix_commit: 1dcd226656120ac25e834f23c4c24a0b8f32a42f
+base_commit: 3548158d2f31eb06156998baf80f1155d4a2cde4^
+head_commit: 3548158d2f31eb06156998baf80f1155d4a2cde4
+fix_commit: 3548158d2f31eb06156998baf80f1155d4a2cde4
 category: logic
-difficulty: easy
-severity: low
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: Typo in an error message string in the canonicalization error definitions.
-  The fix corrects the wording of a dimension size validation message to accurately
-  describe the expected constraint.
+pr_size: small
+description: 'The Leo compiler''s code generation for external function calls had
+  two bugs: (1) the future register returned by an external call was tracked internally
+  but not included in the call instruction''s destination registers, producing malformed
+  bytecode missing the future output; (2) the async instruction''s ''into'' clause
+  used write! instead of writeln!, omitting the trailing newline and corrupting subsequent
+  instruction formatting.'
 expected_findings:
-- file: ast/src/errors/canonicalization.rs
-  line: 36
-  summary: 'Typo in error message string: the message text contains a misspelling
-    or incorrect wording that should be corrected for clarity.'
+- file: compiler/passes/src/code_generation/visit_expressions.rs
+  line: 551
+  summary: Future register from external call is pushed to self.futures but never
+    added to the destinations vector; the generated call instruction will be missing
+    this output register, producing incorrect bytecode
+  line_side: pre_fix
+- file: compiler/passes/src/code_generation/visit_statements.rs
+  line: 167
+  summary: write! should be writeln! for the async instruction 'into' clause; missing
+    trailing newline causes the next instruction to be appended on the same line,
+    corrupting the generated Aleo bytecode
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

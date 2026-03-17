@@ -1,25 +1,31 @@
 id: keycloak-004
 repo: keycloak/keycloak
-base_commit: 977cc473bb3a52d2d3e2d76bf2d94cffcf2bfaae^
-head_commit: 977cc473bb3a52d2d3e2d76bf2d94cffcf2bfaae
-fix_commit: 977cc473bb3a52d2d3e2d76bf2d94cffcf2bfaae
-category: api
+base_commit: 0701638890394fd5775d69d9ddb8f2ca9284c694^
+head_commit: 0701638890394fd5775d69d9ddb8f2ca9284c694
+fix_commit: 0701638890394fd5775d69d9ddb8f2ca9284c694
+category: api-misuse
 difficulty: medium
-severity: high
-language: java
+severity: low
+language: typescript
 pr_size: small
-description: SAML/XML digital signatures were broken due to unexpected linebreaks
-  in Base64-encoded signature values. The JDK (JDK-8264194) and Apache Santuario (SANTUARIO-482)
-  changed default line break behavior in XML security output. The fix sets the system
-  properties 'com.sun.org.apache.xml.internal.security.ignoreLineBreak' and the Apache
-  Santuario equivalent to suppress linebreaks in XML signature generation.
+description: The Playwright drag-and-drop test helper used an approach that worked
+  in Chrome but was flaky in Firefox, causing intermittent CI failures. The fix replaces
+  the drag-and-drop mechanism with one that works consistently across both browsers.
 expected_findings:
-- file: saml-core/src/main/java/org/keycloak/saml/common/util/SystemPropertiesUtil.java
-  line: 32
-  summary: Missing system property to ignore line breaks in XML security Base64 output.
-    The property 'com.sun.org.apache.xml.internal.security.ignoreLineBreak' (and/or
-    the Apache Santuario equivalent 'org.apache.xml.security.ignoreLineBreaks') must
-    be set to 'true' to prevent linebreaks from breaking SAML signature validation.
+- file: js/apps/admin-ui/test/autentication/flows.spec.ts
+  line: 193
+  summary: Drag-and-drop implementation uses a browser-specific approach that is unreliable
+    in Firefox; should use a cross-browser compatible method (e.g. manual pointer
+    event sequence instead of high-level drag helper)
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

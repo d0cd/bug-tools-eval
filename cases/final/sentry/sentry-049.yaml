@@ -1,24 +1,110 @@
 id: sentry-049
 repo: getsentry/sentry
-base_commit: 08312dfb18706015548b47d8c40d19865ee0eaf2^
-head_commit: 08312dfb18706015548b47d8c40d19865ee0eaf2
-fix_commit: 08312dfb18706015548b47d8c40d19865ee0eaf2
-category: logic
-difficulty: easy
-severity: medium
+base_commit: 3ca862a29292273d435fbb556d649b2bc43aa060^
+head_commit: 3ca862a29292273d435fbb556d649b2bc43aa060
+fix_commit: 3ca862a29292273d435fbb556d649b2bc43aa060
+category: incomplete
+difficulty: medium
+severity: high
 language: typescript
-pr_size: tiny
-description: A CSS box-shadow override on LinkButton was incorrectly suppressing the
-  browser/framework focus ring when the button variant was transparent. The fix removes
-  the box-shadow override (4 lines deleted), restoring the default focus ring behavior
-  for accessibility.
+pr_size: medium
+description: 'Prebuilt dashboard configs used aggregates like `count_if`, `performance_score`,
+  etc. without the required `equation|` prefix, causing Explore to render them as
+  ''None''. The mechanical fix of adding the prefix introduced secondary issues: the
+  `INTERNAL_ERROR_COUNT_FIELD` constant in spans.tsx was not updated to match the
+  new prefixed field name (breaking the custom error count renderer), the `orderby`
+  field `-equation[9]` references a non-existent equation index, and a `||` fallback
+  operator treats valid zero counts as falsy.'
 expected_findings:
-- file: static/app/components/core/button/linkButton.tsx
-  line: 105
-  summary: Unnecessary box-shadow override removes focus ring on transparent LinkButton,
-    breaking keyboard accessibility. This override should be removed.
+- file: static/app/views/dashboards/utils/prebuiltConfigs/webVitals/webVitals.ts
+  line: 297
+  summary: 'Out-of-bounds equation index: `orderby: -equation[9]` references the 10th
+    equation but only two `equation|`-prefixed fields exist (indices 0 and 1), breaking
+    table sorting'
+  line_side: pre_fix
+- file: static/app/views/dashboards/datasetConfig/spans.tsx
+  line: 506
+  summary: Falsy `||` operator between `data[INTERNAL_ERROR_COUNT_FIELD]` and the
+    equation-prefixed key treats a valid count of 0 as falsy, skipping the first key
+    unnecessarily; also `INTERNAL_ERROR_COUNT_FIELD` lacks the `equation|` prefix
+    so the custom error-count renderer will never match the now-prefixed field
+  line_side: pre_fix
+- file: static/app/views/dashboards/utils/prebuiltConfigs/ai/aiAgentsModels.ts
+  line: 112
+  summary: '`count_if(span.status,equals,internal_error)` used without `equation|`
+    prefix won''t match `INTERNAL_ERROR_COUNT_FIELD` after the prefix is added to
+    dashboard configs; the constant and its custom renderer need updating in tandem'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110308
+reviewer_notes:
+- '[inline] ### Custom error count renderer won''t match equation-prefixed field  **High
+  Severity**  <!-- DESCRIPTION START --> In `spans.tsx`, the constant `INTERNAL_ERROR_COUNT_FIELD`
+  is defined as `''count_if(span.status,equals,internal_error)''` (without the `equation|`
+  prefix). This is used to match fields fo'
+- '[inline] I think this might be valid, `count_if(span.status,equals,internal_error)`
+  has a custom renderer to link to explore for error samples. Might just be an easy
+  fix by adding ` equation|` to the `INTERNAL_ERROR_COUNT_FIELD` constant'
+- '[inline] **Bug:** The `orderby` field for the "pages-table" widget is set to `-equation[9]`,
+  but there are only two equations defined. This is an out-of-bounds index that will
+  cause sorting to fail. <sub>Severity: MEDIUM</sub> <!-- BUG_PREDICTION -->  <details>
+  <summary><b title="Reference ID: `11508184/0`">'
+- "[inline] ### Wrong equation alias index breaks table sorting  **High Severity**\
+  \  <!-- DESCRIPTION START --> The `orderby` value `-equation[9]` references the\
+  \ 10th equation (0-indexed), but this query only has two `equation|`-prefixed fields\
+  \ \u2014 `performance_score` at equation index 0 and `opportunity_score` at"
+- '[inline] ### Falsy `||` operator skips valid zero error counts  **Low Severity**  <!--
+  DESCRIPTION START --> Using `||` to fall back between `data[INTERNAL_ERROR_COUNT_FIELD]`
+  and the `equation|`-prefixed key treats a valid `0` count as falsy, causing it to
+  unnecessarily check the second key. If the first ke'
+reviewer_findings:
+- file: static/app/views/dashboards/utils/prebuiltConfigs/ai/aiAgentsModels.ts
+  line: 112
+  summary: '### Custom error count renderer won''t match equation-prefixed field  **High
+    Severity**  <!-- DESCRIPTION START --> In `s'
+  line_side: pre_fix
+- file: static/app/views/dashboards/utils/prebuiltConfigs/ai/aiAgentsModels.ts
+  line: 112
+  summary: 'I think this might be valid, `count_if(span.status,equals,internal_error)`
+    has a custom renderer to link to explore for '
+  line_side: pre_fix
+- file: static/app/views/dashboards/utils/prebuiltConfigs/ai/aiAgentsModels.ts
+  line: 112
+  summary: '@edwardgou-sentry fixed this in this commit https://github.com/getsentry/sentry/pull/110308/changes/6d3c0556bc69afdbc456'
+  line_side: pre_fix
+- file: static/app/views/dashboards/utils/prebuiltConfigs/queues/queueSummary.ts
+  line: 86
+  summary: '### Equation prefix in orderby sent directly to API  **High Severity**  <!--
+    DESCRIPTION START --> The `orderby` values '
+  line_side: pre_fix
+- file: static/app/views/dashboards/utils/prebuiltConfigs/webVitals/webVitals.ts
+  line: 295
+  summary: '### Equation-prefixed aggregates placed in columns array incorrectly  **Medium
+    Severity**  <!-- DESCRIPTION START --> In'
+  line_side: pre_fix
+- file: static/app/views/dashboards/utils/prebuiltConfigs/webVitals/webVitals.ts
+  line: 295
+  summary: unrelated to this pr
+  line_side: pre_fix
+- file: static/app/views/dashboards/utils/prebuiltConfigs/webVitals/webVitals.ts
+  line: 297
+  summary: '**Bug:** The `orderby` field for the "pages-table" widget is set to `-equation[9]`,
+    but there are only two equations def'
+  line_side: pre_fix
+- file: static/app/views/dashboards/utils/prebuiltConfigs/webVitals/webVitals.ts
+  line: 297
+  summary: '### Wrong equation alias index breaks table sorting  **High Severity**  <!--
+    DESCRIPTION START --> The `orderby` value `'
+  line_side: pre_fix
+- file: static/app/views/dashboards/datasetConfig/spans.tsx
+  line: 506
+  summary: '### Falsy `||` operator skips valid zero error counts  **Low Severity**  <!--
+    DESCRIPTION START --> Using `||` to fall b'
+  line_side: pre_fix
+quality_flags: []

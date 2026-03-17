@@ -1,0 +1,56 @@
+id: sentry-094
+repo: getsentry/sentry
+base_commit: 73dd13f1259de8934a576f78915c39011cbeb3e3^
+head_commit: 73dd13f1259de8934a576f78915c39011cbeb3e3
+fix_commit: 73dd13f1259de8934a576f78915c39011cbeb3e3
+category: type
+difficulty: medium
+severity: high
+language: python
+pr_size: small
+description: The `TagValueSerializerResponse` TypedDict declared `count` as `int`,
+  but the underlying `TagValue` and `TagValueSerializer` allow None for counts. This
+  type mismatch caused a TypeError crash in `get_filter_key_values` when processing
+  tag values with missing counts. The fix corrects the type to `int | None`, filters
+  out entries with None counts, and eliminates a redundant second backend query when
+  the first already returns results.
+expected_findings:
+- file: src/sentry/tagstore/types.py
+  line: 1
+  summary: 'Type mismatch: `count` field in `TagValueSerializerResponse` is typed
+    as `int` but should be `int | None` since `TagValue` and `TagValueSerializer`
+    both allow None for counts, causing downstream crashes'
+  line_side: pre_fix
+- file: src/sentry/seer/assisted_query/issues_tools.py
+  line: 640
+  summary: 'Missing None check: code processes tag value responses assuming `count`
+    is always an int, but it can be None, causing a TypeError. Entries with None counts
+    should be filtered out (note: a falsy check would also incorrectly drop items
+    with count=0)'
+  line_side: pre_fix
+- file: src/sentry/seer/assisted_query/issues_tools.py
+  line: 1
+  summary: 'Redundant backend query: `get_filter_key_values` queries both tags and
+    feature flags backends even when the first returns results, unlike the analogous
+    `get_event_filter_key_values` which short-circuits'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110172
+reviewer_notes: []
+reviewer_findings:
+- file: src/sentry/seer/assisted_query/issues_tools.py
+  line: 640
+  summary: '### Falsy check drops items with count zero  **Medium Severity**  <!--
+    DESCRIPTION START --> The condition `not item.get'
+  line_side: pre_fix
+- file: src/sentry/seer/assisted_query/issues_tools.py
+  line: 640
+  summary: not useful to return count zero and empty value from this rpc
+  line_side: pre_fix
+quality_flags: []

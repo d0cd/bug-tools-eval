@@ -1,21 +1,37 @@
 id: snarkOS-172
 repo: ProvableHQ/snarkOS
-base_commit: d72307161381698fcf6cc91d3994c61ea29594dc^
-head_commit: d72307161381698fcf6cc91d3994c61ea29594dc
-fix_commit: d72307161381698fcf6cc91d3994c61ea29594dc
+base_commit: e4e3bd1051d0c069931159c4d12700319448a6e0^
+head_commit: e4e3bd1051d0c069931159c4d12700319448a6e0
+fix_commit: e4e3bd1051d0c069931159c4d12700319448a6e0
 category: logic
-difficulty: easy
+difficulty: hard
 severity: high
 language: rust
-pr_size: small
-description: Testnet1 bootnode IPs were accidentally commented out in a previous PR,
-  causing nodes to be unable to discover peers via the default bootnode list. The
-  fix uncomments/restores the correct bootnode IP addresses in the config.
+pr_size: xl
+description: The sync mechanism would fast-forward corrupt or invalid blocks without
+  proper validation, allowing bad blocks to be incorporated into the canonical chain.
+  The fix adds validation checks in the sync/master path to reject invalid blocks
+  before they are committed. This was bundled as a drive-by fix inside a large storage
+  migration PR (RocksDB to SQLite).
 expected_findings:
-- file: snarkos/config.rs
-  line: 35
-  summary: Bootnode IP '46.101.144.133:4131' is commented out or missing from the
-    testnet1 bootnode list, preventing peer discovery
+- file: network/src/sync/master.rs
+  line: 79
+  summary: Sync logic fast-forwards blocks without validating them for corruption
+    or invalidity; corrupt blocks from forks of interest can be committed to canon
+  line_side: pre_fix
+- file: consensus/src/consensus/inner/agent.rs
+  line: 23
+  summary: Missing guard when canon is empty — should handle edge case where canon
+    chain state is invalid or contains corrupt blocks before proceeding
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

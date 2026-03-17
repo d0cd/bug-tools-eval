@@ -1,28 +1,41 @@
 id: grafana-038
 repo: grafana/grafana
-base_commit: 2145c70a0a03ac2350bc04e4d5268205c70b6ee8^
-head_commit: 2145c70a0a03ac2350bc04e4d5268205c70b6ee8
-fix_commit: 2145c70a0a03ac2350bc04e4d5268205c70b6ee8
-category: api
+base_commit: 50b35208e79268717bf86cad62f07a5a6ea442a2^
+head_commit: 50b35208e79268717bf86cad62f07a5a6ea442a2
+fix_commit: 50b35208e79268717bf86cad62f07a5a6ea442a2
+category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: typescript
-pr_size: medium
-description: getFolderByUidFacade throws a generic Error('One of the folder responses
-  is undefined') when parallel folder API calls return 403 due to lack of folder access.
-  Callers rely on getStatusFromError() to detect 403 and gracefully degrade, but that
-  function returns undefined for plain Error instances (only works with FetchError
-  carrying an HTTP status), causing the dashboard load to abort. The fix throws the
-  original FetchError from the RTK Query response instead of a generic Error, preserving
-  the 403 status for downstream detection.
+pr_size: small
+description: 'The QueryEditor incorrectly gates card rendering on an `isLoading` state
+  that tracks whether queries are executing, but the card data (`queryRunner.state.queries`)
+  is always synchronously available and has no dependency on execution status. This
+  causes visible flicker: cards render, disappear when isLoading becomes true, then
+  reappear when loading completes. The fix removes the unnecessary isLoading check
+  and the associated loading component render.'
 expected_findings:
-- file: public/app/api/clients/folder/v1beta1/hooks.ts
-  line: 150
-  summary: Throws generic Error('One of the folder responses is undefined') instead
-    of the original FetchError. The plain Error has no HTTP status, so getStatusFromError()
-    returns undefined and callers cannot detect 403 to gracefully skip folder metadata.
+- file: public/app/features/dashboard-scene/panel-edit/PanelEditNext/QueryEditor/Sidebar/QueriesAndTransformationsView.tsx
+  line: 1
+  summary: 'Unnecessary `isLoading` conditional rendering: query card data is synchronously
+    available from `queryRunner.state.queries` and does not depend on query execution
+    state, so gating on `isLoading` causes cards to flicker on load and on every action
+    (delete, hide, duplicate)'
+  line_side: pre_fix
+- file: public/app/features/dashboard-scene/panel-edit/PanelEditNext/QueryEditor/QueryEditorContext.tsx
+  line: 1
+  summary: The `isLoading` state exposed by this context is being consumed to gate
+    rendering of synchronously-available data, causing unnecessary re-renders and
+    visual flicker
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119984
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

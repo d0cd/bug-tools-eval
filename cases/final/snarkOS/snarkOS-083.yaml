@@ -1,21 +1,39 @@
 id: snarkOS-083
 repo: ProvableHQ/snarkOS
-base_commit: 7ee93a4fe31d85f645c18207f28c86412f8a6fb8^
-head_commit: 7ee93a4fe31d85f645c18207f28c86412f8a6fb8
-fix_commit: 7ee93a4fe31d85f645c18207f28c86412f8a6fb8
-category: logic
+base_commit: 72112466aba66be715fbe3f3c24d1b776f17e5d7^
+head_commit: 72112466aba66be715fbe3f3c24d1b776f17e5d7
+fix_commit: 72112466aba66be715fbe3f3c24d1b776f17e5d7
+category: api-misuse
 difficulty: easy
 severity: low
 language: rust
-pr_size: tiny
-description: Test assertions or expectations in ledger/src/state/tests.rs were incorrect,
-  likely due to updated logic in the ledger state module. The fix updated 3 lines
-  of test code to match the correct expected behavior.
+pr_size: small
+description: The `#[cfg(not(any(test, feature = "test")))]` attributes referenced
+  a non-existent `test` feature, causing clippy warnings. The fix removes the invalid
+  `feature = "test"` clause, leaving only the built-in `test` cfg predicate.
 expected_findings:
-- file: ledger/src/state/tests.rs
-  line: 0
-  summary: Test assertions do not match expected behavior of the ledger state module;
-    values or conditions need to be corrected
+- file: node/bft/src/gateway.rs
+  line: 65
+  summary: cfg attribute references non-existent `feature = "test"`; should use only
+    `#[cfg(not(test))]` since there is no "test" feature defined in Cargo.toml
+  line_side: pre_fix
+- file: node/router/src/handshake.rs
+  line: 102
+  summary: cfg attribute references non-existent `feature = "test"`; the feature does
+    not exist and causes clippy errors
+  line_side: pre_fix
+- file: node/router/src/lib.rs
+  line: 47
+  summary: cfg attribute references non-existent `feature = "test"`; should be `#[cfg(not(test))]`
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

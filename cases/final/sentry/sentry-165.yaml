@@ -1,0 +1,35 @@
+id: sentry-165
+repo: getsentry/sentry
+base_commit: db2319f3b821ddbf3a70eb1b92a1437364ff4eb8^
+head_commit: db2319f3b821ddbf3a70eb1b92a1437364ff4eb8
+fix_commit: db2319f3b821ddbf3a70eb1b92a1437364ff4eb8
+category: logic
+difficulty: medium
+severity: medium
+language: python
+pr_size: tiny
+description: Test class `TestEAPIsEscalating` used a hardcoded `FROZEN_TIME` of `datetime(2026,
+  2, 11, ...)` which, after 30 days from that date, exceeded Snuba's retention window.
+  Events stored via `store_events_to_snuba_and_eap()` were silently dropped, causing
+  all 5 tests to return 0 results. The fix replaces the absolute date with a relative
+  one (`datetime.now() - 24h`), matching the `TIME_YESTERDAY` pattern already used
+  by sibling test classes.
+expected_findings:
+- file: tests/sentry/issues/escalating/test_escalating.py
+  line: 345
+  summary: Hardcoded FROZEN_TIME will exceed Snuba's 30-day retention window over
+    time, silently causing all tests in this class to return zero results. Use a relative
+    date (e.g. `datetime.now() - timedelta(hours=24)`) as the other test classes in
+    this file already do.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

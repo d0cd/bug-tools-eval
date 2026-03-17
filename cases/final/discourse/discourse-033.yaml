@@ -1,26 +1,42 @@
 id: discourse-033
 repo: discourse/discourse
-base_commit: 490bf4470b5e7f6e315f23805f53743fdcb2e49b^
-head_commit: 490bf4470b5e7f6e315f23805f53743fdcb2e49b
-fix_commit: 490bf4470b5e7f6e315f23805f53743fdcb2e49b
-category: api
+base_commit: 313108a209d9969bf6d5f83c03cb94438d0a9598^
+head_commit: 313108a209d9969bf6d5f83c03cb94438d0a9598
+fix_commit: 313108a209d9969bf6d5f83c03cb94438d0a9598
+category: code-smell
 difficulty: medium
-severity: critical
-language: ruby
-pr_size: small
-description: The `pg_function` attribute on `EmbeddingDefinition` lacked input validation,
-  allowing an admin to set it to an arbitrary SQL fragment. This value was string-interpolated
-  into raw SQL queries in `DiscourseAi::Embeddings::Schema`, creating a SQL injection
-  vector. The fix adds a validation constraint to restrict `pg_function` to known-safe
-  PostgreSQL function names.
+severity: medium
+language: javascript
+pr_size: medium
+description: 'The search autocomplete menus (@ and # modifiers) created via applySearchAutocomplete()
+  were not being tracked or destroyed when the search component was torn down during
+  page navigation. This caused stale autocomplete popups to persist after hitting
+  the browser back button. The fix stores references to the autocomplete instances
+  and cleans them up in the willDestroyElement lifecycle hook.'
 expected_findings:
-- file: plugins/discourse-ai/app/models/embedding_definition.rb
-  line: 129
-  summary: Missing validation on `pg_function` field allows arbitrary SQL fragments
-    to be string-interpolated into raw SQL queries, enabling SQL injection by an admin
-    user
+- file: frontend/discourse/app/components/search-text-field.js
+  line: 20
+  summary: Autocomplete instance created by applySearchAutocomplete() is not stored
+    or tracked, so it cannot be destroyed when the component is torn down during navigation.
+  line_side: pre_fix
+- file: frontend/discourse/app/components/search-text-field.js
+  line: 35
+  summary: Second call to applySearchAutocomplete() also leaks its instance — no reference
+    kept for cleanup on element destruction.
+  line_side: pre_fix
+- file: frontend/discourse/app/lib/search.js
+  line: 244
+  summary: applySearchAutocomplete creates modifier menus but does not return references
+    to them, making cleanup by the caller impossible.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

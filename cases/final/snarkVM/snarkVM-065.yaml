@@ -1,23 +1,48 @@
 id: snarkVM-065
 repo: ProvableHQ/snarkVM
-base_commit: cf6db40099d54323832690a8ca88510115956839^
-head_commit: cf6db40099d54323832690a8ca88510115956839
-fix_commit: cf6db40099d54323832690a8ca88510115956839
-category: logic
-difficulty: easy
-severity: low
+base_commit: 468a0d2c78c57fc78bd3aeef1145b165a8a95a3a^
+head_commit: 468a0d2c78c57fc78bd3aeef1145b165a8a95a3a
+fix_commit: 468a0d2c78c57fc78bd3aeef1145b165a8a95a3a
+category: constraint
+difficulty: hard
+severity: high
 language: rust
-pr_size: tiny
-description: The profiling timer was ended before the thread pool's results were joined,
-  causing the measured duration to exclude the actual parallel computation time. The
-  fix moves the timer end point to after `pool.execute_all().into_iter().collect()`
-  completes, so the profile accurately captures the full batch proof computation.
+pr_size: xl
+description: Major architectural refactoring that splits the monolithic inner circuit
+  into separate input, output, and value-check proof circuits to support variable
+  M-in N-out transitions. The change replaces the fixed 2-in-2-out constraint with
+  flexible input/output counts, touching circuit definitions, network configs, transaction
+  structures, and serialization tests. As a 'first iteration' by the PR author's own
+  admission, the migration may be incomplete.
 expected_findings:
-- file: algorithms/src/polycommit/sonic_pc/mod.rs
-  line: 390
-  summary: 'Timer/profiler end is placed before thread pool join: the `end!()` call
-    should come after `pool.execute_all().into_iter().collect()` so the profile captures
-    the actual parallel computation time.'
+- file: dpc/src/circuits/tests.rs
+  line: 70
+  summary: 'Circuit split test coverage: verify that the new input/output circuit
+    tests enforce the same constraint soundness guarantees as the former monolithic
+    inner circuit, especially around value balance checks across variable input/output
+    counts'
+  line_side: pre_fix
+- file: dpc/src/virtual_machine/operation.rs
+  line: 35
+  summary: "TODO left in code: 'Refactor transfers to support multiple recipients'\
+    \ \u2014 the split circuit now supports N outputs but transfer logic still assumes\
+    \ fixed recipients, creating an inconsistency between circuit capability and VM\
+    \ operation logic"
+  line_side: pre_fix
+- file: dpc/src/transaction/response.rs
+  line: 81
+  summary: "is_dummy() check uses .all() which returns true for empty iterators \u2014\
+    \ with variable output counts, an empty records vec would incorrectly report as\
+    \ all-dummy, potentially allowing transitions with zero outputs to pass validation"
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 717
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,44 @@
+id: cal.com-023
+repo: calcom/cal.com
+base_commit: 455a91935d556d94a26b1228e504e87194049787^
+head_commit: 455a91935d556d94a26b1228e504e87194049787
+fix_commit: 455a91935d556d94a26b1228e504e87194049787
+category: incomplete
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: medium
+description: 'PR #27012 introduced logic to disable apps without valid environment
+  keys during database seeding, but failed to account for E2E test environments where
+  payment app keys (e.g., alby) are intentionally unconfigured. This caused payment-apps
+  E2E tests to fail because the alby app was marked disabled in the App table before
+  tests ran. The fix adds an ensureAppEnabled helper to explicitly re-enable the app
+  during test setup.'
+expected_findings:
+- file: apps/web/playwright/payment-apps.e2e.ts
+  line: 28
+  summary: 'E2E test assumes alby payment app is enabled in the database, but after
+    the seeding change in PR #27012, apps without valid environment keys are disabled
+    during seed. Tests need an explicit ensureAppEnabled setup step to re-enable the
+    app before running, otherwise they fail in CI where alby keys are not configured.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 27071
+reviewer_notes:
+- "[review] **1 issue found** across 1 file  <details> <summary>Prompt for AI agents\
+  \ (all issues)</summary>  ```text  Check if these issues are valid \u2014 if so,\
+  \ understand the root cause of each and fix them.   <file name=\"apps/web/playwright/payment-apps.e2e.ts\"\
+  >  <violation number=\"1\" location=\"apps/web/playwri"
+reviewer_findings:
+- file: apps/web/playwright/payment-apps.e2e.ts
+  line: 28
+  summary: '<!-- metadata:{"confidence":9,"steps":[]} --> P1: Rule violated: **E2E
+    Tests Best Practices**  This helper flips a seede'
+  line_side: pre_fix
+quality_flags: []

@@ -324,6 +324,94 @@ def test_judge_normalized_results_returns_count(tmp_path: Path) -> None:
     assert count == 1
 
 
+class TestJudgeViaCli:
+    def test_via_cli_calls_subprocess(self, tmp_path: Path) -> None:
+        """via_cli=True calls run_claude_cli with max_turns=1 and returns parsed score."""
+        from unittest.mock import patch
+
+        from bugeval.agent_models import AgentResult
+        from tests.conftest import make_case
+
+        case = make_case()
+        result = _make_result()
+
+        valid_stdout = '{"score": 2, "reasoning": "found it", "comment_judgments": []}'
+        mock_agent_result = AgentResult(stdout=valid_stdout, model="claude-opus-4-6")
+
+        with patch("bugeval.judge.run_claude_cli", return_value=mock_agent_result) as mock_cli:
+            score = judge_case(case, result, system_prompt="judge this", via_cli=True, n_votes=1)
+
+        mock_cli.assert_called_once()
+        call_kwargs = mock_cli.call_args
+        assert call_kwargs.kwargs.get("max_turns") == 1 or call_kwargs.args[2] == 1
+        assert score.score == 2
+
+    def test_via_cli_dry_run_skips_subprocess(self, tmp_path: Path) -> None:
+        """dry_run=True + via_cli=True → no subprocess call, returns score 0."""
+        from unittest.mock import patch
+
+        from tests.conftest import make_case
+
+        case = make_case()
+        result = _make_result()
+
+        with patch("bugeval.judge.run_claude_cli") as mock_cli:
+            score = judge_case(case, result, system_prompt="p", dry_run=True, via_cli=True)
+
+        mock_cli.assert_not_called()
+        assert score.score == 0
+
+    def test_via_cli_parse_failure_returns_zero(self, tmp_path: Path) -> None:
+        """run_claude_cli returns non-JSON stdout → score defaults to 0."""
+        from unittest.mock import patch
+
+        from bugeval.agent_models import AgentResult
+        from tests.conftest import make_case
+
+        case = make_case()
+        result = _make_result()
+
+        bad_result = AgentResult(stdout="I cannot determine the score.", model="claude-opus-4-6")
+
+        with patch("bugeval.judge.run_claude_cli", return_value=bad_result):
+            score = judge_case(case, result, system_prompt="judge this", via_cli=True, n_votes=1)
+
+        assert score.score == 0
+        assert "failed to parse" in score.reasoning
+
+
+def test_judge_normalized_results_parallel(tmp_path: Path) -> None:
+    """max_concurrent > 1 scores all results and returns the correct count."""
+    cases_dir = tmp_path / "cases"
+    cases_dir.mkdir()
+
+    _write_case_yaml(cases_dir, "case-001")
+    _write_case_yaml(cases_dir, "case-002")
+    _write_normalized_yaml(tmp_path, "case-001", "greptile")
+    _write_normalized_yaml(tmp_path, "case-002", "greptile")
+
+    mock_client = MagicMock()
+    mock_client.messages.create.return_value = _make_mock_response(2)
+
+    with patch("bugeval.judge.Anthropic", return_value=mock_client):
+        count = judge_normalized_results(tmp_path, cases_dir, dry_run=False, max_concurrent=2)
+
+    assert count == 2
+    assert len(list((tmp_path / "scores").glob("*.yaml"))) == 2
+
+
+def test_judge_help_shows_max_concurrent(tmp_path: Path) -> None:
+    """judge --help shows --max-concurrent option."""
+    from click.testing import CliRunner
+
+    from bugeval.cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["judge", "--help"])
+    assert result.exit_code == 0
+    assert "--max-concurrent" in result.output
+
+
 def test_judge_case_retries_on_rate_limit() -> None:
     """judge_case retries when the API raises RateLimitError, then succeeds."""
     from tests.conftest import make_case

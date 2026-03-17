@@ -1,38 +1,44 @@
 id: discourse-064
 repo: discourse/discourse
-base_commit: b38b13ecf10c69664bb4c8ca0a5785c4f1c76f18^
-head_commit: b38b13ecf10c69664bb4c8ca0a5785c4f1c76f18
-fix_commit: b38b13ecf10c69664bb4c8ca0a5785c4f1c76f18
+base_commit: 8ffdde5e59cb655d7f6c67cd316395807ce01df9^
+head_commit: 8ffdde5e59cb655d7f6c67cd316395807ce01df9
+fix_commit: 8ffdde5e59cb655d7f6c67cd316395807ce01df9
 category: logic
 difficulty: medium
-severity: high
-language: ruby
+severity: medium
+language: javascript
 pr_size: medium
-description: 'When #37763 moved plugin script tag generation from ember-cli to Rails,
-  the data attributes (data-discourse-plugin, data-preinstalled, data-official) were
-  dropped from the generated script tags. Additionally, the test loader''s `script.dataset
-  = element.dataset` was a silent no-op since dataset is a readonly DOMStringMap property,
-  so data attributes were never copied to dynamically created script elements. This
-  caused setup-tests.js to misidentify all test runs as core tests, enabling strict
-  deprecation handling that broke private plugin test suites.'
+description: When creating a new category from the slide-out sidebar on mobile, the
+  sidebar failed to close after the route transition. The fix threads a `@toggleNavigationMenu`
+  action through the sidebar component hierarchy (sections → categories-section →
+  section) and invokes it on route change using Ember's `next` runloop helper. Additionally,
+  the admin changes banner's bottom offset was not accounting for the PWA footer nav,
+  and a button element was missing the `btn` base class.
 expected_findings:
-- file: frontend/discourse/public/assets/scripts/discourse-test-load-dynamic-js.js
-  line: 1
-  summary: 'Silent no-op: `script.dataset = element.dataset` does nothing because
-    `dataset` is a readonly property on HTMLElement. Must copy attributes individually
-    (e.g., iterate `element.dataset` entries and assign each to `script.dataset`).'
-- file: frontend/discourse-plugins/index.js
-  line: 1
-  summary: Plugin script tag generation moved to Rails but data attributes (data-discourse-plugin,
-    data-preinstalled, data-official) were not carried over to the new generation
-    path.
-- file: app/helpers/application_helper.rb
-  line: 1
-  summary: Script tags generated here are missing the plugin metadata data attributes
-    that downstream test infrastructure relies on to distinguish plugin tests from
-    core tests.
+- file: frontend/discourse/app/components/sidebar/user/categories-section.gjs
+  line: 106
+  summary: 'Missing `@toggleNavigationMenu` prop pass-through: the categories section
+    does not forward the navigation menu toggle action, so creating a category and
+    navigating away leaves the sidebar open on mobile.'
+  line_side: pre_fix
+- file: app/assets/stylesheets/admin/site-settings.scss
+  line: 36
+  summary: Admin changes banner bottom positioning does not account for `.footer-nav-visible`,
+    causing the PWA footer nav to overlap the banner on mobile.
+  line_side: pre_fix
+- file: frontend/discourse/app/components/d-page-subheader.gjs
+  line: 39
+  summary: Button element missing the `btn` base CSS class, resulting in inconsistent
+    styling with other buttons in the application.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

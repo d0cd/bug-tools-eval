@@ -1,27 +1,43 @@
 id: leo-037
 repo: ProvableHQ/leo
-base_commit: 3f6c9b8d4bdc9fbc2f16aadb6a2df49ad307b544^
-head_commit: 3f6c9b8d4bdc9fbc2f16aadb6a2df49ad307b544
-fix_commit: 3f6c9b8d4bdc9fbc2f16aadb6a2df49ad307b544
+base_commit: 23615c685825bcbefcce255b351e491a83c50c4d^
+head_commit: 23615c685825bcbefcce255b351e491a83c50c4d
+fix_commit: 23615c685825bcbefcce255b351e491a83c50c4d
 category: logic
-difficulty: easy
-severity: low
+difficulty: medium
+severity: high
 language: rust
-pr_size: tiny
-description: The compiler emitted an AST JSON file with an incorrect file name string
-  in the call to `to_json_file_without_keys`. The fix corrected the file name literal
-  in `lib.rs` and updated the corresponding test in `test.rs` to reference the correct
-  file path.
+pr_size: small
+description: The Leo compiler's code generation pass incorrectly handled ExpressionStatements
+  containing function calls. The visit_statements handler for Expression::Call did
+  not properly emit call instructions when a call was used as a standalone statement,
+  and the external call formatting in visit_expressions also needed correction to
+  generate valid Aleo instructions.
 expected_findings:
-- file: compiler/compiler/src/lib.rs
-  line: 111
-  summary: "Wrong file name string passed to `to_json_file_without_keys` \u2014 the\
-    \ emitted JSON file name does not match the expected/intended name for the initial\
-    \ input AST."
-- file: compiler/compiler/src/test.rs
-  line: 194
-  summary: Test references incorrect file name `initial_input_ast.json` that matches
-    the buggy emitted name rather than the correct one.
+- file: compiler/passes/src/code_generation/visit_statements.rs
+  line: 128
+  summary: Expression::Call match arm in expression statement codegen does not correctly
+    handle call expressions used as standalone statements — missing or incorrect instruction
+    emission
+  line_side: pre_fix
+- file: compiler/passes/src/code_generation/visit_expressions.rs
+  line: 280
+  summary: External call format string generates incorrect Aleo bytecode instruction
+    for call expressions (wrong format for 'call {external}.aleo/{function}')
+  line_side: pre_fix
+- file: compiler/passes/src/code_generation/visit_expressions.rs
+  line: 304
+  summary: Duplicate external call formatting issue — same incorrect call instruction
+    format as line 280
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

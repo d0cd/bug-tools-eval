@@ -1,24 +1,34 @@
 id: snarkVM-024
 repo: ProvableHQ/snarkVM
-base_commit: 679c3134d4fea151da4f7121fff3cdc9f598f07b^
-head_commit: 679c3134d4fea151da4f7121fff3cdc9f598f07b
-fix_commit: 679c3134d4fea151da4f7121fff3cdc9f598f07b
-category: logic
-difficulty: medium
-severity: high
+base_commit: 1583ecb947500af9df0750dc261e624064423be6^
+head_commit: 1583ecb947500af9df0750dc261e624064423be6
+fix_commit: 1583ecb947500af9df0750dc261e624064423be6
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: When parsing a line comment `// ...` that ends without a trailing newline
-  (i.e., at EOF), the sanitizer neglected to verify that the comment contains no unsafe
-  characters. This could allow unsafe characters to bypass validation in comments
-  that happen to be the last content in the input. The fix adds the missing safety
-  check for the EOF-terminated line comment path.
+pr_size: tiny
+description: The variable `modulus_minus_one` was assigned `E::Scalar::modulus()`
+  (the full modulus, not modulus minus one), making the name misleading. The accompanying
+  comments incorrectly stated the value was the modulus minus one and that the check
+  was 'less than or equal to', when in fact the comparison was strict less-than against
+  the full modulus. The fix renames the variable to `modulus` and corrects the comments
+  to match the actual logic.
 expected_findings:
-- file: console/network/environment/src/helpers/sanitizer.rs
-  line: 84
-  summary: 'Missing unsafe-character check: when a line comment ends at EOF (no trailing
-    newline), the parser returns the comment without validating that all characters
-    pass is_char_supported, unlike the newline-terminated path which does validate.'
+- file: console/types/scalar/src/from_bits.rs
+  line: 36
+  summary: Misleading variable name `modulus_minus_one` is assigned `E::Scalar::modulus()`
+    (the full modulus, not modulus-1), and the comment incorrectly claims the value
+    has 1 subtracted and that the comparison is 'less than or equal to'.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 2138
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

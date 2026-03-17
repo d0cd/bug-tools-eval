@@ -1,29 +1,26 @@
 id: snarkOS-124
 repo: ProvableHQ/snarkOS
-base_commit: 2e8b677b17ee65761aa69df0ea2c380db3718551^
-head_commit: 2e8b677b17ee65761aa69df0ea2c380db3718551
-fix_commit: 2e8b677b17ee65761aa69df0ea2c380db3718551
-category: perf
-difficulty: medium
-severity: medium
+base_commit: a8d4fa697f36f6b294dc5dabf1eb99b25966fa80^
+head_commit: a8d4fa697f36f6b294dc5dabf1eb99b25966fa80
+fix_commit: a8d4fa697f36f6b294dc5dabf1eb99b25966fa80
+category: incomplete
+difficulty: hard
+severity: low
 language: rust
-pr_size: medium
-description: BlockSync had no upper limit on the number of outstanding block requests,
-  allowing unbounded requests that overloaded the network and degraded sync performance.
-  The fix introduces a MAX_BLOCK_REQUESTS constant (set to 50) to cap outstanding
-  requests, and refactors the num_blocks_behind API to support this limiting logic
-  across router implementations.
-expected_findings:
-- file: node/sync/src/block_sync.rs
-  line: 157
-  summary: 'No limit on outstanding block requests in prepare_block_requests: the
-    number of concurrent pending requests can grow unboundedly, overloading the network
-    and degrading sync performance.'
-- file: node/router/src/outbound.rs
-  line: 28
-  summary: num_blocks_behind returns insufficient information to enforce request limits;
-    needs to also expose outstanding request count or integrate with MAX_BLOCK_REQUESTS
-    cap.
+pr_size: xl
+description: This is a large architectural refactoring PR that migrates modules from
+  snarkVM, modularizes node logic for different node types, and introduces prover
+  logic. With no diff available for analysis, it is impossible to identify specific
+  code-level issues. The PR is a structural migration rather than a targeted bug fix.
+expected_findings: []
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: null
+valid_for_code_review: false
+introducing_commit: null
+pr_number: 1992
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

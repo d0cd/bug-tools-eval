@@ -1,24 +1,36 @@
 id: snarkVM-085
 repo: ProvableHQ/snarkVM
-base_commit: 1583ecb947500af9df0750dc261e624064423be6^
-head_commit: 1583ecb947500af9df0750dc261e624064423be6
-fix_commit: 1583ecb947500af9df0750dc261e624064423be6
-category: logic
-difficulty: easy
-severity: low
+base_commit: 5eac11bfd7316309345b2b3551ef639cc602b54e^
+head_commit: 5eac11bfd7316309345b2b3551ef639cc602b54e
+fix_commit: 5eac11bfd7316309345b2b3551ef639cc602b54e
+category: api-misuse
+difficulty: medium
+severity: high
 language: rust
 pr_size: tiny
-description: Incorrect variable name and misleading comments in the scalar `from_bits`
-  implementation. The code at line 34 likely used a wrong variable name (e.g., referencing
-  'modulus' incorrectly) and had comments that did not accurately describe the comparison
-  being performed against the scalar field size. The fix corrects the variable name
-  and updates comments to match the actual logic.
+description: The `async_trait` macro on the Query trait and its impl defaulted to
+  requiring `Send` bounds on generated futures, which is incompatible with wasm-bindgen's
+  single-threaded execution model. The fix adds `?Send` to the `async_trait` attribute
+  so the futures no longer carry a `Send` bound, allowing compilation under wasm targets.
 expected_findings:
-- file: console/types/scalar/src/from_bits.rs
-  line: 34
-  summary: 'Incorrect variable name and/or misleading comment: the variable or comment
-    about ''modulus'' does not accurately describe the value being compared against
-    when checking that bits_le is within the valid scalar field range.'
+- file: ledger/query/src/traits.rs
+  line: 14
+  summary: 'async_trait macro missing `?Send` opt-out: the default `Send` bound on
+    generated futures prevents compilation under wasm-bindgen targets'
+  line_side: pre_fix
+- file: ledger/query/src/query.rs
+  line: 59
+  summary: async_trait impl also requires `?Send` to match the trait definition and
+    avoid Send bound incompatibility with wasm
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

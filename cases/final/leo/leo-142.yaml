@@ -1,30 +1,32 @@
 id: leo-142
 repo: ProvableHQ/leo
-base_commit: 5e00c7485fef794e210023efcf6505a85410bea5^
-head_commit: 5e00c7485fef794e210023efcf6505a85410bea5
-fix_commit: 5e00c7485fef794e210023efcf6505a85410bea5
-category: api
+base_commit: 9050bc8da2cef59f027dea2aa099618a4270f2ee^
+head_commit: 9050bc8da2cef59f027dea2aa099618a4270f2ee
+fix_commit: 9050bc8da2cef59f027dea2aa099618a4270f2ee
+category: logic
 difficulty: easy
 severity: high
 language: rust
-pr_size: medium
-description: The array range access expression handler in the ASG used `.unwrap()`
-  on Option values when resolving slice start/stop indices, causing a Rust panic (crash)
-  when invalid or out-of-range slice indices were provided. The fix replaces the unwrap
-  calls with proper pattern matching (`Some(Some(ConstValue::Int(inner_value)))`)
-  to handle invalid cases gracefully and produce proper compiler errors instead of
-  panicking.
+pr_size: tiny
+description: The code generation for array init expressions concatenated operands
+  without any separator space. `operands.push_str(&operand)` at line 154 joined array
+  element operands directly, producing malformed bytecode. The fix adds a space prefix
+  via `format!(" {operand}")` to properly separate operands in the generated code.
 expected_findings:
-- file: asg/src/expression/array_range_access.rs
-  line: 148
-  summary: Unsafe .unwrap() on array slice start index resolution; will panic on invalid
-    input instead of returning a compiler error. Should use pattern matching to handle
-    None/invalid cases.
-- file: asg/src/expression/array_range_access.rs
-  line: 192
-  summary: Unsafe .unwrap() on array slice stop index resolution; will panic on invalid
-    input instead of returning a compiler error. Should use pattern matching to handle
-    None/invalid cases.
+- file: compiler/passes/src/code_generation/visit_expressions.rs
+  line: 154
+  summary: 'Missing space separator: `operands.push_str(&operand)` concatenates array
+    init operands without any delimiter, producing malformed bytecode — should be
+    `operands.push_str(&format!(" {operand}"))`.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

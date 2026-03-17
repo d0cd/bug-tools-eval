@@ -1,23 +1,36 @@
 id: sdk-051
 repo: ProvableHQ/sdk
-base_commit: 670acdd0e709b031b8755c391c250fc66aec7ef5^
-head_commit: 670acdd0e709b031b8755c391c250fc66aec7ef5
-fix_commit: 670acdd0e709b031b8755c391c250fc66aec7ef5
-category: perf
+base_commit: d8d029f0d31d98ea28f65cb48843eeb6b6e171a3^
+head_commit: d8d029f0d31d98ea28f65cb48843eeb6b6e171a3
+fix_commit: d8d029f0d31d98ea28f65cb48843eeb6b6e171a3
+category: api-misuse
 difficulty: easy
-severity: medium
-language: rust
-pr_size: tiny
-description: Logging the full Aleo program bytecode in the `buildProvingRequest` call
-  produced excessive log output, causing issues in GCP for deployed services like
-  the USDCx bridge. The fix replaces the verbose log statement with one that only
-  logs the function name instead of the entire program bytecode.
+severity: high
+language: typescript
+pr_size: small
+description: The getTransitionId method used the wrong return type (Transition instead
+  of string) and deserialized the API response as a Transition object. After an upstream
+  API change, the /find/transitionID endpoint returns a plain transition ID string,
+  not a Transition object, causing the method to fail or return incorrect data.
 expected_findings:
-- file: wasm/src/programs/manager/proving_request.rs
-  line: 63
-  summary: 'Excessive logging: log statement includes full program bytecode which
-    can be very large, causing performance issues in production logging infrastructure.
-    Should log only the function name or a summary instead.'
+- file: sdk/src/network-client.ts
+  line: 612
+  summary: 'Wrong generic type parameter: fetchData<Transition> should be fetchData<string>
+    because the API returns a plain string transition ID, not a Transition object'
+  line_side: pre_fix
+- file: sdk/src/network-client.ts
+  line: 611
+  summary: Incorrect return type Promise<Transition | Error> should be Promise<string
+    | Error> to match the actual API response format
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,24 +1,54 @@
 id: sentry-031
 repo: getsentry/sentry
-base_commit: 8b873b17e90d235cdcd4cca9f84f0b8acfb200c8^
-head_commit: 8b873b17e90d235cdcd4cca9f84f0b8acfb200c8
-fix_commit: 8b873b17e90d235cdcd4cca9f84f0b8acfb200c8
+base_commit: 2735dfc4986493aa1bfbf087d3470a6f299d87d4^
+head_commit: 2735dfc4986493aa1bfbf087d3470a6f299d87d4
+fix_commit: 2735dfc4986493aa1bfbf087d3470a6f299d87d4
 category: logic
-difficulty: easy
-severity: high
-language: python
-pr_size: small
-description: 'A prior refactor (PR #108287) broke the user serializer so that superusers
-  could no longer see other users'' email addresses. The fix adds an `or user.is_superuser`
-  check to the condition that gates email visibility, restoring the original behavior.'
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: medium
+description: 'The trace waterfall''s measurement indicator placement logic had two
+  bugs: it failed to prefer standalone LCP/CLS span measurements over pageload-derived
+  ones (skipping them when an indicator of the same type already existed), and it
+  incorrectly calculated timestamps for standalone spans by assuming measurements
+  occur exactly at span start rather than applying the measurement offset from the
+  provided origin (e.g., performance.timeOrigin).'
 expected_findings:
-- file: src/sentry/users/api/serializers/user.py
-  line: 183
-  summary: 'Missing superuser check: the condition guarding email visibility only
-    checks if the requester is the same user, but should also allow superusers (add
-    `or user.is_superuser`)'
+- file: static/app/views/performance/newTraceDetails/traceModels/traceTree.measurements.tsx
+  line: 1
+  summary: When a standalone span measurement duplicates an existing pageload-derived
+    indicator of the same type, the standalone span's more specific measurement should
+    replace the existing indicator rather than being skipped
+  line_side: pre_fix
+- file: static/app/views/performance/newTraceDetails/traceModels/traceTree.measurements.tsx
+  line: 1
+  summary: Indicator timestamp for standalone spans should apply the measurement offset
+    relative to the provided origin (node-start or performance.timeOrigin), not assume
+    the measurement occurs exactly at span start time
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110297
+reviewer_notes:
+- '[review] Thanks for fixing! I have to admit I''m a bit surprised that this happens
+  because the SDK should only send either an LCP measurement on the pageload span,
+  or a standalone LCP span. Never both. Same for CLS. Do you have a link to a trace
+  where both are sent? This sounds like an SDK bug we should fix.'
+reviewer_findings:
+- file: static/app/views/performance/newTraceDetails/traceModels/traceTree.spec.tsx
+  line: 837
+  summary: 'standalone LCP spans aren''t children of the pageload span. They''re siblings.
+    Not sure if we can model this in the test. '
+  line_side: pre_fix
+- file: static/app/views/performance/newTraceDetails/traceModels/traceTree.spec.tsx
+  line: 837
+  summary: "Updated the tests to better model this! Thanks for the callout @Lms24\
+    \ \U0001F604"
+  line_side: pre_fix
+quality_flags: []

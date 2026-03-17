@@ -1,33 +1,44 @@
 id: snarkVM-087
 repo: ProvableHQ/snarkVM
-base_commit: 3fe597ed4e282139b6e31d5c1ae47551e425d0dc^
-head_commit: 3fe597ed4e282139b6e31d5c1ae47551e425d0dc
-fix_commit: 3fe597ed4e282139b6e31d5c1ae47551e425d0dc
-category: logic
-difficulty: easy
+base_commit: 60e4602a663fa788583ff7083359d0f304ef1475^
+head_commit: 60e4602a663fa788583ff7083359d0f304ef1475
+fix_commit: 60e4602a663fa788583ff7083359d0f304ef1475
+category: api-misuse
+difficulty: medium
 severity: high
 language: rust
-pr_size: large
-description: Off-by-one error in input validation for `ClosureCore::add_input` and
-  `FinalizeCore::add_input`. The boundary check `self.inputs.len() < N::MAX_INPUTS`
-  uses the wrong comparison operator, allowing one more input than the intended maximum.
-  The fix corrects the comparison to properly enforce the MAX_INPUTS limit, and adds
-  corresponding validation tests.
+pr_size: medium
+description: The Metadata struct's `cumulative_weight` and `cumulative_proof_target`
+  fields (both u128) were serialized and deserialized as raw JSON numbers. JSON numbers
+  lose precision for large u128 values, causing data corruption during round-trip
+  serde. The fix serializes these fields as strings and parses them back on deserialization.
 expected_findings:
-- file: synthesizer/program/src/closure/mod.rs
-  line: 83
-  summary: 'Off-by-one in input validation: boundary check allows exceeding MAX_INPUTS
-    by one; comparison operator should be `<` vs `<=` (or vice versa) to correctly
-    enforce the input count limit.'
-- file: synthesizer/program/src/closure/mod.rs
-  line: 147
-  summary: 'Off-by-one in input validation on the parsing/from_instructions path:
-    same incorrect boundary check as the add_input method, allowing one extra input
-    beyond MAX_INPUTS.'
-- file: synthesizer/program/src/finalize/mod.rs
-  line: 92
-  summary: 'Off-by-one in FinalizeCore::add_input validation: same boundary check
-    error allowing inputs to exceed MAX_INPUTS by one.'
+- file: ledger/block/src/header/metadata/serialize.rs
+  line: 27
+  summary: u128 field `cumulative_weight` is serialized as a raw JSON number via serialize_field
+    without .to_string(); JSON cannot represent large u128 values without precision
+    loss
+  line_side: pre_fix
+- file: ledger/block/src/header/metadata/serialize.rs
+  line: 28
+  summary: u128 field `cumulative_proof_target` is serialized as a raw JSON number;
+    needs string serialization to avoid precision loss for values exceeding JSON number
+    range
+  line_side: pre_fix
+- file: ledger/block/src/header/metadata/serialize.rs
+  line: 50
+  summary: Deserialization reads `cumulative_weight` and `cumulative_proof_target`
+    directly as u128 from JSON value instead of parsing from string, which will fail
+    or lose precision for large values
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

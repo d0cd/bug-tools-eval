@@ -1,29 +1,43 @@
 id: snarkVM-125
 repo: ProvableHQ/snarkVM
-base_commit: c57ad3009cd85c08919219c69d2d1741aecc7dc3^
-head_commit: c57ad3009cd85c08919219c69d2d1741aecc7dc3
-fix_commit: c57ad3009cd85c08919219c69d2d1741aecc7dc3
-category: api
-difficulty: easy
-severity: low
+base_commit: 93ff9d18a5e03a5ceb1dd4d894b121e002d6efd6^
+head_commit: 93ff9d18a5e03a5ceb1dd4d894b121e002d6efd6
+fix_commit: 93ff9d18a5e03a5ceb1dd4d894b121e002d6efd6
+category: cryptographic
+difficulty: hard
+severity: high
 language: rust
-pr_size: small
-description: Doc comments contained bare URLs, unescaped angle brackets, and incorrect
-  code fence language annotations that caused `cargo doc` to emit warnings. The fix
-  wraps URLs in angle brackets, puts type references in backticks, uses curly braces
-  for literal angle brackets in prose, and corrects code block language tags.
+pr_size: medium
+description: CRH and commitment scheme implementations returned projective curve points
+  as output, but the Merkle tree gadget expected affine curve points, causing an inconsistency
+  between the native and constraint worlds. The fix changes `type Output` to `G::Affine`
+  across all Pedersen and Bowe-Hopwood hash/commitment implementations and introduces
+  a `CurveGadget` trait to provide `AllocGadget<G::Affine, F>` in the constraint system.
 expected_findings:
-- file: algorithms/src/snark/varuna/varuna.rs
-  line: 332
-  summary: Bare URL in doc comment not wrapped in angle brackets; `cargo doc` cannot
-    interpret it as a hyperlink and emits a warning.
-- file: circuit/environment/src/traits/operators.rs
-  line: 36
-  summary: Bare URL in doc comment not wrapped in `<>`, causing `cargo doc` warning.
-- file: utilities/src/error.rs
-  line: 41
-  summary: Literal angle brackets `<line>` in doc comment are misinterpreted by rustdoc
-    as an HTML tag / hyperlink; should use curly braces `{line}` instead.
+- file: algorithms/src/crh/pedersen.rs
+  line: 33
+  summary: CRH Output type uses projective representation instead of G::Affine, causing
+    Merkle tree inconsistency when the tree expects affine-encoded hash outputs
+  line_side: pre_fix
+- file: algorithms/src/crh/bowe_hopwood_pedersen.rs
+  line: 45
+  summary: Bowe-Hopwood CRH Output type uses projective representation instead of
+    G::Affine, same Merkle tree inconsistency as Pedersen CRH
+  line_side: pre_fix
+- file: gadgets/src/traits/curves/group.rs
+  line: 252
+  summary: Missing CurveGadget trait combining GroupGadget<G, F> + AllocGadget<G::Affine,
+    F>; without this the constraint-world gadgets cannot allocate affine points, breaking
+    Merkle tree verification circuits
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

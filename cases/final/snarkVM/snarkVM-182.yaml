@@ -1,28 +1,31 @@
 id: snarkVM-182
 repo: ProvableHQ/snarkVM
-base_commit: 9d94e7ab8f90c4c0c1d7a6585a9c23344a6fa25b^
-head_commit: 9d94e7ab8f90c4c0c1d7a6585a9c23344a6fa25b
-fix_commit: 9d94e7ab8f90c4c0c1d7a6585a9c23344a6fa25b
+base_commit: fb3ef93f0eed206cd727f8b76f272347ac24162c^
+head_commit: fb3ef93f0eed206cd727f8b76f272347ac24162c
+fix_commit: fb3ef93f0eed206cd727f8b76f272347ac24162c
 category: logic
-difficulty: medium
-severity: high
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: BlockStorage::get_unconfirmed_transaction returned the fee transaction
-  instead of the original unconfirmed transaction when given a fee transaction ID.
-  The fix adds proper lookup logic to map fee transaction IDs back to the original
-  unconfirmed transaction, with supporting methods added to ConfirmedTransaction and
-  Transactions types.
+pr_size: tiny
+description: The transition output limit verification was incorrectly comparing against
+  MAX_INPUTS instead of MAX_OUTPUTS. Since both constants currently have the same
+  value, this had no functional impact, but it would become a bug if the constants
+  ever diverged.
 expected_findings:
-- file: ledger/store/src/block/mod.rs
-  line: 925
-  summary: "get_unconfirmed_transaction does not handle fee transaction IDs correctly\
-    \ \u2014 it returns the fee transaction directly instead of looking up and returning\
-    \ the original unconfirmed transaction"
-- file: ledger/store/src/block/mod.rs
-  line: 943
-  summary: Missing logic to resolve fee transaction IDs to their corresponding unconfirmed
-    transactions before returning
+- file: synthesizer/src/process/verify_execution.rs
+  line: 64
+  summary: 'Wrong constant used: transition outputs count is compared against MAX_INPUTS
+    instead of MAX_OUTPUTS'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

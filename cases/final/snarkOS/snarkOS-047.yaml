@@ -1,31 +1,32 @@
 id: snarkOS-047
 repo: ProvableHQ/snarkOS
-base_commit: cd73c74e6da6d65ed2457b5dc58b693dcb6ce5a6^
-head_commit: cd73c74e6da6d65ed2457b5dc58b693dcb6ce5a6
-fix_commit: cd73c74e6da6d65ed2457b5dc58b693dcb6ce5a6
+base_commit: 3eea16f6410d61308774a8ea6678c738fb4e0536^
+head_commit: 3eea16f6410d61308774a8ea6678c738fb4e0536
+fix_commit: 3eea16f6410d61308774a8ea6678c738fb4e0536
 category: logic
-difficulty: medium
-severity: medium
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: The `--bft` CLI flag for customizing the BFT bind address and port was
-  only respected when `--dev` mode was enabled. In production mode, the BFT socket
-  address was always set to a hardcoded default, ignoring the user-supplied value.
-  The fix ensures the `--bft` flag is applied regardless of whether dev mode is active,
-  replicated across all three network variant implementations (mainnet, testnet, canary).
+pr_size: tiny
+description: The block sync log message did not distinguish between different situations
+  when handling block heights. The fix adds an `else if` branch checking `self.ledger.contains_block_height(height)`
+  to emit a more specific log message when the block is already known to the ledger,
+  rather than using a single generic message for all cases.
 expected_findings:
-- file: cli/src/commands/start.rs
-  line: 110
-  summary: BFT socket address construction ignores the user-provided `--bft` flag
-    value unless `--dev` is set; should respect `--bft` in all modes
-- file: cli/src/commands/start.rs
-  line: 328
-  summary: BFT socket address construction ignores the user-provided `--bft` flag
-    value unless `--dev` is set; should respect `--bft` in all modes (testnet variant)
-- file: cli/src/commands/start.rs
-  line: 507
-  summary: BFT socket address construction ignores the user-provided `--bft` flag
-    value unless `--dev` is set; should respect `--bft` in all modes (canary variant)
+- file: node/sync/src/block_sync.rs
+  line: 623
+  summary: 'Missing condition branch: log message does not differentiate when the
+    ledger already contains the block height, leading to misleading or inaccurate
+    log output.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

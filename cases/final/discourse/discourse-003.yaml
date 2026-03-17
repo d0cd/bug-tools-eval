@@ -1,31 +1,37 @@
 id: discourse-003
 repo: discourse/discourse
-base_commit: 79b5dd202a64e0545acd63e976cc2aed46a5b0a2^
-head_commit: 79b5dd202a64e0545acd63e976cc2aed46a5b0a2
-fix_commit: 79b5dd202a64e0545acd63e976cc2aed46a5b0a2
-category: logic
-difficulty: easy
-severity: medium
+base_commit: 029519ce15422b2f037abc791c722ca14bbf228b^
+head_commit: 029519ce15422b2f037abc791c722ca14bbf228b
+fix_commit: 029519ce15422b2f037abc791c722ca14bbf228b
+category: security
+difficulty: medium
+severity: high
 language: ruby
 pr_size: small
-description: The accept_answer service in discourse-solved crashed with a 'user not
-  found' error when trying to send notifications for accepted solutions where the
-  post or topic author had been deleted. The fix adds guard clauses checking User.exists?(post.user_id)
-  before attempting to notify the post author and topic creator, preventing the error
-  for deleted users.
+description: The Chat::ListChannelThreadMessages service looked up threads globally
+  by thread_id alone, ignoring the channel_id from the URL path. This allowed accessing
+  thread messages via a mismatched channel_id, violating REST hierarchy semantics
+  and potentially leaking messages from private channels. The fix scopes the thread
+  lookup by both thread_id and channel_id and adds a threading-enabled policy check.
 expected_findings:
-- file: plugins/discourse-solved/app/services/discourse_solved/accept_answer.rb
-  line: 69
-  summary: 'Missing existence check: code attempts to notify post author without verifying
-    the user still exists, causing error when user has been deleted. Should guard
-    with `!User.exists?(post.user_id)`.'
-- file: plugins/discourse-solved/app/services/discourse_solved/accept_answer.rb
-  line: 91
-  summary: 'Missing existence check: code attempts to notify topic creator without
-    verifying the user still exists. Same deleted-user guard needed as the post author
-    notification path.'
+- file: plugins/chat/app/services/chat/list_channel_thread_messages.rb
+  line: 1
+  summary: 'IDOR: fetch_thread looks up thread by thread_id only without scoping to
+    channel_id, allowing access to threads in other channels by manipulating the URL'
+  line_side: pre_fix
+- file: plugins/chat/app/services/chat/list_channel_thread_messages.rb
+  line: 1
+  summary: 'Missing policy check: unlike peer services (LookupThread, UpdateUserThreadLastRead),
+    this service does not verify that threading is enabled for the channel'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 37978
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

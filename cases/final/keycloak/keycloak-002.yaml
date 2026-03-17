@@ -1,31 +1,46 @@
 id: keycloak-002
 repo: keycloak/keycloak
-base_commit: 82cab306fc5231bec0287677645146bd5ca503b3^
-head_commit: 82cab306fc5231bec0287677645146bd5ca503b3
-fix_commit: 82cab306fc5231bec0287677645146bd5ca503b3
-category: api
-difficulty: easy
-severity: medium
-language: typescript
-pr_size: small
-description: Dynamic URI path segments in Account Console API calls were not being
-  encoded with encodeURIComponent(). This meant that IDs or other dynamic values containing
-  special characters (e.g., '/', '#', '?') would break the URI structure, leading
-  to failed or misdirected API requests. The fix wraps all dynamic path segments with
-  encodeURIComponent().
+base_commit: 02066f4985d881e206cca8ae3cee589ce8928570^
+head_commit: 02066f4985d881e206cca8ae3cee589ce8928570
+fix_commit: 02066f4985d881e206cca8ae3cee589ce8928570
+category: logic
+difficulty: medium
+severity: high
+language: java
+pr_size: medium
+description: The batch-oriented `copyOf` and `populateClientSessions` methods in ImmutableSession
+  processed user sessions in buffered batches via `getAllAsync` and collection-based
+  queries, but this approach produced incorrect results in clusterless, multi-site,
+  and volatile session configurations. The fix refactors to per-session processing
+  (`getAsync` + `map` instead of `buffer` + `getAllAsync` + `flatMap`), eliminating
+  the batch indirection and a missing `setRealm` context call in the test.
 expected_findings:
-- file: themes/src/main/resources/theme/keycloak.v2/account/src/app/content/applications-page/ApplicationsPage.tsx
-  line: 100
-  summary: Dynamic `clientId` interpolated into URI path without encodeURIComponent(),
-    risking malformed API requests when the ID contains special characters.
-- file: themes/src/main/resources/theme/keycloak.v2/account/src/app/content/my-resources-page/ResourcesTable.tsx
-  line: 91
-  summary: Dynamic `resource._id` interpolated into URI path without encodeURIComponent(),
-    risking broken requests with special characters in the ID.
-- file: themes/src/main/resources/theme/keycloak.v2/account/src/app/content/signingin-page/SigningInPage.tsx
-  line: 147
-  summary: Dynamic `credentialId` concatenated into URI path without encodeURIComponent(),
-    could cause malformed API calls.
+- file: model/infinispan/src/main/java/org/keycloak/models/sessions/infinispan/remote/RemoteUserSessionProvider.java
+  line: 311
+  summary: Batch buffering with `.buffer(batchSize)` followed by `flatMap` to `ImmutableSession.copyOf(collection)`
+    causes incorrect session results in remote/external-store configurations; should
+    process sessions individually via `.map` + `.filter(nonNull)`.
+  line_side: pre_fix
+- file: model/infinispan/src/main/java/org/keycloak/models/sessions/infinispan/remote/RemoteUserSessionProvider.java
+  line: 322
+  summary: '`getAllAsync(Set.copyOf(sessionId))` fetches a batch map then passes `entity.values()`
+    to the collection-based `copyOf`, but this batch-then-flatten pattern can lose
+    or misassociate client sessions; should use `getAsync(sessionId)` per session.'
+  line_side: pre_fix
+- file: tests/base/src/test/java/org/keycloak/tests/model/UserSessionProviderTest.java
+  line: 894
+  summary: Missing `kcSession.getContext().setRealm(realm)` before calling `readOnlyStreamUserSessions`;
+    without it, the realm context is null and the call fails in configurations that
+    rely on the session context (e.g., remote Infinispan).
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

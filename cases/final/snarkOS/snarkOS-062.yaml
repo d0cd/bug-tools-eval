@@ -1,23 +1,33 @@
 id: snarkOS-062
 repo: ProvableHQ/snarkOS
-base_commit: ae07f8c492ebcadd5246b94f8038d94ce3222bc0^
-head_commit: ae07f8c492ebcadd5246b94f8038d94ce3222bc0
-fix_commit: ae07f8c492ebcadd5246b94f8038d94ce3222bc0
-category: logic
+base_commit: 54000f0444b49edc7b5681c1530f98e401d168e7^
+head_commit: 54000f0444b49edc7b5681c1530f98e401d168e7
+fix_commit: 54000f0444b49edc7b5681c1530f98e401d168e7
+category: style
 difficulty: easy
 severity: low
 language: rust
 pr_size: tiny
-description: The test `test_block_requests_case_2cba` used `rng.gen_range()` with
-  bounds that could produce an empty range (start >= end), causing an intermittent
-  panic. The fix adjusts the range bounds to ensure the start value is always strictly
-  less than the end value.
+description: Dependabot automated dependency bump of jsonrpc-derive from 14.1.0 to
+  14.2.1. This is a routine version update to Cargo.toml and Cargo.lock, not a bug
+  fix. The PR title 'Fix' is misleading; the actual change is a minor dependency version
+  bump.
 expected_findings:
-- file: src/helpers/block_requests.rs
-  line: 487
-  summary: 'Invalid range in rng.gen_range(): when MAXIMUM_FORK_DEPTH + 2 >= the upper
-    bound, the range is empty, causing a panic. The lower bound should be adjusted
-    to guarantee start < end.'
+- file: rpc/Cargo.toml
+  line: 28
+  summary: 'Version pinning inconsistency: jsonrpc-derive is pinned to 14.2.1 while
+    sibling crates (jsonrpc-core, jsonrpc-core-client, jsonrpc-http-server) remain
+    at 14.0.5. Mixing minor versions within the same jsonrpc family could cause compatibility
+    issues.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

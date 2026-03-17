@@ -1,32 +1,40 @@
 id: leo-096
 repo: ProvableHQ/leo
-base_commit: 4a7b0621754206b6aba859fcf6f710b24eb29ebb^
-head_commit: 4a7b0621754206b6aba859fcf6f710b24eb29ebb
-fix_commit: 4a7b0621754206b6aba859fcf6f710b24eb29ebb
-category: type
-difficulty: medium
+base_commit: 5e00c7485fef794e210023efcf6505a85410bea5^
+head_commit: 5e00c7485fef794e210023efcf6505a85410bea5
+fix_commit: 5e00c7485fef794e210023efcf6505a85410bea5
+category: api-misuse
+difficulty: easy
 severity: high
 language: rust
 pr_size: medium
-description: The Leo compiler's type checking used strict equality (`eq_flat`) for
-  type comparisons, which failed when futures appeared inside tuples. The fix introduces
-  `eq_flat_relaxed`, a relaxed type equality method that properly handles non-explicit
-  futures and structs with differing program origins, and applies it across the type
-  checker, flattening pass, and symbol table.
+description: The array range access expression handler in the ASG used `.unwrap()`
+  on Option values when resolving slice start/stop indices, causing a Rust panic (crash)
+  when invalid or out-of-range slice indices were provided. The fix replaces the unwrap
+  calls with proper pattern matching (`Some(Some(ConstValue::Int(inner_value)))`)
+  to handle invalid cases gracefully and produce proper compiler errors instead of
+  panicking.
 expected_findings:
-- file: compiler/passes/src/type_checking/checker.rs
-  line: 174
-  summary: Type equality check uses strict comparison that fails for futures in tuples;
-    should use eq_flat_relaxed to handle non-explicit futures and cross-program struct
-    matching.
-- file: compiler/passes/src/flattening/flatten_expression.rs
-  line: 84
-  summary: Assertion uses strict type equality (eq_flat) which will panic when future
-    types appear in tuples; needs eq_flat_relaxed for relaxed future/struct comparison.
-- file: compiler/passes/src/common/symbol_table/mod.rs
-  line: 119
-  summary: Struct member type comparison uses strict equality that rejects valid future
-    types in tuple members; should use eq_flat_relaxed.
+- file: asg/src/expression/array_range_access.rs
+  line: 148
+  summary: Unsafe .unwrap() on array slice start index resolution; will panic on invalid
+    input instead of returning a compiler error. Should use pattern matching to handle
+    None/invalid cases.
+  line_side: pre_fix
+- file: asg/src/expression/array_range_access.rs
+  line: 192
+  summary: Unsafe .unwrap() on array slice stop index resolution; will panic on invalid
+    input instead of returning a compiler error. Should use pattern matching to handle
+    None/invalid cases.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

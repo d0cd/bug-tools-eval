@@ -1,0 +1,58 @@
+id: sentry-158
+repo: getsentry/sentry
+base_commit: d0272c901979c9ecbf7a1c11a3635fc9004a1979^
+head_commit: d0272c901979c9ecbf7a1c11a3635fc9004a1979
+fix_commit: d0272c901979c9ecbf7a1c11a3635fc9004a1979
+category: incomplete
+difficulty: easy
+severity: critical
+language: python
+pr_size: small
+description: A refactor renamed the TypedDict key and aggregation key from 'deactive'
+  to 'inactive', but the endpoint code still references counts["deactive"], causing
+  a KeyError on the happy path. This is a classic incomplete rename where the consumer
+  was not updated to match the producer.
+expected_findings:
+- file: src/sentry/workflow_engine/endpoints/organization_detector_count.py
+  line: 83
+  summary: "KeyError: counts[\"deactive\"] will fail because the aggregation now uses\
+    \ the key \"inactive\" \u2014 update this access to counts[\"inactive\"]"
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/endpoints/organization_detector_count.py
+  line: 23
+  summary: "TypedDict key was renamed from 'deactive' to 'inactive' but not all references\
+    \ were updated \u2014 check all consumers of this dict"
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110137
+reviewer_notes:
+- '[inline] **Bug:** The code attempts to access `counts["deactive"]` after a refactor
+  renamed this key to `inactive`, which will cause a `KeyError` on the happy path.
+  <sub>Severity: CRITICAL</sub> <!-- BUG_PREDICTION -->  <details> <summary><b title="Reference
+  ID: `11324410/0`">Suggested Fix</b></summary>  Upd'
+- '[thread] <!-- BACKEND_TEST_FAILURES --> <!-- BACKEND_TEST_FAILURES_COMMIT:1eb753d091e10babe63cdc5956f85327e00c0c2d
+  --> ## Backend Test Failures  Failures on [`1eb753d`](https://github.com/getsentry/sentry/commit/1eb753d091e10babe63cdc5956f85327e00c0c2d)
+  in [this run](https://github.com/getsentry/sentry/actio'
+reviewer_findings:
+- file: src/sentry/workflow_engine/endpoints/organization_detector_count.py
+  line: 23
+  summary: '**KeyError: counts["deactive"] will fail because aggregation uses "inactive"
+    key**  The TypedDict is renamed from `deact'
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/endpoints/organization_detector_count.py
+  line: 23
+  summary: '**Fix attempt detected** (commit 79d6dc6)  The commit changed the TypedDict
+    and aggregation key from ''deactive'' to ''inac'
+  line_side: pre_fix
+- file: src/sentry/workflow_engine/endpoints/organization_detector_count.py
+  line: 83
+  summary: '**Bug:** The code attempts to access `counts["deactive"]` after a refactor
+    renamed this key to `inactive`, which will ca'
+  line_side: pre_fix
+quality_flags: []

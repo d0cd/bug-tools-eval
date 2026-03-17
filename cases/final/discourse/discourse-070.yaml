@@ -1,0 +1,34 @@
+id: discourse-070
+repo: discourse/discourse
+base_commit: a135e21d3fd50564f815ff47fcf01e84d6615e99^
+head_commit: a135e21d3fd50564f815ff47fcf01e84d6615e99
+fix_commit: a135e21d3fd50564f815ff47fcf01e84d6615e99
+category: api-misuse
+difficulty: medium
+severity: high
+language: javascript
+pr_size: tiny
+description: During the popper.js to floating-ui migration, the `autoUpdate` call
+  in select-kit was passed `this._bodyElement()` as the floating element argument
+  instead of the actual floating dropdown element. This caused incorrect positioning
+  behavior because floating-ui's `autoUpdate` expects the floating element (the positioned
+  dropdown) as its second argument, not the body/reference container.
+expected_findings:
+- file: frontend/discourse/select-kit/components/select-kit.js
+  line: 976
+  summary: 'Incorrect floating element passed to autoUpdate: `this._bodyElement()`
+    is the reference/body element, not the floating dropdown element. floating-ui''s
+    autoUpdate(reference, floating, ...) requires the positioned floating element
+    as the second argument.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

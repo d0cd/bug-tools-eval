@@ -1,25 +1,26 @@
 id: keycloak-037
 repo: keycloak/keycloak
-base_commit: 76505fa2550955aa2ba58bd10176e0b4d532f263^
-head_commit: 76505fa2550955aa2ba58bd10176e0b4d532f263
-fix_commit: 76505fa2550955aa2ba58bd10176e0b4d532f263
-category: api
+base_commit: 783ea304afb314c87c4744117cd545b279a4975b^
+head_commit: 783ea304afb314c87c4744117cd545b279a4975b
+fix_commit: 783ea304afb314c87c4744117cd545b279a4975b
+category: style
 difficulty: easy
-severity: high
-language: java
+severity: low
+language: unknown
 pr_size: tiny
-description: The Apache Santuario XML Security library (xmlsec) had a bug tracked
-  as SANTUARIO-617 that affected XML encryption operations in Keycloak's SAML implementation.
-  The fix upgrades the xmlsec dependency from its previous version to 3.0.6, which
-  contains the upstream fix. A test for AES_256_GCM with RSA_OAEP encryption was also
-  updated to cover the corrected behavior.
-expected_findings:
-- file: pom.xml
-  line: 124
-  summary: Outdated xmlsec.version dependency contains SANTUARIO-617 bug affecting
-    XML encryption; should be upgraded to 3.0.6
+description: This PR adds documentation about a passthrough backchannel limitation
+  in Keycloak's hostname configuration. It is a documentation-only change (docs/guides/server/hostname.adoc)
+  with no code modifications, meaning there is no code-level defect for a reviewer
+  to identify.
+expected_findings: []
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
 verified_by: null
+valid_for_code_review: false
+introducing_commit: null
+pr_number: 45915
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

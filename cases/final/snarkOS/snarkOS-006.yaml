@@ -1,28 +1,46 @@
 id: snarkOS-006
 repo: ProvableHQ/snarkOS
-base_commit: 90c60940ca50c328e3ea70598e635edfb0f0e51d^
-head_commit: 90c60940ca50c328e3ea70598e635edfb0f0e51d
-fix_commit: 90c60940ca50c328e3ea70598e635edfb0f0e51d
-category: api
+base_commit: 0c7c40d6d1ffdaf2202ad898100a969cad21e901^
+head_commit: 83082eff17f8e9b6dda68295b4d0e1c788e99247
+fix_commit: 0c7c40d6d1ffdaf2202ad898100a969cad21e901
+category: api-misuse
 difficulty: medium
 severity: high
 language: rust
 pr_size: medium
-description: The Bowe-Hopwood Pedersen CRH implementation used a parallel reduce operation
-  (likely via rayon) directly, which blocked WASM builds since WASM targets do not
-  support threading/parallelism. The fix wraps the reduce operation in a macro that
-  conditionally dispatches to parallel or sequential execution depending on the build
-  target.
+description: 'The `snarkos developer scan` command failed on devnets due to three
+  issues: (1) endpoint URLs were constructed with inline `format!()` instead of `Developer::build_endpoint()`,
+  producing incorrect URLs for non-mainnet networks; (2) the CDN scan range calculation
+  used `start_height % MAX_BLOCK_RANGE` instead of `end_height % MAX_BLOCK_RANGE`,
+  causing incorrect block range boundaries; (3) the genesis block comparison assumed
+  mainnet, preventing devnet detection.'
 expected_findings:
-- file: algorithms/src/crh/bowe_hopwood_pedersen.rs
-  line: 26
-  summary: Direct use of parallel iterator reduce operation is not compatible with
-    WASM targets; should use a platform-conditional macro to switch between parallel
-    and sequential reduce
-- file: algorithms/src/crh/bowe_hopwood_pedersen.rs
-  line: 151
-  summary: Second instance of direct parallel reduce operation that blocks WASM builds;
-    needs to be wrapped in a platform-conditional macro
+- file: cli/src/commands/developer/scan.rs
+  line: 70
+  summary: Endpoint URL constructed with inline format!("{endpoint}{}/...", N::SHORT_NAME)
+    instead of Developer::build_endpoint::<N>(), producing malformed URLs on devnets
+    where the endpoint base differs from mainnet conventions
+  line_side: pre_fix
+- file: cli/src/commands/developer/scan.rs
+  line: 109
+  summary: 'CDN scan range calculation uses wrong variable: `end_height.saturating_sub(start_height
+    % MAX_BLOCK_RANGE)` should be `end_height.saturating_sub(end_height % MAX_BLOCK_RANGE).saturating_add(MAX_BLOCK_RANGE)`
+    — current logic computes an incorrect scan window boundary'
+  line_side: pre_fix
+- file: cli/src/commands/developer/scan.rs
+  line: 14
+  summary: Genesis block comparison via Block::from_bytes_le(N::genesis_bytes()) does
+    not account for devnet/test networks — always compares against production genesis,
+    so is_development_network is never set correctly on devnets
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

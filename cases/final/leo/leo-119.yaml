@@ -1,23 +1,37 @@
 id: leo-119
 repo: ProvableHQ/leo
-base_commit: c4279e2a8382adf060b30375a454281d7f59f52d^
-head_commit: c4279e2a8382adf060b30375a454281d7f59f52d
-fix_commit: c4279e2a8382adf060b30375a454281d7f59f52d
-category: logic
-difficulty: medium
-severity: high
+base_commit: 7938064ea533373172e2f0a401c012bad43a05b4^
+head_commit: 7938064ea533373172e2f0a401c012bad43a05b4
+fix_commit: 7938064ea533373172e2f0a401c012bad43a05b4
+category: style
+difficulty: easy
+severity: low
 language: rust
 pr_size: small
-description: The Leo compiler's type checker did not validate that loop bounds must
-  be literal values, allowing non-literal expressions (e.g., variables) as loop bounds
-  without producing a compiler error. The fix adds an explicit check in the statement
-  type-checking pass that emits a new error when a loop bound is not a literal expression.
+description: Doc comments in the parser referenced outdated or incorrect type names
+  and contained stale visibility annotations. The fix corrects documentation comments
+  in expression.rs (e.g., references to `SpreadOrExpression`) and removes or updates
+  misleading 'public solely for writing import parsing tests' comments in file.rs
+  to match actual usage.
 expected_findings:
-- file: compiler/passes/src/type_checking/check_statements.rs
-  line: 322
-  summary: 'Missing validation: loop bounds are not checked to be literals. Non-literal
-    expressions (variables, function calls) are silently accepted as loop bounds when
-    they should produce a type-checker error.'
+- file: parser/src/parser/expression.rs
+  line: 386
+  summary: Doc comment references `SpreadOrExpression` which is incorrect or outdated;
+    should reference the actual return type of this parsing method
+  line_side: pre_fix
+- file: parser/src/parser/file.rs
+  line: 162
+  summary: Comment 'Public solely for writing import parsing tests' is inaccurate
+    or outdated; visibility justification does not match actual usage
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

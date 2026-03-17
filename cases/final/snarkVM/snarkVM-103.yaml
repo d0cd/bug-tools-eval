@@ -1,33 +1,31 @@
 id: snarkVM-103
 repo: ProvableHQ/snarkVM
-base_commit: 468a0d2c78c57fc78bd3aeef1145b165a8a95a3a^
-head_commit: 468a0d2c78c57fc78bd3aeef1145b165a8a95a3a
-fix_commit: 468a0d2c78c57fc78bd3aeef1145b165a8a95a3a
+base_commit: 72b22b049aa7a448a781581d2ced4058c3a87ee2^
+head_commit: 72b22b049aa7a448a781581d2ced4058c3a87ee2
+fix_commit: 72b22b049aa7a448a781581d2ced4058c3a87ee2
 category: logic
-difficulty: hard
-severity: high
+difficulty: easy
+severity: medium
 language: rust
-pr_size: xl
-description: The inner circuit was monolithically designed to support only fixed 2-in
-  2-out transitions. This PR splits it into separate input circuit, output circuit,
-  and value check proof components to support variable M-in N-out transitions per
-  transition, fixing the architectural constraint that limited transaction flexibility.
+pr_size: tiny
+description: The fee validation in `check_fee_internal` used a strict less-than (`<`)
+  instead of less-than-or-equal (`<=`) when comparing against `N::MAX_FEE`. This off-by-one
+  error incorrectly rejected transactions whose fee was exactly the maximum allowed
+  amount. The fix changes the comparison to `<=` so that the boundary value is accepted.
 expected_findings:
-- file: dpc/src/circuits/inner_circuit.rs
-  line: 1
-  summary: Monolithic inner circuit enforces fixed 2-in 2-out constraint; needs to
-    be split into separate input/output circuits to support variable record counts
-    per transition.
-- file: dpc/src/circuits/inner_public_variables.rs
-  line: 1
-  summary: Inner public variables are coupled to a single proof structure; should
-    be refactored into separate InputPublicVariables and OutputPublicVariables to
-    support per-record proofs.
-- file: dpc/src/network/testnet1.rs
-  line: 21
-  summary: Network trait references monolithic InnerPublicVariables; needs updating
-    to use split InputPublicVariables/OutputPublicVariables types for variable input/output
-    support.
+- file: synthesizer/src/vm/verify.rs
+  line: 258
+  summary: 'Off-by-one in fee bound check: `*fee_amount < N::MAX_FEE` should be `*fee_amount
+    <= N::MAX_FEE` — a fee exactly equal to MAX_FEE is valid but gets rejected'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

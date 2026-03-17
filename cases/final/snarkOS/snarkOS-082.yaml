@@ -1,26 +1,35 @@
 id: snarkOS-082
 repo: ProvableHQ/snarkOS
-base_commit: 60b65b4b330f4a878e896fb5c23bf1661134583c^
-head_commit: 60b65b4b330f4a878e896fb5c23bf1661134583c
-fix_commit: 60b65b4b330f4a878e896fb5c23bf1661134583c
-category: logic
-difficulty: medium
-severity: medium
-language: rust
+base_commit: 70966a22bedee1470135d46c0c6d44e181a485f6^
+head_commit: 70966a22bedee1470135d46c0c6d44e181a485f6
+fix_commit: 70966a22bedee1470135d46c0c6d44e181a485f6
+category: incomplete
+difficulty: easy
+severity: low
+language: python
 pr_size: small
-description: Recently introduced logic in the network server and environment modules
-  caused incorrect behavior and was reverted. The revert removed faulty logic from
-  src/environment/mod.rs and src/network/server.rs, restoring the previous correct
-  behavior.
+description: Updates the sync snapshot used by CI benchmarks to one compatible with
+  the current staging environment, and fixes a choco uninstall issue in Windows CI.
+  This is a CI configuration maintenance change, not a code-level bug fix.
 expected_findings:
-- file: src/environment/mod.rs
-  line: 1
-  summary: "Recently added logic in environment module introduced a bug that required\
-    \ reverting (exact line unknown \u2014 diff unavailable)"
-- file: src/network/server.rs
-  line: 1
-  summary: "Recently added logic in network server introduced a bug that required\
-    \ reverting (exact line unknown \u2014 diff unavailable)"
+- file: .github/workflows/benchmarks.yml
+  line: 51
+  summary: Snapshot URL/version is outdated and incompatible with current staging
+    consensus version
+  line_side: pre_fix
+- file: .ci/bench_bft_sync.sh
+  line: 95
+  summary: Benchmark sync script references an outdated snapshot that no longer matches
+    staging
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

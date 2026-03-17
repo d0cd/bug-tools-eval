@@ -1,32 +1,43 @@
 id: snarkVM-153
 repo: ProvableHQ/snarkVM
-base_commit: d208ca879307d5101fbccfb88665a5ec155b5cff^
-head_commit: d208ca879307d5101fbccfb88665a5ec155b5cff
-fix_commit: d208ca879307d5101fbccfb88665a5ec155b5cff
-category: api
-difficulty: easy
+base_commit: d166066623ef425af42aeaecc5c77f27403d5017^
+head_commit: d166066623ef425af42aeaecc5c77f27403d5017
+fix_commit: d166066623ef425af42aeaecc5c77f27403d5017
+category: api-misuse
+difficulty: medium
 severity: medium
 language: rust
 pr_size: xl
-description: The snarkVM CLI removal PR cleaned up unused dependencies (clap, colored,
-  self_update, etc.), but this caused compilation issues in vm/package/mod.rs where
-  `anyhow::anyhow` was previously available via transitive dependencies and needed
-  explicit imports. Additionally, Cargo.toml had formatting issues (empty lines) and
-  the 'file' and 'package' features needed restoration after the CLI feature removal.
+description: The PR refactors the FromBits trait to remove an explicit `mode` parameter
+  that could contradict the actual mode of input bits, introduces `Inject::constant`
+  for cleaner constant construction, adds Field::pow and a Poseidon hash circuit,
+  and adds an optional secondary little-endian bit representation for Field. The mode
+  parameter removal fixes inconsistent circuit mode handling across types.
 expected_findings:
-- file: vm/package/mod.rs
-  line: 207
-  summary: "Missing explicit `use anyhow::anyhow;` import \u2014 previously resolved\
-    \ transitively through CLI dependencies; removing CLI deps breaks compilation\
-    \ here."
-- file: Cargo.toml
-  line: 91
-  summary: Empty lines and stale dependency entries left after partial CLI dependency
-    removal; needs cleanup to avoid cargo warnings and ensure correct feature resolution.
-- file: vm/lib.rs
-  line: 17
-  summary: "CLI module still referenced in lib.rs after CLI removal \u2014 dead module\
-    \ declaration that would cause compilation failure."
+- file: circuits/types/field/src/from_bits.rs
+  line: 15
+  summary: FromBits trait method signature changed to remove mode parameter — verify
+    all call sites updated consistently
+  line_side: pre_fix
+- file: circuits/types/field/src/to_bits.rs
+  line: 35
+  summary: Optional secondary LE bit representation added to Field; verify bits_le
+    cache invalidation on mutation
+  line_side: pre_fix
+- file: circuits/types/boolean/src/from_bits.rs
+  line: 20
+  summary: Boolean's FromBits::from_bits_le also accepts an explicit `mode` parameter,
+    creating an inconsistent API where the caller-specified mode could disagree with
+    the input bits' actual mode.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

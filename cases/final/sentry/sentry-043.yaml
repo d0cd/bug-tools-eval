@@ -1,29 +1,38 @@
 id: sentry-043
 repo: getsentry/sentry
-base_commit: 2d3faf35bf52137af1fe4f872bf89b5881d1b436^
-head_commit: 2d3faf35bf52137af1fe4f872bf89b5881d1b436
-fix_commit: 2d3faf35bf52137af1fe4f872bf89b5881d1b436
-category: logic
-difficulty: easy
-severity: low
-language: typescript
+base_commit: 36f485422d241c85e57049281ce47809c89a824a^
+head_commit: 36f485422d241c85e57049281ce47809c89a824a
+fix_commit: 36f485422d241c85e57049281ce47809c89a824a
+category: performance
+difficulty: medium
+severity: medium
+language: unknown
 pr_size: tiny
-description: The FeedbackButton in the Logs and Metrics explore pages was explicitly
-  set to size 'xs', while the same button in Traces, Profiles, and Releases used the
-  default 'sm' size. The fix removes the explicit size='xs' prop from the two inconsistent
-  pages so all five explore pages render a uniformly sized feedback button.
+description: The CI setup action restores the virtual environment from cache and then
+  immediately runs `find` commands that delete all `__pycache__` directories and `.pyc`
+  files, including those inside `.venv/`. This negates the venv cache restoration,
+  forcing Python to recompile every installed package on first import during every
+  CI run. The fix excludes `.venv` from the `find` cleanup paths.
 expected_findings:
-- file: static/app/views/explore/logs/content.tsx
-  line: 112
-  summary: FeedbackButton has explicit size="xs" prop, inconsistent with the default
-    sm size used in other explore pages (Traces, Profiles, Releases). Remove the size
-    prop to unify.
-- file: static/app/views/explore/metrics/content.tsx
-  line: 94
-  summary: FeedbackButton has explicit size="xs" prop, inconsistent with the default
-    sm size used in other explore pages. Remove the size prop to unify.
+- file: .github/actions/setup-sentry/action.yml
+  line: 90
+  summary: '`find . -type d -name __pycache__ -exec rm -rf {} +` deletes cached bytecode
+    inside .venv, negating the venv cache restore from the previous step. Should exclude
+    .venv with `-not -path ''./.venv/*''`'
+  line_side: pre_fix
+- file: .github/actions/setup-sentry/action.yml
+  line: 91
+  summary: Second `find` command removing .pyc files also lacks a `.venv` exclusion,
+    compounding the cache invalidation problem
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

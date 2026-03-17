@@ -1,0 +1,39 @@
+id: discourse-078
+repo: discourse/discourse
+base_commit: b3ded56549596aa92add78ed0a719f60bfdde195^
+head_commit: b3ded56549596aa92add78ed0a719f60bfdde195
+fix_commit: b3ded56549596aa92add78ed0a719f60bfdde195
+category: security
+difficulty: medium
+severity: high
+language: ruby
+pr_size: small
+description: ComposerMessagesFinder loads topics and posts from user-supplied IDs
+  without authorization checks. Any authenticated user can probe arbitrary topic/post
+  IDs to leak moderation state (e.g., whether a post has active flags via check_dont_feed_the_trolls)
+  and create UserHistory records referencing inaccessible topics. The fix adds Guardian#can_see?
+  checks to nil out unauthorized topics and posts.
+expected_findings:
+- file: lib/composer_messages_finder.rb
+  line: 15
+  summary: 'Missing Guardian#can_see? authorization check: topic loaded from user-supplied
+    topic_id is used without verifying the current user has access, allowing information
+    disclosure and unauthorized UserHistory creation'
+  line_side: pre_fix
+- file: lib/composer_messages_finder.rb
+  line: 18
+  summary: 'Missing Guardian#can_see? authorization check on post: post loaded from
+    user-supplied post_id is used in check_dont_feed_the_trolls without verifying
+    access, leaking whether the post has active flags'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

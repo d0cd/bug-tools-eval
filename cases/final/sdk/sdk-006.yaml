@@ -1,31 +1,53 @@
 id: sdk-006
 repo: ProvableHQ/sdk
-base_commit: 7341b716e9e5c79bc035ec39ed1812c4d8ee6680^
-head_commit: 7341b716e9e5c79bc035ec39ed1812c4d8ee6680
-fix_commit: 7341b716e9e5c79bc035ec39ed1812c4d8ee6680
-category: api
-difficulty: easy
+base_commit: 0e2c01aa643d9692d36e9bb63b9fdd561a77fd0c^
+head_commit: 0e2c01aa643d9692d36e9bb63b9fdd561a77fd0c
+fix_commit: 0e2c01aa643d9692d36e9bb63b9fdd561a77fd0c
+category: incomplete
+difficulty: medium
 severity: high
-language: javascript
-pr_size: small
-description: 'Two bugs fixed: (1) The rollup config files used the deprecated `assert
-  { type: "json" }` import assertion syntax which fails under Node 22, replaced with
-  the newer `with { type: "json" }` syntax. (2) The `change-version.js` script had
-  incorrect logic for updating version strings in `Cargo.toml`, causing version bumps
-  to fail for that file.'
+language: typescript
+pr_size: large
+description: The `verify_function_execution` WASM function and its TypeScript wrapper
+  `verifyExecution` only supported single-program executions without imports. Any
+  execution involving imported programs (multi-transition) would fail verification
+  because the process object never resolved import programs or inserted their verifying
+  keys. The fix adds optional `imports` and `importedVerifyingKeys` parameters, resolves
+  imports into the process, and inserts per-function verifying keys for each imported
+  program before calling `process.verify_execution`.
 expected_findings:
-- file: sdk/rollup.config.js
-  line: 1
-  summary: Import assertion uses deprecated `assert` keyword instead of `with`, causing
-    build failure on Node 22
-- file: sdk/rollup.test.js
-  line: 1
-  summary: Import assertion uses deprecated `assert` keyword instead of `with`, causing
-    build failure on Node 22
-- file: scripts/change-version.js
-  line: 37
-  summary: "Cargo.toml version update logic is incorrect \u2014 regex or replacement\
-    \ pattern fails to match/update the version field properly"
+- file: wasm/src/programs/execution.rs
+  line: 110
+  summary: verify_function_execution only accepts (execution, verifying_key, program,
+    function_id) — no way to supply imported programs or their verifying keys, so
+    verification of any execution with cross-program calls will fail.
+  line_side: pre_fix
+- file: sdk/src/program-manager.ts
+  line: 1963
+  summary: verifyExecution passes only (execution, verifyingKey, program, function_id)
+    to the WASM layer without imported programs or verifying keys, making multi-import
+    execution verification impossible.
+  line_side: pre_fix
+- file: wasm/src/programs/execution.rs
+  line: 103
+  summary: verify_function_execution does not resolve imported programs or their verifying
+    keys; any execution with imports will fail verification because the process only
+    knows about the top-level program
+  line_side: pre_fix
+- file: sdk/src/program-manager.ts
+  line: 1965
+  summary: verifyExecution signature does not accept imports or imported verifying
+    keys, making it impossible for callers to provide the data needed for multi-import
+    verification
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

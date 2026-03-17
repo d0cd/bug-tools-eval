@@ -1,31 +1,41 @@
 id: sdk-013
 repo: ProvableHQ/sdk
-base_commit: 928a7d911047cd17acbd302b7e191b04a4f838bb^
-head_commit: 928a7d911047cd17acbd302b7e191b04a4f838bb
-fix_commit: 928a7d911047cd17acbd302b7e191b04a4f838bb
-category: api
-difficulty: easy
-severity: high
-language: javascript
+base_commit: 1d3a5cb821bd2222e8e10d14bdee2b85f0663d4c^
+head_commit: 1d3a5cb821bd2222e8e10d14bdee2b85f0663d4c
+fix_commit: 1d3a5cb821bd2222e8e10d14bdee2b85f0663d4c
+category: api-misuse
+difficulty: medium
+severity: medium
+language: typescript
 pr_size: small
-description: 'Vite configuration files across create-leo-app templates and the website
-  were misconfigured, missing `assetsInclude: [''**/*.wasm'']` and using CommonJS
-  `require()` syntax incompatible with Vite''s ESM module system. The fix updates
-  all vite.config files to use proper ESM imports and include WASM asset configuration,
-  allowing templates and the website to build and function properly.'
+description: Unit tests import individual internal files within the SDK (e.g., `@provablehq/sdk/%%NETWORK%%.js`)
+  instead of the package entry point (`@provablehq/sdk`). This bypasses the Node polyfill
+  initialization that runs at the package entry point, causing intermittent test failures
+  when the polyfill is not loaded.
 expected_findings:
-- file: create-leo-app/template-react-leo/vite.config.js
-  line: 4
-  summary: 'Vite config missing `assetsInclude: [''**/*.wasm'']` and possibly using
-    CommonJS `require()` instead of ESM imports, causing build failures'
-- file: create-leo-app/template-react-ts/vite.config.ts
-  line: 3
-  summary: Vite config missing WASM asset inclusion, preventing proper build of Leo
-    app template
-- file: website/vite.config.js
-  line: 3
-  summary: 'Website Vite config missing `assetsInclude: [''**/*.wasm'']` and likely
-    using incompatible `require()` call'
+- file: sdk/tests/account.test.ts
+  line: 1
+  summary: Import uses internal SDK path instead of package entry point `@provablehq/sdk`,
+    bypassing Node polyfill initialization
+  line_side: pre_fix
+- file: sdk/tests/wasm.test.ts
+  line: 1
+  summary: Import from internal module path instead of `@provablehq/sdk`; polyfill
+    may not be loaded, causing intermittent failures
+  line_side: pre_fix
+- file: sdk/rollup.test.js
+  line: 39
+  summary: Dynamic import references internal SDK network module path instead of the
+    public package API
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

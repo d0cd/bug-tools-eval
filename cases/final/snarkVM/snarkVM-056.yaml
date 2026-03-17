@@ -1,23 +1,38 @@
 id: snarkVM-056
 repo: ProvableHQ/snarkVM
-base_commit: 064a384d3a61b58ec755982553bbb3a53ee986d3^
-head_commit: 064a384d3a61b58ec755982553bbb3a53ee986d3
-fix_commit: 064a384d3a61b58ec755982553bbb3a53ee986d3
-category: logic
+base_commit: 3cc1d742a3b9bb68c469230f01b6c3a409189a44^
+head_commit: 3cc1d742a3b9bb68c469230f01b6c3a409189a44
+fix_commit: 3cc1d742a3b9bb68c469230f01b6c3a409189a44
+category: code-smell
 difficulty: easy
-severity: critical
+severity: low
 language: rust
-pr_size: small
-description: After merging the 'hash' PR on top of the 'finalize-fees' PR, conflicting
-  or duplicate code remained in the finalize module that broke the build. The fix
-  removed 12 lines of code from synthesizer/src/program/finalize/mod.rs that were
-  introduced by the 'hash' PR but were incompatible with the 'finalize-fees' changes.
+pr_size: tiny
+description: Three identical log messages ('The proof target does not match the expected
+  proof target') in different validation paths made it impossible to determine which
+  check failed. The fix differentiates them by specifying 'cached proof target' vs
+  'computed proof target' to clarify which validation step triggered the error.
 expected_findings:
-- file: synthesizer/src/program/finalize/mod.rs
-  line: 121
-  summary: Duplicate or conflicting code left over from merging the 'hash' PR on top
-    of 'finalize-fees' changes; these lines should be removed as they reference stale
-    signatures or logic superseded by the finalize-fees PR.
+- file: ledger/puzzle/src/lib.rs
+  line: 172
+  summary: 'Duplicate log message: ''The proof target does not match the expected
+    proof target'' is identical to messages at other validation sites — should say
+    ''cached proof target'' to distinguish this check'
+  line_side: pre_fix
+- file: ledger/puzzle/src/lib.rs
+  line: 195
+  summary: 'Duplicate log message: ''The proof target does not match the expected
+    proof target'' is identical to messages at other validation sites — should say
+    ''computed proof target'' to distinguish this check'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

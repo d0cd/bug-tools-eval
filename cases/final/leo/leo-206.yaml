@@ -1,33 +1,42 @@
 id: leo-206
 repo: ProvableHQ/leo
-base_commit: e1a969fd19d865417f79cca60d3f8e9a7d77f967^
-head_commit: e1a969fd19d865417f79cca60d3f8e9a7d77f967
-fix_commit: e1a969fd19d865417f79cca60d3f8e9a7d77f967
+base_commit: cf290ed0971032974567d142ba340bdec04e43b3^
+head_commit: cf290ed0971032974567d142ba340bdec04e43b3
+fix_commit: cf290ed0971032974567d142ba340bdec04e43b3
 category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: large
-description: The Leo compiler's type checker did not distinguish between real function
-  definitions and external function stubs when checking for variable shadowing. This
-  caused false 'shadowed variable' errors when importing external functions whose
-  input parameter names overlapped with local variables. The fix adds an `is_stub`
-  flag to the type checker to skip shadowing checks during stub traversal.
+pr_size: medium
+description: Circuit init and circuit access expressions did not implement constant
+  value propagation, causing constant folding to fail for circuit types. The fix adds
+  a Circuit variant to ConstValue and implements const_value() for circuit_access
+  and circuit_init expressions, using a map of identifier names for efficient member
+  lookups.
 expected_findings:
-- file: compiler/passes/src/type_checking/checker.rs
-  line: 57
-  summary: 'Missing `is_stub` flag on the type checker: the checker has no way to
-    distinguish stub traversal from real function traversal, causing shadowing checks
-    to be incorrectly applied to external function input parameters.'
-- file: compiler/passes/src/type_checking/check_program.rs
-  line: 28
-  summary: When entering a function or transition for type checking, `is_stub` is
-    not reset to false, so the checker cannot correctly gate shadowing checks based
-    on whether we are inside a stub.
-- file: compiler/ast/src/stub/function_stub.rs
-  line: 315
-  summary: Stub function inputs may not carry proper identifier information (`arg_name`),
-    preventing the type checker from correctly handling input names during stub processing.
+- file: asg/src/expression/circuit_access.rs
+  line: 83
+  summary: const_value() for circuit access expressions returns None instead of propagating
+    the constant value of the accessed circuit member
+  line_side: pre_fix
+- file: asg/src/expression/circuit_init.rs
+  line: 70
+  summary: const_value() for circuit init expressions returns None instead of constructing
+    a ConstValue::Circuit from the member initializers
+  line_side: pre_fix
+- file: asg/src/const_value.rs
+  line: 14
+  summary: ConstValue enum is missing a Circuit variant to represent constant circuit
+    values, preventing constant folding for circuit expressions
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

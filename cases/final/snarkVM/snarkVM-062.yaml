@@ -1,30 +1,44 @@
 id: snarkVM-062
 repo: ProvableHQ/snarkVM
-base_commit: ce37051e09ea3e6485955327bece4e8d9792b748^
-head_commit: ce37051e09ea3e6485955327bece4e8d9792b748
-fix_commit: ce37051e09ea3e6485955327bece4e8d9792b748
+base_commit: 423fb30fcd29fd8a2c636103a40c74a2ad8614dc^
+head_commit: 423fb30fcd29fd8a2c636103a40c74a2ad8614dc
+fix_commit: 423fb30fcd29fd8a2c636103a40c74a2ad8614dc
 category: type
-difficulty: easy
+difficulty: medium
 severity: high
 language: rust
 pr_size: tiny
-description: Incorrect use of u16 type for field size calculations in ciphertext and
-  plaintext data structures. The size_in_fields functions and the bytes serialization
-  bounds check used u16 where a different bound or type was needed, risking overflow
-  or incorrect validation of data sizes against MAX_DATA_SIZE_IN_FIELDS.
+description: The `Bech32ID` and `Bech32Object` traits required `Borrow<F>`, which
+  allowed map operations to accept raw fields instead of their strongly-typed wrappers
+  (e.g. `StateRoot`, `BlockHash`, `TransactionID`, `TransitionID` were all interchangeable
+  as bare fields). This type leniency meant map lookups could silently use the wrong
+  key type, producing incorrect results. The fix removes the `Borrow<F>` bound and
+  updates call sites to use the wrapper types directly.
 expected_findings:
-- file: console/program/src/data/ciphertext/bytes.rs
-  line: 38
-  summary: Bounds check uses `self.0.len() > u16::MAX` which may be the wrong type
-    bound for validating ciphertext field count
-- file: console/program/src/data/ciphertext/size_in_fields.rs
-  line: 24
-  summary: "Returns `u16::try_from(num_fields)?` \u2014 u16 may be too narrow for\
-    \ the field count, risking truncation or incorrect conversion"
-- file: console/program/src/data/plaintext/size_in_fields.rs
-  line: 26
-  summary: "Returns `u16::try_from(num_fields)?` \u2014 same u16 narrowing issue as\
-    \ ciphertext size_in_fields, should match the correct field count type"
+- file: console/network/src/helpers/id.rs
+  line: 23
+  summary: Bech32ID trait bound includes `Borrow<F>` which erases the distinction
+    between wrapper types, allowing any ID type to be used interchangeably as a bare
+    field in map lookups
+  line_side: pre_fix
+- file: console/network/src/helpers/object.rs
+  line: 23
+  summary: Bech32Object trait bound includes `Borrow<F>` which similarly erases type
+    safety for object wrapper types in map operations
+  line_side: pre_fix
+- file: synthesizer/src/store/block/mod.rs
+  line: 359
+  summary: '`.into()` converts `global_state_root` to a bare field for map lookup,
+    bypassing wrapper type safety — should use the typed wrapper directly'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

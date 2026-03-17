@@ -1,24 +1,32 @@
 id: discourse-006
 repo: discourse/discourse
-base_commit: ddbd9e9ea7e3c67207fb2c985847834aad6001f7^
-head_commit: ddbd9e9ea7e3c67207fb2c985847834aad6001f7
-fix_commit: ddbd9e9ea7e3c67207fb2c985847834aad6001f7
-category: api
+base_commit: 041022fafd584bfceafd5f4e3770b4d4b02b77e6^
+head_commit: 041022fafd584bfceafd5f4e3770b4d4b02b77e6
+fix_commit: 041022fafd584bfceafd5f4e3770b4d4b02b77e6
+category: logic
 difficulty: easy
-severity: low
-language: unknown
-pr_size: medium
-description: Dependency bump of autoprefixer from 10.4.23 to 10.4.27. This is a routine
-  dependency update rather than an application-level bug fix; the changes are confined
-  to package.json version specifiers and the lockfile. Any bugs addressed are upstream
-  in the autoprefixer library itself.
+severity: medium
+language: javascript
+pr_size: small
+description: The `getConsolePrefix` function in `deprecated.js` calls `consolePrefix(null,
+  source)` but omits the `return` keyword, so it always returns `undefined`. This
+  caused deprecation warnings to lose their source-identifying prefix (e.g. `[THEME
+  123 'test-theme']`). The bug was masked because a downstream `filter(Boolean)` silently
+  stripped the `undefined` value.
 expected_findings:
-- file: frontend/asset-processor/package.json
-  line: 17
-  summary: Outdated autoprefixer dependency (10.4.23) should be bumped to 10.4.27
-    to pick up upstream fixes
+- file: frontend/discourse/app/lib/deprecated.js
+  line: 177
+  summary: 'Missing `return`: `consolePrefix(null, source)` is called but its result
+    is discarded — should be `return consolePrefix(null, source) || "";`'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

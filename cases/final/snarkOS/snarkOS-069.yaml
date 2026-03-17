@@ -1,28 +1,32 @@
 id: snarkOS-069
 repo: ProvableHQ/snarkOS
-base_commit: 9269d27b35c878dfe93209762d251b44d2f98316^
-head_commit: 9269d27b35c878dfe93209762d251b44d2f98316
-fix_commit: 9269d27b35c878dfe93209762d251b44d2f98316
-category: logic
+base_commit: 617584b54840c9fc45967f09062c3f5323d4c36d^
+head_commit: 617584b54840c9fc45967f09062c3f5323d4c36d
+fix_commit: 617584b54840c9fc45967f09062c3f5323d4c36d
+category: api-misuse
 difficulty: easy
-severity: high
+severity: medium
 language: rust
-pr_size: medium
-description: 'Two logic bugs: (1) After migrating away from std::env::set_var for
-  Rust 2024 safety, log filter strings were still prefixed with ''RUST_LOG='' which
-  broke log filtering entirely. (2) A missing ''!'' negation operator caused sync
-  mode to be reported incorrectly. The fix removes the RUST_LOG= prefix from filter
-  strings and adds the missing negation.'
+pr_size: tiny
+description: The CLI error handler used Display formatting (`{}`) for HTTP error responses,
+  which produced unhelpful messages. The fix switches to Debug formatting (`{:?}`),
+  which includes the status code, status text, and URL — information essential for
+  diagnosing failed network requests.
 expected_findings:
-- file: cli/src/helpers/logger.rs
-  line: 33
-  summary: Log filter string still contains 'RUST_LOG=' prefix which is invalid after
-    migrating away from environment variable-based configuration; the prefix should
-    be removed.
-- file: node/src/client/mod.rs
-  line: 198
-  summary: Missing negation operator ('!') in condition checking sync mode, causing
-    the sync status to be reported as the opposite of its actual state.
+- file: cli/src/commands/developer/mod.rs
+  line: 131
+  summary: Error response formatted with Display (`{}`) instead of Debug (`{:?}`);
+    Display omits status code, status text, and URL, making the error message unhelpful
+    for users diagnosing connection or 404 errors
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

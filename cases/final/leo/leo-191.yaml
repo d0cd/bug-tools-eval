@@ -1,24 +1,47 @@
 id: leo-191
 repo: ProvableHQ/leo
-base_commit: 8b254b6b1057dffdeb85601ca1c1ca040c44cad6^
-head_commit: 8b254b6b1057dffdeb85601ca1c1ca040c44cad6
-fix_commit: 8b254b6b1057dffdeb85601ca1c1ca040c44cad6
-category: logic
+base_commit: c1e69317eb1e7506e94d44716ef3196c4a795a80^
+head_commit: c1e69317eb1e7506e94d44716ef3196c4a795a80
+fix_commit: c1e69317eb1e7506e94d44716ef3196c4a795a80
+category: code-smell
 difficulty: easy
-severity: medium
+severity: low
 language: rust
 pr_size: small
-description: The package name validation rejected all names containing numbers, when
-  it should only reject names that start with a number. The fix updates the character
-  validation to allow digits in non-first positions while still rejecting names where
-  the first character is a digit.
+description: 'Multiple Display implementations had minor formatting issues: TupleExpression
+  used an inefficient map+collect+join pattern without spaces after commas, multi-output
+  function return types were missing wrapping parentheses, Output::Display unconditionally
+  printed the mode even when it was None (producing a leading space), and Composite::Display
+  was missing a space before the identifier.'
 expected_findings:
-- file: package/src/package.rs
-  line: 68
-  summary: 'Overly restrictive character validation: package names reject all numeric
-    characters instead of only rejecting numbers as the first character. Should allow
-    alphanumeric characters but separately check that the first character is not a
-    digit.'
+- file: compiler/ast/src/expressions/tuple.rs
+  line: 35
+  summary: 'Inefficient Display: uses `.map(|x| x.to_string()).collect::<Vec<_>>().join(",")`
+    instead of `itertools::format`; also missing space after comma separator'
+  line_side: pre_fix
+- file: compiler/ast/src/functions/mod.rs
+  line: 142
+  summary: 'Missing parentheses around multi-output return type: `write!(f, " -> {}",
+    ...)` should wrap output in `()` for correct tuple return syntax'
+  line_side: pre_fix
+- file: compiler/ast/src/functions/output.rs
+  line: 48
+  summary: Output::Display unconditionally prints mode even when Mode::None, producing
+    a spurious leading space in the formatted output
+  line_side: pre_fix
+- file: compiler/ast/src/struct/mod.rs
+  line: 138
+  summary: 'Missing space before identifier in Composite::Display: `writeln!(f, "{}
+    {{", self.identifier)` should be `writeln!(f, " {} {{", self.identifier)`'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

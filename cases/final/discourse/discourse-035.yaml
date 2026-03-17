@@ -1,24 +1,61 @@
 id: discourse-035
 repo: discourse/discourse
-base_commit: 1499ab07410b74af8cc377da85e6081fd16d8f27^
-head_commit: 1499ab07410b74af8cc377da85e6081fd16d8f27
-fix_commit: 1499ab07410b74af8cc377da85e6081fd16d8f27
-category: api
-difficulty: easy
+base_commit: 375779df7bb6aba7a713af9c1b1a0350f4e1011e^
+head_commit: 9e99066b07
+fix_commit: 375779df7bb6aba7a713af9c1b1a0350f4e1011e
+category: api-misuse
+difficulty: medium
 severity: high
 language: ruby
-pr_size: small
-description: The Horizon sidebar 'New Topic' button passed `this.tag?.id` (a numeric
-  database ID) to `composer.openNewTopic()`, which expects tag names as strings. This
-  caused a runtime TypeError for non-staff users (crashing the composer) and displayed
-  numeric IDs instead of tag names for staff users. The fix switches to `this.tag?.name`.
+pr_size: medium
+description: The TagChooser refactor (9e99066b07) changed its `_onChange` callback
+  to pass tag objects instead of plain name strings. The watched-word form still called
+  `.join(",")` on these objects, producing `[object Object]` instead of tag names,
+  completely breaking the watched-word tag action. The fix required updating both
+  the frontend serialization and the backend controller to handle tag objects/IDs.
 expected_findings:
-- file: themes/horizon/javascripts/discourse/components/sidebar-new-topic-button.gjs
-  line: 55
-  summary: 'Wrong property passed: `this.tag?.id` passes a numeric ID but `openNewTopic()`
-    expects a tag name string. Should be `this.tag?.name`.'
+- file: frontend/discourse/admin/components/watched-word-form.gjs
+  line: 1
+  summary: "After TagChooser refactor, `tags` are now objects not strings; calling\
+    \ `.join(\",\")` on tag objects produces `[object Object]` \u2014 must extract\
+    \ `.name` or `.id` before serialization"
+  line_side: pre_fix
+- file: app/controllers/admin/watched_words_controller.rb
+  line: 134
+  summary: Controller strong params (`watched_words_params`) does not permit `:replacement_tags`;
+    the new frontend sends tag IDs but the backend has no parameter allowlisting for
+    them
+  line_side: pre_fix
+- file: frontend/discourse/admin/models/watched-word.js
+  line: 41
+  summary: Data payload construction should be updated to send tag IDs/objects under
+    a dedicated key rather than serializing objects into the existing `replacement`
+    string field
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 38245
+reviewer_notes:
+- '[inline] Tagging is enabled by default. I think it should be fine not to have this
+  line ```suggestion ```'
+reviewer_findings:
+- file: app/controllers/admin/watched_words_controller.rb
+  line: 134
+  summary: Should `:replacement_tags` be added to `def watched_words_params`?
+  line_side: pre_fix
+- file: frontend/discourse/admin/models/watched-word.js
+  line: 41
+  summary: 'What do you feel about:  ```suggestion     const data = {       words:
+    this.words,       replacement: this.replacement, '
+  line_side: pre_fix
+- file: spec/system/admin_watched_words_spec.rb
+  line: 37
+  summary: Tagging is enabled by default. I think it should be fine not to have this
+    line ```suggestion ```
+  line_side: pre_fix
+quality_flags: []

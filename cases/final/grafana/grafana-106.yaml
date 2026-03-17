@@ -1,0 +1,38 @@
+id: grafana-106
+repo: grafana/grafana
+base_commit: e41f26c00c8eee4b161dfa9ae0101e3e30b7be69^
+head_commit: e41f26c00c8eee4b161dfa9ae0101e3e30b7be69
+fix_commit: e41f26c00c8eee4b161dfa9ae0101e3e30b7be69
+category: performance
+difficulty: hard
+severity: critical
+language: typescript
+pr_size: medium
+description: micro-memoize's default maxSize:1 cache caused thrashing when multiple
+  external Alertmanagers alternated calls to parseAmConfigRoute and memoK8sRouteToRoute,
+  producing new object references every render and triggering an infinite re-render
+  loop via useAsync. The fix replaces micro-memoize with WeakMap-based caches that
+  eliminate eviction entirely.
+expected_findings:
+- file: public/app/features/alerting/unified/components/notification-policies/useNotificationPolicyRoute.ts
+  line: 52
+  summary: micro-memoize with default maxSize:1 on parseAmConfigRoute causes cache
+    eviction when called with alternating Alertmanager configs, producing unstable
+    references and infinite re-renders
+  line_side: pre_fix
+- file: public/app/features/alerting/unified/components/notification-policies/useNotificationPolicyRoute.ts
+  line: 127
+  summary: Same maxSize:1 memoization issue on memoK8sRouteToRoute — multiple Alertmanager
+    configs thrash the single-entry cache, breaking referential stability
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

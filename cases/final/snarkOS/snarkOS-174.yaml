@@ -1,32 +1,45 @@
 id: snarkOS-174
 repo: ProvableHQ/snarkOS
-base_commit: 1bb659273341c24eec583025f16280d4580b7779^
-head_commit: 1bb659273341c24eec583025f16280d4580b7779
-fix_commit: 1bb659273341c24eec583025f16280d4580b7779
-category: memory
-difficulty: medium
-severity: high
+base_commit: e6c814c8942ce43327b9a6bb45fc95af923cda63^
+head_commit: e6c814c8942ce43327b9a6bb45fc95af923cda63
+fix_commit: e6c814c8942ce43327b9a6bb45fc95af923cda63
+category: constraint
+difficulty: hard
+severity: critical
 language: rust
-pr_size: medium
-description: The Node was not being properly dropped during shutdown because spawned
-  background tasks continued to hold references (Arc) to the node, preventing resource
-  cleanup. The fix adds tokio oneshot channels across the node trait and implementations
-  (client, validator, prover) to signal background tasks to terminate, allowing the
-  Node to be dropped correctly.
+pr_size: xl
+description: 'PR #220 introduced an EqGadget implementation for boolean and uint types
+  that altered the ZK constraint system, changing inner circuit constraints and invalidating
+  all parameter checksums and genesis blocks. The revert removes the faulty equality
+  comparator gadgets and restores the original constraint system and parameter files.'
 expected_findings:
-- file: node/src/traits.rs
-  line: 58
-  summary: Node shutdown trait method lacks a mechanism to signal spawned background
-    tasks to terminate, preventing the Node from being dropped due to outstanding
-    Arc references
-- file: node/src/node.rs
-  line: 70
-  summary: Node struct missing a shutdown signal (oneshot channel) to coordinate graceful
-    termination of background tasks that hold references to the node
-- file: node/src/validator/mod.rs
-  line: 96
-  summary: Validator spawns background tasks without a shutdown signal channel, causing
-    tasks to outlive the intended node lifetime and prevent proper drop
+- file: models/src/gadgets/utilities/eq.rs
+  line: 7
+  summary: EqGadget trait implementation introduced here changes the constraint system
+    for equality comparisons, cascading into altered circuit parameters and broken
+    genesis/checksum files — the implementation is unsound or incompatible with the
+    existing constraint layout.
+  line_side: pre_fix
+- file: models/src/gadgets/utilities/boolean.rs
+  line: 626
+  summary: EqGadget implementation for Boolean type modifies constraint generation
+    for boolean equality checks, which feeds into inner_circuit_gadget and changes
+    the proving/verification keys.
+  line_side: pre_fix
+- file: models/src/gadgets/utilities/uint/macros.rs
+  line: 595
+  summary: EqGadget macro implementation for uint types alters constraint count/structure
+    for unsigned integer equality, propagating constraint system changes to all dependent
+    circuits.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

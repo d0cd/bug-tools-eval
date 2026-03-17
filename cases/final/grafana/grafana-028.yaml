@@ -1,31 +1,30 @@
 id: grafana-028
 repo: grafana/grafana
-base_commit: 246b73f4efe7f1480b23a575e2648822f65c30e7^
-head_commit: 246b73f4efe7f1480b23a575e2648822f65c30e7
-fix_commit: 246b73f4efe7f1480b23a575e2648822f65c30e7
-category: api
-difficulty: medium
+base_commit: 3fbc59e10a330cc6be25c7ceab6bfbe1e6c0dd74^
+head_commit: 3fbc59e10a330cc6be25c7ceab6bfbe1e6c0dd74
+fix_commit: 3fbc59e10a330cc6be25c7ceab6bfbe1e6c0dd74
+category: style
+difficulty: easy
 severity: low
-language: go
-pr_size: medium
-description: The notifier code contained unnecessary functions (patchNewSecureFields,
-  patchSettingsFromSecureSettings) that manually copied DingDing secure fields from
-  secureSettings into settings before passing receivers to the alerting library. The
-  upstream grafana/alerting library was updated to read from both settings and secureSettings
-  directly, making this patching logic dead code that added complexity and risked
-  masking future field-handling changes.
+language: unknown
+pr_size: small
+description: Documentation-only change that reformats links in Grafana install docs
+  to use full URLs with <GRAFANA_VERSION> placeholders and fixes two broken links.
+  This is a docs maintenance change with no code logic involved.
 expected_findings:
-- file: pkg/services/ngalert/notifier/alertmanager.go
-  line: 444
-  summary: 'Unnecessary secure field patching: receivers are passed through patchNewSecureFields/patchSettingsFromSecureSettings
-    before PostableAPIReceiversToAPIReceivers, but the alerting library now reads
-    from both settings and secureSettings natively'
-- file: pkg/services/ngalert/notifier/testreceivers.go
-  line: 26
-  summary: Same unnecessary DingDing secure field patching applied in test receivers
-    path; should use PostableAPIReceiversToAPIReceivers directly
+- file: docs/sources/setup-grafana/installation/_index.md
+  line: 1
+  summary: Link formatting uses relative paths or hardcoded versions instead of full
+    URLs with <GRAFANA_VERSION> placeholder; two links point to incorrect destinations
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

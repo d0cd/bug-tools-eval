@@ -1,28 +1,37 @@
 id: snarkVM-032
 repo: ProvableHQ/snarkVM
-base_commit: 43e681f4588129a4564debc1af526855787b11a8^
-head_commit: 43e681f4588129a4564debc1af526855787b11a8
-fix_commit: 43e681f4588129a4564debc1af526855787b11a8
-category: logic
-difficulty: easy
-severity: low
+base_commit: 1dd9c5da8fa8ce5f3374bd43f8c619c3db6b97b4^
+head_commit: 1dd9c5da8fa8ce5f3374bd43f8c619c3db6b97b4
+fix_commit: 1dd9c5da8fa8ce5f3374bd43f8c619c3db6b97b4
+category: constraint
+difficulty: hard
+severity: high
 language: rust
-pr_size: tiny
-description: Typos in comments and documentation strings in the credits.aleo program
-  resource and the rewards.rs helper. The fix corrects spelling errors in two locations
-  in credits.aleo (lines 43 and 284) and one in rewards.rs (line 34) within a doc
-  comment describing delegator credit eligibility rules.
+pr_size: small
+description: LinearCombination::add_assign used binary_search_by to locate existing
+  variables but did not verify the found element matched the search variable when
+  duplicates existed. Since binary_search_by does not guarantee which duplicate index
+  is returned, different Rust versions (notably 1.51.0 vs 1.52.0) produced different
+  R1CS constraint outputs, causing build-time nondeterminism. The fix adds an explicit
+  equality check at the found index before updating in place.
 expected_findings:
-- file: synthesizer/program/src/resources/credits.aleo
-  line: 43
-  summary: Typo in comment or documentation string in the credits.aleo program definition
-- file: synthesizer/program/src/resources/credits.aleo
-  line: 284
-  summary: Typo in comment or documentation string in the credits.aleo program definition
-- file: synthesizer/src/vm/helpers/rewards.rs
-  line: 34
-  summary: Typo in doc comment describing delegator reward eligibility (10,000 credits
-    threshold)
+- file: r1cs/src/linear_combination.rs
+  line: 91
+  summary: 'binary_search_by result not verified: after the deduplication loop, the
+    code falls through to Err(found_index) without checking whether the element at
+    found_index actually matches search_var. When duplicates exist, binary_search_by
+    may return any matching index, so the subsequent insert creates a duplicate entry
+    instead of merging coefficients, causing nondeterministic R1CS output across Rust
+    versions.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

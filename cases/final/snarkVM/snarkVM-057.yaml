@@ -1,26 +1,36 @@
 id: snarkVM-057
 repo: ProvableHQ/snarkVM
-base_commit: ee2f4f7a63d374ffdd1ac5f405776347895a385f^
-head_commit: ee2f4f7a63d374ffdd1ac5f405776347895a385f
-fix_commit: ee2f4f7a63d374ffdd1ac5f405776347895a385f
+base_commit: 3ced248d4015c929f5240ce8fa5693ac3ae3b51b^
+head_commit: 3ced248d4015c929f5240ce8fa5693ac3ae3b51b
+fix_commit: 3ced248d4015c929f5240ce8fa5693ac3ae3b51b
 category: logic
 difficulty: easy
-severity: low
+severity: high
 language: rust
-pr_size: small
-description: Transaction generation benchmarks in snarkVM were not including fees,
-  making the benchmarks inaccurate and not representative of real transaction costs.
-  The fix updates the benchmark code in synthesizer/benches/transaction.rs to properly
-  include fee computation in the transaction benchmarks.
+pr_size: tiny
+description: The MAX_CERTIFICATES constant values in canary_v0.rs and testnet_v0.rs
+  did not correctly align with the cfg flag values for the respective network configurations.
+  The fix updates the constant array entries to use the correct values matching each
+  cfg-gated consensus version.
 expected_findings:
-- file: synthesizer/benches/transaction.rs
-  line: 38
-  summary: Transaction benchmark does not include fees, producing unrealistic/incomplete
-    benchmark results
-- file: synthesizer/benches/transaction.rs
-  line: 49
-  summary: Transaction generation benchmark is missing fee inclusion, making the benchmark
-    not representative of actual transaction processing
+- file: console/network/src/canary_v0.rs
+  line: 163
+  summary: MAX_CERTIFICATES constant has incorrect values that do not match the intended
+    cfg flag configuration for the Canary network.
+  line_side: pre_fix
+- file: console/network/src/testnet_v0.rs
+  line: 163
+  summary: MAX_CERTIFICATES constant has incorrect values that do not match the intended
+    cfg flag configuration for the Testnet network.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

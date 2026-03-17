@@ -1,30 +1,44 @@
 id: leo-105
 repo: ProvableHQ/leo
-base_commit: a601ccd5cc73706e72e31debb486b971778aab2b^
-head_commit: a601ccd5cc73706e72e31debb486b971778aab2b
-fix_commit: a601ccd5cc73706e72e31debb486b971778aab2b
+base_commit: 647b25dc2d5032673f4769801ecd8889c47ba0eb^
+head_commit: 647b25dc2d5032673f4769801ecd8889c47ba0eb
+fix_commit: 647b25dc2d5032673f4769801ecd8889c47ba0eb
 category: logic
 difficulty: medium
-severity: high
-language: rust
-pr_size: small
-description: The Leo parser did not validate that function calls must lead with an
-  identifier, allowing arbitrary expressions (like integer literals) to be parsed
-  as function names. This caused confusing behavior where expressions like `1000u128
-  (10u128 ** token_info.decimals)` were incorrectly parsed as function calls. The
-  fix adds a check in the parser's expression handling to ensure the callee of a function
-  call is always an identifier.
+severity: medium
+language: leo
+pr_size: xl
+description: 'Multiple parser and lexer bugs causing incorrect handling of edge cases:
+  array dimension parenthesization, character/string escape sequences at EOF, variable
+  definition parsing with tuples, and Self type canonicalization in definitions. The
+  fixes correct lexer EOF boundary checks, parser array-dimension logic, and ensure
+  definition types propagate correctly through AST passes.'
 expected_findings:
-- file: compiler/parser/src/parser/expression.rs
-  line: 446
-  summary: 'Missing validation: function call parsing does not check that the callee
-    expression is an Identifier, allowing literals and other non-identifier expressions
-    to be treated as function names.'
-- file: compiler/passes/src/type_checking/check_expressions.rs
-  line: 453
-  summary: No guard against non-identifier function names reaching type checking;
-    a non-identifier callee in a CallExpression would cause unexpected behavior in
-    downstream passes.
+- file: compiler/parser/src/tokenizer/lexer.rs
+  line: 46
+  summary: Lexer fails to handle EOF gracefully during character/string escape sequence
+    parsing, causing panics or unhelpful errors on malformed input ending at EOF
+  line_side: pre_fix
+- file: compiler/parser/src/parser/type_.rs
+  line: 75
+  summary: Array dimension parsing incorrectly handles single-dimension case — the
+    condition should not wrap single dimensions in unnecessary parenthesization or
+    misparse the dimension count
+  line_side: pre_fix
+- file: compiler/parser/src/parser/statement.rs
+  line: 295
+  summary: Variable definition parsing with parenthesized tuple patterns does not
+    correctly handle the definition type and variable name extraction, leading to
+    parse failures on valid let-bindings
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,42 @@
+id: cal.com-039
+repo: calcom/cal.com
+base_commit: 844380e265d26e3fb1caed2e4ee4967a9b88afaa^
+head_commit: 844380e265d26e3fb1caed2e4ee4967a9b88afaa
+fix_commit: 844380e265d26e3fb1caed2e4ee4967a9b88afaa
+category: api-misuse
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: tiny
+description: The DELETE endpoint throttle decorators for teams and organizations in
+  API v2 were configured with a 30-second TTL and blockDuration (30000ms), which is
+  excessively restrictive for normal usage. This was reduced to 1 second (1000ms),
+  making the rate limit 30x more permissive while still preventing rapid-fire abuse.
+expected_findings:
+- file: apps/api/v2/src/modules/teams/teams/controllers/teams.controller.ts
+  line: 98
+  summary: 'Overly aggressive rate limit: ttl and blockDuration of 30000ms (30s) on
+    DELETE /v2/teams/:teamId effectively blocks normal usage patterns. Should be reduced
+    to 1000ms.'
+  line_side: pre_fix
+- file: apps/api/v2/src/modules/organizations/teams/index/organizations-teams.controller.ts
+  line: 121
+  summary: Same overly aggressive 30s rate limit on DELETE /v2/organizations/:orgId/teams/:teamId
+    throttle decorator.
+  line_side: pre_fix
+- file: apps/api/v2/src/modules/organizations/organizations/organizations-organizations.controller.ts
+  line: 142
+  summary: Same overly aggressive 30s rate limit on DELETE /v2/organizations/:orgId/organizations/:managedOrganizationId
+    throttle decorator.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

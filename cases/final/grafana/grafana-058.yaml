@@ -1,0 +1,42 @@
+id: grafana-058
+repo: grafana/grafana
+base_commit: 7a73baf4fa557cfc8d490eed988a9b22b9e302d3^
+head_commit: 7a73baf4fa557cfc8d490eed988a9b22b9e302d3
+fix_commit: 7a73baf4fa557cfc8d490eed988a9b22b9e302d3
+category: incomplete
+difficulty: easy
+severity: medium
+language: unknown
+pr_size: small
+description: "The Makefile was not forwarding LDFLAGS correctly, causing build metadata\
+  \ (like build stamps) to potentially be lost during linking. The PR also updates\
+  \ documentation to clarify SQLite recommendations and CGO_ENABLED requirements,\
+  \ fixing a typo ('recommded' \u2192 'recommended') in the developer guide."
+expected_findings:
+- file: Makefile
+  line: 23
+  summary: 'LDFLAGS not being forwarded: the -X linker flags for build metadata are
+    not propagated correctly, which can result in missing version/build info in the
+    compiled binary'
+  line_side: pre_fix
+- file: Makefile
+  line: 286
+  summary: "Same LDFLAGS forwarding issue repeated in another build target \u2014\
+    \ both occurrences need the fix"
+  line_side: pre_fix
+- file: contribute/developer-guide.md
+  line: 9
+  summary: "Typo 'recommded' and misleading description of GCC/CGO_ENABLED role \u2014\
+    \ should clarify that CGO is needed for SQLite support specifically"
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119591
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

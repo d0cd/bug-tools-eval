@@ -1,28 +1,34 @@
 id: leo-144
 repo: ProvableHQ/leo
-base_commit: ebce5d726e3e4784eca3c30473796bad13c5cfea^
-head_commit: ebce5d726e3e4784eca3c30473796bad13c5cfea
-fix_commit: ebce5d726e3e4784eca3c30473796bad13c5cfea
+base_commit: 94579410c45edcdf8a9769fa07d1fbb9f2c07b74^
+head_commit: 94579410c45edcdf8a9769fa07d1fbb9f2c07b74
+fix_commit: 94579410c45edcdf8a9769fa07d1fbb9f2c07b74
 category: logic
 difficulty: medium
 severity: high
 language: rust
 pr_size: small
-description: Tuple access in the ASG could panic or produce incorrect results when
-  the expected tuple type size didn't match the actual tuple size. The fix adds proper
-  validation in tuple_init.rs to ensure the expected type size is less than or equal
-  to the actual tuple size, and introduces a new error variant in error/mod.rs for
-  reporting mismatched tuple sizes.
+description: Function input parameters were not inserted into the type table during
+  type checking. This caused failures when the compiler needed to look up the type
+  of a function input in certain contexts, such as when assigning to an input variable
+  inside an else branch. The fix adds the missing type_table.insert call for each
+  function input.
 expected_findings:
-- file: asg/src/expression/tuple_init.rs
-  line: 94
-  summary: 'Missing bounds check: tuple initialization does not validate that expected
-    type size is <= actual tuple size, leading to potential out-of-bounds access or
-    incorrect behavior when accessing tuples with mismatched sizes.'
-- file: asg/src/error/mod.rs
-  line: 224
-  summary: No error variant exists to report when a tuple's expected type size exceeds
-    the actual tuple size, so the mismatch goes undetected.
+- file: compiler/passes/src/type_checking/checker.rs
+  line: 1241
+  summary: Function inputs are iterated and validated but never inserted into the
+    type table. After validating each input_var, there should be a `self.type_table.insert(input_var.identifier().id(),
+    input_var.type_().clone())` call so downstream type lookups (e.g. assignment type
+    checking) can resolve input parameter types.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

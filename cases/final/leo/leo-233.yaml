@@ -1,23 +1,41 @@
 id: leo-233
 repo: ProvableHQ/leo
-base_commit: a8c4c2b36ddc614f347ee17a65a11aa4a1645740^
-head_commit: a8c4c2b36ddc614f347ee17a65a11aa4a1645740
-fix_commit: a8c4c2b36ddc614f347ee17a65a11aa4a1645740
-category: logic
-difficulty: medium
-severity: medium
-language: leo
-pr_size: xl
-description: The Leo parser was not correctly parsing package names as identifiers,
-  allowing invalid characters and keywords to be used as package names in import statements.
-  The fix changes the parser to use `expect_loose_identifier()` for package name parsing,
-  ensuring only valid identifiers are accepted, and adds tests for invalid characters
-  and keyword rejection.
+base_commit: ecd1c7fe0ea980e983d9bfc017ad380ec62e0e21^
+head_commit: ecd1c7fe0ea980e983d9bfc017ad380ec62e0e21
+fix_commit: ecd1c7fe0ea980e983d9bfc017ad380ec62e0e21
+category: style
+difficulty: easy
+severity: low
+language: rust
+pr_size: small
+description: Documentation comments in the parser were incorrect or outdated. The
+  doc comments on delimiter-parsing and function-input-parsing methods did not accurately
+  reflect the actual behavior or signatures of those functions, and the PR corrects
+  them.
 expected_findings:
-- file: parser/src/parser/file.rs
-  line: 149
-  summary: Package name parsing should use `expect_loose_identifier()` to validate
-    that package names are proper identifiers, rejecting invalid characters and keywords
+- file: compiler/parser/src/parser/context.rs
+  line: 201
+  summary: Doc comment inaccurately describes the delimiter-parsing method's behavior;
+    wording does not match actual semantics.
+  line_side: pre_fix
+- file: compiler/parser/src/parser/file.rs
+  line: 296
+  summary: Doc comment says 'Returns an [`Input`] AST node' but the function may return
+    a different type or have different semantics than documented.
+  line_side: pre_fix
+- file: compiler/parser/src/parser/file.rs
+  line: 377
+  summary: Copy-pasted doc comment from another function; does not accurately describe
+    this method's behavior.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

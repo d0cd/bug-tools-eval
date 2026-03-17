@@ -1,26 +1,47 @@
 id: snarkVM-177
 repo: ProvableHQ/snarkVM
-base_commit: 186b5545a6e4b1516255628d5d2ca4398292dd6d^
-head_commit: 186b5545a6e4b1516255628d5d2ca4398292dd6d
-fix_commit: 186b5545a6e4b1516255628d5d2ca4398292dd6d
-category: api
-difficulty: medium
-severity: medium
+base_commit: ef336729cf13aa173efd723505dc5b3dbc9d4e57^
+head_commit: ef336729cf13aa173efd723505dc5b3dbc9d4e57
+fix_commit: ef336729cf13aa173efd723505dc5b3dbc9d4e57
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: xl
-description: This PR merges changes from the testnet3 branch into the sgx branch,
-  adding feature flags and dependency changes to the synthesizer and parameters crates
-  to enable compilation on Fortanix SGX targets. The fix addresses missing conditional
-  compilation gates and dependency configurations that prevented building for x86_64-fortanix-unknown-sgx.
+pr_size: medium
+description: PR fixes various Clippy lints across multiple crates (dpc, fields, marlin,
+  polycommit, r1cs, utilities). These are mechanical code quality improvements — idiomatic
+  Rust patterns like removing redundant clones, simplifying expressions, or fixing
+  iterator usage. The changes are spread thinly across 12 files with minimal line
+  impact.
 expected_findings:
-- file: Cargo.toml
+- file: r1cs/src/optional_vec.rs
   line: 1
-  summary: Dependency and feature configuration did not account for Fortanix SGX target,
-    causing compilation failures when targeting x86_64-fortanix-unknown-sgx
-- file: algorithms/Cargo.toml
+  summary: 'Clippy lint: likely non-idiomatic pattern such as manual iterator implementation,
+    redundant clone, or unnecessary collect that should be simplified.'
+  line_side: pre_fix
+- file: polycommit/src/sonic_pc/mod.rs
   line: 1
-  summary: Missing conditional compilation features or target-specific dependency
-    gates for SGX support
+  summary: 'Clippy lint: possible redundant reference, unnecessary type annotation,
+    or suboptimal pattern match that Clippy flags as improvable.'
+  line_side: pre_fix
+- file: dpc/tests/mod.rs
+  line: 1
+  summary: 'Clippy lint violation: likely redundant clone, unnecessary collect, or
+    non-idiomatic pattern that Clippy would flag automatically.'
+  line_side: pre_fix
+- file: marlin/src/ahp/prover/prover.rs
+  line: 1
+  summary: 'Clippy lint violation: likely unnecessary type annotation, redundant pattern
+    match, or suboptimal API usage flagged by Clippy.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

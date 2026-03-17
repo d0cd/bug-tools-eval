@@ -1,0 +1,37 @@
+id: keycloak-072
+repo: keycloak/keycloak
+base_commit: db9a9d0de48f8715bc75881159e4955de81b4daf^
+head_commit: db9a9d0de48f8715bc75881159e4955de81b4daf
+fix_commit: db9a9d0de48f8715bc75881159e4955de81b4daf
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: The organization group documentation incorrectly showed token claims
+  including the parent group path (e.g. '/Engineering/Backend') instead of just the
+  mapped subgroup. The fix corrects the example JSON in the docs to omit the parent
+  group from the groups claim, matching actual Keycloak behavior.
+expected_findings:
+- file: docs/documentation/server_admin/topics/organizations/managing-groups.adoc
+  line: 150
+  summary: 'Incorrect token claim example: ''groups'' array includes parent group
+    path ''/Engineering/Backend'' but organization-mapped group tokens should only
+    contain the subgroup path'
+  line_side: pre_fix
+- file: docs/documentation/server_admin/topics/organizations/managing-groups.adoc
+  line: 207
+  summary: 'Same incorrect token claim example repeated: ''groups'' array includes
+    parent group path ''/Engineering/Backend'' instead of just the subgroup'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

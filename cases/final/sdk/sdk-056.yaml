@@ -1,23 +1,36 @@
 id: sdk-056
 repo: ProvableHQ/sdk
-base_commit: 2759585439ef96d5a7e833811e8b8ec9349dffa8
-head_commit: 2893decdf788e0b5b801a3b26a23f2bce47492fd
-fix_commit: 2893decdf788e0b5b801a3b26a23f2bce47492fd
+base_commit: ff0d97f95a7fe3cd50890533d58ec6329315e623^
+head_commit: ff0d97f95a7fe3cd50890533d58ec6329315e623
+fix_commit: ff0d97f95a7fe3cd50890533d58ec6329315e623
 category: logic
-difficulty: medium
-severity: high
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: The `verifyFunctionExecution` method in the WASM SDK did not load imported
-  programs into the Process before attempting to verify an execution. This caused
-  verification to fail for any program that used imports. The fix adds logic to resolve
-  and add all imported programs to the ProcessNative instance before calling verify.
+pr_size: tiny
+description: A seeded test in tests/new.rs was producing incorrect results, likely
+  due to wrong expected values or an outdated dependency version in Cargo.toml. The
+  fix corrects the test expectations and/or dependency specification to match the
+  actual seeded output.
 expected_findings:
-- file: wasm/src/programs/execution.rs
-  line: 107
-  summary: 'Missing import resolution: verifyFunctionExecution creates a Process and
-    verifies execution without first loading the program''s imports via process.add_program(),
-    causing verification failure for programs with dependencies.'
+- file: tests/new.rs
+  line: 1
+  summary: Seeded test has incorrect expected value or setup that does not match the
+    deterministic output for the given seed
+  line_side: pre_fix
+- file: Cargo.toml
+  line: 1
+  summary: Dependency version may be incorrect or missing, causing the seeded test
+    to fail
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

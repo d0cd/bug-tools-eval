@@ -1,22 +1,47 @@
 id: snarkVM-089
 repo: ProvableHQ/snarkVM
-base_commit: fb3ef93f0eed206cd727f8b76f272347ac24162c^
-head_commit: fb3ef93f0eed206cd727f8b76f272347ac24162c
-fix_commit: fb3ef93f0eed206cd727f8b76f272347ac24162c
-category: logic
-difficulty: easy
-severity: low
+base_commit: 6360321f5705e134616fe364bd65ab797d303a2d^
+head_commit: 6360321f5705e134616fe364bd65ab797d303a2d
+fix_commit: 6360321f5705e134616fe364bd65ab797d303a2d
+category: cryptographic
+difficulty: hard
+severity: medium
 language: rust
-pr_size: tiny
-description: The transition output limit verification was incorrectly comparing against
-  `MAX_INPUTS` instead of `MAX_OUTPUTS`. Since both constants currently have the same
-  value, there is no functional impact, but the wrong constant was being used which
-  could cause issues if the constants diverge in the future.
+pr_size: large
+description: Poseidon sponge parameters were hardcoded rather than generated via standardized
+  methods. While not insecure, the ad-hoc parameters did not follow current best practices
+  for MDS matrix and round constant generation. The fix introduces a PoseidonMDSField
+  trait and standardizes parameter generation across all field types.
 expected_findings:
-- file: synthesizer/src/process/verify_execution.rs
-  line: 64
-  summary: 'Wrong constant used: transition outputs count is compared against `MAX_INPUTS`
-    instead of `MAX_OUTPUTS`. Should use `N::MAX_OUTPUTS` for output limit verification.'
+- file: marlin/src/fiat_shamir/fiat_shamir_poseidon_sponge.rs
+  line: 34
+  summary: Poseidon sponge instantiation uses hardcoded parameters instead of field-specific
+    standardized MDS matrix and round constants via a PoseidonMDSField trait bound
+  line_side: pre_fix
+- file: fields/src/traits/mod.rs
+  line: 40
+  summary: Field trait hierarchy lacks a PoseidonMDSField marker trait to ensure fields
+    explicitly provide standardized Poseidon parameters (MDS matrix, round constants)
+  line_side: pre_fix
+- file: curves/src/bls12_377/fq.rs
+  line: 120
+  summary: BLS12-377 Fq field parameters do not implement PoseidonMDSField, meaning
+    Poseidon sponge configuration is not tied to the field's specific security requirements
+  line_side: pre_fix
+- file: fields/src/traits/poseidon_mds_field.rs
+  line: 1
+  summary: New PoseidonMDSField trait defines the standardized MDS matrix and Poseidon
+    parameter interface — reviewer should verify the trait's associated types/constants
+    match the Poseidon paper's specification for secure parameter generation
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

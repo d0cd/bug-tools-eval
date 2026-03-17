@@ -1,30 +1,29 @@
 id: snarkOS-091
 repo: ProvableHQ/snarkOS
-base_commit: 292d124dcbacb4a2d0babeaa31a07d6193515659^
-head_commit: 292d124dcbacb4a2d0babeaa31a07d6193515659
-fix_commit: 292d124dcbacb4a2d0babeaa31a07d6193515659
-category: concurrency
-difficulty: medium
-severity: critical
+base_commit: 7ee93a4fe31d85f645c18207f28c86412f8a6fb8^
+head_commit: 7ee93a4fe31d85f645c18207f28c86412f8a6fb8
+fix_commit: 7ee93a4fe31d85f645c18207f28c86412f8a6fb8
+category: logic
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: Lock guards (sync_handler, peer_book, local_address) were held across
-  `.await` points in async functions, causing potential deadlocks that halted the
-  node during block or transaction propagation. The fix adds explicit `drop()` calls
-  to release these locks before reaching async operations.
+pr_size: tiny
+description: Test fix in ledger/src/state/tests.rs with a tiny 3+/3- change. Without
+  a diff or description, the exact nature of the fix is unclear, but the scope suggests
+  a minor test assertion or setup correction.
 expected_findings:
-- file: network/src/server/connection_handler.rs
-  line: 140
-  summary: Lock guard `sync_handler` is held across an `.await` point without being
-    explicitly dropped, risking deadlock in async context
-- file: network/src/server/message_handler.rs
-  line: 173
-  summary: Lock guard `peer_book` is held across an `.await` point without being explicitly
-    dropped, risking deadlock during message handling
-- file: network/src/server/server.rs
-  line: 298
-  summary: Lock guard `local_address` is held across an `.await` point without being
-    explicitly dropped, risking deadlock in server loop
+- file: ledger/src/state/tests.rs
+  line: 0
+  summary: Unable to determine specific finding without diff content
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

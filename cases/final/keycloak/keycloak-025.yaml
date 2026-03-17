@@ -1,30 +1,34 @@
 id: keycloak-025
 repo: keycloak/keycloak
-base_commit: edeb3670e76623b5f5444e370ed0aa46014e08c9^
-head_commit: edeb3670e76623b5f5444e370ed0aa46014e08c9
-fix_commit: edeb3670e76623b5f5444e370ed0aa46014e08c9
-category: logic
+base_commit: 58c4fa413909302ca851b953b673becab4816e2b^
+head_commit: 58c4fa413909302ca851b953b673becab4816e2b
+fix_commit: 58c4fa413909302ca851b953b673becab4816e2b
+category: api-misuse
 difficulty: medium
-severity: medium
-language: java
-pr_size: medium
-description: ReflectionUtils.listMethods() collected methods in wrong order (subclass
-  before superclass) and failed to deduplicate overridden methods, causing superclass
-  @TestSetup methods to run after subclass ones and overridden methods to execute
-  twice. The fix builds the class hierarchy top-down and removes superclass methods
-  when a subclass declares an override with matching name and parameter types.
+severity: high
+language: typescript
+pr_size: tiny
+description: The `useFetch()` hook instantiates a new `AbortController` on every call
+  (i.e., every render) rather than inside the `useEffect` callback. This means the
+  controller referenced in the effect's cleanup function is not the same one passed
+  to the fetch request, so calling `abort()` on unmount or dependency change never
+  actually cancels the in-flight request. Moving the `AbortController` construction
+  inside the effect ensures the cleanup closes over the correct instance.
 expected_findings:
-- file: test-framework/core/src/main/java/org/keycloak/testframework/injection/ReflectionUtils.java
-  line: 24
-  summary: Class hierarchy traversal adds subclass methods before superclass methods,
-    violating expected Java inheritance ordering (superclass first). Should build
-    hierarchy top-down.
-- file: test-framework/core/src/main/java/org/keycloak/testframework/injection/ReflectionUtils.java
-  line: 24
-  summary: 'No deduplication of overridden methods: when a subclass overrides a superclass
-    method, both are collected, causing the override to execute twice instead of once.'
+- file: js/apps/admin-ui/src/context/auth/AdminClient.tsx
+  line: 38
+  summary: AbortController is instantiated outside the effect on every render. It
+    must be created inside the useEffect callback so the cleanup function's `abort()`
+    targets the same controller instance passed to the fetch call.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
-verified: false
-verified_by: null
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

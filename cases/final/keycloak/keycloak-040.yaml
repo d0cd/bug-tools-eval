@@ -1,30 +1,31 @@
 id: keycloak-040
 repo: keycloak/keycloak
-base_commit: cbfcd07c622328fe423c8f0b2754c1c8400c171d^
-head_commit: cbfcd07c622328fe423c8f0b2754c1c8400c171d
-fix_commit: cbfcd07c622328fe423c8f0b2754c1c8400c171d
-category: logic
-difficulty: medium
-severity: medium
-language: java
-pr_size: medium
-description: AdminClientSupplier did not declare a dependency on ManagedRealm when
-  resolving realm references, causing the test framework to fail when an admin client
-  was injected targeting a managed realm. The fix adds ManagedRealm as an explicit
-  dependency via the supplier's dependency builder, keyed by the annotation's realmRef
-  value.
+base_commit: 7e7d902073935a1bd986f3a2286e1d2deb8aac8f^
+head_commit: 7e7d902073935a1bd986f3a2286e1d2deb8aac8f
+fix_commit: 7e7d902073935a1bd986f3a2286e1d2deb8aac8f
+category: style
+difficulty: easy
+severity: low
+language: typescript
+pr_size: tiny
+description: The Select component in NewClientPolicyCondition was rendering its dropdown
+  menu at a default width instead of matching the trigger element's width. The fix
+  adds the `width="trigger"` prop to the Select component so the dropdown visually
+  aligns with its trigger button.
 expected_findings:
-- file: test-framework/core/src/main/java/org/keycloak/testframework/admin/AdminClientSupplier.java
-  line: 25
-  summary: 'Missing dependency declaration: AdminClientSupplier should declare a dependency
-    on ManagedRealm (keyed by realmRef) so the framework provisions the realm before
-    the admin client'
-- file: test-framework/core/src/main/java/org/keycloak/testframework/annotations/InjectAdminClient.java
-  line: 26
-  summary: InjectAdminClient annotation lacks a realmRef() attribute, preventing the
-    admin client from being scoped to a specific ManagedRealm
+- file: js/apps/admin-ui/src/realm-settings/NewClientPolicyCondition.tsx
+  line: 228
+  summary: Select component missing `width="trigger"` prop, causing dropdown menu
+    to render at default width instead of matching the trigger element width
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

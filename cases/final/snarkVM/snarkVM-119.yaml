@@ -1,32 +1,42 @@
 id: snarkVM-119
 repo: ProvableHQ/snarkVM
-base_commit: 85585a2fcd586ab5f4e927fe5e8735c75456a99a^
-head_commit: 85585a2fcd586ab5f4e927fe5e8735c75456a99a
-fix_commit: 85585a2fcd586ab5f4e927fe5e8735c75456a99a
+base_commit: 8e2d30f53a0cabd485a6b25051100323c669b57a^
+head_commit: 8e2d30f53a0cabd485a6b25051100323c669b57a
+fix_commit: 8e2d30f53a0cabd485a6b25051100323c669b57a
 category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: medium
-description: "The string equality check in the circuit types was incorrect \u2014\
-  \ it did not properly verify that two strings had equal byte sizes before comparing\
-  \ their content. This could cause incorrect equality results in zero-knowledge circuit\
-  \ evaluations. The fix updates the equality logic and adjusts from_bits helpers\
-  \ and field imports to support the corrected comparison."
+pr_size: small
+description: The scoped atomic write batch error handling unconditionally called `abort_atomic`
+  on failure, even when no atomic batch was in progress. This could cause unexpected
+  behavior since aborting a non-existent atomic batch is semantically incorrect. The
+  fix guards `abort_atomic` calls with an `is_atomic_in_progress` check.
 expected_findings:
-- file: circuit/types/string/src/equal.rs
-  line: 25
-  summary: String equality check does not properly compare the size in bytes of the
-    two strings before comparing content, which can yield incorrect equality results
-    for strings of different lengths.
-- file: circuit/types/string/src/equal.rs
-  line: 110
-  summary: "Same equality size-check bug in the alternate (constant vs non-constant)\
-    \ code path \u2014 missing or incorrect byte-size comparison."
-- file: circuit/types/string/src/helpers/from_bits.rs
-  line: 21
-  summary: Mode determination in from_bits does not correctly handle the string representation,
-    leading to incorrect circuit constraint generation for string values.
+- file: ledger/store/src/helpers/mod.rs
+  line: 61
+  summary: abort_atomic is called unconditionally on error in scoped atomic batch;
+    should be guarded by is_atomic_in_progress check to avoid aborting when no batch
+    is active
+  line_side: pre_fix
+- file: ledger/store/src/helpers/rocksdb/internal/map.rs
+  line: 642
+  summary: abort_atomic called without checking if an atomic batch is actually in
+    progress; needs conditional guard
+  line_side: pre_fix
+- file: ledger/store/src/helpers/rocksdb/internal/nested_map.rs
+  line: 873
+  summary: abort_atomic called without checking if an atomic batch is actually in
+    progress; same pattern as map.rs needs conditional guard
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,28 +1,43 @@
 id: sdk-026
 repo: ProvableHQ/sdk
-base_commit: a17768e3130fe67fb9964f5a13b37b9e767666c6^
-head_commit: a17768e3130fe67fb9964f5a13b37b9e767666c6
-fix_commit: a17768e3130fe67fb9964f5a13b37b9e767666c6
-category: logic
+base_commit: 5dc5587e93459a2225763c6e52c4c5cd68b87bd7^
+head_commit: 5dc5587e93459a2225763c6e52c4c5cd68b87bd7
+fix_commit: 5dc5587e93459a2225763c6e52c4c5cd68b87bd7
+category: api-misuse
 difficulty: medium
 severity: high
-language: rust
-pr_size: medium
-description: When starting a node with `aleo node start`, imported programs were not
-  being deployed, causing programs with external calls to fail. The fix adds logic
-  in the node start command to read the package manifest, iterate through program
-  imports, and deploy each imported program before deploying the main program.
+language: typescript
+pr_size: xl
+description: The SDK's KeyProvider was still fetching credits.aleo verifying keys
+  from a remote server, a pattern left over from Testnet3. After the transition, these
+  keys are provided directly by SnarkVM, so the remote fetch was both unnecessary
+  and unreliable, causing failures for SDK users. The fix updates the KeyProvider
+  to source keys locally from SnarkVM and updates the WASM bindings and SnarkVM dependency
+  accordingly.
 expected_findings:
-- file: cli/commands/node.rs
-  line: 69
-  summary: 'Missing deployment of program imports: the node start logic deploys only
-    the main program but does not iterate through and deploy imported programs first,
-    causing external calls to fail.'
-- file: cli/helpers/server.rs
-  line: 153
-  summary: Server initialization does not account for deploying imported programs
-    before the main program, so programs with imports will not function correctly
-    on node start.
+- file: sdk/src/function-key-provider.ts
+  line: 33
+  summary: KeyProvider fetches verifying keys from a remote URL instead of using keys
+    bundled in SnarkVM; remote keys may be stale or unavailable post-Testnet3 migration
+  line_side: pre_fix
+- file: wasm/src/programs/verifying_key/credits.rs
+  line: 18
+  summary: get_credits_verifying_key implementation needs to return keys from the
+    local SnarkVM build rather than relying on external fetching
+  line_side: pre_fix
+- file: wasm/Cargo.toml
+  line: 24
+  summary: SnarkVM dependency pinned to old revision that does not include the bundled
+    credits.aleo verifying keys
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

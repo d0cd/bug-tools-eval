@@ -1,31 +1,37 @@
 id: snarkOS-118
 repo: ProvableHQ/snarkOS
-base_commit: 2f9f4f01e68f32acd653207f4eb3b117ec65bf8d^
-head_commit: 2f9f4f01e68f32acd653207f4eb3b117ec65bf8d
-fix_commit: 2f9f4f01e68f32acd653207f4eb3b117ec65bf8d
-category: logic
-difficulty: medium
-severity: high
+base_commit: a490f5a60995fc6344d1851e84d64213111f5595^
+head_commit: a490f5a60995fc6344d1851e84d64213111f5595
+fix_commit: a490f5a60995fc6344d1851e84d64213111f5595
+category: type
+difficulty: easy
+severity: medium
 language: rust
 pr_size: small
-description: Block locators computed powers of two in the wrong direction, causing
-  incorrect block height sampling during chain synchronization. The fix switches the
-  direction so that block locators correctly space out block heights exponentially
-  (powers of two) from the current tip backwards, which is essential for efficient
-  chain sync between peers.
+description: Cache request counters used a type smaller than u32 (likely u8 or u16),
+  risking integer overflow when tracking outbound validator and puzzle requests per
+  socket address. A Trail of Bits audit (TOB-27) identified that the counter could
+  wrap around, potentially allowing rate-limit bypasses or incorrect cache behavior.
+  The fix switches all affected counters to u32.
 expected_findings:
-- file: ledger/src/state/ledger.rs
-  line: 47
-  summary: Block locator heights computed with powers of two in wrong direction -
-    should count backwards from tip, not forwards from genesis
-- file: src/network/ledger.rs
-  line: 464
-  summary: Block locator construction uses incorrect direction for power-of-two spacing,
-    leading to wrong block heights being requested during sync
-- file: src/environment/mod.rs
-  line: 81
-  summary: Maximum fork depth constant may interact with reversed block locator direction,
-    causing sync issues beyond the fork limit
+- file: node/bft/src/helpers/cache.rs
+  line: 39
+  summary: Cache counter type for seen_outbound_validators_requests is too small and
+    may overflow under sustained request load; should use u32 to prevent wraparound.
+  line_side: pre_fix
+- file: node/router/src/helpers/cache.rs
+  line: 48
+  summary: Cache counter type for seen_outbound_puzzle_requests is too small and may
+    overflow; should use u32 to match the BFT cache and prevent integer wraparound.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 2832
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

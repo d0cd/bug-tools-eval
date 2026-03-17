@@ -1,29 +1,33 @@
 id: leo-120
 repo: ProvableHQ/leo
-base_commit: 716633a7403a09bc98f483d8ce8edf2de361a787^
-head_commit: 716633a7403a09bc98f483d8ce8edf2de361a787
-fix_commit: 716633a7403a09bc98f483d8ce8edf2de361a787
+base_commit: 7ba71bbfc16f8330cb35e87a41916a501f9f84b8^
+head_commit: 7ba71bbfc16f8330cb35e87a41916a501f9f84b8
+fix_commit: 7ba71bbfc16f8330cb35e87a41916a501f9f84b8
 category: logic
 difficulty: easy
-severity: low
-language: leo
-pr_size: small
-description: Documentation and comment fixes across Leo example files. Incorrect or
-  misleading text in README files, shell script comments, and source code comments
-  were corrected to accurately describe the example programs' behavior and usage.
+severity: critical
+language: rust
+pr_size: medium
+description: The `BinaryOperation::Ne` match arm in the pest AST-to-typed-AST conversion
+  (`typed/src/expression.rs`) recursively calls itself instead of constructing the
+  correct not-equals typed expression, causing infinite recursion and a stack overflow.
+  The fix corrects the match arm to properly build the Ne expression node, and adds
+  test coverage for the != operator across all integer types.
 expected_findings:
-- file: examples/bubblesort/README.md
-  line: 9
-  summary: 'Incorrect command or description in README: the documented run command
-    does not match the actual function name or usage'
-- file: examples/groups/README.md
-  line: 12
-  summary: Incorrect or duplicated section heading/content in the groups example README
-    that misrepresents the example's structure
-- file: examples/simple_token/src/main.leo
-  line: 11
-  summary: 'Misleading comment: description of token transfer function does not accurately
-    describe what the function does'
+- file: typed/src/expression.rs
+  line: 331
+  summary: 'Infinite recursion: BinaryOperation::Ne match arm calls back into itself
+    instead of constructing the Ne typed expression, causing stack overflow on any
+    use of the != operator'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

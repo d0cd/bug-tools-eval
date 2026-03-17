@@ -1,29 +1,33 @@
 id: leo-157
 repo: ProvableHQ/leo
-base_commit: c1847d0fa59406e736b09c380561d566cdf4b960^
-head_commit: c1847d0fa59406e736b09c380561d566cdf4b960
-fix_commit: c1847d0fa59406e736b09c380561d566cdf4b960
-category: logic
+base_commit: a313040a303461e8b29a1355d6d511cc141fb042^
+head_commit: a313040a303461e8b29a1355d6d511cc141fb042
+fix_commit: a313040a303461e8b29a1355d6d511cc141fb042
+category: api-misuse
 difficulty: medium
 severity: high
 language: rust
-pr_size: medium
-description: Static functions could not call other static functions on the same circuit
-  using `Self::method()`. The compiler's static access expression handler did not
-  properly resolve the `Self` keyword to the enclosing circuit type when already inside
-  a static function context. The fix adds `Self`/`SelfType` as a valid variant in
-  the keyword-or-identifier AST node and updates the static access resolver to map
-  `Self` to the current circuit.
+pr_size: tiny
+description: 'Logos lexer''s #[token] attribute only matches exact string literals
+  and does not interpret regex metacharacters. The definitions for group::*, signature::*,
+  and Future::* incorrectly used #[token(r"...[a-zA-Z]...")] instead of #[regex(r"...")],
+  so the patterns never matched real code like group::GEN, signature::verify, or Future::await.
+  The fix changes #[token] to #[regex] for these three entries.'
 expected_findings:
-- file: compiler/src/expression/circuit/static_access.rs
-  line: 36
-  summary: Static access resolution does not handle the `Self` keyword as a circuit
-    identifier, so `Self::bar()` inside a static function fails to resolve to the
-    enclosing circuit type.
-- file: ast/src/common/keyword_or_identifier.rs
-  line: 20
-  summary: The `KeywordOrIdentifier` enum lacks a `SelfType` variant, preventing the
-    parser from recognizing `Self` as a valid circuit reference in static call expressions.
+- file: compiler/parser-lossless/src/tokens.rs
+  line: 109
+  summary: 'Incorrect use of #[token] with a regex pattern string; #[token] matches
+    the literal string and does not interpret regex metacharacters. Should be #[regex(...)]
+    so that character classes like [a-zA-Z] are evaluated as regex.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

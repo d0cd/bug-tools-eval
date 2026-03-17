@@ -1,23 +1,32 @@
 id: leo-040
 repo: ProvableHQ/leo
-base_commit: f2c4d8d07818d85863bd7c4182888411846f0dbc^
-head_commit: f2c4d8d07818d85863bd7c4182888411846f0dbc
-fix_commit: f2c4d8d07818d85863bd7c4182888411846f0dbc
+base_commit: 25c9ac6ea279d4895e63640425ce0b31aa189d4c^
+head_commit: 25c9ac6ea279d4895e63640425ce0b31aa189d4c
+fix_commit: 25c9ac6ea279d4895e63640425ce0b31aa189d4c
 category: logic
 difficulty: easy
-severity: low
+severity: medium
 language: rust
-pr_size: tiny
-description: A misspelled AST output filename string in the compiler's lib.rs caused
-  the JSON file to be written with an incorrect name. The fix corrects the spelling
-  of the AST filename (e.g., 'initial_ast.json') so downstream tools and users can
-  find the file at the expected path.
+pr_size: small
+description: The PEG grammar rule `type_tuple` in `leo-input.pest` was incorrectly
+  defined, preventing proper parsing of tuple types in Leo program inputs. The fix
+  corrected the grammar rule to properly match tuple type syntax, and added a test
+  case for returning tuples to verify the fix.
 expected_findings:
-- file: compiler/compiler/src/lib.rs
-  line: 82
-  summary: Misspelled filename string in ast.to_json_file_without_keys() call; the
-    AST output JSON filename contains a typo and should be corrected to the proper
-    spelling.
+- file: input/src/leo-input.pest
+  line: 105
+  summary: 'Incorrect grammar rule for `type_tuple`: the PEG expression does not correctly
+    parse tuple type inputs, likely requiring 2+ elements via `+` repetition when
+    it should also handle edge cases like single-element tuples or nested tuples.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

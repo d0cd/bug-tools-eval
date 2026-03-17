@@ -1,33 +1,32 @@
 id: sentry-015
 repo: getsentry/sentry
-base_commit: ea5a376e398c6e3f9e27a71202e3361d100c0c13^
-head_commit: ea5a376e398c6e3f9e27a71202e3361d100c0c13
-fix_commit: ea5a376e398c6e3f9e27a71202e3361d100c0c13
-category: logic
-difficulty: medium
-severity: high
-language: typescript
-pr_size: medium
-description: A refactor to add button busy state and form SubmitButton UX improvements
-  introduced a visual regression where buttons rendered incorrectly (broken layout/styling).
-  The fix reverts the entire changeset, restoring the original button display, layout
-  container, and form submit behavior.
+base_commit: 16a2849389a44e642b7d75d5c485fa4646ef51cc^
+head_commit: 16a2849389a44e642b7d75d5c485fa4646ef51cc
+fix_commit: 16a2849389a44e642b7d75d5c485fa4646ef51cc
+category: api-misuse
+difficulty: easy
+severity: medium
+language: python
+pr_size: tiny
+description: The ByCellName resolver did not handle the case where `cell_name` is
+  None during the migration period from `region_name` to `cell_name`. Old callers
+  that still pass `region_name` instead of `cell_name` would cause the resolver to
+  fail. The fix adds a fallback to `region_name` when `cell_name` is not yet provided.
 expected_findings:
-- file: static/app/components/core/button/button.tsx
-  line: 29
-  summary: Wrapping button content in Flex layout component breaks existing button
-    styling and causes visual regression in busy/loading state
-- file: static/app/components/core/button/styles.tsx
-  line: 132
-  summary: Changing button content display to 'inherit' disrupts the button's internal
-    layout, causing misaligned or broken rendering
-- file: static/app/components/core/form/scrapsForm.tsx
-  line: 69
-  summary: Modified form.Subscribe selector combining isSubmitting with isDefaultValue
-    changes submit button disable logic, potentially blocking form submission or showing
-    incorrect busy state
+- file: src/sentry/hybridcloud/rpc/resolvers.py
+  line: 1
+  summary: ByCellName resolver accesses `cell_name` without a None guard; during migration,
+    old callers may pass `region_name` instead, so a fallback like `cell_name or region_name`
+    is needed
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110217
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

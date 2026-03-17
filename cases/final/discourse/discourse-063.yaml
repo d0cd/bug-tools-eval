@@ -1,27 +1,40 @@
 id: discourse-063
 repo: discourse/discourse
-base_commit: 2a52a1bda59b4169e9f78ced41f94005e553b17c^
-head_commit: 2a52a1bda59b4169e9f78ced41f94005e553b17c
-fix_commit: 2a52a1bda59b4169e9f78ced41f94005e553b17c
-category: api
+base_commit: 899a483d74c6aa9991dc4a9d617eee187da74217^
+head_commit: 401f49c5fc30f947759e43e4d4d260c2af435071
+fix_commit: 899a483d74c6aa9991dc4a9d617eee187da74217
+category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: ruby
 pr_size: medium
-description: When polling RSS feeds from a login-required Discourse site, API credentials
-  were passed as query parameters in the URL. The `api_parameter_allowed?` check rejected
-  these because route `path_parameters` aren't populated in the feed-polling context,
-  causing authentication to always fail. The fix extracts credentials from the URL
-  query string and sends them as `Api-Key`/`Api-Username` headers, which bypass the
-  route-matching check.
+description: The server-side code that determines the initial value of `enabled_for`
+  for the upcoming changes page did not account for localized staff group names. When
+  the staff group name was translated to a non-English locale, the string comparison
+  failed and the staff group was not marked as selected on page load, even though
+  it was enabled. The fix updates the server-side list service and upcoming changes
+  library to match localized group names.
 expected_findings:
-- file: plugins/discourse-rss-polling/app/jobs/jobs/discourse_rss_polling/poll_feed.rb
-  line: 0
-  summary: 'API credentials passed as query parameters will fail authentication: `api_parameter_allowed?`
-    rejects them because `path_parameters` are not populated in this context. Should
-    send credentials as `Api-Key`/`Api-Username` headers instead.'
+- file: app/services/upcoming_changes/list.rb
+  line: 60
+  summary: enabled_for/setting_groups resolution does not account for localized staff
+    group names — a translated group name will fail the string match and the staff
+    group won't be selected on page load
+  line_side: pre_fix
+- file: lib/upcoming_changes.rb
+  line: 181
+  summary: Group name comparison here uses raw (English) name; should resolve localized
+    staff group name so non-English locales correctly identify the staff group as
+    enabled
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

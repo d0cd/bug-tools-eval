@@ -1,27 +1,38 @@
 id: leo-071
 repo: ProvableHQ/leo
-base_commit: 60e592edd7620907da9d0851f55857f55ac63f14^
-head_commit: 60e592edd7620907da9d0851f55857f55ac63f14
-fix_commit: 60e592edd7620907da9d0851f55857f55ac63f14
-category: logic
+base_commit: 49a51d6026ce5477c5e667eea74e1600eed59a9c^
+head_commit: 49a51d6026ce5477c5e667eea74e1600eed59a9c
+fix_commit: 49a51d6026ce5477c5e667eea74e1600eed59a9c
+category: type
 difficulty: easy
-severity: medium
-language: leo
+severity: high
+language: rust
 pr_size: small
-description: The pest parser grammar in leo.pest did not require whitespace after
-  keywords like 'mut', 'let', etc., allowing syntactically invalid programs like 'letmut
-  a:u32 = 1+1' to parse successfully. The fix adds mandatory spacing after keywords
-  in the grammar rules and also adds support for optional trailing commas on circuit
-  member fields.
+description: The Leo compiler's ternary expression handler in the ASG never checked
+  that the two branches (if_true and if_false) had the same type. This allowed programs
+  with type-mismatched ternary branches to compile without error. The fix adds a type
+  equality check between both branches and introduces a new `ternary_different_types`
+  error diagnostic.
 expected_findings:
-- file: ast/src/leo.pest
-  line: 18
-  summary: Keyword rule 'mutable' does not require whitespace after 'mut', allowing
-    invalid concatenated identifiers like 'letmut' to parse
-- file: ast/src/leo.pest
-  line: 177
-  summary: Circuit member field rule does not allow optional trailing comma, preventing
-    idiomatic trailing-comma syntax in circuit definitions
+- file: asg/src/expression/ternary.rs
+  line: 79
+  summary: 'Missing type check: after resolving the if_true and if_false expressions
+    of a ternary, there is no validation that their types match. A type equality check
+    should be added here to reject mismatched ternary branches.'
+  line_side: pre_fix
+- file: asg/src/expression/ternary.rs
+  line: 105
+  summary: Same missing type check in the second code path for ternary expression
+    resolution — both branches' types are never compared for equality.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

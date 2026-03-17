@@ -1,27 +1,43 @@
 id: leo-038
 repo: ProvableHQ/leo
-base_commit: baddfcc076879a84ddcdf3e6a24fe2123d1fdab3^
-head_commit: baddfcc076879a84ddcdf3e6a24fe2123d1fdab3
-fix_commit: baddfcc076879a84ddcdf3e6a24fe2123d1fdab3
-category: logic
+base_commit: 237f25af69c28006cdecf05ec3923e3e87f5628e^
+head_commit: 237f25af69c28006cdecf05ec3923e3e87f5628e
+fix_commit: 237f25af69c28006cdecf05ec3923e3e87f5628e
+category: style
 difficulty: easy
 severity: low
-language: leo
-pr_size: medium
-description: "A parser test for implicit (untyped) integer literals was improperly\
-  \ formatted\u2014it was meant to be disabled via a block comment prefix but lacked\
-  \ the required `/*` opening. The fix adds the block comment to the test file and\
-  \ changes its expectation from Pass to Fail, since current Leo does not allow untyped\
-  \ literals."
+language: rust
+pr_size: large
+description: Pure terminology rename from 'struct' to 'circuit' across the Leo compiler
+  codebase, updating type names, parser rules, error messages, and display implementations.
+  This is a naming convention change with no behavioral modification. The main risk
+  in such large renames is incomplete substitution — missing occurrences that leave
+  inconsistent terminology.
 expected_findings:
-- file: tests/parser/expression/literal/int_parse/implicit.leo
-  line: 1
-  summary: Test file is missing the required block comment (`/*`) prefix to properly
-    mark it as disabled; raw content is parsed as active test input.
-- file: tests/expectations/parser/parser/expression/literal/int_parse/implicit.leo.out
-  line: 1
-  summary: 'Test expectation is incorrect: should expect Fail (not Pass) since untyped
-    integer literals are not supported in the current version of Leo.'
+- file: compiler/src/leo.pest
+  line: 73
+  summary: Verify all grammar rules referencing 'struct' have been renamed to 'circuit';
+    incomplete rename in PEG grammar would cause parse failures for valid circuit
+    syntax
+  line_side: pre_fix
+- file: compiler/src/types_from.rs
+  line: 263
+  summary: Large mechanical rename of From impls (e.g. InlineCircuitMember); verify
+    no struct-era type references remain that would cause compilation errors
+  line_side: pre_fix
+- file: compiler/src/constraints/statement.rs
+  line: 19
+  summary: Assignee::CircuitMember pattern match — confirm all match arms and error
+    messages consistently use circuit terminology, not a mix of struct/circuit
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,23 +1,28 @@
 id: snarkOS-057
 repo: ProvableHQ/snarkOS
-base_commit: bdcac741121bbc0907ac46bcaa18a024246ff329^
-head_commit: bdcac741121bbc0907ac46bcaa18a024246ff329
-fix_commit: bdcac741121bbc0907ac46bcaa18a024246ff329
-category: logic
+base_commit: 4d2465933876f6cd2a55ed122292b33dbabe9228^
+head_commit: 4d2465933876f6cd2a55ed122292b33dbabe9228
+fix_commit: 4d2465933876f6cd2a55ed122292b33dbabe9228
+category: style
 difficulty: easy
 severity: low
 language: rust
 pr_size: small
-description: The proptest for BlockResponse was generating the same block every time
-  instead of using randomized inputs, defeating the purpose of property-based testing.
-  The fix added proper proptest strategies (any, BoxedStrategy, Strategy) and the
-  snarkvm-ledger-test-helpers crate to generate varied block data across test runs.
+description: Fixes spacing/formatting issues in the display module. This is a cosmetic
+  change correcting whitespace or indentation inconsistencies in snarkOS/display.rs.
 expected_findings:
-- file: node/narwhal/events/src/block_response.rs
-  line: 140
-  summary: Proptest uses a fixed/constant block value instead of a randomized strategy
-    (e.g., `any` or `BoxedStrategy`), causing the same block to be generated on every
-    test iteration.
+- file: snarkOS/display.rs
+  line: 1
+  summary: Inconsistent spacing/formatting that does not match surrounding code conventions
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

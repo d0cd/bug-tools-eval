@@ -1,34 +1,32 @@
 id: snarkOS-002
 repo: ProvableHQ/snarkOS
-base_commit: fea092cffe24661b5d4b183f22c9d7886b516d6d^
-head_commit: fea092cffe24661b5d4b183f22c9d7886b516d6d
-fix_commit: fea092cffe24661b5d4b183f22c9d7886b516d6d
-category: concurrency
+base_commit: 06bf60fac42824fc487ee9ab096149b242fc01b1^
+head_commit: 06bf60fac42824fc487ee9ab096149b242fc01b1
+fix_commit: 06bf60fac42824fc487ee9ab096149b242fc01b1
+category: incomplete
 difficulty: hard
-severity: critical
+severity: low
 language: rust
-pr_size: small
-description: 'The client sync mechanism suffered from two stall conditions: (1) an
-  RwLock deadlock where a write lock on `process` was held while a nested code path
-  attempted to acquire a read lock on the same RwLock, and (2) block request starvation
-  where sync requests could not make progress during block response processing. The
-  fix restructures lock acquisition order and adds yielding/scoping to prevent deadlock
-  and ensure block requests are not starved.'
+pr_size: xl
+description: This is a large refactoring/migration PR that reorganizes node logic
+  into separate modules and migrates code from snarkVM. No diff is available for analysis,
+  making it impossible to identify specific code-level issues. The PR is a structural
+  reorganization rather than a targeted bug fix.
 expected_findings:
-- file: node/sync/src/block_sync.rs
-  line: 233
-  summary: 'RwLock deadlock: write lock on `process` is held while a nested call path
-    attempts to acquire a read lock on the same RwLock, causing deadlock during block
-    response processing.'
-- file: node/sync/src/block_sync.rs
-  line: 612
-  summary: 'Block request starvation: sync block requests can stall indefinitely because
-    the response processing path holds resources without yielding, preventing new
-    block requests from being issued.'
-- file: node/sync/src/block_sync.rs
-  line: 692
-  summary: Missing synchronization or scoping around lock acquisition that contributes
-    to the deadlock scenario when block response processing takes significant time.
+- file: cli/src/commands/start.rs
+  line: 1
+  summary: "Large-scale module migration \u2014 verify that all node type roles (client,\
+    \ prover, validator) are correctly wired after modularization and no logic was\
+    \ dropped during migration"
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 1992
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

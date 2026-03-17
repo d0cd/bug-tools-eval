@@ -1,24 +1,42 @@
 id: snarkVM-144
 repo: ProvableHQ/snarkVM
-base_commit: 8fb59ddd11e1164acd8451458d55ddd22a32982c^
-head_commit: 8fb59ddd11e1164acd8451458d55ddd22a32982c
-fix_commit: 8fb59ddd11e1164acd8451458d55ddd22a32982c
-category: logic
+base_commit: c57ad3009cd85c08919219c69d2d1741aecc7dc3^
+head_commit: c57ad3009cd85c08919219c69d2d1741aecc7dc3
+fix_commit: c57ad3009cd85c08919219c69d2d1741aecc7dc3
+category: style
 difficulty: easy
-severity: medium
+severity: low
 language: rust
-pr_size: tiny
-description: The `hash_many` instruction parser failed to call `Sanitizer::parse_whitespaces`
-  between operands, causing inputs like `hash_many.psd2 r1 r2 into r3 as field;` to
-  fail parsing while `r1r2` (no space) would succeed. The fix adds systematic whitespace
-  skipping before each operand, consistent with other parts of the Aleo instructions
-  parser.
+pr_size: small
+description: 'Documentation comments contained formatting issues that caused `cargo
+  doc` warnings: bare URLs not wrapped in angle brackets, struct/module references
+  not in backticks, code blocks annotated with wrong language identifiers, and angle
+  brackets in prose misinterpreted as HTML links. The fix corrects all rustdoc formatting
+  to eliminate warnings.'
 expected_findings:
-- file: synthesizer/program/src/logic/instruction/operation/hash.rs
-  line: 379
-  summary: Missing `Sanitizer::parse_whitespaces` call before parsing each operand
-    in the `hash_many` loop, causing multi-operand inputs separated by whitespace
-    to fail parsing.
+- file: utilities/src/error.rs
+  line: 41
+  summary: Angle brackets in doc comment (`<line>:<col>`) will be misinterpreted by
+    rustdoc as an HTML tag; use curly braces or backticks instead
+  line_side: pre_fix
+- file: curves/src/bls12_377/fr.rs
+  line: 27
+  summary: Code fence annotated as `r,ignore` instead of `rust,ignore`; rustdoc will
+    not recognize the language
+  line_side: pre_fix
+- file: algorithms/src/r1cs/constraint_system.rs
+  line: 106
+  summary: Reference to `ConstraintSystem<F>` in doc comment not wrapped in backticks,
+    causing rustdoc warning
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

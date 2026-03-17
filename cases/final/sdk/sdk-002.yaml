@@ -1,27 +1,41 @@
 id: sdk-002
 repo: ProvableHQ/sdk
-base_commit: 5da75460234312645ea4ab00ef225bda77e141ae^
-head_commit: 5da75460234312645ea4ab00ef225bda77e141ae
-fix_commit: 5da75460234312645ea4ab00ef225bda77e141ae
-category: type
+base_commit: 01a51f130d83abdf12e2ab81d15fa1fc383b0b2b^
+head_commit: 01a51f130d83abdf12e2ab81d15fa1fc383b0b2b
+fix_commit: 01a51f130d83abdf12e2ab81d15fa1fc383b0b2b
+category: api-misuse
 difficulty: easy
-severity: medium
+severity: high
 language: typescript
-pr_size: tiny
-description: The `startHeight` property in `searchParameters` was not properly type-checked
-  before use in `record-provider.ts`, causing TypeScript type errors. The fix adds
-  `typeof` guards at two locations (lines ~193 and ~290) to ensure `startHeight` is
-  properly narrowed to the expected type before being used in height comparisons or
-  assignments.
+pr_size: xl
+description: 'TypeScript imports throughout the SDK lacked `.js` file extensions,
+  which broke module resolution under `moduleResolution: "nodenext"` (or `"node16"`).
+  The fix adds explicit `.js` extensions to all relative import paths and adds a nodenext
+  e2e test to prevent regression.'
 expected_findings:
-- file: sdk/src/record-provider.ts
-  line: 193
-  summary: 'Missing or incorrect type guard on `searchParameters["startHeight"]`:
-    needs a `typeof` check to properly narrow the type before use'
-- file: sdk/src/record-provider.ts
-  line: 290
-  summary: 'Missing or incorrect type guard on `searchParameters["startHeight"]`:
-    needs a `typeof` check to properly narrow the type before use (duplicate pattern)'
+- file: sdk/src/account.ts
+  line: 7
+  summary: Relative import missing `.js` extension — incompatible with TypeScript
+    nodenext/node16 module resolution. Should be `"./wasm.js"` instead of `"./wasm"`.
+  line_side: pre_fix
+- file: sdk/src/browser.ts
+  line: 1
+  summary: Relative import missing `.js` extension — breaks nodenext module resolution.
+    Should use `"./polyfill/shared.js"`.
+  line_side: pre_fix
+- file: sdk/src/function-key-provider.ts
+  line: 7
+  summary: Relative import missing `.js` extension — breaks nodenext module resolution.
+    Should use `"./constants.js"`.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

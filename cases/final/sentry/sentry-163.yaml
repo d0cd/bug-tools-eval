@@ -1,0 +1,43 @@
+id: sentry-163
+repo: getsentry/sentry
+base_commit: da8168055282efb0ab9a828a3990ea4f1daf2a88^
+head_commit: da8168055282efb0ab9a828a3990ea4f1daf2a88
+fix_commit: da8168055282efb0ab9a828a3990ea4f1daf2a88
+category: logic
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: medium
+description: AI agent integrations were incorrectly filtered by platform (e.g., 'python-flask',
+  'node-express') instead of by language alone (e.g., 'python', 'javascript'). This
+  caused valid integrations to be hidden from users whose projects used a recognized
+  language but a platform variant not in the filter list. The fix removes the platform-level
+  filters and retains only language-based filtering.
+expected_findings:
+- file: static/app/views/insights/pages/agents/utils/agentIntegrations.tsx
+  line: 1
+  summary: 'Platform filter is overly restrictive: integrations are filtered by specific
+    platform strings rather than by language, hiding valid AI integrations from users
+    whose projects match the language but not the exact platform variant'
+  line_side: pre_fix
+- file: static/app/views/insights/pages/agents/onboarding.tsx
+  line: 1
+  summary: Onboarding component passes platform-level filter criteria that unnecessarily
+    restrict which AI agent integrations are displayed
+  line_side: pre_fix
+- file: static/app/views/insights/pages/conversations/onboarding.tsx
+  line: 1
+  summary: Conversations onboarding applies the same overly restrictive platform filter,
+    duplicating the issue from the agents onboarding
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110295
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

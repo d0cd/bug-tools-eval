@@ -1,33 +1,40 @@
 id: snarkOS-182
 repo: ProvableHQ/snarkOS
-base_commit: 30524583321f4fcf1445df777b8d2803e8a84e68^
-head_commit: 30524583321f4fcf1445df777b8d2803e8a84e68
-fix_commit: 30524583321f4fcf1445df777b8d2803e8a84e68
-category: perf
+base_commit: f50937e602347332cfa7021fba439c630d083efe^
+head_commit: a1a1707
+fix_commit: f50937e602347332cfa7021fba439c630d083efe
+category: security
 difficulty: medium
-severity: medium
+severity: critical
 language: rust
 pr_size: medium
-description: "The `parallel` feature was not enabled or propagated to `snarkos-node-ledger`,\
-  \ causing block validation checks during ledger loading to run serially instead\
-  \ of in parallel. The fix adds the `parallel` feature flag to the ledger crate's\
-  \ Cargo.toml and propagates it from the parent node crate, and updates block range\
-  \ retrieval in `get.rs` to use parallel iteration, dramatically reducing bootup\
-  \ time (e.g., 7.5s \u2192 142ms for 500 blocks)."
+description: The BFT consensus layer processes incoming batch certificates by recursively
+  fetching all previous certificates before validating the incoming one. A malicious
+  peer can craft a chain of certificates with non-decreasing rounds, causing infinite
+  recursive fetching that crashes the validator via resource exhaustion. The fix adds
+  an early validity check (quorum threshold and committee membership) before the recursive
+  sync call.
 expected_findings:
-- file: node/ledger/Cargo.toml
-  line: 41
-  summary: "Missing `parallel` feature flag in ledger crate \u2014 without this, the\
-    \ rayon-based parallel iteration is never activated, causing serial block validation"
-- file: node/ledger/src/get.rs
-  line: 53
-  summary: Block range retrieval uses serial iteration instead of parallel (rayon)
-    iteration, causing O(n) serial block checks during ledger load when parallelism
-    is available
-- file: node/Cargo.toml
-  line: 76
-  summary: Parent node crate does not propagate the `parallel` feature to the ledger
-    dependency, so even if the feature exists in the ledger crate it is never activated
+- file: node/bft/src/primary.rs
+  line: 955
+  summary: 'Missing certificate validation before recursive fetch: sync_with_certificate_from_peer
+    is called without first checking that the certificate has valid quorum and committee
+    membership, enabling a DoS attack via malformed certificate chains'
+  line_side: pre_fix
+- file: node/bft/src/helpers/storage.rs
+  line: 494
+  summary: sync_with_certificate_from_peer recursively fetches previous certificates
+    from untrusted input without any upfront validation of the incoming certificate's
+    signers or quorum
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

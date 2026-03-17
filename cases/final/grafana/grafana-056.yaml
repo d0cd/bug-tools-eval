@@ -1,0 +1,35 @@
+id: grafana-056
+repo: grafana/grafana
+base_commit: 75d17a7a2a533ef709d2b8ba75f5d7c0e36f326c^
+head_commit: 75d17a7a2a533ef709d2b8ba75f5d7c0e36f326c
+fix_commit: 75d17a7a2a533ef709d2b8ba75f5d7c0e36f326c
+category: concurrency
+difficulty: hard
+severity: high
+language: go
+pr_size: medium
+description: The broadcast loop in `stream()` deadlocks when unsubscribing slow consumers
+  because it sends to `b.unsubscribe`, a buffered channel that is only drained by
+  the same goroutine. When the number of slow consumers exceeds the channel buffer
+  (>100), the send blocks forever, halting all event broadcasting. The fix collects
+  slow consumers during the broadcast loop and removes them inline afterward, avoiding
+  the self-deadlocking channel send.
+expected_findings:
+- file: pkg/storage/unified/resource/broadcaster.go
+  line: 1
+  summary: "Deadlock: the broadcast loop sends on `b.unsubscribe` to remove slow consumers,\
+    \ but that channel is only drained by this same goroutine \u2014 if >100 slow\
+    \ consumers accumulate, the buffered channel fills and the send blocks forever,\
+    \ deadlocking the entire broadcaster"
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119937
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

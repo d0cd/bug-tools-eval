@@ -1,25 +1,41 @@
 id: sdk-033
 repo: ProvableHQ/sdk
-base_commit: 1b7c283653e8122a3cd7cca87a7c30e56e094243^
-head_commit: 1b7c283653e8122a3cd7cca87a7c30e56e094243
-fix_commit: 1b7c283653e8122a3cd7cca87a7c30e56e094243
-category: api
+base_commit: 733b3c78dee7c9766ff5a677ceec20f58f7e9df5^
+head_commit: 733b3c78dee7c9766ff5a677ceec20f58f7e9df5
+fix_commit: 733b3c78dee7c9766ff5a677ceec20f58f7e9df5
+category: api-misuse
 difficulty: easy
-severity: medium
-language: rust
+severity: high
+language: typescript
 pr_size: small
-description: Incorrect Cargo.toml settings (likely profile configuration or feature
-  flags) caused issues with benchmarks and tests. The fix corrects the Cargo profile/settings
-  and updates affected benchmark and test files to align with the corrected configuration.
+description: The SDK uses deprecated snarkOS REST API endpoint paths (e.g. `/block/latest`,
+  `/block/height/latest`) that are no longer supported. The fix updates these to the
+  current endpoint format across the network client, tests, documentation, and website
+  examples.
 expected_findings:
-- file: Cargo.toml
-  line: 1
-  summary: Incorrect Cargo profile or dependency setting that needs to be fixed to
-    ensure benchmarks and tests compile/run correctly
-- file: tests/new.rs
-  line: 1
-  summary: Test file referencing incorrect configuration or using wrong API due to
-    misconfigured Cargo settings
+- file: sdk/src/network-client.ts
+  line: 364
+  summary: 'Deprecated endpoint: `/block/latest` should be updated to the current
+    snarkOS endpoint path (e.g. `/latest/block`)'
+  line_side: pre_fix
+- file: sdk/src/network-client.ts
+  line: 391
+  summary: 'Deprecated endpoint: `/block/latest` used again in a different method
+    — same fix needed'
+  line_side: pre_fix
+- file: sdk/src/network-client.ts
+  line: 567
+  summary: 'Deprecated endpoint: `/block/latest` used in yet another method — same
+    deprecated path pattern'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

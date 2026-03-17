@@ -1,29 +1,33 @@
 id: leo-103
 repo: ProvableHQ/leo
-base_commit: 3548158d2f31eb06156998baf80f1155d4a2cde4^
-head_commit: 3548158d2f31eb06156998baf80f1155d4a2cde4
-fix_commit: 3548158d2f31eb06156998baf80f1155d4a2cde4
-category: logic
-difficulty: medium
-severity: high
+base_commit: 639643e01b100032df132fd8ff4bcb0546b35a30^
+head_commit: 639643e01b100032df132fd8ff4bcb0546b35a30
+fix_commit: 639643e01b100032df132fd8ff4bcb0546b35a30
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: The Leo compiler's code generation pass produced incorrect bytecode for
-  external function calls. The visit_expressions.rs file had a bug in how external
-  call expressions were translated to Aleo instructions (around line 551), and visit_statements.rs
-  incorrectly handled the destination register for async instructions (line 167).
-  The fix corrected both the call expression codegen and the async instruction output
-  formatting.
+pr_size: tiny
+description: The doc comment on a field in the Span struct incorrectly described what
+  the field contains — the documentation said it held 'the content of the line(s)'
+  but the field actually stores something else (likely byte offsets or indices). The
+  fix updates the doc comment to match the actual runtime behavior rather than changing
+  the code.
 expected_findings:
-- file: compiler/passes/src/code_generation/visit_expressions.rs
-  line: 551
-  summary: External call codegen produces incorrect instruction format; the generated
-    call instruction for external functions is malformed or missing required components
-- file: compiler/passes/src/code_generation/visit_statements.rs
-  line: 167
-  summary: Async instruction destination register is incorrectly written via writeln!;
-    the 'into' clause for the async instruction references wrong or missing destination
-    register
+- file: leo/span/src/span.rs
+  line: 37
+  summary: 'Misleading doc comment: describes field as holding line content, but it
+    actually stores a different representation (e.g. byte offset or index). Documentation
+    does not match behavior.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

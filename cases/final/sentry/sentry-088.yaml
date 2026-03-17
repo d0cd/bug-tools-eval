@@ -1,0 +1,32 @@
+id: sentry-088
+repo: getsentry/sentry
+base_commit: 6bd2b62253050ffae88a43d6eabfcec0e730c4d4^
+head_commit: 6bd2b62253050ffae88a43d6eabfcec0e730c4d4
+fix_commit: 6bd2b62253050ffae88a43d6eabfcec0e730c4d4
+category: style
+difficulty: easy
+severity: low
+language: typescript
+pr_size: tiny
+description: The FilterWrapper component in SearchQueryBuilder could grow to fill
+  the entire parent width, forcing free-text input areas to wrap onto separate lines.
+  The fix caps FilterWrapper's max-width to be 2xl (a design token) less than the
+  parent, ensuring there is always inline space for users to click and begin typing
+  free text.
+expected_findings:
+- file: static/app/components/searchQueryBuilder/tokens/components.tsx
+  line: 1
+  summary: FilterWrapper has no max-width constraint, allowing it to consume 100%
+    of parent width and force free-text inputs to wrap to a new line
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110334
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

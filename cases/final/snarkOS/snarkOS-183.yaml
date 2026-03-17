@@ -1,27 +1,43 @@
 id: snarkOS-183
 repo: ProvableHQ/snarkOS
-base_commit: 6a95401f39413258f8a87728465667f283bcaa04^
-head_commit: 6a95401f39413258f8a87728465667f283bcaa04
-fix_commit: 6a95401f39413258f8a87728465667f283bcaa04
-category: concurrency
-difficulty: hard
-severity: medium
+base_commit: fa312f67cf60f572ada2c7658011d9d86e4e666b^
+head_commit: fa312f67cf60f572ada2c7658011d9d86e4e666b
+fix_commit: fa312f67cf60f572ada2c7658011d9d86e4e666b
+category: logic
+difficulty: medium
+severity: high
 language: rust
-pr_size: xl
-description: The ledger and consensus modules were tightly coupled, and the memory
-  pool's solution/transaction handling used separate read-lock checks (contains_key)
-  followed by write operations, creating TOCTOU race conditions under concurrent access.
-  The fix separates ledger from consensus into distinct crates and restructures the
-  locking to be more atomic.
+pr_size: medium
+description: The message propagation function updates the seen_blocks/seen_transactions
+  dedup maps for ALL peers — including the sender — before checking `if peer != &sender`.
+  This causes the sender's 'last seen' entry to be set to the current time even though
+  the message is never sent to the sender, incorrectly suppressing the sender from
+  receiving the same block or transaction in future propagations from different peers.
+  The fix restructures the loop to only check and update seen maps for non-sender
+  peers.
 expected_findings:
-- file: node/consensus/src/memory_pool/solutions.rs
-  line: 52
-  summary: 'TOCTOU race: read lock for contains_key check is released before subsequent
-    write, allowing concurrent duplicate insertions of unconfirmed solutions.'
-- file: node/consensus/src/memory_pool/transactions.rs
-  line: 41
-  summary: 'TOCTOU race: read lock for contains_key check is released before subsequent
-    write, allowing concurrent duplicate insertions of unconfirmed transactions.'
+- file: src/network/peers.rs
+  line: 425
+  summary: The match block updating seen_blocks/seen_transactions executes for all
+    peers including the sender, but the sender-exclusion check (`if peer != &sender`)
+    is only applied later — this silently poisons the dedup map for the sender peer,
+    causing it to miss future propagations of the same block/transaction.
+  line_side: pre_fix
+- file: src/network/peers.rs
+  line: 432
+  summary: Expiry check `now.saturating_sub(*last_seen) < BLOCK_BROADCAST_INTERVAL`
+    runs and updates timestamp for the sender peer even though the message is never
+    sent to the sender, creating a stale dedup entry that suppresses future legitimate
+    sends.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,29 +1,41 @@
 id: leo-151
 repo: ProvableHQ/leo
-base_commit: 02f8f7310253b2f659ea43ae4ff8d6e2adee8ee4^
-head_commit: 02f8f7310253b2f659ea43ae4ff8d6e2adee8ee4
-fix_commit: 02f8f7310253b2f659ea43ae4ff8d6e2adee8ee4
-category: logic
-difficulty: medium
-severity: high
-language: rust
+base_commit: 9f8bdb2d7e8f89c3ffd8ca3fd6274368732410f4^
+head_commit: 9f8bdb2d7e8f89c3ffd8ca3fd6274368732410f4
+fix_commit: 9f8bdb2d7e8f89c3ffd8ca3fd6274368732410f4
+category: incomplete
+difficulty: easy
+severity: low
+language: leo
 pr_size: medium
-description: Leo's PEG grammar did not correctly handle array slices with an omitted
-  lower bound (e.g., `arr[..2]`). The grammar rule for range expressions and the corresponding
-  Rust range struct in `grammar/src/common/range.rs` required both operands, causing
-  parse failures when only the upper bound was provided. The fix updated the grammar
-  rule in `leo.pest` and the range struct to make the lower bound optional.
+description: Examples used hyphenated directory names (hello-world, pedersen-hash,
+  square-root) which were inconsistent with Leo package naming requirements that expect
+  underscores. The PR renames example directories, fixes a typo in the fibonacci description
+  ('fibonnaci'), updates .gitignore files, and adjusts an import in the compiler's
+  value.rs to include GroupValue.
 expected_findings:
-- file: grammar/src/leo.pest
-  line: 70
-  summary: Grammar rule for range_or_expression does not allow omitting the left-hand
-    operand, so `..2` (lower slice) fails to parse. The left operand of the range
-    operator should be optional.
-- file: grammar/src/common/range.rs
-  line: 20
-  summary: Range struct derives FromPest but does not model the lower bound as optional
-    (Option<T>), preventing correct AST construction when the lower bound is omitted
-    in a slice expression like `arr[..2]`.
+- file: examples/fibonacci/Leo.toml
+  line: 1
+  summary: 'Typo in description: ''fibonnaci'' should be ''fibonacci'''
+  line_side: pre_fix
+- file: examples/hello-world/Leo.toml
+  line: 1
+  summary: Example directory uses hyphens ('hello-world') but Leo package names require
+    underscores; directory should be renamed to 'hello_world'
+  line_side: pre_fix
+- file: compiler/src/value/value.rs
+  line: 26
+  summary: Import line missing GroupValue from leo_typed, which is needed for value
+    representation
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,33 @@
+id: cal.com-032
+repo: calcom/cal.com
+base_commit: 681d1915374b0e1bdc708abac55b4482c8e953ad^
+head_commit: 681d1915374b0e1bdc708abac55b4482c8e953ad
+fix_commit: 681d1915374b0e1bdc708abac55b4482c8e953ad
+category: api-misuse
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: tiny
+description: In handleConfirmation.ts, the metadata field in the BOOKING_CREATED webhook
+  payload was set to `undefined` when no video call URL existed. Since JSON.stringify
+  omits keys with undefined values, downstream webhook consumers expecting a `metadata`
+  key would fail or behave incorrectly. The fix changes the fallback from `undefined`
+  to `{}` to ensure the key is always present.
+expected_findings:
+- file: packages/features/bookings/lib/handleConfirmation.ts
+  line: 577
+  summary: metadata is set to `undefined` when meetingUrl is falsy; JSON serialization
+    will omit the key entirely. Should use `{}` instead of `undefined` to guarantee
+    the `metadata` key is always present in the webhook payload.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

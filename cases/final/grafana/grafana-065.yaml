@@ -1,0 +1,33 @@
+id: grafana-065
+repo: grafana/grafana
+base_commit: 83b8d2e49c6b7ef4b141264d1e2d1af6fe0e86df^
+head_commit: 83b8d2e49c6b7ef4b141264d1e2d1af6fe0e86df
+fix_commit: 83b8d2e49c6b7ef4b141264d1e2d1af6fe0e86df
+category: incomplete
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: This PR enables the release-build-pro workflow dispatch in the release-build.yml
+  GitHub Actions workflow. The auto-extracted finding suggests a hardcoded workflow
+  name reference at line 109 (`let workflow = 'release-build.yml'`) that may need
+  updating to also account for the pro variant, but without the actual diff the exact
+  issue is unclear.
+expected_findings:
+- file: .github/workflows/release-build.yml
+  line: 109
+  summary: Hardcoded workflow name 'release-build.yml' may not correctly reference
+    the pro dispatch variant; verify this string is correct for the release-build-pro
+    path
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 120163
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

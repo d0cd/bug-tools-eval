@@ -1,23 +1,32 @@
 id: snarkVM-027
 repo: ProvableHQ/snarkVM
-base_commit: 1198c62e67ac0e22ab887e009496c977ef4cc416^
-head_commit: 1198c62e67ac0e22ab887e009496c977ef4cc416
-fix_commit: 1198c62e67ac0e22ab887e009496c977ef4cc416
-category: logic
+base_commit: 17b2e578f94f0d4e5929ea7f6a81dd2aaa67b4f7^
+head_commit: 17b2e578f94f0d4e5929ea7f6a81dd2aaa67b4f7
+fix_commit: 17b2e578f94f0d4e5929ea7f6a81dd2aaa67b4f7
+category: code-smell
 difficulty: easy
 severity: low
 language: rust
 pr_size: tiny
-description: An outdated code comment in batch-header/src/lib.rs incorrectly stated
-  that batch headers include the last election certificate ID. The fix updates the
-  comment to reflect that batch headers now include committee ID and previous batch
-  certificate IDs, removing the stale reference to election certificate IDs.
+description: After the ARC41 protocol change, prebonding to any address became valid,
+  making the error-level log for validators not in the committee misleading and noisy.
+  The fix downgrades the log from error!() to trace!() to reflect that this condition
+  is now expected behavior, not an error.
 expected_findings:
-- file: ledger/narwhal/batch-header/src/lib.rs
-  line: 37
-  summary: 'Outdated comment: mentions ''last election certificate ID'' which is no
-    longer part of batch headers; should reference current fields (committee ID and
-    previous batch certificate IDs).'
+- file: synthesizer/src/vm/helpers/rewards.rs
+  line: 54
+  summary: 'Log level too high: error!() used for a non-error condition (validator
+    not in committee during prebond). With ARC41 allowing prebonding to any address,
+    this should be trace!() or debug!() level.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

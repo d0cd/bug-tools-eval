@@ -1,27 +1,39 @@
 id: grafana-013
 repo: grafana/grafana
-base_commit: 50d08f2fb8e87fb80600b0727c51497c36c25da3^
-head_commit: 50d08f2fb8e87fb80600b0727c51497c36c25da3
-fix_commit: 50d08f2fb8e87fb80600b0727c51497c36c25da3
-category: logic
+base_commit: 246b73f4efe7f1480b23a575e2648822f65c30e7^
+head_commit: 246b73f4efe7f1480b23a575e2648822f65c30e7
+fix_commit: 246b73f4efe7f1480b23a575e2648822f65c30e7
+category: code-smell
 difficulty: medium
 severity: medium
-language: typescript
+language: go
 pr_size: medium
-description: Graphite metric name variable queries running through the backend mode
-  failed to correctly populate the 'text' and 'value' fields for metric names. The
-  data frame construction had changed, and the code was not using the 'displayNameFromDS'
-  value to set the series name, causing variable queries to return incorrect or missing
-  metric names. The fix updates the field extraction to use 'displayNameFromDS' when
-  constructing the variable query results.
+description: The codebase contained dead patching logic (`patchNewSecureFields`, `patchSettingsFromSecureSettings`)
+  that copied DingDing notification URLs between `settings` and `secureSettings` maps
+  before passing receivers to the alerting subsystem. The upstream `grafana/alerting`
+  library was updated to read from both maps natively, making this patching redundant.
+  Removing it eliminates unnecessary complexity and potential confusion about where
+  secure field resolution actually happens.
 expected_findings:
-- file: public/app/plugins/datasource/graphite/datasource.ts
-  line: 768
-  summary: When graphiteBackendMode is enabled, metric name variable query results
-    do not use 'displayNameFromDS' to populate text/value fields, causing incorrect
-    series names in variable dropdowns
+- file: pkg/services/ngalert/notifier/alertmanager.go
+  line: 444
+  summary: 'Dead code: `patchNewSecureFields`/`patchSettingsFromSecureSettings` calls
+    are unnecessary since grafana/alerting now reads from both settings and secureSettings
+    natively — remove the patching step before `PostableAPIReceiversToAPIReceivers`'
+  line_side: pre_fix
+- file: pkg/services/ngalert/notifier/testreceivers.go
+  line: 26
+  summary: Same unnecessary secure-fields patching applied in test receivers path;
+    should be removed consistently with the main alertmanager path
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

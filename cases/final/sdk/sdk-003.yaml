@@ -1,20 +1,42 @@
 id: sdk-003
 repo: ProvableHQ/sdk
-base_commit: 1bcd379531871ce6807c096900a30139da3459f9^
-head_commit: 1bcd379531871ce6807c096900a30139da3459f9
-fix_commit: 1bcd379531871ce6807c096900a30139da3459f9
-category: logic
-difficulty: easy
-severity: low
-language: javascript
-pr_size: tiny
-description: A documentation link on the provable.tools homepage pointed to an outdated
-  URL. The fix updates the link to point to the latest production documentation site.
+base_commit: 052249e6d5531cb436b617fe0733396190504c78^
+head_commit: 052249e6d5531cb436b617fe0733396190504c78
+fix_commit: 052249e6d5531cb436b617fe0733396190504c78
+category: api-misuse
+difficulty: medium
+severity: high
+language: rust
+pr_size: xl
+description: The SDK's execute_program, execute_fee, and related APIs were incompatible
+  with SnarkVM v0.12.5 breaking changes. Function signatures, fee execution macros,
+  and import paths needed updating to match the new upstream API. Without these fixes,
+  program execution, deployments, transfers, and fee calculations would fail at compile
+  time or runtime.
 expected_findings:
-- file: website/src/pages/Homepage.jsx
-  line: 32
-  summary: 'Outdated documentation URL: link should point to the latest production
-    docs at docs.explorer.provable.com/docs/sdk'
+- file: rust/src/program/execute.rs
+  line: 20
+  summary: execute_program() call signature is incompatible with SnarkVM v0.12.5 —
+    missing or incorrect parameters after upstream API change
+  line_side: pre_fix
+- file: wasm/src/programs/macros.rs
+  line: 91
+  summary: execute_fee! macro invocation does not match the updated SnarkVM v0.12.5
+    fee execution API — parameters or return type changed
+  line_side: pre_fix
+- file: rust/src/program/transfer.rs
+  line: 37
+  summary: Fee validation check 'fee_record.microcredits()? >= fee' may use outdated
+    fee record API from pre-v0.12.5 SnarkVM
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

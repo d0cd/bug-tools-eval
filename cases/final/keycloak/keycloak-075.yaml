@@ -1,0 +1,31 @@
+id: keycloak-075
+repo: keycloak/keycloak
+base_commit: e53575d5d55cc97fae33e8e5f3052df26e0e9f8d^
+head_commit: e53575d5d55cc97fae33e8e5f3052df26e0e9f8d
+fix_commit: e53575d5d55cc97fae33e8e5f3052df26e0e9f8d
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: The confirmation message displayed when disabling an identity provider
+  in the Keycloak admin UI had incorrect or malformed text. The fix corrects the wording
+  in the English messages properties file, likely fixing a broken MessageFormat placeholder
+  or wrong phrasing in the disableConfirmIdentityProvider key.
+expected_findings:
+- file: js/apps/admin-ui/maven-resources/theme/keycloak.v2/admin/messages/messages_en.properties
+  line: 1140
+  summary: Malformed or incorrect confirmation message string for disabling identity
+    provider — placeholder quoting or wording is wrong
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

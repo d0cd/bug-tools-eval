@@ -1,23 +1,39 @@
 id: snarkOS-106
 repo: ProvableHQ/snarkOS
-base_commit: b163f68ad2f1074d4d600a772cf7d8e5059563aa^
-head_commit: b163f68ad2f1074d4d600a772cf7d8e5059563aa
-fix_commit: b163f68ad2f1074d4d600a772cf7d8e5059563aa
-category: logic
-difficulty: hard
-severity: medium
+base_commit: a09ea432b6f0830a18f55475d0e16cd69ac57152
+head_commit: baed495a6104f580b03909266f2ffdf18563fe1e
+fix_commit: 9357ebd361014248cbdf4eea32957655471cdfbe
+category: api-misuse
+difficulty: medium
+severity: high
 language: rust
 pr_size: xl
-description: Large refactoring PR that migrates Ledger and snarkvm-rest modules from
-  snarkVM, modularizes node logic for different node types, and introduces prover
-  logic. No diff is available and no specific bug fix is identifiable from the metadata
-  alone; the PR appears to be a structural reorganization rather than a targeted bug
-  fix.
+description: The REST endpoint for fetching a program by edition used `get_program_for_edition`
+  which panicked or returned an internal server error when the program/edition didn't
+  exist, instead of returning a proper 404. For credits.aleo, the latest edition was
+  also not returning 0 correctly. The fix switches to `try_get_program_for_edition`
+  which returns Option, allowing proper 404 responses for missing programs/editions.
 expected_findings:
-- file: cli/src/commands/start.rs
-  line: 1
-  summary: "Unable to identify specific bug location \u2014 PR is a large-scale module\
-    \ migration/refactoring with no diff available for analysis"
+- file: node/rest/src/routes.rs
+  line: 357
+  summary: Using `get_program_for_edition` which fails with an opaque error instead
+    of returning 404 when the program/edition doesn't exist. Should use `try_get_program_for_edition`
+    and map None to a 404 RestError.
+  line_side: pre_fix
+- file: node/rest/src/helpers/error.rs
+  line: 111
+  summary: REST error log uses `{json_body:?}` (Debug format) which wraps the string
+    in extra quotes, making logs harder to read. Should use `{json_body}` (Display
+    format).
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 3956
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

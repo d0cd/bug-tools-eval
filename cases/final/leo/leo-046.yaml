@@ -1,25 +1,32 @@
 id: leo-046
 repo: ProvableHQ/leo
-base_commit: 0e82808c7dd3a5092f7394ad031bd34937a7d700^
-head_commit: 0e82808c7dd3a5092f7394ad031bd34937a7d700
-fix_commit: 0e82808c7dd3a5092f7394ad031bd34937a7d700
-category: type
+base_commit: 2cde6d06597cb029081e28f30612f7aaa3cdfd89^
+head_commit: bf2280e400a788917d5687cd61e7a95d58c783b2
+fix_commit: 2cde6d06597cb029081e28f30612f7aaa3cdfd89
+category: logic
 difficulty: easy
 severity: high
 language: rust
-pr_size: tiny
-description: "The tokenizer's unexpected_token error handler used byte-level string\
-  \ slicing (e.g., `&input[index..index+1]`) to extract the offending character. For\
-  \ multi-byte UTF-8 characters like emoji (\U0001F980), this causes a panic because\
-  \ slicing at a non-character boundary is invalid in Rust. The fix replaces byte\
-  \ slicing with `.chars().next().unwrap()` to correctly extract the first character\
-  \ regardless of its byte width."
+pr_size: small
+description: The `get_indicator_value` method in the statement compiler called `.unwrap()`
+  on an indicator boolean gadget value that is `None` when a console statement appears
+  inside a conditional block. The fix changes the unwrap to return `false` when the
+  value is `None`, preventing the panic.
 expected_findings:
-- file: parser/src/tokenizer/mod.rs
-  line: 84
-  summary: Byte-level string slicing on UTF-8 input will panic on multi-byte characters;
-    should use `.chars().next().unwrap()` to safely extract the character at this
-    position.
+- file: compiler/src/statement/statement.rs
+  line: 143
+  summary: Unsafe `.unwrap()` on indicator boolean value that is `None` when inside
+    a conditional scope; should use `.unwrap_or(false)` or equivalent to avoid panic
+    on console statements in conditionals
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

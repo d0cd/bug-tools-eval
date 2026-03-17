@@ -1,29 +1,39 @@
 id: leo-115
 repo: ProvableHQ/leo
-base_commit: d32918199951584c079da84a940e5bb445416cc2^
-head_commit: d32918199951584c079da84a940e5bb445416cc2
-fix_commit: d32918199951584c079da84a940e5bb445416cc2
-category: api
+base_commit: 7450e27de3d17127314d242cb75d808ff74d0e07^
+head_commit: 7450e27de3d17127314d242cb75d808ff74d0e07
+fix_commit: 7450e27de3d17127314d242cb75d808ff74d0e07
+category: logic
 difficulty: medium
-severity: medium
-language: rust
+severity: high
+language: leo
 pr_size: medium
-description: The Leo compiler's type checker produced unhelpful error messages when
-  function calls had mistyped arguments. The fix adds Span tracking to function parameter
-  symbols (in FunctionSymbol) and updates the expression type checker to emit more
-  descriptive error messages that indicate the expected vs actual types at the call
-  site.
+description: The ASG layer did not enforce immutability for variables declared as
+  `const`. The definition statement handler in `asg/src/statement/definition.rs` was
+  missing a check to reject reassignment of const-declared variables. The fix adds
+  a validation that emits an `invalid_const_assign` error when a const variable is
+  assigned a non-const value, and updates test cases to use `let` where mutation is
+  needed.
 expected_findings:
-- file: compiler/passes/src/type_checking/check_expressions.rs
-  line: 455
-  summary: Function call type checking does not produce informative error messages
-    when argument types don't match parameter types; should report expected vs actual
-    types with source spans.
-- file: compiler/passes/src/symbol_table/function_symbol.rs
-  line: 38
-  summary: Function parameter symbol lacks a Span field to track the source location
-    of the parameter's declared type, preventing informative error messages on type
-    mismatch.
+- file: asg/src/statement/definition.rs
+  line: 75
+  summary: 'Missing const enforcement: when declaration_type is Declare::Const, there
+    is no check that the assigned value is actually const-compatible, allowing mutation
+    of const variables at the ASG level'
+  line_side: pre_fix
+- file: asg/src/error/mod.rs
+  line: 172
+  summary: No error variant exists for invalid const assignment — the compiler silently
+    accepts reassignment of const variables without reporting an error
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

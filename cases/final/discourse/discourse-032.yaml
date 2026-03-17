@@ -1,28 +1,42 @@
 id: discourse-032
 repo: discourse/discourse
-base_commit: 201fa52f58ad245b44342e2f2f8be101575e4f9b^
-head_commit: 201fa52f58ad245b44342e2f2f8be101575e4f9b
-fix_commit: 201fa52f58ad245b44342e2f2f8be101575e4f9b
-category: logic
+base_commit: 2fb976fab160bcdaf79071d0d3055e686fc1d07b^
+head_commit: 2fb976fab160bcdaf79071d0d3055e686fc1d07b
+fix_commit: 2fb976fab160bcdaf79071d0d3055e686fc1d07b
+category: api-misuse
 difficulty: medium
-severity: low
+severity: medium
 language: ruby
-pr_size: tiny
-description: 'Flaky system spec for the rich editor checklist extension. The test
-  assertions used exact item-count checks (`have_items(count: 1)`) that were timing-sensitive,
-  causing intermittent failures. The fix likely replaced or simplified the assertions
-  to be more resilient to rendering timing.'
+pr_size: medium
+description: The Dropbox onebox handlers only recognized the legacy `/s/` sharing
+  URL format, causing the newer `/scl/fi/` format URLs to not be transformed into
+  direct-download links via dl.dropboxusercontent.com. The fix extracts a shared helper
+  that handles both URL formats, adds `raw=1` for `/scl/` URLs, and eliminates the
+  side-effect mutation of `@url`.
 expected_findings:
-- file: plugins/checklist/spec/system/rich_editor_extension_spec.rb
-  line: 99
-  summary: 'Flaky assertion: `expect(checklist).to have_items(count: 1)` is timing-sensitive
-    and can fail when the DOM hasn''t fully rendered the checklist items'
-- file: plugins/checklist/spec/system/rich_editor_extension_spec.rb
-  line: 129
-  summary: 'Flaky assertion: `expect(checklist).to have_items(count: 1)` same timing-sensitive
-    check that should use a more resilient waiting/matching strategy'
+- file: lib/onebox/engine/image_onebox.rb
+  line: 16
+  summary: Dropbox URL check only matches `/s/` path prefix; newer `/scl/fi/` sharing
+    URLs pass through unhandled, producing broken image embeds
+  line_side: pre_fix
+- file: lib/onebox/engine/video_onebox.rb
+  line: 15
+  summary: Same incomplete Dropbox URL pattern — only `/s/` is matched, so `/scl/fi/`
+    video links are not rewritten to dl.dropboxusercontent.com and fail to embed
+  line_side: pre_fix
+- file: lib/onebox/engine/video_onebox.rb
+  line: 17
+  summary: '`@url.sub!` mutates the instance variable as a side effect, which can
+    cause unexpected behavior if `@url` is referenced again after `to_html` is called'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

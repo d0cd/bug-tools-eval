@@ -1,28 +1,30 @@
 id: snarkVM-055
 repo: ProvableHQ/snarkVM
-base_commit: d02f8772c217c7a046833f5c6b44a86736e35d96^
-head_commit: d02f8772c217c7a046833f5c6b44a86736e35d96
-fix_commit: d02f8772c217c7a046833f5c6b44a86736e35d96
-category: logic
-difficulty: medium
-severity: high
+base_commit: 3c85ab0c39572b6e4e6cbc631345a18e1a0fce96^
+head_commit: 3c85ab0c39572b6e4e6cbc631345a18e1a0fce96
+fix_commit: 3c85ab0c39572b6e4e6cbc631345a18e1a0fce96
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: When loading programs from storage, the VM iterated over them in lexicographical
-  order, which could cause a program to be loaded before its imports (dependencies).
-  The fix adds a method to expose the deployment store from the transaction store
-  and modifies the VM initialization to recursively load each program's imports before
-  loading the program itself.
+pr_size: tiny
+description: Added a documentation comment explaining why the benchmark code in `benches/instruction.rs`
+  was commented out. This is a purely informational change that improves code maintainability
+  by providing context for future developers about why the benchmarks are disabled.
 expected_findings:
-- file: synthesizer/src/vm/mod.rs
-  line: 709
-  summary: Programs are loaded from storage in lexicographical order without resolving
-    import dependencies first. A program may be processed before its imports have
-    been loaded, causing the VM to fail initialization.
-- file: synthesizer/src/store/transaction/mod.rs
-  line: 263
-  summary: The deployment store is not exposed publicly, preventing callers from accessing
-    program deployment data needed to resolve and pre-load import dependencies.
+- file: synthesizer/benches/instruction.rs
+  line: 11
+  summary: Commented-out benchmark code lacks explanation for why it was disabled;
+    a note should be added indicating the reason
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

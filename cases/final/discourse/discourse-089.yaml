@@ -1,0 +1,32 @@
+id: discourse-089
+repo: discourse/discourse
+base_commit: ca404c8e0ed36c7da19dbed57a411b289ca9549e^
+head_commit: ca404c8e0ed36c7da19dbed57a411b289ca9549e
+fix_commit: ca404c8e0ed36c7da19dbed57a411b289ca9549e
+category: code-smell
+difficulty: medium
+severity: low
+language: ruby
+pr_size: tiny
+description: Flaky system spec for the rich editor checklist extension. The fix (third
+  attempt) removes 5 lines from the spec, likely eliminating a timing-sensitive assertion
+  or redundant check that caused intermittent failures in CI. With no additions and
+  only deletions, the approach is to simplify the test rather than add more synchronization.
+expected_findings:
+- file: plugins/checklist/spec/system/rich_editor_extension_spec.rb
+  line: 126
+  summary: 'Flaky test code: lines likely contain a timing-sensitive assertion or
+    redundant check that causes intermittent CI failures; should be removed or replaced
+    with a more deterministic wait/assertion pattern'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

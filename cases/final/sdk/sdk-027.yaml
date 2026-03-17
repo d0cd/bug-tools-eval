@@ -1,26 +1,31 @@
 id: sdk-027
 repo: ProvableHQ/sdk
-base_commit: 012a10db496f884ecbbb385a50617cd5dd3049b1^
-head_commit: 012a10db496f884ecbbb385a50617cd5dd3049b1
-fix_commit: 012a10db496f884ecbbb385a50617cd5dd3049b1
-category: api
+base_commit: 64dfe82a19edd815f205cf178c4f6b0a9c04b6b8^
+head_commit: 64dfe82a19edd815f205cf178c4f6b0a9c04b6b8
+fix_commit: 64dfe82a19edd815f205cf178c4f6b0a9c04b6b8
+category: code-smell
 difficulty: easy
-severity: medium
-language: javascript
-pr_size: small
-description: The website had incorrect or mismatched dependency versions in package.json,
-  likely causing build or runtime failures. The fix updated the dependency declarations
-  in package.json and adjusted corresponding imports or usage in App.js to align with
-  the correct package versions.
+severity: low
+language: rust
+pr_size: large
+description: This PR adds CI configuration and makes associated project renaming/cleanup
+  changes (Aleo SDK branding, workflow files, dependency updates). No diff is available
+  to inspect, making it impossible to identify a specific bug or code issue. The change
+  appears to be infrastructure/CI setup rather than a bug fix.
 expected_findings:
-- file: website/package.json
-  line: 1
-  summary: Incorrect or missing dependency versions causing build/runtime failures
-    for the website
-- file: website/src/App.js
-  line: 1
-  summary: Import or usage of a dependency that does not match the installed package
-    version or API
+- file: .github/workflows/ci.yml
+  line: 7
+  summary: CI workflow excludes markdown files from triggers — verify this doesn't
+    skip CI on PRs that modify both docs and code
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

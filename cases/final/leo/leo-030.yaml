@@ -1,31 +1,32 @@
 id: leo-030
 repo: ProvableHQ/leo
-base_commit: ebd06d292af87991a87a9eebfc3f541b91127d9e^
-head_commit: ebd06d292af87991a87a9eebfc3f541b91127d9e
-fix_commit: ebd06d292af87991a87a9eebfc3f541b91127d9e
+base_commit: 1d1e86c8dea00ad6bd37e4d8d52ac76ca2784bfa^
+head_commit: 1d1e86c8dea00ad6bd37e4d8d52ac76ca2784bfa
+fix_commit: 1d1e86c8dea00ad6bd37e4d8d52ac76ca2784bfa
 category: logic
 difficulty: easy
 severity: medium
 language: rust
 pr_size: small
-description: AST snapshot output files were written without prepending the program
-  name to the filename. When compiling programs with imports, multiple programs would
-  overwrite each other's AST output files since they all wrote to the same filename
-  (e.g., 'initial_input_ast.json'). The fix prepends the program name to the output
-  filename to avoid collisions.
+description: The Leo compiler's not operator (`!`) failed when applied to mutable
+  boolean variables. The expression enforcement path did not correctly handle the
+  mutable case for unary negation, likely passing the wrong expression variant or
+  missing the mutable dereference before applying the boolean not constraint.
 expected_findings:
-- file: compiler/compiler/src/compiler.rs
-  line: 139
-  summary: "AST output file written without program name prefix \u2014 will be overwritten\
-    \ when compiling programs with imports that also produce AST snapshots"
-- file: compiler/compiler/src/compiler.rs
-  line: 236
-  summary: 'Same issue: input_ast.to_json_file() called without prepending program
-    name, causing filename collisions across imported programs'
-- file: compiler/compiler/src/test.rs
-  line: 233
-  summary: "Test expects non-prefixed filename 'test.initial_input_ast.json' \u2014\
-    \ should include program name prefix to match the corrected output format"
+- file: compiler/src/expression/expression.rs
+  line: 138
+  summary: Unary not operator enforcement does not handle mutable boolean variables
+    — the operand enforcement call needs to account for mutable references before
+    applying boolean negation
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

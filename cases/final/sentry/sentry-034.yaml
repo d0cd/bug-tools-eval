@@ -1,25 +1,35 @@
 id: sentry-034
 repo: getsentry/sentry
-base_commit: 45b07af020e64e9ee4bfc759d5105267cdd8dad9^
-head_commit: 45b07af020e64e9ee4bfc759d5105267cdd8dad9
-fix_commit: 45b07af020e64e9ee4bfc759d5105267cdd8dad9
-category: api
-difficulty: easy
+base_commit: 2a2d0fd80caca969039014e664a6e51c34df767d^
+head_commit: 2a2d0fd80caca969039014e664a6e51c34df767d
+fix_commit: 2a2d0fd80caca969039014e664a6e51c34df767d
+category: logic
+difficulty: medium
 severity: medium
-language: python
+language: typescript
 pr_size: medium
-description: 'The dashboard widget API lacked backend validation for layout dimensions,
-  allowing invalid values like `w: 12` on a 6-column grid to be persisted. The fix
-  replaces a custom `LayoutField` with a `LayoutSerializer` using DRF''s built-in
-  `IntegerField` validators to reject out-of-range dimensions at the API level.'
+description: When a sentinel value (All Projects or My Projects) was staged but not
+  yet committed, unchecking an individual project checkbox would add its ID alongside
+  the sentinel (e.g. `[-1, 1]`). Because the sentinel `-1` remained, the selection
+  still resolved to `kind='all'`, leaving the checkbox visually checked and suppressing
+  the selection limit warning. The fix expands the sentinel to explicit project IDs
+  before toggling the clicked project off.
 expected_findings:
-- file: src/sentry/api/serializers/rest_framework/dashboard.py
-  line: 103
-  summary: 'Missing validation: LayoutField accepts arbitrary integer values for widget
-    width/height without checking against grid constraints (max width 6), allowing
-    invalid layouts to be persisted'
+- file: static/app/components/pageFilters/project/projectPageFilter.tsx
+  line: 1
+  summary: 'Toggle logic does not expand sentinel values before removing a project:
+    when staged selection contains a sentinel like -1 (All Projects) or -2 (My Projects),
+    toggling a project ID appends it without removing the sentinel, so the selection
+    still resolves as ''all'' or ''my'' and the uncheck has no visible effect'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110274
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

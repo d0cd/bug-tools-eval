@@ -1,32 +1,43 @@
 id: snarkVM-143
 repo: ProvableHQ/snarkVM
-base_commit: a5455a58a34de5f75afc710ff88722817394dfb3^
-head_commit: a5455a58a34de5f75afc710ff88722817394dfb3
-fix_commit: a5455a58a34de5f75afc710ff88722817394dfb3
-category: logic
-difficulty: medium
-severity: high
+base_commit: c432b6dc5c24975b12675f327b5d6ed72426fc02^
+head_commit: c432b6dc5c24975b12675f327b5d6ed72426fc02
+fix_commit: c432b6dc5c24975b12675f327b5d6ed72426fc02
+category: incomplete
+difficulty: easy
+severity: medium
 language: rust
-pr_size: medium
-description: When a program imports `credits.aleo` and is executed via `snarkvm execute`,
-  the process would fail with a duplicate name error. This occurred because `credits.aleo`
-  is automatically added as a built-in program, but the import resolution logic did
-  not check whether it was already present before adding it again. The fix adds a
-  guard to skip adding `credits.aleo` when it has already been loaded into the process/package.
+pr_size: small
+description: New hash opcodes (e.g. keccak256 and related variants) were added to
+  snarkVM but not registered in the opcode checklists within the register_types initializer.
+  Three separate checklist blocks in initialize.rs were missing entries for the new
+  opcodes, which would cause those instructions to be rejected or mishandled during
+  register type initialization.
 expected_findings:
-- file: synthesizer/process/src/lib.rs
-  line: 115
-  summary: 'Missing guard: when adding imported programs to the process, there is
-    no check to skip `credits.aleo` which is already loaded as a built-in, causing
-    a duplicate name error.'
-- file: vm/package/mod.rs
-  line: 155
-  summary: 'Missing guard: the package build/import resolution does not skip `credits.aleo`
-    when it is already present, leading to a duplicate program error on import.'
-- file: vm/package/mod.rs
-  line: 273
-  summary: 'Missing guard: another code path in the package module that adds imported
-    programs without checking if `credits.aleo` is already loaded.'
+- file: synthesizer/process/src/stack/register_types/initialize.rs
+  line: 570
+  summary: Opcode checklist is missing entries for newly added hash opcodes (e.g.
+    hash.keccak256, hash.keccak384, hash.keccak512, hash.sha3_256, hash.sha3_384,
+    hash.sha3_512); all new opcodes must be registered here
+  line_side: pre_fix
+- file: synthesizer/process/src/stack/register_types/initialize.rs
+  line: 607
+  summary: Second opcode checklist block is also missing the same new hash opcodes
+    — must be kept in sync with the first checklist
+  line_side: pre_fix
+- file: synthesizer/process/src/stack/register_types/initialize.rs
+  line: 639
+  summary: Third opcode checklist block is missing the new hash opcodes — all three
+    checklist sites must enumerate every supported opcode
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,29 +1,38 @@
 id: grafana-034
 repo: grafana/grafana
-base_commit: cfb835f18e6c7dbd83e74eefe96496d81790f7b4^
-head_commit: 05c9ed18d66
-fix_commit: cfb835f18e6c7dbd83e74eefe96496d81790f7b4
-category: api
+base_commit: 4bc3b94077eb2d668160830f449ffd3aee415aeb^
+head_commit: 4bc3b94077eb2d668160830f449ffd3aee415aeb
+fix_commit: 4bc3b94077eb2d668160830f449ffd3aee415aeb
+category: security
 difficulty: easy
 severity: high
 language: unknown
-pr_size: tiny
-description: 'PR #119297 removed the `build.go` file but left a stale reference to
-  it in the Dockerfile''s COPY instruction on line 126, causing all Docker builds
-  to fail with a ''not found'' error. The fix removes `build.go` from the COPY command.
-  A similar stale reference in `.github/actions/change-detection/action.yml` was also
-  cleaned up.'
+pr_size: small
+description: 'The nanogit dependency was pinned at v0.6.0 which transitively pulled
+  in Go toolchain 1.25.6, exposing the application to four CVEs in Go stdlib: filesystem
+  sandbox escape (os), IPv6 URL parsing error (net/url), certificate validation panic
+  (crypto/x509), and incorrect email constraint enforcement (crypto/x509). The fix
+  bumps nanogit to v0.7.0 which uses Go 1.25.8.'
 expected_findings:
-- file: Dockerfile
-  line: 126
-  summary: 'Stale reference: COPY instruction includes `build.go` which was deleted
-    in commit 05c9ed18d66; this breaks the Docker build'
-- file: .github/actions/change-detection/action.yml
-  line: 53
-  summary: Stale reference to `build.go` in change-detection patterns after the file
-    was removed
+- file: go.mod
+  line: 107
+  summary: Outdated nanogit v0.6.0 dependency transitively includes Go 1.25.6 with
+    known CVEs (GO-2026-4599 through GO-2026-4602); bump to v0.7.0 to pick up Go 1.25.8
+    fixes
+  line_side: pre_fix
+- file: apps/provisioning/go.mod
+  line: 13
+  summary: nanogit v0.6.0 pinned here also needs bump to v0.7.0 for Go stdlib CVE
+    fixes
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 120290
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

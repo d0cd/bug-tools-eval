@@ -58,6 +58,27 @@ def is_docker_available() -> bool:
         return False
 
 
+_BASE_TOOLS = "Read,Glob,Grep,WebSearch,WebFetch"
+_DOCKER_TOOLS = f"Bash,{_BASE_TOOLS}"
+
+
+def _resolve_allowed_tools(
+    context_level: str, use_docker: bool, override: str | None
+) -> str:
+    """Return the tool allowlist string for the given context and runner.
+
+    Resolution:
+      - If override is provided, use it verbatim.
+      - diff-only: no tools (empty string regardless of docker).
+      - diff+repo*: Read,Glob,Grep,WebSearch,WebFetch; adds Bash when in Docker.
+    """
+    if override is not None:
+        return override
+    if context_level == "diff-only":
+        return ""
+    return _DOCKER_TOOLS if use_docker else _BASE_TOOLS
+
+
 def process_case_agent(
     case: TestCase,
     tool: ToolDef,
@@ -68,6 +89,8 @@ def process_case_agent(
     max_turns: int,
     use_docker: bool = False,
     docker_image: str = "bugeval-agent",
+    repo_cache_dir: Path | None = None,
+    allowed_tools: str | None = None,
 ) -> CaseToolState:
     """Run the agent state machine for one (case, tool) pair. Returns final state."""
     now = datetime.now(tz=UTC).isoformat()
@@ -79,21 +102,26 @@ def process_case_agent(
         return state
 
     tmp_dir = Path(tempfile.mkdtemp())
+    repo_dir: Path | None = None
     try:
         patch_content = patch_path.read_text()
-        system_prompt = load_agent_prompt(language=case.language)
+        system_prompt = load_agent_prompt(language=case.language, context_level=context_level)
         user_prompt = build_user_prompt(case, patch_content, context_level)
 
-        state.status = CaseToolStatus.cloning
-        repo_dir = setup_repo_for_case(case, patch_path, tmp_dir)
+        # Combine system prompt with user prompt for CLI runners.
+        # API runners receive system_prompt as a separate argument.
+        cli_prompt = f"{system_prompt}\n\n{user_prompt}" if _is_cli_tool(tool.name) else user_prompt
 
-        # In diff-only mode, CLI tools must not access the repo.
-        # Give them an empty workspace so the context level is enforced.
+        # diff-only + CLI: no repo needed — create empty workspace only.
         if context_level == "diff-only" and _is_cli_tool(tool.name):
             cli_dir = tmp_dir / "workspace"
-            cli_dir.mkdir(exist_ok=True)
+            cli_dir.mkdir(parents=True, exist_ok=True)
         else:
+            state.status = CaseToolStatus.cloning
+            repo_dir = setup_repo_for_case(case, patch_path, tmp_dir, cache_dir=repo_cache_dir)
             cli_dir = repo_dir
+
+        cli_allowed_tools = _resolve_allowed_tools(context_level, use_docker, allowed_tools)
 
         state.status = CaseToolStatus.running
         if tool.name == "claude-code-cli" or tool.name.startswith("claude-cli"):
@@ -101,22 +129,35 @@ def process_case_agent(
             if use_docker:
                 result: AgentResult = run_claude_cli_docker(
                     cli_dir,
-                    user_prompt,
+                    cli_prompt,
                     max_turns=max_turns,
                     model=agent_model,
+                    timeout_seconds=tool.timeout_seconds,
                     image=docker_image,
+                    allowed_tools=cli_allowed_tools,
+                    dangerously_skip_permissions=True,
                 )
             else:
                 result = run_claude_cli(
-                    cli_dir, user_prompt, max_turns=max_turns, model=agent_model
+                    cli_dir,
+                    cli_prompt,
+                    max_turns=max_turns,
+                    model=agent_model,
+                    timeout_seconds=tool.timeout_seconds,
+                    allowed_tools=cli_allowed_tools,
                 )
         elif tool.name.startswith("gemini-cli"):
             agent_model = tool.model or "gemini-2.5-flash"
-            result = run_gemini_cli(cli_dir, user_prompt, model=agent_model)
+            result = run_gemini_cli(
+                cli_dir, cli_prompt, model=agent_model, timeout_seconds=tool.timeout_seconds
+            )
         elif tool.name.startswith("codex-cli"):
             agent_model = tool.model or "o4-mini"
-            result = run_codex_cli(cli_dir, user_prompt, model=agent_model)
+            result = run_codex_cli(
+                cli_dir, cli_prompt, model=agent_model, timeout_seconds=tool.timeout_seconds
+            )
         elif tool.name.startswith("anthropic-api"):
+            assert repo_dir is not None
             result = run_agent_api(
                 repo_dir,
                 system_prompt,
@@ -125,6 +166,7 @@ def process_case_agent(
                 context_level=context_level,
             )
         elif tool.name.startswith("google-api"):
+            assert repo_dir is not None
             agent_model = tool.model or "gemini-2.5-flash"
             result = run_google_api(
                 repo_dir,
@@ -135,6 +177,7 @@ def process_case_agent(
                 context_level=context_level,
             )
         elif tool.name.startswith("openai-api"):
+            assert repo_dir is not None
             agent_model = tool.model or "o4-mini"
             result = run_openai_api(
                 repo_dir,
@@ -145,6 +188,7 @@ def process_case_agent(
                 context_level=context_level,
             )
         elif tool.name.startswith("claude-agent-sdk"):
+            assert repo_dir is not None
             agent_model = tool.model or "claude-sonnet-4-6"
             result = asyncio.run(
                 run_agent_sdk(
@@ -164,14 +208,17 @@ def process_case_agent(
         state.status = CaseToolStatus.collecting
         out_dir = run_dir / "raw" / f"{case.id}-{tool.name}"
         out_dir.mkdir(parents=True, exist_ok=True)
+        (out_dir / "prompt.txt").write_text(cli_prompt)
         (out_dir / "findings.json").write_text(json.dumps(result.findings, indent=2))
         (out_dir / "conversation.json").write_text(json.dumps(result.conversation, indent=2))
-        exclude_keys = {"findings", "conversation", "stdout"}
+        exclude_keys = {"findings", "conversation", "stdout", "response_text"}
         (out_dir / "metadata.json").write_text(
             json.dumps(result.model_dump(mode="json", exclude=exclude_keys), indent=2)
         )
         if result.stdout:
             (out_dir / "stdout.txt").write_text(result.stdout)
+        if result.response_text:
+            (out_dir / "response_text.txt").write_text(result.response_text)
 
         if result.error:
             state.status = CaseToolStatus.failed
@@ -206,14 +253,24 @@ async def _eval_agent_tool(
     use_docker: bool = False,
     docker_image: str = "bugeval-agent",
     fail_after: int = 5,
+    repo_cache_dir: Path | None = None,
+    allowed_tools: str | None = None,
 ) -> None:
-    """Evaluate all cases against one agent tool, sequentially."""
-    consecutive_failures = 0
-    for case in cases:
-        existing = run_state.get(case.id, tool.name)
-        if existing.status == CaseToolStatus.done:
-            click.echo(f"[skip] {case.id} x {tool.name} (already done)")
-            continue
+    """Evaluate all cases against one agent tool, concurrently (bounded by semaphore)."""
+    failure_count = 0
+    abort = False
+    lock = asyncio.Lock()
+
+    async def run_one(case: TestCase) -> None:
+        nonlocal failure_count, abort
+
+        async with lock:
+            if abort:
+                return
+            existing = run_state.get(case.id, tool.name)
+            if existing.status == CaseToolStatus.done:
+                click.echo(f"[skip] {case.id} x {tool.name} (already done)")
+                return
 
         patch_path = patches_dir / f"{case.id}.patch"
         if not patch_path.exists():
@@ -225,17 +282,21 @@ async def _eval_agent_tool(
                 started_at=datetime.now(tz=UTC).isoformat(),
                 completed_at=datetime.now(tz=UTC).isoformat(),
             )
-            run_state.set(state)
-            run_state.save(checkpoint_path)
-            click.echo(f"[failed] {case.id} x {tool.name}: patch not found")
-            consecutive_failures += 1
-            if fail_after > 0 and consecutive_failures >= fail_after:
-                click.echo(f"[abort] {tool.name}: {fail_after} consecutive failures, aborting")
-                break
-            continue
+            async with lock:
+                run_state.set(state)
+                run_state.save(checkpoint_path)
+                failure_count += 1
+                click.echo(f"[failed] {case.id} x {tool.name}: patch not found")
+                if fail_after > 0 and failure_count >= fail_after:
+                    abort = True
+                    click.echo(f"[abort] {tool.name}: {fail_after} failures, aborting")
+            return
 
         click.echo(f"[start] {case.id} x {tool.name}")
         async with semaphore:
+            async with lock:
+                if abort:
+                    return
             final_state = await asyncio.to_thread(
                 process_case_agent,
                 case,
@@ -247,22 +308,24 @@ async def _eval_agent_tool(
                 max_turns,
                 use_docker,
                 docker_image,
+                repo_cache_dir,
+                allowed_tools,
             )
-        run_state.set(final_state)
-        run_state.save(checkpoint_path)
-        click.echo(f"[{final_state.status}] {case.id} x {tool.name}")
 
-        if final_state.status == CaseToolStatus.failed:
-            consecutive_failures += 1
-            if fail_after > 0 and consecutive_failures >= fail_after:
-                click.echo(f"[abort] {tool.name}: {fail_after} consecutive failures, aborting")
-                break
-        else:
-            consecutive_failures = 0
+        async with lock:
+            run_state.set(final_state)
+            run_state.save(checkpoint_path)
+            click.echo(f"[{final_state.status}] {case.id} x {tool.name}")
+            if final_state.status == CaseToolStatus.failed:
+                failure_count += 1
+                if fail_after > 0 and failure_count >= fail_after:
+                    abort = True
+                    click.echo(f"[abort] {tool.name}: {fail_after} failures, aborting")
 
         if tool.cooldown_seconds > 0 and not dry_run:
             await asyncio.sleep(tool.cooldown_seconds)
 
+    await asyncio.gather(*[run_one(case) for case in cases])
 
 
 @click.command("run-agent-eval")
@@ -304,7 +367,7 @@ async def _eval_agent_tool(
 )
 @click.option(
     "--max-turns",
-    default=20,
+    default=30,
     show_default=True,
     type=int,
     help="Maximum number of agentic turns",
@@ -322,7 +385,7 @@ async def _eval_agent_tool(
     default=5,
     show_default=True,
     type=int,
-    help="Abort tool after N consecutive failures (0 = no limit)",
+    help="Abort tool after N total failures (0 = no limit)",
 )
 @click.option(
     "--require-docker",
@@ -348,6 +411,22 @@ async def _eval_agent_tool(
     type=int,
     help="Max simultaneous agent calls (overrides config max_concurrent; default: 1).",
 )
+@click.option(
+    "--repo-cache-dir",
+    default=None,
+    type=click.Path(dir_okay=True, file_okay=False),
+    help="Cache dir for repo clones. First use fetches from GitHub; later uses hardlink clone.",
+)
+@click.option(
+    "--allowed-tools",
+    default=None,
+    help=(
+        "Comma-separated Claude tools to allow (e.g. 'Read,Glob,Grep,Bash,WebSearch,WebFetch'). "
+        "Default for diff+repo: Read,Glob,Grep,WebSearch,WebFetch; "
+        "adds Bash automatically with --use-docker. "
+        "diff-only always uses no tools."
+    ),
+)
 def run_agent_eval(
     config_path: str,
     cases_dir: str,
@@ -363,6 +442,8 @@ def run_agent_eval(
     use_docker: bool,
     docker_image: str,
     max_concurrent: int | None,
+    repo_cache_dir: str | None,
+    allowed_tools: str | None,
 ) -> None:
     """Async orchestrator: run in-house agent evaluation across all (case × tool) pairs."""
     if not is_docker_available():
@@ -400,6 +481,9 @@ def run_agent_eval(
             click.echo(f"No agent tools matched: {tools_filter}", err=True)
             sys.exit(1)
 
+    # Resolve the effective allowed-tools string for metadata recording.
+    effective_tools = _resolve_allowed_tools(context_level, use_docker, allowed_tools)
+
     # Write run_metadata.json for reproducibility tracing.
     write_run_metadata(
         resolved_run_dir,
@@ -409,9 +493,13 @@ def run_agent_eval(
         limit=limit,
         patches_dir=Path(patches_dir),
         config_path=config_path,
+        allowed_tools=effective_tools,
     )
 
     resolved_patches_dir = Path(patches_dir)
+    resolved_cache_dir = Path(repo_cache_dir) if repo_cache_dir else None
+    if resolved_cache_dir:
+        resolved_cache_dir.mkdir(parents=True, exist_ok=True)
     concurrency = max_concurrent if max_concurrent is not None else config.max_concurrent
 
     async def _run() -> None:
@@ -432,6 +520,8 @@ def run_agent_eval(
                     use_docker,
                     docker_image,
                     fail_after,
+                    resolved_cache_dir,
+                    allowed_tools,
                 )
                 for tool in agent_tools
             ]

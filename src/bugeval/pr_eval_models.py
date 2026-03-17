@@ -95,6 +95,7 @@ class ToolDef(BaseModel):
     api_endpoint: str | None = None
     api_key_env: str | None = None
     model: str | None = None
+    timeout_seconds: int = 600
 
     @property
     def is_pr_tool(self) -> bool:
@@ -139,6 +140,7 @@ class JudgingConfig(BaseModel):
     human_sample_rate: float = 0.25
     calibration_threshold: float = 0.85
     model: str = "claude-opus-4-6"
+    models: list[str] = []  # if non-empty, overrides model+llm_calls for ensemble voting
 
 
 def default_judging() -> JudgingConfig:

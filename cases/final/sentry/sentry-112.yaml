@@ -1,0 +1,34 @@
+id: sentry-112
+repo: getsentry/sentry
+base_commit: 948dfedb37bd20bda491a233568f5e711899368a^
+head_commit: 948dfedb37bd20bda491a233568f5e711899368a
+fix_commit: 948dfedb37bd20bda491a233568f5e711899368a
+category: code-smell
+difficulty: easy
+severity: medium
+language: python
+pr_size: small
+description: The artifact image endpoint uses a blanket `except Exception` to handle
+  all errors, returning 500 and logging at exception level even when the objectstore
+  image simply doesn't exist (a normal condition). This generates false-positive error
+  noise in Sentry monitoring. The fix adds specific handling for `RequestError` from
+  `objectstore_client`, returning 404 for missing images and reserving 500 for truly
+  unexpected failures.
+expected_findings:
+- file: src/sentry/preprod/api/endpoints/project_preprod_artifact_image.py
+  line: 43
+  summary: Overly broad `except Exception` swallows expected objectstore 404 responses,
+    returning 500 and logging spurious errors. Should catch `RequestError` with status
+    404 separately and return a clean 404 response.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

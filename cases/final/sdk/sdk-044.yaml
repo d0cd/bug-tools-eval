@@ -1,29 +1,42 @@
 id: sdk-044
 repo: ProvableHQ/sdk
-base_commit: 64dfe82a19edd815f205cf178c4f6b0a9c04b6b8^
-head_commit: 64dfe82a19edd815f205cf178c4f6b0a9c04b6b8
-fix_commit: 64dfe82a19edd815f205cf178c4f6b0a9c04b6b8
-category: api
+base_commit: a7a0ef90a982be5c40f5f18b064a13dc59428e1c^
+head_commit: a7a0ef90a982be5c40f5f18b064a13dc59428e1c
+fix_commit: a7a0ef90a982be5c40f5f18b064a13dc59428e1c
+category: api-misuse
 difficulty: medium
-severity: medium
+severity: high
 language: rust
-pr_size: large
-description: The SDK had build and CI failures due to missing dependency configuration
-  and code structure issues. The fix adds the rand_chacha dependency to Cargo.toml,
-  restructures the transaction module (splitting into delegate/dummy submodules),
-  and updates CLI argument handling to enable verbose mode, allowing CI to pass.
+pr_size: xl
+description: The codebase was using an outdated SnarkVM API that could produce malformed
+  executions and deployments. The consensus version check in execute.rs used a deprecated
+  method instead of the new `CurrentNetwork::CONSENSUS_HEIGHT` API, and the transaction
+  Deploy destructuring pattern did not match the updated SnarkVM 1.4.0 struct layout.
+  The fix updates the dependency and adapts all call sites to the new API surface.
 expected_findings:
-- file: Cargo.toml
-  line: 38
-  summary: Missing rand_chacha dependency causes compilation failure; needs to be
-    added with version 0.2 and default-features = false
-- file: src/transaction/mod.rs
-  line: 14
-  summary: Transaction module structure incomplete; missing submodule declarations
-    for dummy and delegate transaction types
-- file: src/cli.rs
-  line: 23
-  summary: CLI struct missing verbose flag field, causing argument parsing failures
+- file: wasm/src/programs/manager/execute.rs
+  line: 315
+  summary: Consensus version check uses deprecated API; should use CurrentNetwork::CONSENSUS_HEIGHT
+    introduced in SnarkVM 1.4.0
+  line_side: pre_fix
+- file: wasm/src/ledger/transaction.rs
+  line: 282
+  summary: Deploy variant destructuring pattern has wrong arity — SnarkVM 1.4.0 changed
+    the Deploy tuple structure
+  line_side: pre_fix
+- file: wasm/Cargo.toml
+  line: 22
+  summary: SnarkVM pinned at pre-1.4.0 version; executions and deployments may be
+    malformed when submitted to a network running the updated consensus rules
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,38 @@
+id: cal.com-068
+repo: calcom/cal.com
+base_commit: ddceabe5d416849ce7f171cb784dee61f1bfaac4^
+head_commit: ddceabe5d416849ce7f171cb784dee61f1bfaac4
+fix_commit: ddceabe5d416849ce7f171cb784dee61f1bfaac4
+category: api-misuse
+difficulty: medium
+severity: high
+language: typescript
+pr_size: medium
+description: The bookings page used FeaturesRepository.getUserFeaturesStatus to check
+  the bookings-v3 feature flag, which only checks per-user flags. This ignored org-level
+  and team-level opt-ins, so users whose organization or team had enabled bookings-v3
+  would not see the feature. The fix switches to FeatureOptInService.resolveFeatureStates
+  which respects the full org/team/user opt-in hierarchy.
+expected_findings:
+- file: apps/web/app/(use-page-wrapper)/(main-nav)/bookings/[status]/page.tsx
+  line: 56
+  summary: 'api-misuse: FeaturesRepository.getUserFeaturesStatus only checks per-user
+    flags — bookings-v3 is an opt-in feature that must respect org/team hierarchy
+    via FeatureOptInService.resolveFeatureStates'
+  line_side: pre_fix
+- file: apps/web/app/(use-page-wrapper)/(main-nav)/bookings/[status]/page.tsx
+  line: 58
+  summary: Accessing featureFlags['bookings-v3'] from per-user-only lookup returns
+    false even when org or team has opted in, breaking the opt-in hierarchy contract
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

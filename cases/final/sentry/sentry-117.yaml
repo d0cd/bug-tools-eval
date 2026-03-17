@@ -1,0 +1,32 @@
+id: sentry-117
+repo: getsentry/sentry
+base_commit: 99d52ff386318c2b58a1de780287993eafd27401^
+head_commit: 99d52ff386318c2b58a1de780287993eafd27401
+fix_commit: 99d52ff386318c2b58a1de780287993eafd27401
+category: incomplete
+difficulty: medium
+severity: medium
+language: unknown
+pr_size: tiny
+description: 'PR #109381 added the odiff binary dependency to the backend CI workflow
+  but missed the parallel backend-with-coverage workflow. This caused all coverage
+  job runs to fail, resulting in no coverage data being uploaded. The fix adds the
+  same odiff binary download step to the coverage workflow.'
+expected_findings:
+- file: .github/workflows/backend-with-coverage.yml
+  line: 98
+  summary: 'Missing odiff binary installation step: this workflow requires the same
+    odiff dependency added to the regular backend workflow in PR #109381, but it was
+    omitted here, causing all coverage runs to fail'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

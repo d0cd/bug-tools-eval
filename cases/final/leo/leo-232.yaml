@@ -1,24 +1,37 @@
 id: leo-232
 repo: ProvableHQ/leo
-base_commit: 0197aebc5aac199fde95e9481c409da80ab16dd3^
-head_commit: 0197aebc5aac199fde95e9481c409da80ab16dd3
-fix_commit: 0197aebc5aac199fde95e9481c409da80ab16dd3
+base_commit: ebd06d292af87991a87a9eebfc3f541b91127d9e^
+head_commit: ebd06d292af87991a87a9eebfc3f541b91127d9e
+fix_commit: ebd06d292af87991a87a9eebfc3f541b91127d9e
 category: logic
-difficulty: medium
+difficulty: easy
 severity: medium
-language: leo
-pr_size: xl
-description: The parser incorrectly treated ordering operators (>, >=, <, <=) as left-associative
-  by parsing them in a loop, allowing expressions like `a > b > c`. According to the
-  Leo grammar, ordering operators are non-associative and should only allow a single
-  comparison (e.g., `a > b`). The fix changes the parsing from a loop to a single
-  conditional check, rejecting chained comparisons as parse errors.
+language: rust
+pr_size: small
+description: AST output files (e.g. initial_input_ast.json) were written without the
+  program name in the filename. When a program had imports, multiple programs would
+  write their AST snapshots to the same output path, causing files to silently overwrite
+  each other. The fix prepends the program name to each AST output filename to disambiguate
+  them.
 expected_findings:
-- file: compiler/parser/src/parser/expression.rs
-  line: 152
-  summary: Ordering expression parser uses a loop (associative parsing) for operators
-    that should be non-associative per the grammar. Should use a single conditional
-    instead of a loop to disallow chaining like `a > b > c`.
+- file: compiler/compiler/src/compiler.rs
+  line: 139
+  summary: 'AST output filename missing program name prefix: `input_ast.to_json_file()`
+    writes to a generic path that will be overwritten when processing imported programs'
+  line_side: pre_fix
+- file: compiler/compiler/src/compiler.rs
+  line: 236
+  summary: 'Same issue: AST output written to generic filename without program name,
+    causing collision when program has imports'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

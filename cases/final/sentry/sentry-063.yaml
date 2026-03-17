@@ -1,33 +1,42 @@
 id: sentry-063
 repo: getsentry/sentry
-base_commit: 3d7c9ed0ec223191c608eccc7ba3e604b21dc238^
-head_commit: 3d7c9ed0ec223191c608eccc7ba3e604b21dc238
-fix_commit: 3d7c9ed0ec223191c608eccc7ba3e604b21dc238
-category: api
-difficulty: medium
-severity: high
-language: typescript
-pr_size: medium
-description: 'The `parseJsonWithFix` utility in the AI Agents insight UI calls `JSON.parse`
-  on AI message content without handling two failure modes: PII-filtered content where
-  Relay replaces data with the literal string `[Filtered]` (not valid JSON), and malformed
-  JSON escape sequences from AI SDKs (e.g., `\p`). Both cases cause unhandled `SyntaxError`
-  exceptions that crash the UI. The fix adds explicit checks for `[Filtered]` content
-  returning `null`, and wraps the `fixJson` fallback in an additional try/catch to
-  prevent unrepairable JSON from throwing.'
+base_commit: 4e71a22712808cf07b700b0cc1255350e49e663f^
+head_commit: 4e71a22712808cf07b700b0cc1255350e49e663f
+fix_commit: 4e71a22712808cf07b700b0cc1255350e49e663f
+category: api-misuse
+difficulty: easy
+severity: medium
+language: python
+pr_size: small
+description: The GitLab integration was not catching ApiForbiddenError alongside other
+  API errors, causing unhandled exceptions to propagate as noise. The fix adds ApiForbiddenError
+  to the caught exception tuples and adds IntegrationConfigurationError handling in
+  the SCM repository base class.
 expected_findings:
-- file: static/app/views/performance/newTraceDetails/traceDrawer/details/utils.tsx
-  line: 1
-  summary: 'Missing error handling in parseJsonWithFix: JSON.parse will throw SyntaxError
-    on PII-filtered content (literal string `[Filtered]`) and malformed escape sequences,
-    but the function does not catch these cases before or after the fixJson fallback'
-- file: static/app/views/performance/newTraceDetails/traceDrawer/details/span/eapSections/aiInput.tsx
-  line: 1
-  summary: transformPartsMessages assumes parseJsonWithFix always returns valid parsed
-    data; does not handle null/failed parse results gracefully, propagating the crash
-    to the UI
+- file: src/sentry/integrations/gitlab/integration.py
+  line: 39
+  summary: Missing ApiForbiddenError in the exception tuple — 403 responses from GitLab
+    will propagate as unhandled exceptions instead of being handled gracefully
+  line_side: pre_fix
+- file: src/sentry/integrations/gitlab/integration.py
+  line: 161
+  summary: Same missing ApiForbiddenError in a second exception handler — both call
+    sites need the additional error type
+  line_side: pre_fix
+- file: src/sentry/integrations/source_code_management/repository.py
+  line: 133
+  summary: IntegrationConfigurationError is not caught here, allowing configuration-related
+    errors to propagate as unexpected exceptions rather than being handled as expected
+    integration noise
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

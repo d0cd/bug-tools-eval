@@ -1,32 +1,49 @@
 id: keycloak-030
 repo: keycloak/keycloak
-base_commit: 8453022d09cda94ab4a336de6e1c362ba898c4d2^
-head_commit: 8453022d09cda94ab4a336de6e1c362ba898c4d2
-fix_commit: 8453022d09cda94ab4a336de6e1c362ba898c4d2
-category: api
+base_commit: 64dee82f9f7c5cc95bf528e71a82c7f5b984dccd^
+head_commit: 64dee82f9f7c5cc95bf528e71a82c7f5b984dccd
+fix_commit: 64dee82f9f7c5cc95bf528e71a82c7f5b984dccd
+category: api-misuse
 difficulty: medium
 severity: medium
 language: java
 pr_size: medium
-description: The DefaultEmailSenderProvider retrieves replyTo and from email addresses
-  from configuration but does not validate them before use. The fix adds a validation
-  method for replyTo addresses (and fixes a typo), ensuring that malformed or invalid
-  email addresses are caught before being passed to the mail API.
+description: The OID4VCI test client was incorrectly constructing credential offer
+  URLs by manually appending the nonce to the endpoint path (e.g., `getOid4vcCredentialOffer(nonce)`
+  with a trailing slash). The correct approach is to use the `CredentialOfferURI`
+  object returned from the credential-offer-uri endpoint, which already contains the
+  properly constructed URL via `getCredentialOfferUri()`. Multiple call sites were
+  also manually concatenating `issuer + "/" + nonce` instead of using the model's
+  accessor.
 expected_findings:
-- file: services/src/main/java/org/keycloak/email/DefaultEmailSenderProvider.java
-  line: 103
-  summary: 'Missing validation: replyTo address retrieved from config is used without
-    checking it is a valid email address'
-- file: services/src/main/java/org/keycloak/email/DefaultEmailSenderProvider.java
-  line: 180
-  summary: 'Missing validation: replyTo address retrieved from config in second code
-    path is also not validated before use'
-- file: services/src/main/java/org/keycloak/email/DefaultEmailSenderProvider.java
-  line: 264
-  summary: 'Missing validation: from/replyTo address not validated in third usage
-    site'
+- file: tests/utils-shared/src/main/java/org/keycloak/testsuite/util/oauth/Endpoints.java
+  line: 93
+  summary: 'API misuse: `getOid4vcCredentialOffer(String nonce)` bakes the nonce into
+    the URL path with a trailing slash, but the credential-offer endpoint expects
+    the nonce as a path segment without trailing slash, or should be resolved from
+    a CredentialOfferURI object rather than manually constructed'
+  line_side: pre_fix
+- file: tests/utils-shared/src/main/java/org/keycloak/testsuite/util/oauth/oid4vc/CredentialOfferRequest.java
+  line: 27
+  summary: 'Incorrect URL construction: `getEndpoint()` builds the credential offer
+    URL by calling `client.getEndpoints().getOid4vcCredentialOffer(nonce)` instead
+    of using `CredentialOfferURI.getCredentialOfferUri()` which contains the canonical
+    URL returned by the server'
+  line_side: pre_fix
+- file: testsuite/integration-arquillian/tests/base/src/test/java/org/keycloak/testsuite/oid4vc/issuance/signing/OID4VCAuthorizationDetailsFlowTestBase.java
+  line: 141
+  summary: 'Manual URL construction: concatenating `credentialOfferURI.getIssuer()
+    + "/" + credentialOfferURI.getNonce()` instead of using `credentialOfferURI.getCredentialOfferUri()`
+    which returns the proper URL'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

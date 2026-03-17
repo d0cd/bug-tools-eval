@@ -1,0 +1,37 @@
+id: cal.com-049
+repo: calcom/cal.com
+base_commit: ade823f1357e667a201c64a17d9ec4359733418e^
+head_commit: ade823f1357e667a201c64a17d9ec4359733418e
+fix_commit: ade823f1357e667a201c64a17d9ec4359733418e
+category: code-smell
+difficulty: easy
+severity: low
+language: typescript
+pr_size: tiny
+description: Team and user ID arrays passed to Prisma ANY conditions were not sorted
+  or deduplicated, causing non-deterministic SQL query generation. This led to flaky
+  integration tests because identical logical queries produced different SQL strings
+  depending on the order IDs were returned from prior queries. The fix sorts and deduplicates
+  the ID arrays before passing them to Prisma.
+expected_findings:
+- file: packages/features/insights/services/InsightsBookingBaseService.ts
+  line: 406
+  summary: 'Unsorted array passed to Prisma ANY condition: `[options.orgId, ...teamsFromOrg.map((t)
+    => t.id)]` produces non-deterministic queries; should be sorted and deduplicated'
+  line_side: pre_fix
+- file: packages/features/insights/services/InsightsBookingBaseService.ts
+  line: 419
+  summary: Same unsorted array pattern for team IDs in a second query location; needs
+    consistent sorting to avoid flaky test behavior
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

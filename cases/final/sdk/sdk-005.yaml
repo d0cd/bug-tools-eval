@@ -1,35 +1,44 @@
 id: sdk-005
 repo: ProvableHQ/sdk
-base_commit: 4621d93353e92af8226d763ad07eacc1f3f5d17d^
-head_commit: 4621d93353e92af8226d763ad07eacc1f3f5d17d
-fix_commit: 4621d93353e92af8226d763ad07eacc1f3f5d17d
+base_commit: 0650454f7e9ff03a2fcaba0fe1a56204abddd879^
+head_commit: 0650454f7e9ff03a2fcaba0fe1a56204abddd879
+fix_commit: 0650454f7e9ff03a2fcaba0fe1a56204abddd879
 category: logic
-difficulty: easy
-severity: medium
+difficulty: medium
+severity: high
 language: javascript
 pr_size: small
-description: 'Two UI logic bugs in the algebra page: (1) The multiplicative inverse
-  calculation required both field elements to be populated, but it only needs one
-  input. The condition checked if num1 AND num2 were empty instead of handling the
-  single-input ''mulinv'' operation separately. (2) The scalar multiplication random
-  button did not trigger a recalculation of the result, so clicking ''Random'' left
-  stale output displayed.'
+description: String-to-bytes encoding for message signing and verification used a
+  naive encoding method (likely charCodeAt) that fails on multi-byte Unicode characters,
+  producing incorrect byte arrays. This caused false positives in signature verification
+  on aleo.tools. The fix replaces the custom encoding with the standard TextEncoder
+  API which correctly handles UTF-8.
 expected_findings:
-- file: website/src/tabs/algebra/FieldArithmetic.jsx
-  line: 47
-  summary: 'Incorrect guard condition: multiplicative inverse (''mulinv'') only requires
-    one field element, but the existing condition blocks calculation unless both num1
-    and num2 are populated. Should short-circuit for ''mulinv'' when only num1 is
-    present.'
-- file: website/src/tabs/algebra/GroupArithmetic.jsx
-  line: 152
-  summary: 'Missing result update: the onScalarRandom handler sets the scalar state
-    but does not trigger a recalculation of the group operation result, causing the
-    displayed result to be stale after clicking Random.'
-- file: website/src/tabs/algebra/GroupArithmetic.jsx
-  line: 270
-  summary: 'Same missing result update in a second onScalarRandom handler: random
-    scalar selection does not propagate to recompute the scalar multiplication output.'
+- file: website/src/utils/Utils.js
+  line: 1
+  summary: String encoding utility uses naive byte conversion (e.g. charCodeAt) that
+    silently corrupts multi-byte Unicode characters; should use TextEncoder for correct
+    UTF-8 encoding
+  line_side: pre_fix
+- file: website/src/tabs/account/SignMessage.js
+  line: 25
+  summary: Message signing encodes the input string using a method that fails on non-ASCII
+    characters, producing incorrect signatures for some messages
+  line_side: pre_fix
+- file: website/src/tabs/account/VerifyMessage.js
+  line: 9
+  summary: Signature verification re-encodes the message with the same flawed encoding,
+    causing verification to produce false positives when the original signing also
+    used the broken encoding
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

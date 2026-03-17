@@ -1,34 +1,42 @@
 id: snarkVM-004
 repo: ProvableHQ/snarkVM
-base_commit: 0dffb36ca97f1d09cd3b399884c4cdd808476b18^
-head_commit: 0dffb36ca97f1d09cd3b399884c4cdd808476b18
-fix_commit: 0dffb36ca97f1d09cd3b399884c4cdd808476b18
-category: logic
-difficulty: hard
-severity: critical
+base_commit: 0674c60a5b13bc78f924efca8fab5e16c5660d6b^
+head_commit: 0674c60a5b13bc78f924efca8fab5e16c5660d6b
+fix_commit: 0674c60a5b13bc78f924efca8fab5e16c5660d6b
+category: incomplete
+difficulty: easy
+severity: high
 language: rust
-pr_size: medium
-description: Deployment verification failed for certain programs because the RNG used
-  to generate random inputs during deployment and verification was not deterministically
-  seeded. This caused the deploy step and the verify step to produce different random
-  inputs, leading to mismatched assignments and certificate verification failures.
-  The fix introduces a deterministically seeded RNG (via rand_chacha) so that both
-  deploy and verify generate identical inputs.
+pr_size: tiny
+description: 'PR #2783 removed the `console` feature from other crates but missed
+  the wasm crate, leaving it with a dependency on `snarkvm_console` that doesn''t
+  resolve when building without default features. The fix removes the `console` feature
+  from the wasm crate and moves `snarkvm-utilities` to dev-dependencies since only
+  tests use it.'
 expected_findings:
-- file: synthesizer/process/src/stack/deploy.rs
-  line: 93
-  summary: Non-deterministic RNG used for input generation during deployment; deploy
-    and verify steps can produce different random values, causing verification failures.
-    Must use a deterministically seeded RNG.
-- file: synthesizer/process/src/stack/deploy.rs
-  line: 117
-  summary: Non-deterministic RNG used during verification input generation; without
-    matching the deploy step's seed, generated inputs diverge and certificate checks
-    fail.
-- file: synthesizer/process/src/stack/deploy.rs
-  line: 160
-  summary: Non-deterministic RNG used for sub-stack generation during verification;
-    must be seeded identically to the deploy step to ensure consistent assignments.
+- file: wasm/Cargo.toml
+  line: 30
+  summary: snarkvm-utilities is listed as a regular dependency but is only used in
+    tests; should be a dev-dependency
+  line_side: pre_fix
+- file: wasm/Cargo.toml
+  line: 51
+  summary: 'snarkvm-console feature reference still present in wasm despite being
+    removed from all other crates in PR #2783'
+  line_side: pre_fix
+- file: wasm/src/lib.rs
+  line: 13
+  summary: Console-related conditional compilation or import that references the removed
+    `console` feature, causing build failure without default features
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,26 +1,34 @@
 id: grafana-008
 repo: grafana/grafana
-base_commit: 98ad2a23e464633ef8b85d26990ef9f02203de06^
-head_commit: 98ad2a23e464633ef8b85d26990ef9f02203de06
-fix_commit: 98ad2a23e464633ef8b85d26990ef9f02203de06
-category: api
-difficulty: easy
-severity: low
-language: go
-pr_size: tiny
-description: In files_test.go, `runGrafana` and `TestRepo` were referenced without
-  the `common.` package qualifier, causing compilation failures. The fix adds the
-  `common.` prefix to both identifiers so they correctly resolve to the imported package's
-  exports.
+base_commit: 1e2b2c0eb5f64c06d6c5a7f19d79bee937442585^
+head_commit: 1e2b2c0eb5f64c06d6c5a7f19d79bee937442585
+fix_commit: 1e2b2c0eb5f64c06d6c5a7f19d79bee937442585
+category: logic
+difficulty: medium
+severity: high
+language: typescript
+pr_size: medium
+description: 'The dashboard version history resolved user display names using index-based
+  array lookup between two misaligned arrays: the `keys` array (in request order)
+  and the `display` array (ordered by `u.id ASC` from the database). This caused user
+  names to appear swapped or shuffled across versions whenever multiple distinct users
+  edited a dashboard. The fix replaces the index-based lookup with an identity-based
+  Map keyed on each display item''s `identity` field.'
 expected_findings:
-- file: pkg/tests/apis/provisioning/files_test.go
-  line: 1014
-  summary: 'Missing package qualifier: `runGrafana` should be `common.RunGrafana`'
-- file: pkg/tests/apis/provisioning/files_test.go
-  line: 1014
-  summary: 'Missing package qualifier: `TestRepo` should be `common.TestRepo`'
+- file: public/app/features/dashboard-scene/settings/VersionsEditView.tsx
+  line: 133
+  summary: 'Index-based lookup between misaligned arrays: `keys[i]` does not correspond
+    to `display[i]` because the display array is sorted by database ID, not request
+    order. Should build a Map keyed by identity instead of using array index.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

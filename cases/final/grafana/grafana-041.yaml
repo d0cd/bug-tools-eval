@@ -1,26 +1,35 @@
 id: grafana-041
 repo: grafana/grafana
-base_commit: bd7991c1ba9d74e8647e0959a004abe28c32175d^
-head_commit: bd7991c1ba9d74e8647e0959a004abe28c32175d
-fix_commit: bd7991c1ba9d74e8647e0959a004abe28c32175d
-category: logic
-difficulty: easy
-severity: medium
+base_commit: 54d54d5532ccf051c2b108c4abc8fdc5caa61c17^
+head_commit: 54d54d5532ccf051c2b108c4abc8fdc5caa61c17
+fix_commit: 54d54d5532ccf051c2b108c4abc8fdc5caa61c17
+category: code-smell
+difficulty: medium
+severity: low
 language: typescript
-pr_size: small
-description: When the `newVizSuggestions` feature flag is disabled and data is available,
-  the PanelEditor incorrectly shows the vizPicker instead of the default panel with
-  options open. The fix changes the `isVizPickerOpen` condition to only open the viz
-  picker when the panel plugin is truly unconfigured (`pluginId === UNCONFIGURED_PANEL_PLUGIN_ID`),
-  rather than using a broader condition that was always triggering.
+pr_size: tiny
+description: Flaky test uses `user.clear()` on a Downshift-based Combobox, which is
+  unreliable because the Combobox's stateReducer clears the input when the menu opens.
+  Timing differences between local and CI environments cause `user.type()` to append
+  to the stale value instead of replacing it (e.g., 'mainfeature-branch' instead of
+  'feature-branch'). The fix replaces `user.clear()` with a click to open the menu,
+  letting the stateReducer clear the input reliably before typing.
 expected_findings:
-- file: public/app/features/dashboard-scene/panel-edit/PanelEditor.tsx
-  line: 238
-  summary: 'Incorrect condition for `isVizPickerOpen`: should only be true when `pluginId
-    === UNCONFIGURED_PANEL_PLUGIN_ID`, not when the feature flag is disabled and data
-    is present'
+- file: public/app/features/provisioning/components/Folders/FixFolderMetadataDrawer.test.tsx
+  line: 110
+  summary: 'Unreliable test pattern: `user.clear()` on a Downshift Combobox does not
+    reliably reset the input because the stateReducer clears it on menu open, not
+    on external clear calls. Should click to open the menu first so the stateReducer
+    clears the input, then type the new value.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,23 +1,42 @@
 id: snarkOS-004
 repo: ProvableHQ/snarkOS
-base_commit: b15ae1fd7c7afdc1bbc2ae561116f14ce4aacd50^
-head_commit: b15ae1fd7c7afdc1bbc2ae561116f14ce4aacd50
-fix_commit: b15ae1fd7c7afdc1bbc2ae561116f14ce4aacd50
-category: logic
+base_commit: 08bcccca82a708d607a45432f7dc98c432f962cf^
+head_commit: 08bcccca82a708d607a45432f7dc98c432f962cf
+fix_commit: 08bcccca82a708d607a45432f7dc98c432f962cf
+category: api-misuse
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: small
-description: Provers that lost their connection to an operator never attempted to
-  reconnect, causing them to become permanently disconnected. The fix adds periodic
-  reconnection logic in the network server so that a prover will automatically attempt
-  to re-establish its connection to the operator at regular intervals.
+pr_size: medium
+description: The simple_node BFT example used MockLedgerService, which became incompatible
+  as the BFT subsystem evolved to require a real ledger with genesis block, committee
+  balances, and translucent state. The fix replaces MockLedgerService with TranslucentLedgerService
+  backed by a proper genesis ledger, restoring the example to a working state.
 expected_findings:
-- file: src/network/server.rs
-  line: 105
-  summary: 'Missing periodic reconnection logic: after obtaining `peers_router`, the
-    server does not schedule any task to detect a dropped operator connection and
-    attempt reconnection, causing provers to silently stay disconnected.'
+- file: node/bft/examples/simple_node.rs
+  line: 25
+  summary: MockLedgerService is no longer compatible with the BFT system requirements;
+    should be replaced with TranslucentLedgerService backed by a real genesis ledger
+  line_side: pre_fix
+- file: node/bft/examples/simple_node.rs
+  line: 111
+  summary: Instantiating MockLedgerService with only a committee is insufficient —
+    BFT now requires a TranslucentLedgerService with a genesis block, public balances,
+    and an AtomicBool shutdown flag
+  line_side: pre_fix
+- file: node/bft/examples/simple_node.rs
+  line: 152
+  summary: Same MockLedgerService instantiation issue in start_primary — needs the
+    same TranslucentLedgerService replacement as start_bft
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

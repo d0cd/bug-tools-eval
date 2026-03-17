@@ -1,31 +1,31 @@
 id: sdk-036
 repo: ProvableHQ/sdk
-base_commit: b90cb1ad6a8023e1abd0b21dba12a8381a4606b9^
-head_commit: b90cb1ad6a8023e1abd0b21dba12a8381a4606b9
-fix_commit: b90cb1ad6a8023e1abd0b21dba12a8381a4606b9
-category: api
-difficulty: medium
+base_commit: 818ab699b1e801d556cdefa4edf488ca4f2688a4^
+head_commit: 818ab699b1e801d556cdefa4edf488ca4f2688a4
+fix_commit: 818ab699b1e801d556cdefa4edf488ca4f2688a4
+category: api-misuse
+difficulty: easy
 severity: high
-language: typescript
-pr_size: large
-description: 'The SDK''s polyfill setup was using xmlhttprequest-ssl for Node.js compatibility,
-  which caused issues (referenced in issue #956). The fix replaced the XMLHttpRequest
-  polyfill approach with sync-request, updated the fetch polyfill, fixed the Worker
-  polyfill''s null check, and adjusted rollup config externals to match the new dependency.
-  This ensures proper HTTP request handling in non-browser environments.'
+language: javascript
+pr_size: tiny
+description: The `useAleoWASM()` hook's return signature was changed to return an
+  array, but the call site in the develop/execute tab was not updated to destructure
+  the result. This caused `aleoWASM` to hold the entire array instead of the WASM
+  module, breaking key generation and program input display on the develop screen.
 expected_findings:
-- file: sdk/src/polyfill/xmlhttprequest.ts
-  line: 1
-  summary: XMLHttpRequest polyfill using xmlhttprequest-ssl is broken/incompatible;
-    needs replacement with a working polyfill approach
-- file: sdk/src/polyfill/fetch.ts
-  line: 4
-  summary: Fetch polyfill implementation is incorrect or incompatible, likely depending
-    on the broken XMLHttpRequest polyfill
-- file: sdk/src/polyfill/worker.ts
-  line: 10
-  summary: "Worker polyfill guard condition may be incorrect \u2014 should check for\
-    \ undefined/null properly to avoid runtime errors in non-browser environments"
+- file: website/src/tabs/develop/execute/index.jsx
+  line: 22
+  summary: 'Missing array destructuring: `useAleoWASM()` returns an array but result
+    is assigned directly; should be `const [aleoWASM] = useAleoWASM();`'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

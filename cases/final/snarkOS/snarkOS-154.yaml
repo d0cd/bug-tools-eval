@@ -1,28 +1,43 @@
 id: snarkOS-154
 repo: ProvableHQ/snarkOS
-base_commit: 9357ebd361014248cbdf4eea32957655471cdfbe^
-head_commit: 9357ebd361014248cbdf4eea32957655471cdfbe
-fix_commit: 9357ebd361014248cbdf4eea32957655471cdfbe
+base_commit: cd73c74e6da6d65ed2457b5dc58b693dcb6ce5a6^
+head_commit: cd73c74e6da6d65ed2457b5dc58b693dcb6ce5a6
+fix_commit: cd73c74e6da6d65ed2457b5dc58b693dcb6ce5a6
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: xl
-description: The REST API route handler for program editions did not return 0 for
-  the latest credits.aleo edition and failed to return HTTP 404 for missing programs
-  or invalid editions. The fix updates the route logic in routes.rs to special-case
-  credits.aleo (returning edition 0) and properly return 404 errors, with improved
-  error response handling in error.rs.
+pr_size: medium
+description: The --bft CLI flag for setting the BFT bound IP/port was ignored unless
+  the node was started in dev mode. This meant users could not customize BFT networking
+  in production (testnet/canary/mainnet), preventing multi-node setups on a single
+  machine and multihoming configurations. The fix propagates the user-supplied --bft
+  value through the non-dev startup paths.
 expected_findings:
-- file: node/rest/src/routes.rs
-  line: 354
-  summary: "Route handler does not special-case credits.aleo to return edition 0,\
-    \ and fails to return 404 for missing programs/editions \u2014 returns incorrect\
-    \ data or wrong HTTP status instead."
-- file: node/rest/src/helpers/error.rs
-  line: 111
-  summary: Error responses for missing resources are not properly formatted or logged,
-    leading to unclear API behavior when programs or editions are not found.
+- file: cli/src/commands/start.rs
+  line: 110
+  summary: The --bft CLI argument value is not propagated to the node configuration
+    outside of dev mode; user-specified BFT bind address is silently overridden with
+    the default
+  line_side: pre_fix
+- file: cli/src/commands/start.rs
+  line: 328
+  summary: 'Same pattern: --bft flag value ignored in non-dev start path, hardcoded
+    default used instead'
+  line_side: pre_fix
+- file: cli/src/commands/start.rs
+  line: 507
+  summary: 'Same pattern repeated for another node type: --bft flag not wired through
+    to BFT socket binding'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,31 +1,47 @@
 id: leo-025
 repo: ProvableHQ/leo
-base_commit: 4a41ff2681e81776cb1e091df4c64e692dca64a2^
-head_commit: 4a41ff2681e81776cb1e091df4c64e692dca64a2
-fix_commit: 4a41ff2681e81776cb1e091df4c64e692dca64a2
-category: logic
+base_commit: 18b71d225b0eaada6e8ed4b9419ba82c1d998226^
+head_commit: 18b71d225b0eaada6e8ed4b9419ba82c1d998226
+fix_commit: 18b71d225b0eaada6e8ed4b9419ba82c1d998226
+category: type
 difficulty: medium
 severity: high
 language: rust
 pr_size: medium
-description: The Leo compiler's type checker panicked when encountering an unknown/undefined
-  variable because it assumed all variables would be resolved during type inference.
-  The fix adds graceful error handling at multiple sites in check_expressions.rs where
-  function arguments are iterated, emitting a proper compiler error instead of panicking.
+description: Multiple type checking bugs in the Leo compiler's type checker pass.
+  Issues include incorrect type comparison in ternary/binary expressions, insufficient
+  return-statement tracking using a simple boolean (which fails for conditional branches),
+  and missing checks for undefined variables and invalid variable assignments. The
+  fix addresses five separate reported issues by correcting type match arms, improving
+  return tracking logic, adding proper variable scope validation, and introducing
+  new error messages.
 expected_findings:
-- file: compiler/passes/src/type_checking/check_expressions.rs
-  line: 677
-  summary: 'Missing error handling for unknown variables: iterating over function
-    arguments assumes all variable types are known, which causes a panic if an undefined
-    variable is passed as an argument.'
-- file: compiler/passes/src/type_checking/check_expressions.rs
-  line: 691
-  summary: 'Same assumption violation: function argument type lookup can panic on
-    unknown variables instead of emitting a compiler error.'
-- file: compiler/passes/src/type_checking/check_expressions.rs
-  line: 709
-  summary: 'Same assumption violation: function argument type lookup can panic on
-    unknown variables instead of emitting a compiler error.'
+- file: compiler/passes/src/type_checker/check_expressions.rs
+  line: 226
+  summary: 'Ternary expression type checking: the (Some(t1), Some(t2)) match arm does
+    not properly handle type mismatches between the two branches, allowing ill-typed
+    ternary expressions to pass the type checker.'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checker/checker.rs
+  line: 26
+  summary: 'Using a simple `has_return: bool` field is insufficient for tracking return
+    coverage across conditional branches (if/else). A function with a return in only
+    one branch of an if/else will incorrectly be marked as having a return.'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checker/check_statements.rs
+  line: 31
+  summary: Unconditionally setting `self.visitor.has_return = true` on encountering
+    a return statement without considering control flow context causes false negatives
+    for the missing-return check.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

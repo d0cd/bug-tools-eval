@@ -1,34 +1,46 @@
 id: leo-129
 repo: ProvableHQ/leo
-base_commit: d43605538d1fcb225b21c07bb76c1a8708613213^
-head_commit: d43605538d1fcb225b21c07bb76c1a8708613213
-fix_commit: d43605538d1fcb225b21c07bb76c1a8708613213
-category: type
+base_commit: 84ccbdbad992c2dc684609a837d8d230a90fbffa^
+head_commit: 84ccbdbad992c2dc684609a837d8d230a90fbffa
+fix_commit: 84ccbdbad992c2dc684609a837d8d230a90fbffa
+category: logic
 difficulty: medium
 severity: high
-language: rust
-pr_size: medium
-description: 'Multiple type checking bugs in the Leo compiler where the type checker
-  failed to properly validate operand types in certain expressions. Fixes include:
-  correctly rejecting group*group multiplication (should require scalar), catching
-  comparisons between different types, and rejecting negation of unsigned integers.
-  The error emitter was also enhanced to track the last emitted error code for proper
-  exit status reporting.'
+language: leo
+pr_size: xl
+description: Omnibus bug-fix PR addressing multiple ASG (Abstract Semantic Graph)
+  issues in the Leo compiler, including incorrect return-path analysis, broken FormatString
+  parameter handling across all reducer/visitor passes, variable reference resolution
+  errors, assignment statement validation, and incorrect circuit member function test
+  cases. The fixes span the entire ASG pipeline from expression evaluation through
+  statement checking to the reducer/visitor framework.
 expected_findings:
-- file: compiler/passes/src/type_checker/check_expressions.rs
-  line: 58
-  summary: 'Missing type check: binary expressions involving Group type do not properly
-    validate that the other operand is a scalar for multiplication, allowing invalid
-    group*group operations'
-- file: compiler/passes/src/type_checker/checker.rs
-  line: 77
-  summary: 'Type equality assertion is incomplete: does not properly emit errors or
-    handle all cases when two types are not equal, allowing comparisons between differing
-    types (e.g., i8 vs u8) to pass'
-- file: leo/errors/src/emitter/mod.rs
-  line: 27
-  summary: Error emitter does not track the last emitted error code, causing incorrect
-    or missing exit status codes when compilation fails due to type errors
+- file: asg/src/prelude.rs
+  line: 29
+  summary: Prelude function returns a zero-filled 32-byte array (`[0; 32]`) instead
+    of a correct prelude value, causing incorrect behavior for built-in operations
+    that depend on the prelude
+  line_side: pre_fix
+- file: asg/src/expression/variable_ref.rs
+  line: 137
+  summary: Variable reference resolution logic is incorrect, potentially allowing
+    references to variables that should be out of scope or failing to resolve valid
+    references
+  line_side: pre_fix
+- file: asg/src/program/function.rs
+  line: 47
+  summary: Function definition handling has bugs in how function signatures, bodies,
+    or return types are processed, affecting correctness of function compilation across
+    the ASG
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

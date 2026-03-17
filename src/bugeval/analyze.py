@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import csv
+import random
 import sys
 from pathlib import Path
 from typing import Any
@@ -17,6 +18,39 @@ from bugeval.models import TestCase
 from bugeval.pr_eval_models import default_scoring
 from bugeval.result_models import NormalizedResult
 from bugeval.run_pr_eval import load_cases
+
+
+def bootstrap_ci(values: list[float], n_boot: int = 2000, ci: float = 0.95) -> tuple[float, float]:
+    """Return (lower, upper) bootstrap CI for the mean of values."""
+    if not values:
+        return 0.0, 0.0
+    means = [sum(random.choices(values, k=len(values))) / len(values) for _ in range(n_boot)]
+    means.sort()
+    lo = int((1 - ci) / 2 * n_boot)
+    hi = int((1 + ci) / 2 * n_boot)
+    return means[lo], means[hi]
+
+
+def permutation_p_value(a: list[float], b: list[float], n_perm: int = 5000) -> float:
+    """Two-sided permutation test: P(|mean_a - mean_b| >= observed) under H0."""
+    if not a or not b:
+        return 1.0
+    observed = abs(sum(a) / len(a) - sum(b) / len(b))
+    combined = a + b
+    count = 0
+    for _ in range(n_perm):
+        random.shuffle(combined)
+        diff = abs(sum(combined[: len(a)]) / len(a) - sum(combined[len(a) :]) / len(b))
+        if diff >= observed:
+            count += 1
+    return count / n_perm
+
+
+def compute_vote_agreement(scores: list[JudgeScore]) -> float:
+    """Mean fraction of votes agreeing with majority across scored cases."""
+    if not scores:
+        return 0.0
+    return sum(s.vote_agreement for s in scores) / len(scores)
 
 
 def compute_catch_rate(scores: list[JudgeScore]) -> float:
@@ -44,12 +78,21 @@ def aggregate_scores(scores: list[JudgeScore]) -> dict[str, dict[str, Any]]:
     result = {}
     for tool, tool_scores in sorted(by_tool.items()):
         dist = {i: sum(1 for s in tool_scores if s.score == i) for i in scoring.scale}
+        catch_values = [1.0 if s.score >= scoring.catch_threshold else 0.0 for s in tool_scores]
+        score_values = [float(s.score) for s in tool_scores]
+        catch_rate_ci = bootstrap_ci(catch_values)
+        avg_score_ci = bootstrap_ci(score_values)
         result[tool] = {
             "count": len(tool_scores),
             "catch_rate": compute_catch_rate(tool_scores),
+            "catch_rate_lo": catch_rate_ci[0],
+            "catch_rate_hi": catch_rate_ci[1],
             "avg_snr": compute_snr(tool_scores),
             "score_dist": dist,
             "avg_score": sum(s.score for s in tool_scores) / len(tool_scores),
+            "avg_score_lo": avg_score_ci[0],
+            "avg_score_hi": avg_score_ci[1],
+            "vote_agreement": compute_vote_agreement(tool_scores),
         }
     return result
 
@@ -57,15 +100,20 @@ def aggregate_scores(scores: list[JudgeScore]) -> dict[str, dict[str, Any]]:
 def generate_markdown(agg: dict[str, dict[str, Any]]) -> str:
     """Produce a markdown comparison table from aggregated scores."""
     lines = [
-        "| Tool | Cases | Detection Rate | Avg Score | Avg SNR |",
-        "|------|-------|--------------|-----------|---------|",
+        "| Tool | Cases | Detection Rate | Avg Score | Avg SNR | Judge Agreement |",
+        "|------|-------|--------------|-----------|---------|----------------|",
     ]
     for tool, metrics in agg.items():
+        catch_lo = metrics.get("catch_rate_lo", metrics["catch_rate"])
+        catch_hi = metrics.get("catch_rate_hi", metrics["catch_rate"])
+        score_lo = metrics.get("avg_score_lo", metrics["avg_score"])
+        score_hi = metrics.get("avg_score_hi", metrics["avg_score"])
         lines.append(
             f"| {tool} | {metrics['count']} "
-            f"| {metrics['catch_rate']:.1%} "
-            f"| {metrics['avg_score']:.2f} "
-            f"| {metrics['avg_snr']:.2f} |"
+            f"| {metrics['catch_rate']:.1%} [{catch_lo:.1%}–{catch_hi:.1%}] "
+            f"| {metrics['avg_score']:.2f} [{score_lo:.2f}–{score_hi:.2f}] "
+            f"| {metrics['avg_snr']:.2f} "
+            f"| {metrics.get('vote_agreement', 0.0):.0%} |"
         )
     return "\n".join(lines)
 
@@ -77,7 +125,19 @@ def generate_csv(agg: dict[str, dict[str, Any]], path: Path) -> None:
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(
             f,
-            fieldnames=["tool", "count", "catch_rate", "avg_score", "avg_snr"] + score_fields,
+            fieldnames=[
+                "tool",
+                "count",
+                "catch_rate",
+                "catch_rate_lo",
+                "catch_rate_hi",
+                "avg_score",
+                "avg_score_lo",
+                "avg_score_hi",
+                "avg_snr",
+                "vote_agreement",
+            ]
+            + score_fields,
         )
         writer.writeheader()
         for tool, m in agg.items():
@@ -86,8 +146,13 @@ def generate_csv(agg: dict[str, dict[str, Any]], path: Path) -> None:
                 "tool": tool,
                 "count": m["count"],
                 "catch_rate": round(m["catch_rate"], 4),
+                "catch_rate_lo": round(m.get("catch_rate_lo", m["catch_rate"]), 4),
+                "catch_rate_hi": round(m.get("catch_rate_hi", m["catch_rate"]), 4),
                 "avg_score": round(m["avg_score"], 4),
+                "avg_score_lo": round(m.get("avg_score_lo", m["avg_score"]), 4),
+                "avg_score_hi": round(m.get("avg_score_hi", m["avg_score"]), 4),
                 "avg_snr": round(m["avg_snr"], 4),
+                "vote_agreement": round(m.get("vote_agreement", 0.0), 4),
             }
             for i in scoring.scale:
                 row[f"score_{i}"] = dist.get(i, 0)
@@ -414,6 +479,39 @@ def run_analyze(run_dir: Path, cases_dir: Path, no_charts: bool = False) -> None
     dx_md = generate_dx_markdown(results)
     if dx_md:
         md_lines.append(dx_md)
+
+    # Pairwise permutation p-value table (catch_rate)
+    tools_list = sorted(agg.keys())
+    if len(tools_list) >= 2:
+        by_tool_catch: dict[str, list[float]] = {}
+        scoring = default_scoring()
+        for s in scores:
+            val = 1.0 if s.score >= scoring.catch_threshold else 0.0
+            by_tool_catch.setdefault(s.tool, []).append(val)
+        pairwise_lines = [
+            "## Pairwise Detection Rate p-values (permutation test)",
+            "",
+            "| | " + " | ".join(tools_list) + " |",
+            "|" + "---|" * (len(tools_list) + 1),
+        ]
+        for ta in tools_list:
+            row_cells = [ta]
+            for tb in tools_list:
+                if ta == tb:
+                    row_cells.append("—")
+                else:
+                    p = permutation_p_value(by_tool_catch.get(ta, []), by_tool_catch.get(tb, []))
+                    row_cells.append(f"{p:.3f}")
+            pairwise_lines.append("| " + " | ".join(row_cells) + " |")
+        md_lines.append("\n".join(pairwise_lines))
+
+    # Power note
+    n_cases = max((m["count"] for m in agg.values()), default=0)
+    md_lines.append(
+        f"---\n\n**Power note**: at n={n_cases}, a 20-percentage-point difference in "
+        "detection rate is detectable at α=0.10 but not α=0.05. "
+        "Recommend n≥50 for definitive conclusions."
+    )
 
     full_report = "\n\n".join(md_lines)
     (out_dir / "report.md").write_text(full_report)

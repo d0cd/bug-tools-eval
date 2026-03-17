@@ -1,26 +1,31 @@
 id: sentry-062
 repo: getsentry/sentry
-base_commit: a89e267817948a782f3cd6605cbafb8816fca85c^
-head_commit: a89e267817948a782f3cd6605cbafb8816fca85c
-fix_commit: a89e267817948a782f3cd6605cbafb8816fca85c
+base_commit: 4c756a311d7d9ed85e4d791493ae2732146af66e^
+head_commit: 4c756a311d7d9ed85e4d791493ae2732146af66e
+fix_commit: 4c756a311d7d9ed85e4d791493ae2732146af66e
 category: logic
-difficulty: medium
+difficulty: easy
 severity: medium
 language: typescript
-pr_size: medium
-description: The CompactSelect listbox component unconditionally reserved scrollbar
-  gutter space regardless of whether the content actually overflowed. This caused
-  unnecessary empty padding on the right side of dropdown menus that didn't need a
-  scrollbar. The fix adds overflow-state detection so the gutter is only reserved
-  after a scrollbar has actually appeared.
+pr_size: tiny
+description: The Seer settings tabs were triggering duplicate navigation/redirects
+  when switching tabs. The fix normalizes tab destinations and relies on the built-in
+  tab link navigation instead of programmatic redirects, eliminating the extra navigation
+  calls.
 expected_findings:
-- file: static/app/components/core/compactSelect/listBox/index.tsx
+- file: static/gsApp/views/seerAutomation/components/settingsPageTabs.tsx
   line: 1
-  summary: 'Scrollbar gutter is always reserved via CSS `scrollbar-gutter: stable`
-    (or equivalent) without checking whether the list content actually overflows.
-    Should conditionally apply gutter reservation only when overflow is detected.'
+  summary: Tab navigation handler triggers redundant redirect alongside the tab link's
+    own navigation, causing duplicate route transitions
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110222
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

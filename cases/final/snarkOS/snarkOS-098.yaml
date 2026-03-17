@@ -1,21 +1,33 @@
 id: snarkOS-098
 repo: ProvableHQ/snarkOS
-base_commit: 66978913dc15e151722dc48d568c82781edb5f08^
-head_commit: 66978913dc15e151722dc48d568c82781edb5f08
-fix_commit: 66978913dc15e151722dc48d568c82781edb5f08
-category: api
+base_commit: 88daf2699d2220d7f7beff5db2b57371f6f4f574^
+head_commit: 88daf2699d2220d7f7beff5db2b57371f6f4f574
+fix_commit: 88daf2699d2220d7f7beff5db2b57371f6f4f574
+category: logic
 difficulty: easy
-severity: low
+severity: high
 language: rust
 pr_size: tiny
-description: The benchmark file had an incorrect import path for the GM17 SNARK type,
-  causing a compilation failure. The fix updated the `use` statement to reference
-  the correct module path for `GM17`.
+description: When a validator node's local block height exceeds the CDN height, the
+  CDN sync function returned an error that was misinterpreted as storage corruption,
+  causing a panic. The fix changes the early-return path to return the completed height
+  as Ok() instead of propagating an error, since being ahead of the CDN is a normal
+  condition, not corruption.
 expected_findings:
-- file: benchmarks/algorithms/snark/snark.rs
-  line: 17
-  summary: 'Incorrect import path: `use snarkos_algorithms::snark::gm17::GM17` references
-    a wrong or outdated module path that fails to compile'
+- file: node/cdn/src/blocks.rs
+  line: 72
+  summary: When start_height > CDN height, this returns an error that propagates as
+    a 'storage corruption' panic. Should return Ok(completed_height) instead, since
+    the node being ahead of CDN is not an error condition.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

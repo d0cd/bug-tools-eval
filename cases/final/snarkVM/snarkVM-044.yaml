@@ -1,30 +1,42 @@
 id: snarkVM-044
 repo: ProvableHQ/snarkVM
-base_commit: 9124c319dfd08e19f537e64be18755cfd90f6975^
-head_commit: 9124c319dfd08e19f537e64be18755cfd90f6975
-fix_commit: 9124c319dfd08e19f537e64be18755cfd90f6975
-category: api
+base_commit: 2b21022a2b2ec0272379e8ab19d9da4412ea520f^
+head_commit: 2b21022a2b2ec0272379e8ab19d9da4412ea520f
+fix_commit: 2b21022a2b2ec0272379e8ab19d9da4412ea520f
+category: style
 difficulty: easy
-severity: high
+severity: low
 language: rust
 pr_size: tiny
-description: 'Three minor compilation fixes: incorrect `rng` parameter passing in
-  ledger test calls to `check_next_block`, a wrong variable reference for `MAXIMUM_CONFIRMED_TRANSACTIONS`
-  in `finalize.rs`, and a stale version pin for snarkvm-utilities in Cargo.toml. All
-  three issues prevented successful compilation.'
+description: Minor documentation and comment nits left over from a previous PR (#3004).
+  The changes correct inaccurate comments (e.g., wrong operand count described in
+  a sanity-check comment) and fix a small naming/style inconsistency in verify.rs.
+  The PR author explicitly describes these as inconsequential nits.
 expected_findings:
-- file: ledger/src/tests.rs
-  line: 596
-  summary: 'Incorrect `rng` usage: `check_next_block` is called with `rng` but likely
-    needs `&mut rng` or the rng variable is not properly passed as a mutable reference.'
-- file: ledger/src/tests.rs
-  line: 631
-  summary: 'Same incorrect `rng` usage as line 596: `check_next_block` called with
-    wrong rng parameter form.'
-- file: synthesizer/src/vm/finalize.rs
-  line: 130
-  summary: "Incorrect variable reference for `MAXIMUM_CONFIRMED_TRANSACTIONS` constant\
-    \ \u2014 uses wrong associated constant or type path that doesn't resolve."
+- file: synthesizer/program/src/logic/instruction/operation/snark_verify.rs
+  line: 88
+  summary: Comment says 'exactly four operands' but the actual check or signature
+    expects a different count; comment is inaccurate and should match the real operand
+    count.
+  line_side: pre_fix
+- file: synthesizer/program/src/logic/instruction/operation/snark_verify.rs
+  line: 306
+  summary: Duplicate inaccurate comment about 'exactly four operands' — same stale
+    documentation issue as above.
+  line_side: pre_fix
+- file: synthesizer/src/vm/verify.rs
+  line: 141
+  summary: Minor naming or documentation nit on the consensus_version binding (e.g.,
+    incorrect comment or style inconsistency with surrounding code).
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

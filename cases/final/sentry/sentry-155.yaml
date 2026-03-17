@@ -1,0 +1,32 @@
+id: sentry-155
+repo: getsentry/sentry
+base_commit: caa3bc92f7a6bcbaf13be9dcfa0aa7b4b9ed5159^
+head_commit: 06a3a72ab909f940f8afbfa2eafa3aa1c36c019e
+fix_commit: caa3bc92f7a6bcbaf13be9dcfa0aa7b4b9ed5159
+category: api-misuse
+difficulty: easy
+severity: medium
+language: python
+pr_size: small
+description: The OrganizationWorkflowIndexEndpoint's filter_workflows method calls
+  parse_workflow_query() without catching InvalidSearchQuery exceptions. When a user
+  supplies an unexpected or invalid query key, the unhandled exception bubbles up
+  as a 500 Internal Server Error instead of returning a proper 400 Bad Request response.
+expected_findings:
+- file: src/sentry/workflow_engine/endpoints/organization_workflow_index.py
+  line: 164
+  summary: 'Unhandled InvalidSearchQuery exception from parse_workflow_query(): invalid
+    or unexpected query terms will cause a 500 error instead of a 400 response. Wrap
+    in try/except and raise a ValidationError.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

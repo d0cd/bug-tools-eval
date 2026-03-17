@@ -1,31 +1,35 @@
 id: sdk-042
 repo: ProvableHQ/sdk
-base_commit: cbdd711f30e62e99a13923263601cbc7d55c5c5b^
-head_commit: cbdd711f30e62e99a13923263601cbc7d55c5c5b
-fix_commit: cbdd711f30e62e99a13923263601cbc7d55c5c5b
-category: api
-difficulty: hard
-severity: critical
-language: rust
-pr_size: xl
-description: The SDK used outdated SnarkVM 0.9.x APIs including the removed `gates`
-  field on Records (replaced by `microcredits`), old Transaction construction methods,
-  and prior serialization formats. The fix bumps SnarkVM to 0.10.2 and updates all
-  call sites to use the new API surface including microcredits-based record handling,
-  updated transaction builders, and the new `finalize` scope.
+base_commit: 9cdca3bf0794eafaf621b935b79c6b2edcfbfd8d^
+head_commit: 9cdca3bf0794eafaf621b935b79c6b2edcfbfd8d
+fix_commit: 9cdca3bf0794eafaf621b935b79c6b2edcfbfd8d
+category: api-misuse
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: The Discord invite link in README.md was broken or outdated, pointing
+  to an incorrect or expired invite URL. The fix updates the Discord invite links
+  to use the correct URL.
 expected_findings:
-- file: rust/src/program/helpers/records.rs
-  line: 14
-  summary: Record handling uses deprecated `gates` field instead of `microcredits`
-    identifier within the record's identifier map, incompatible with SnarkVM 0.10.x
-- file: rust/src/program/deploy.rs
-  line: 14
-  summary: Deployment transaction construction uses outdated SnarkVM 0.9.x Transaction
-    API methods and fee parameters that changed in 0.10.x
-- file: rust/src/program/execute.rs
-  line: 14
-  summary: Execution transaction construction uses outdated SnarkVM 0.9.x API; missing
-    support for `finalize` scope and updated fee handling
+- file: README.md
+  line: 2
+  summary: Broken/outdated Discord invite link URL needs to be updated
+  line_side: pre_fix
+- file: README.md
+  line: 142
+  summary: Broken/outdated Discord invite link URL needs to be updated (duplicate
+    link)
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 830
+reviewer_notes: []
+reviewer_findings: []
+quality_flags:
+- groundedness-failed

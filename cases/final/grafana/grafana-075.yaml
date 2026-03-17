@@ -1,0 +1,41 @@
+id: grafana-075
+repo: grafana/grafana
+base_commit: 9fd258566144f469d8810ed1432fb7f0f1ed983a^
+head_commit: 9fd258566144f469d8810ed1432fb7f0f1ed983a
+fix_commit: 9fd258566144f469d8810ed1432fb7f0f1ed983a
+category: logic
+difficulty: medium
+severity: high
+language: typescript
+pr_size: medium
+description: The dashboard reference was stored in a local `let` variable and initialized
+  via `useEffectOnce`. When the effect responsible for subscribing to dashboard events
+  re-ran due to dependency changes, the local variable had been re-declared as `undefined`
+  by the new render cycle, causing `dashboard?.events.subscribe` to silently fail
+  and the event subscription to be lost. The fix stores the dashboard in a `useRef`
+  to persist it across renders and splits the event subscription and data fetch into
+  separate effects to avoid unnecessary unsubscribe/resubscribe cycles.
+expected_findings:
+- file: public/app/plugins/panel/alertlist/UnifiedAlertList.tsx
+  line: 121
+  summary: Dashboard stored in a local `let` variable loses its value across re-renders;
+    should use `useRef` to persist the dashboard reference so that event subscriptions
+    are not silently dropped when the effect re-runs.
+  line_side: pre_fix
+- file: public/app/plugins/panel/alertlist/UnifiedAlertList.tsx
+  line: 173
+  summary: Event subscription and data fetch are coupled in the same effect, causing
+    unnecessary unsubscribe/resubscribe cycles when dependencies change. These should
+    be split into separate effects.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

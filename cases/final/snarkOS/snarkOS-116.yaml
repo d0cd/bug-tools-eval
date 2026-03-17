@@ -1,24 +1,38 @@
 id: snarkOS-116
 repo: ProvableHQ/snarkOS
-base_commit: 3f4b5be75cb3163d154d3cdb1f250db5abc1ca4d^
-head_commit: 3f4b5be75cb3163d154d3cdb1f250db5abc1ca4d
-fix_commit: 3f4b5be75cb3163d154d3cdb1f250db5abc1ca4d
-category: logic
-difficulty: medium
-severity: low
+base_commit: a041d33f66ea8589b90ffe9889c37cb73e1cac7b^
+head_commit: a041d33f66ea8589b90ffe9889c37cb73e1cac7b
+fix_commit: a041d33f66ea8589b90ffe9889c37cb73e1cac7b
+category: code-smell
+difficulty: easy
+severity: medium
 language: rust
-pr_size: small
-description: The initial block sync time estimate became inaccurate after a node restart
-  mid-sync because it did not account for the ledger height at the time of restart.
-  The fix calculates the average time per block based on the height differential from
-  the ledger height at restart rather than from zero, producing an accurate estimate
-  even after restarts.
+pr_size: medium
+description: Hard-coded genesis blockchain parameters (record commitment, serial number,
+  memo, predicate VK bytes, account) were embedded as raw byte array constants in
+  storage/src/genesis.rs. The fix removes these hard-coded values and replaces them
+  with proper parameter structs that load from binary .genesis files at runtime via
+  include_bytes!, improving maintainability and correctness.
 expected_findings:
-- file: snarkos/ledger/mod.rs
-  line: 261
-  summary: 'Time remaining calculation does not account for node restart: the elapsed
-    time and block count should be relative to the ledger height at restart, not the
-    original sync start, otherwise the estimate is wildly inaccurate after a restart.'
+- file: storage/src/genesis.rs
+  line: 1
+  summary: Hard-coded genesis parameters as raw byte array constants should be loaded
+    from generated binary files instead of being embedded directly in source code
+  line_side: pre_fix
+- file: storage/src/ledger_storage.rs
+  line: 1
+  summary: References to hard-coded genesis constants (GENESIS_RECORD_COMMITMENT,
+    GENESIS_SERIAL_NUMBER, etc.) should use the parameter module's load_bytes() pattern
+    instead
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

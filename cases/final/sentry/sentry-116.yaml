@@ -1,0 +1,41 @@
+id: sentry-116
+repo: getsentry/sentry
+base_commit: 996ddd191048acfd8c579a0bdf8d03bba480788a^
+head_commit: 996ddd191048acfd8c579a0bdf8d03bba480788a
+fix_commit: 996ddd191048acfd8c579a0bdf8d03bba480788a
+category: api-misuse
+difficulty: easy
+severity: low
+language: unknown
+pr_size: tiny
+description: Storybook MDX files used named imports (e.g., `{ Placeholder }`) for
+  modules that only provide default exports. This causes ESModules linking warnings
+  during the Storybook build. The fix converts these to default imports to match the
+  actual export style of the modules.
+expected_findings:
+- file: static/app/components/core/avatar/avatar.mdx
+  line: 14
+  summary: Named import used for a module that only provides a default export; should
+    use a default import instead to avoid ESModulesLinkingWarning
+  line_side: pre_fix
+- file: static/app/components/emptyMessage.mdx
+  line: 1
+  summary: Named import used for a module that only provides a default export; should
+    use a default import instead to avoid ESModulesLinkingWarning
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110535
+reviewer_notes: []
+reviewer_findings:
+- file: static/app/components/core/avatar/avatar.mdx
+  line: 14
+  summary: '### Named import for default-only export breaks Placeholder  **High Severity**  <!--
+    DESCRIPTION START --> `Placeholder`'
+  line_side: pre_fix
+quality_flags: []

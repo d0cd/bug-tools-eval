@@ -1,24 +1,31 @@
 id: grafana-023
 repo: grafana/grafana
-base_commit: ca57523fcefe2e4d33046aec14cf6be555034065^
-head_commit: ca57523fcefe2e4d33046aec14cf6be555034065
-fix_commit: ca57523fcefe2e4d33046aec14cf6be555034065
-category: api
+base_commit: 3683478216d461da753999f1ae9bb71ea676400c^
+head_commit: 3683478216d461da753999f1ae9bb71ea676400c
+fix_commit: 3683478216d461da753999f1ae9bb71ea676400c
+category: style
 difficulty: easy
 severity: low
 language: unknown
-pr_size: tiny
-description: The repository URL in package.json included an unnecessary 'git+' protocol
-  prefix (e.g., 'git+http://github.com/grafana/grafana.git'), which is inconsistent
-  with standard URL formats and can cause issues with tools that parse the repository
-  field. The fix removes the 'git+' prefix to use a plain HTTP URL.
+pr_size: small
+description: "This PR adds a documentation section to AGENTS.md instructing AI agents\
+  \ to propose updates when developers correct recurring mistakes. There is no code\
+  \ change, no bug fix, and no functional behavior modification \u2014 it is purely\
+  \ a prose addition to an agent guidelines file."
 expected_findings:
-- file: packages/grafana-openapi/package.json
-  line: 13
-  summary: Repository URL has unnecessary 'git+' prefix that should be removed for
-    consistency with standard URL formats
+- file: public/app/features/alerting/unified/AGENTS.md
+  line: 553
+  summary: 'Documentation-only change: new ''Learning from Corrections'' section is
+    a process guideline addition with no code impact to review for correctness'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 120035
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

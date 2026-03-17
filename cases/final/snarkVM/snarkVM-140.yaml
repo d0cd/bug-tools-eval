@@ -1,32 +1,40 @@
 id: snarkVM-140
 repo: ProvableHQ/snarkVM
-base_commit: 13c7f11e24cdd348235534cd262212a10fdcdfba^
-head_commit: 13c7f11e24cdd348235534cd262212a10fdcdfba
-fix_commit: 13c7f11e24cdd348235534cd262212a10fdcdfba
+base_commit: be747fcb895eeb22f8097a807687fd8017445c12^
+head_commit: be747fcb895eeb22f8097a807687fd8017445c12
+fix_commit: be747fcb895eeb22f8097a807687fd8017445c12
 category: logic
-difficulty: hard
-severity: critical
+difficulty: medium
+severity: high
 language: rust
 pr_size: large
-description: The ECIES Poseidon encryption was implemented using a compact (byte-based)
-  approach instead of the correct field-based version, causing cryptographic incompatibility.
-  The fix reverts the encryption scheme back to operating over field elements, which
-  required updating constraint counts, genesis parameters, and SNARK verification
-  key checksums across both testnets.
+description: Scalar::eject_mode() had a hand-rolled mode aggregation that would panic
+  (halt) when encountering mixed Public and Private bits in the scalar's bits_le representation,
+  instead of correctly lifting to Mode::Private. The fix delegates to self.bits_le.eject_mode()
+  which uses the generic aggregation logic that properly handles all mode combinations
+  by starting from Mode::Constant and lifting through Public to Private as needed.
 expected_findings:
-- file: algorithms/src/encryption/ecies_poseidon.rs
-  line: 27
-  summary: ECIES Poseidon encryption uses byte/compact representation instead of field-based
-    representation, causing incorrect encryption behavior and constraint mismatches
-- file: gadgets/src/algorithms/encryption/ecies_poseidon.rs
-  line: 21
-  summary: Encryption gadget circuit uses compact/byte-level operations instead of
-    field-level gadgets (FieldGadget), producing incorrect constraint counts and incompatible
-    proofs
-- file: .integration/tests/dpc_testnet1.rs
-  line: 450
-  summary: Constraint count assertion reflects the incorrect compact ECIES Poseidon
-    circuit rather than the correct field-based version
+- file: circuits/types/scalar/src/lib.rs
+  line: 56
+  summary: Scalar::eject_mode() incorrectly halts on mixed Public+Private bit modes
+    instead of lifting to Mode::Private; the custom aggregation logic fails when scalar_mode
+    is Public and a Private bit is encountered. Should delegate to self.bits_le.eject_mode()
+    instead of reimplementing mode aggregation.
+  line_side: pre_fix
+- file: circuits/types/scalar/src/lib.rs
+  line: 63
+  summary: 'Match arm `false => E::halt(...)` is too strict: when scalar_mode is Mode::Public
+    and bit_mode is Mode::Private, the correct behavior is to lift to Mode::Private,
+    not halt. This makes ternary operations on mixed-mode scalars crash.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,34 +1,32 @@
 id: leo-226
 repo: ProvableHQ/leo
-base_commit: d1fbd5bc0b23a60a24629f1cacbec4b013b78370^
-head_commit: d1fbd5bc0b23a60a24629f1cacbec4b013b78370
-fix_commit: d1fbd5bc0b23a60a24629f1cacbec4b013b78370
+base_commit: e1b6361a3f1cb09c6e1b8403d9403658d300b9c9^
+head_commit: e1b6361a3f1cb09c6e1b8403d9403658d300b9c9
+fix_commit: e1b6361a3f1cb09c6e1b8403d9403658d300b9c9
 category: logic
-difficulty: hard
+difficulty: medium
 severity: high
-language: rust
-pr_size: large
-description: The Leo compiler's code generation for futures was incorrect in multiple
-  passes. The visit_program pass only checked `function.finalize.is_some()` without
-  also checking for non-empty futures, causing functions with futures to miss finalize
-  block generation. Additionally, visit_expressions didn't properly construct output
-  operands (destination registers) for future-returning calls, and the flattener lacked
-  a UnitExpression variant needed for future-related unit-typed expressions.
+language: leo
+pr_size: medium
+description: Reverse loop iteration in the Leo compiler incorrectly computed exclusive
+  bounds for descending loops. The expression `(to..from).rev()` produces a range
+  that excludes the starting value of the reverse iteration; the fix shifts both bounds
+  by +1 via `((to+1)..(from+1)).rev()` so the loop visits the correct set of values.
 expected_findings:
-- file: compiler/passes/src/code_generation/visit_program.rs
-  line: 209
-  summary: 'Missing futures check: condition should be `!self.futures.is_empty() ||
-    function.finalize.is_some()` but only checks `function.finalize.is_some()`, causing
-    functions with futures to skip finalize block generation'
-- file: compiler/passes/src/code_generation/visit_expressions.rs
-  line: 540
-  summary: Output operands for call expressions do not correctly handle future types
-    in destination registers, leading to incorrect codegen for future-returning function
-    calls
-- file: compiler/passes/src/flattening/flattener.rs
-  line: 31
-  summary: Missing UnitExpression variant in flattener enum prevents proper handling
-    of unit-typed expressions produced by future-related calls
+- file: compiler/src/statement/iteration/iteration.rs
+  line: 60
+  summary: 'Off-by-one in reverse exclusive range: `(to..from).rev()` excludes the
+    `from` value from iteration. Needs `((to+1)..(from+1)).rev()` to produce the correct
+    descending sequence for Leo''s `for i in high..low` syntax.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

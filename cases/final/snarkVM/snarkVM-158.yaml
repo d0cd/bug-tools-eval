@@ -1,35 +1,32 @@
 id: snarkVM-158
 repo: ProvableHQ/snarkVM
-base_commit: 1db1aad86263e5db753bad3bb6ca6de551588080^
-head_commit: 1db1aad86263e5db753bad3bb6ca6de551588080
-fix_commit: 1db1aad86263e5db753bad3bb6ca6de551588080
-category: logic
-difficulty: hard
-severity: critical
+base_commit: 3614f626ec4c509fa76476951a95358b5fc630cb^
+head_commit: 3614f626ec4c509fa76476951a95358b5fc630cb
+fix_commit: d6443ba4240f45f260057f952fe20eacec696d18
+category: type
+difficulty: medium
+severity: high
 language: rust
-pr_size: xl
-description: Group::new was not enforcing that injected points are on the curve and
-  in the correct subgroup by default, which is a soundness/security issue in a zero-knowledge
-  circuit environment. The fix makes Group::new checked by default, adds E::assert_neq
-  for efficient inequality assertions (e.g., division-by-zero guards), and refactors
-  Field::div with a separate div_unchecked variant for performance-critical internal
-  use like BHP hashing.
+pr_size: large
+description: The Blake2Xs XOF num_rounds calculation used plain addition `xof_digest_length
+  + 31` which can overflow for large digest lengths. The fix replaces it with `saturating_add(31)`
+  to prevent integer overflow in the ceiling-division computation `(xof_digest_length
+  + 31) / 32` that determines how many 32-byte hash rounds to perform.
 expected_findings:
-- file: circuit/types/group/src/helpers/from_xy_coordinates.rs
-  line: 18
-  summary: Group point injection from (x, y) coordinates was not enforcing that the
-    point is on the curve and in the correct subgroup, allowing potentially invalid
-    group elements in circuit computations.
-- file: circuit/types/group/src/lib.rs
-  line: 56
-  summary: "Group::new injected points without on-curve and subgroup membership checks,\
-    \ which is unsound in a ZK circuit \u2014 malicious witnesses could introduce\
-    \ invalid group elements."
-- file: circuit/types/field/src/div.rs
-  line: 57
-  summary: Field::div implementation was less efficient than necessary; should separate
-    checked division (with assert_neq zero) from unchecked division used internally
-    by trusted callers like BHP hashing.
+- file: console/algorithms/src/blake2xs/mod.rs
+  line: 46
+  summary: 'Integer overflow risk: `xof_digest_length + 31` can overflow for large
+    values. Use `saturating_add(31)` to safely compute ceiling division for the number
+    of 32-byte hash rounds.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

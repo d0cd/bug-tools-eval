@@ -1,28 +1,50 @@
 id: snarkOS-046
 repo: ProvableHQ/snarkOS
-base_commit: 9da1bbc1d100c25a144dd4614ac2f88e1e359985^
-head_commit: 9da1bbc1d100c25a144dd4614ac2f88e1e359985
-fix_commit: 9da1bbc1d100c25a144dd4614ac2f88e1e359985
-category: api
-difficulty: medium
-severity: critical
+base_commit: 3c4a705166b60906f169cdc5caefd9aab81ce95b^
+head_commit: 3c4a705166b60906f169cdc5caefd9aab81ce95b
+fix_commit: 3c4a705166b60906f169cdc5caefd9aab81ce95b
+category: concurrency
+difficulty: hard
+severity: high
 language: rust
 pr_size: medium
-description: The `--seed` flag on the `account sign` command allowed users to seed
-  the nonce used in signatures, which is cryptographically insecure. Reusing or sharing
-  signature nonces can lead to private key recovery. The fix removes the `--seed`
-  flag entirely from the sign command to prevent accidental use of this insecure functionality.
+description: The Resolver struct used two independent RwLocks for its bidirectional
+  address maps (from_listener, to_listener), allowing the maps to become inconsistent
+  under concurrent access—e.g., insert_peer could write to one map but not the other
+  before a concurrent read. Additionally, remove_connected_peer removed the resolver
+  entry before removing from connected_peers, creating a window where resolution would
+  fail for a still-connected peer, triggering spurious disconnect cascades. The fix
+  consolidates to a single outer RwLock<Resolver> and reorders cleanup operations.
 expected_findings:
-- file: cli/src/commands/account.rs
-  line: 65
-  summary: 'Security: The `--seed` parameter on the sign command allows users to seed
-    signature nonces, which is cryptographically insecure and can lead to private
-    key compromise if nonces are reused.'
-- file: cli/src/commands/account.rs
-  line: 119
-  summary: 'Security: The sign function uses the user-provided seed to deterministically
-    generate a nonce for the signature. Signature nonces must be random and never
-    reused; deterministic/seeded nonces enable private key recovery attacks.'
+- file: node/router/src/helpers/resolver.rs
+  line: 19
+  summary: 'Dual-RwLock concurrency bug: from_listener and to_listener each have their
+    own RwLock, so insert_peer and remove_peer acquire/release locks independently
+    on each map. Concurrent operations can observe an inconsistent state where one
+    map is updated but the other is not, leading to failed address resolution.'
+  line_side: pre_fix
+- file: node/router/src/lib.rs
+  line: 612
+  summary: 'Incorrect cleanup ordering in remove_connected_peer: resolver entry is
+    removed first (line 617), then connected_peers (line 619). Between these two operations,
+    resolve_to_listener returns None for a peer still in connected_peers, triggering
+    spurious ''Unable to resolve'' errors and redundant disconnect attempts.'
+  line_side: pre_fix
+- file: node/router/src/inbound.rs
+  line: 78
+  summary: Unresolvable peer addresses in the inbound path bail with an error, triggering
+    a disconnect flow. Post-disconnect straggler messages are guaranteed to fail resolution
+    here, causing redundant disconnect attempts and noisy warnings. Should be handled
+    gracefully as a non-error.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

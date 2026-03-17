@@ -1,23 +1,43 @@
 id: snarkVM-061
 repo: ProvableHQ/snarkVM
-base_commit: fda2fa375874b5b373087f059bfaa840d06635f5^
-head_commit: fda2fa375874b5b373087f059bfaa840d06635f5
-fix_commit: fda2fa375874b5b373087f059bfaa840d06635f5
+base_commit: 3fe597ed4e282139b6e31d5c1ae47551e425d0dc^
+head_commit: 3fe597ed4e282139b6e31d5c1ae47551e425d0dc
+fix_commit: 3fe597ed4e282139b6e31d5c1ae47551e425d0dc
 category: logic
 difficulty: easy
 severity: medium
 language: rust
-pr_size: small
-description: The GET /program/{program_id} endpoint did not handle the special `credits.aleo`
-  program, returning an error or not-found when users requested it. The fix adds a
-  check for `credits.aleo` and returns the built-in Program directly, along with importing
-  the Program type and adding a clippy allow for `opaque_hidden_inferred_bound`.
+pr_size: large
+description: Off-by-one error in input count validation for `ClosureCore::add_input`
+  and `FinalizeCore::add_input`. The boundary check used `<` instead of `<=` (or vice
+  versa) against `N::MAX_INPUTS`, allowing one more input than intended to be added
+  before the validation triggered. The fix corrects the comparison operator to enforce
+  the intended maximum.
 expected_findings:
-- file: rest/src/routes.rs
-  line: 225
-  summary: 'Missing handling for the `credits.aleo` program: the endpoint should check
-    if the requested program_id is `credits.aleo` and return the built-in credits
-    program instead of only querying the ledger''s program storage.'
+- file: synthesizer/program/src/closure/mod.rs
+  line: 83
+  summary: 'Off-by-one in input validation: `self.inputs.len() < N::MAX_INPUTS` uses
+    wrong comparison operator, allowing MAX_INPUTS entries instead of MAX_INPUTS-1
+    (or one fewer than intended). Should match the boundary semantics of FunctionCore.'
+  line_side: pre_fix
+- file: synthesizer/program/src/finalize/mod.rs
+  line: 92
+  summary: 'Same off-by-one in input validation: `self.inputs.len() < N::MAX_INPUTS`
+    uses wrong comparison operator, same issue as ClosureCore::add_input.'
+  line_side: pre_fix
+- file: synthesizer/program/src/function/mod.rs
+  line: 201
+  summary: 'Reference: FunctionCore has the correct input validation boundary; ClosureCore
+    and FinalizeCore should use the same comparison logic.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

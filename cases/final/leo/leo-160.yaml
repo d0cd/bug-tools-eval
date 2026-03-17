@@ -1,34 +1,39 @@
 id: leo-160
 repo: ProvableHQ/leo
-base_commit: 5b60d9b05de5a1cba50907b164b94b643135c4e7^
-head_commit: 5b60d9b05de5a1cba50907b164b94b643135c4e7
-fix_commit: 5b60d9b05de5a1cba50907b164b94b643135c4e7
+base_commit: a601ccd5cc73706e72e31debb486b971778aab2b^
+head_commit: a601ccd5cc73706e72e31debb486b971778aab2b
+fix_commit: a601ccd5cc73706e72e31debb486b971778aab2b
 category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: medium
-description: Circuit variables in Leo lacked mutability tracking, meaning all circuit
-  member assignments were either universally allowed or disallowed with no per-field
-  control. The fix adds an optional `mut` keyword to circuit variable definitions,
-  threads the `is_mutable` flag through the AST, typed representation, and compiler,
-  and adds an immutability check in the circuit variable assignment path that emits
-  an error when assigning to a non-mutable circuit field.
+pr_size: small
+description: The Leo parser did not verify that function call expressions have an
+  identifier as the callee, allowing literals like `100u8(0u8)` or `1000u128(...)`
+  to be parsed as function calls. This caused unreachable!() panics in downstream
+  compiler passes (code generation and type checking). The fix adds an identifier
+  check in the parser, but also leaves debug println! statements in the type checker.
 expected_findings:
-- file: compiler/src/statement/assign/circuit_variable.rs
-  line: 33
-  summary: 'Missing mutability check: circuit variable assignment should verify the
-    target field is declared `mut` before allowing assignment, otherwise emit an immutable_circuit_variable
-    error.'
-- file: compiler/src/expression/circuit/circuit.rs
-  line: 55
-  summary: CircuitMember::CircuitVariable pattern does not track or propagate the
-    `is_mutable` flag, so downstream assignment checks cannot distinguish mutable
-    from immutable fields.
-- file: typed/src/circuits/circuit_member.rs
-  line: 26
-  summary: CircuitVariable variant lacks an `is_mutable` boolean field, preventing
-    the type system from distinguishing mutable and immutable circuit members.
+- file: compiler/parser/src/parser/expression.rs
+  line: 446
+  summary: 'Missing validation: when a LeftParen follows an expression, the parser
+    assumes it is a function call but does not check that the expression is an Identifier.
+    Non-identifier expressions (e.g. literals) will be parsed as CallExpression and
+    cause unreachable!() panics in later passes.'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_expressions.rs
+  line: 453
+  summary: Debug println! statements left in production code — these should be removed
+    before merging.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

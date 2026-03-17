@@ -1,26 +1,38 @@
 id: snarkVM-015
 repo: ProvableHQ/snarkVM
-base_commit: 0e70a3ec0675520b0fd126edc6aa897085782e16^
-head_commit: 0e70a3ec0675520b0fd126edc6aa897085782e16
-fix_commit: 0e70a3ec0675520b0fd126edc6aa897085782e16
-category: api
-difficulty: easy
-severity: medium
+base_commit: 11132c399c6ce0575deb2f017a5e920c21ef1c93^
+head_commit: 11132c399c6ce0575deb2f017a5e920c21ef1c93
+fix_commit: 11132c399c6ce0575deb2f017a5e920c21ef1c93
+category: security
+difficulty: medium
+severity: critical
 language: rust
-pr_size: tiny
-description: Two test cases in ledger/src/tests.rs used an outdated call signature
-  for ConsensusStore::open with StorageMode::new_test(None), which no longer matched
-  the current API. The fix updated both call sites to use the correct arguments, restoring
-  CI build success.
+pr_size: medium
+description: CircuitVerifyingKey derived CanonicalDeserialize without bounding the
+  length of the circuit_commitments vector, allowing a malicious deserializer input
+  to specify an arbitrarily large length and exhaust memory (denial of service). The
+  fix replaces the derived deserialization with a custom implementation that caps
+  circuit_commitments at 12 elements (3 matrices × 4 polynomials per Varuna protocol).
 expected_findings:
-- file: ledger/src/tests.rs
-  line: 2936
-  summary: 'Outdated API usage: ConsensusStore::open(StorageMode::new_test(None))
-    uses wrong arguments for the current StorageMode::new_test signature'
-- file: ledger/src/tests.rs
-  line: 2955
-  summary: 'Outdated API usage: ConsensusStore::open(StorageMode::new_test(None))
-    uses wrong arguments for the current StorageMode::new_test signature'
+- file: algorithms/src/snark/varuna/data_structures/circuit_verifying_key.rs
+  line: 28
+  summary: CanonicalDeserialize is derived here without bounding the length of the
+    circuit_commitments Vec, allowing malicious input to trigger unbounded memory
+    allocation during deserialization.
+  line_side: pre_fix
+- file: algorithms/src/snark/varuna/data_structures/circuit_verifying_key.rs
+  line: 38
+  summary: The circuit_commitments field is deserialized as an unbounded Vec; a crafted
+    payload can specify an enormous length prefix to exhaust memory (DoS).
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

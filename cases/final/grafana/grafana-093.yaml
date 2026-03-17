@@ -1,0 +1,47 @@
+id: grafana-093
+repo: grafana/grafana
+base_commit: c4d7be272ee4bc561671bbbcd49292aba8e5cecd^
+head_commit: c4d7be272ee4bc561671bbbcd49292aba8e5cecd
+fix_commit: c4d7be272ee4bc561671bbbcd49292aba8e5cecd
+category: logic
+difficulty: medium
+severity: high
+language: typescript
+pr_size: small
+description: 'Two bugs fixed: (1) `getPrevRepeatValues` returned `[]` instead of `undefined`
+  when repeatedRows/repeatedTabs were uninitialized, causing `isEqual([], [])` to
+  be true when `$__all` resolved to empty options, which skipped initialization and
+  left an infinite spinner. (2) The v2-to-v1 response transformer accessed incorrect
+  property paths (`spec.query.spec.datasource` and `spec.query.spec.group` instead
+  of `spec.query.datasource` and `spec.query.group`), losing datasource references
+  for panel queries and query variables.'
+expected_findings:
+- file: public/app/features/dashboard-scene/scene/layout-rows/RowItemRepeater.tsx
+  line: 125
+  summary: getPrevRepeatValues returns [] when repeatedRows is uninitialized; should
+    return undefined so isEqual([], []) doesn't falsely skip repeat initialization,
+    causing infinite spinner when $__all resolves to empty options
+  line_side: pre_fix
+- file: public/app/features/dashboard-scene/scene/layout-tabs/TabItemRepeater.tsx
+  line: 104
+  summary: 'Same bug as RowItemRepeater: getPrevRepeatValues returns [] instead of
+    undefined for uninitialized repeatedTabs, causing identical infinite spinner issue'
+  line_side: pre_fix
+- file: public/app/features/dashboard/api/ResponseTransformers.ts
+  line: 989
+  summary: 'Incorrect property path: `v.spec.query?.group` should be `v.spec.query?.group`
+    at the correct nesting level; the v2->v1 transformation accesses `spec.query.spec.datasource`
+    and `spec.query.spec.group` instead of `spec.query.datasource` and `spec.query.group`,
+    losing datasource references'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

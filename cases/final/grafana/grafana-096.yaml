@@ -1,0 +1,31 @@
+id: grafana-096
+repo: grafana/grafana
+base_commit: cba5374c27b69db4a5e059973082f85e7c57b618^
+head_commit: cba5374c27b69db4a5e059973082f85e7c57b618
+fix_commit: cba5374c27b69db4a5e059973082f85e7c57b618
+category: incomplete
+difficulty: medium
+severity: high
+language: unknown
+pr_size: small
+description: 'The previous PR #120011 split enterprise build workflows into separate
+  configurations, but the change broke the release build pipeline. This revert restores
+  the original unified workflow configuration to fix the CI/CD process.'
+expected_findings:
+- file: .github/workflows/release-build.yml
+  line: 110
+  summary: Workflow dispatch call splitting enterprise builds into separate workflows
+    likely introduced incorrect dispatch parameters or missing job dependencies, breaking
+    the release pipeline
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,24 +1,38 @@
 id: leo-171
 repo: ProvableHQ/leo
-base_commit: d83763329b97e34f8f4a80f8654923c62215af0f^
-head_commit: d83763329b97e34f8f4a80f8654923c62215af0f
-fix_commit: d83763329b97e34f8f4a80f8654923c62215af0f
-category: logic
+base_commit: b5d3d09b17f8a62a3b5d32212429ebf2a37e2c23^
+head_commit: b5d3d09b17f8a62a3b5d32212429ebf2a37e2c23
+fix_commit: b5d3d09b17f8a62a3b5d32212429ebf2a37e2c23
+category: constraint
 difficulty: medium
 severity: high
 language: rust
 pr_size: medium
-description: Function inlining did not apply SSA (Static Single Assignment) renaming
-  to the reconstructed block, causing variable shadowing when the same function was
-  inlined multiple times or when inlined variable names collided with caller variables.
-  The fix runs the SSA renaming pass on each inlined block to ensure all variables
-  have unique names.
+description: Leo's for-loop iteration statement accepted variable (non-constant) expressions
+  as loop bounds. In a ZK circuit language, loop ranges must be compile-time constants
+  because the circuit size is fixed; allowing variable bounds could produce unsound
+  constraints or fail at proving time. The fix adds a compile-time check in the ASG
+  that rejects non-constant loop range expressions.
 expected_findings:
-- file: compiler/passes/src/function_inlining/ast.rs
-  line: 60
-  summary: After reconstructing the inlined block, no SSA renaming is applied, so
-    inlined variables can shadow existing variables in the caller scope. Need to run
-    SsaFormingVisitor on the reconstructed block to rename definitions and avoid shadowing.
+- file: asg/src/statement/iteration.rs
+  line: 57
+  summary: Missing validation that loop iteration bounds (start/stop) are constant
+    expressions. Variable loop ranges are unsound in a ZK circuit language where circuit
+    size must be fixed at compile time.
+  line_side: pre_fix
+- file: compiler/src/compiler.rs
+  line: 224
+  summary: Compiler does not propagate or surface errors when non-constant loop bounds
+    are used, allowing invalid programs to proceed past parsing.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

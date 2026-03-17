@@ -10,6 +10,7 @@ from bugeval.github_scraper import (
     GhError,
     _batch_fetch_pr_reviews_graphql,
     _extract_issue_numbers,
+    _parse_reviewer_findings,
     build_candidates,
     build_labeled_pr_candidates,
     build_pr_only_candidates,
@@ -715,3 +716,73 @@ def test_run_gh_timeout() -> None:
             assert False, "expected GhError"
         except GhError as e:
             assert "timed out" in str(e)
+
+
+class TestParseReviewerFindings:
+    def _make_inline_item(
+        self,
+        path: str | None = "src/foo.rs",
+        line: int | None = 42,
+        original_line: int | None = None,
+        body: str = "This is wrong",
+    ) -> dict[str, object]:
+        return {
+            "body": body,
+            "state": "",
+            "_source": "inline",
+            "_path": path,
+            "_line": line,
+            "_original_line": original_line,
+            "_diff_hunk": "@@ -40,5 +40,5 @@",
+        }
+
+    def test_parse_with_path_and_line(self) -> None:
+        items = [self._make_inline_item()]
+        findings = _parse_reviewer_findings(items)
+        assert len(findings) == 1
+        assert findings[0].file == "src/foo.rs"
+        assert findings[0].line == 42
+        assert findings[0].line_side == "pre_fix"
+
+    def test_parse_fallback_to_original_line(self) -> None:
+        items = [self._make_inline_item(line=None, original_line=99)]
+        findings = _parse_reviewer_findings(items)
+        assert len(findings) == 1
+        assert findings[0].line == 99
+
+    def test_parse_skips_missing_path(self) -> None:
+        items = [self._make_inline_item(path=None)]
+        findings = _parse_reviewer_findings(items)
+        assert findings == []
+
+    def test_parse_skips_missing_line(self) -> None:
+        items = [self._make_inline_item(line=None, original_line=None)]
+        findings = _parse_reviewer_findings(items)
+        assert findings == []
+
+    def test_parse_skips_non_inline_source(self) -> None:
+        item: dict[str, object] = {
+            "body": "This is wrong",
+            "state": "",
+            "_source": "review",
+            "_path": "src/foo.rs",
+            "_line": 10,
+            "_original_line": None,
+        }
+        findings = _parse_reviewer_findings([item])
+        assert findings == []
+
+    def test_summary_truncated_to_120_chars(self) -> None:
+        long_body = "x" * 200
+        items = [self._make_inline_item(body=long_body)]
+        findings = _parse_reviewer_findings(items)
+        assert len(findings[0].summary) <= 120
+
+    def test_multiple_items(self) -> None:
+        items = [
+            self._make_inline_item(path="a.rs", line=1),
+            self._make_inline_item(path="b.rs", line=2),
+            self._make_inline_item(path=None),  # should be skipped
+        ]
+        findings = _parse_reviewer_findings(items)
+        assert len(findings) == 2

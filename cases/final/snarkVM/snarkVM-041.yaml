@@ -1,34 +1,35 @@
 id: snarkVM-041
 repo: ProvableHQ/snarkVM
-base_commit: a44ec30adbcdd7e4e5d5d8ae22c21fb404005367^
-head_commit: a44ec30adbcdd7e4e5d5d8ae22c21fb404005367
-fix_commit: a44ec30adbcdd7e4e5d5d8ae22c21fb404005367
-category: logic
-difficulty: medium
-severity: high
+base_commit: 26fa760a579ea7a4e61873a173ac145ae41d7386^
+head_commit: 26fa760a579ea7a4e61873a173ac145ae41d7386
+fix_commit: 26fa760a579ea7a4e61873a173ac145ae41d7386
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: Committee member sorting incorrectly included the `is_open` flag in the
-  sort comparator, which could cause non-deterministic or inconsistent ordering of
-  committee members based on their open/closed state. The fix removes `is_open` from
-  the `sorted_unstable_by` comparisons at three locations, ensuring deterministic
-  ordering based only on relevant fields like address and stake.
+pr_size: medium
+description: The codebase contained a deprecated `circuit_setup` method on the SNARK
+  trait and its Marlin implementation. This PR removes the deprecated circuit-specific
+  setup path, consolidating callers onto the non-circuit-specific setup API.
 expected_findings:
-- file: ledger/committee/src/lib.rs
-  line: 198
-  summary: Sorting comparator in `sorted_unstable_by` incorrectly factors in `is_open`
-    flag, which should not affect committee member ordering and can cause non-deterministic
-    results.
-- file: ledger/committee/src/lib.rs
-  line: 283
-  summary: Sorting comparator in `sorted_unstable_by` incorrectly factors in `is_open`
-    flag, which should not affect committee member ordering and can cause non-deterministic
-    results.
-- file: ledger/committee/src/lib.rs
-  line: 423
-  summary: Sorting comparator in `sorted_unstable_by` incorrectly factors in `is_open`
-    flag, which should not affect committee member ordering and can cause non-deterministic
-    results.
+- file: algorithms/src/traits/snark.rs
+  line: 33
+  summary: Deprecated `circuit_setup` method still present on SNARK trait; should
+    be removed since callers should use the standard `setup` method instead
+  line_side: pre_fix
+- file: algorithms/src/snark/marlin/marlin.rs
+  line: 41
+  summary: Deprecated `circuit_setup` implementation in MarlinSNARK duplicates logic
+    available through the primary `setup` path and should be removed
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

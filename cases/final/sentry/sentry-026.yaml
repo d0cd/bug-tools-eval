@@ -1,26 +1,33 @@
 id: sentry-026
 repo: getsentry/sentry
-base_commit: 1bd1f3c54ee0e150d9deb93e33bc80ea57cf6260^
-head_commit: 1bd1f3c54ee0e150d9deb93e33bc80ea57cf6260
-fix_commit: 1bd1f3c54ee0e150d9deb93e33bc80ea57cf6260
-category: api
+base_commit: 2052f59a280537d03983908fe9ef37f390e1df0c^
+head_commit: 2052f59a280537d03983908fe9ef37f390e1df0c
+fix_commit: 2052f59a280537d03983908fe9ef37f390e1df0c
+category: code-smell
 difficulty: easy
-severity: high
+severity: medium
 language: python
 pr_size: tiny
-description: The objectstore proxy endpoint used the default OrganizationPermission,
-  which requires org:write/org:admin scopes, instead of OrganizationReleasePermission.
-  This caused CI tools and sentry-cli authenticating with project:releases or org:ci
-  tokens to be rejected from file upload/download operations. The fix swaps the permission
-  class to match all other comparable endpoints.
+description: The span buffer merging logic silently skips SUNIONSTORE when a parent
+  segment exceeds max-segment-bytes, but this critical decision was not logged. Sampled
+  metrics alone were insufficient to surface these events in dashboards, so explicit
+  logging was added before the merge step to provide reliable observability into oversized
+  subsegment handling.
 expected_findings:
-- file: src/sentry/objectstore/endpoints/organization.py
-  line: 39
-  summary: 'Wrong permission class: endpoint uses default OrganizationPermission (requires
-    org:write/org:admin) instead of OrganizationReleasePermission, blocking CI tokens
-    with project:releases scope'
+- file: src/sentry/spans/buffer_logger.py
+  line: 1
+  summary: 'Missing log statement before merging oversized subsegments: when SUNIONSTORE
+    is skipped due to exceeding max-segment-bytes, no log is emitted, making it invisible
+    to operators since metrics may be sampled away'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 109566
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

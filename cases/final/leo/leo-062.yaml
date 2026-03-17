@@ -1,23 +1,31 @@
 id: leo-062
 repo: ProvableHQ/leo
-base_commit: 25c9ac6ea279d4895e63640425ce0b31aa189d4c^
-head_commit: 25c9ac6ea279d4895e63640425ce0b31aa189d4c
-fix_commit: 25c9ac6ea279d4895e63640425ce0b31aa189d4c
+base_commit: 41e856ef6a0d7e12c3f297bfaff7afe7e5cb3c7f^
+head_commit: 41e856ef6a0d7e12c3f297bfaff7afe7e5cb3c7f
+fix_commit: 41e856ef6a0d7e12c3f297bfaff7afe7e5cb3c7f
 category: logic
 difficulty: easy
-severity: medium
+severity: low
 language: rust
-pr_size: small
-description: The PEG grammar rule `type_tuple` in `leo-input.pest` was incorrectly
-  defined, preventing proper parsing of tuple types in Leo program inputs. The fix
-  corrected the grammar rule to properly match tuple type syntax, and added a test
-  case for returning tuples to verify the fix.
+pr_size: tiny
+description: The default license field in the Leo project manifest was set to "LICENSE-MIT"
+  (a filename) instead of the correct SPDX license identifier "MIT". This would produce
+  invalid package metadata since tools expecting SPDX identifiers would not recognize
+  the value.
 expected_findings:
-- file: input/src/leo-input.pest
-  line: 105
-  summary: 'Incorrect grammar rule for `type_tuple`: the PEG expression does not correctly
-    parse tuple type inputs, likely requiring 2+ elements via `+` repetition when
-    it should also handle edge cases like single-element tuples or nested tuples.'
+- file: package/src/root/manifest.rs
+  line: 99
+  summary: Default license string is "LICENSE-MIT" (a filename) instead of the SPDX
+    identifier "MIT"; this produces invalid package metadata
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

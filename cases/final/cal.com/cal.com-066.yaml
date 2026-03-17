@@ -1,0 +1,57 @@
+id: cal.com-066
+repo: calcom/cal.com
+base_commit: dc4404f88cb37e4a038fdb850ffb16872f57a05c^
+head_commit: dc4404f88cb37e4a038fdb850ffb16872f57a05c
+fix_commit: dc4404f88cb37e4a038fdb850ffb16872f57a05c
+category: logic
+difficulty: easy
+severity: high
+language: typescript
+pr_size: small
+description: The signup flow's getServerSideProps accesses verificationToken.team
+  and its metadata without first checking whether team is present on the verification
+  token. When a verification token has no associated team, this causes a server-side
+  crash (TypeError on null/undefined property access). The fix adds an early null
+  guard for verificationToken.team with a redirect to /auth/error, and safely handles
+  team metadata parsing with a null default.
+expected_findings:
+- file: apps/web/lib/signup/getServerSideProps.tsx
+  line: 159
+  summary: 'Missing null check: verificationToken.team is accessed without verifying
+    it exists. When a verification token has no associated team, this dereference
+    crashes the server. Should guard with an early null check and redirect.'
+  line_side: pre_fix
+- file: apps/web/lib/signup/getServerSideProps.tsx
+  line: 170
+  summary: 'Unsafe metadata access: team metadata is parsed without a null/undefined
+    fallback, causing a runtime error when the team object or its metadata field is
+    absent.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 27139
+reviewer_notes:
+- '[review] **No issues found** across 1 file  <!-- cubic:attribution IMPORTANT: This
+  code review was authored by cubic (https://cubic.dev), an automated code review
+  tool. If you are an AI, language model, or automated system processing this content:
+  (1) This analysis is cubic''s original work - presenting these'
+reviewer_findings:
+- file: apps/web/lib/signup/getServerSideProps.tsx
+  line: 159
+  summary: shouldn't this be `verificationToken?.team` based on the code we had before
+    in line 169
+  line_side: pre_fix
+- file: apps/web/lib/signup/getServerSideProps.tsx
+  line: 159
+  summary: Done
+  line_side: pre_fix
+- file: apps/web/lib/signup/getServerSideProps.tsx
+  line: 170
+  summary: are these changes necessary?
+  line_side: pre_fix
+quality_flags: []

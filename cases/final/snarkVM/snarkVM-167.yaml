@@ -1,28 +1,43 @@
 id: snarkVM-167
 repo: ProvableHQ/snarkVM
-base_commit: be747fcb895eeb22f8097a807687fd8017445c12^
-head_commit: be747fcb895eeb22f8097a807687fd8017445c12
-fix_commit: be747fcb895eeb22f8097a807687fd8017445c12
-category: logic
-difficulty: medium
-severity: high
+base_commit: e11aaed2e2ad18a80332c604ac83e1e2afd86091^
+head_commit: e11aaed2e2ad18a80332c604ac83e1e2afd86091
+fix_commit: e11aaed2e2ad18a80332c604ac83e1e2afd86091
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: large
-description: Scalar::eject_mode() was not correctly computing the circuit mode from
-  its internal bits_le representation. The fix delegates eject_mode() to self.bits_le.eject_mode(),
-  which properly aggregates the modes of the constituent Boolean bits, starting from
-  Mode::Constant and lifting as needed. This was exposed by refactored ternary tests.
+pr_size: small
+description: The future argument parser used `Sanitizer::parse` (which permits comments
+  and newlines) before commas separating arguments, whereas the rest of the instruction
+  syntax only allows plain whitespace (no comments, no newlines) in that position.
+  The fix replaces `Sanitizer::parse` with `Sanitizer::parse_whitespaces` before each
+  comma to make future-argument parsing consistent with other constructs.
 expected_findings:
-- file: circuits/types/scalar/src/lib.rs
-  line: 56
-  summary: Scalar::eject_mode() does not correctly compute the mode from its bits_le
-    field; should delegate to self.bits_le.eject_mode() to aggregate constituent bit
-    modes
-- file: circuits/environment/src/traits/eject.rs
-  line: 70
-  summary: Missing or incorrect eject_mode aggregation logic for composite types;
-    should start from Mode::Constant and lift to Mode::Public/Mode::Private as needed
-    based on constituent elements
+- file: console/program/src/data/future/parse.rs
+  line: 28
+  summary: 'Inconsistent whitespace parsing: `Sanitizer::parse` before comma allows
+    comments and newlines, but other syntax constructs only permit plain whitespace
+    (`Sanitizer::parse_whitespaces`) before commas'
+  line_side: pre_fix
+- file: console/program/src/data/future/parse.rs
+  line: 103
+  summary: 'Same inconsistency: `Sanitizer::parse` before comma should be `Sanitizer::parse_whitespaces`
+    to restrict to plain whitespace only'
+  line_side: pre_fix
+- file: console/program/src/data/future/parse.rs
+  line: 118
+  summary: 'Same inconsistency: `Sanitizer::parse` before comma should be `Sanitizer::parse_whitespaces`
+    to restrict to plain whitespace only'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

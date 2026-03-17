@@ -1,30 +1,42 @@
 id: leo-122
 repo: ProvableHQ/leo
-base_commit: 5c706f288896b2896686841c157495ab5fbadda0^
-head_commit: 5c706f288896b2896686841c157495ab5fbadda0
-fix_commit: 5c706f288896b2896686841c157495ab5fbadda0
-category: api
-difficulty: easy
-severity: low
+base_commit: 7d01bc95e464bf951aba8f0d86ca0dbb9199d99b^
+head_commit: 7d01bc95e464bf951aba8f0d86ca0dbb9199d99b
+fix_commit: 7d01bc95e464bf951aba8f0d86ca0dbb9199d99b
+category: api-misuse
+difficulty: medium
+severity: medium
 language: rust
 pr_size: small
-description: Multiple Rust clippy lint warnings and broken README links. Clippy issues
-  include unnecessary Path::new() wrapping in fs::read_to_string calls, redundant
-  field clones (access.name, ident.name), and suboptimal API usage in try_parse_from
-  and serde_json conversions. README had stale documentation URLs.
+description: Leo sets a custom panic hook for its own error reporting, but this hook
+  remained active when invoking the Aleo CLI from within Leo commands (build, deploy,
+  new, run). This caused Aleo CLI panics to be caught by Leo's handler, producing
+  confusing or incorrect error messages. The fix calls `std::panic::take_hook()` to
+  remove Leo's panic hook before invoking the Aleo CLI.
 expected_findings:
-- file: compiler/compiler/src/test.rs
-  line: 84
-  summary: "Clippy lint: unnecessary `Path::new(path)` \u2014 `fs::read_to_string`\
-    \ already accepts `&str`, so wrapping in `Path::new()` is redundant."
-- file: compiler/passes/src/type_checking/check_expressions.rs
-  line: 142
-  summary: "Clippy lint: unnecessary clone or borrow of `access.name` \u2014 can be\
-    \ used directly without copying."
-- file: README.md
-  line: 95
-  summary: 'Broken documentation link: URL points to an incorrect or outdated path
-    on developer.aleo.org.'
+- file: leo/commands/build.rs
+  line: 180
+  summary: 'Missing panic hook removal: Leo''s custom panic hook is still active when
+    invoking the Aleo CLI, which will produce confusing error output if Aleo panics.'
+  line_side: pre_fix
+- file: leo/commands/deploy.rs
+  line: 50
+  summary: Missing panic hook removal before Aleo CLI invocation; Leo's panic hook
+    will intercept Aleo panics with incorrect context.
+  line_side: pre_fix
+- file: leo/commands/run.rs
+  line: 86
+  summary: Missing panic hook removal before Aleo CLI invocation; Leo's panic hook
+    will intercept Aleo panics with incorrect context.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,30 +1,42 @@
 id: keycloak-044
 repo: keycloak/keycloak
-base_commit: 3aa5ab007297db2059ae5e8633a7d105e02e70e2^
-head_commit: 3aa5ab007297db2059ae5e8633a7d105e02e70e2
-fix_commit: 3aa5ab007297db2059ae5e8633a7d105e02e70e2
-category: api
+base_commit: 82cab306fc5231bec0287677645146bd5ca503b3^
+head_commit: 82cab306fc5231bec0287677645146bd5ca503b3
+fix_commit: 82cab306fc5231bec0287677645146bd5ca503b3
+category: security
 difficulty: easy
 severity: medium
-language: unknown
+language: typescript
 pr_size: small
-description: Docker container builds for the Keycloak operator were not setting the
-  `nofile` ulimit correctly, leading to potential file descriptor exhaustion at runtime.
-  The fix centralizes the `--ulimit nofile=1024000` flag into the operator image build
-  scripts and configuration properties rather than patching individual Dockerfiles,
-  and updates documentation and minikube startup commands accordingly.
+description: Dynamic URI path segments (client IDs, session IDs, resource IDs, credential
+  IDs) were interpolated directly into API endpoint URLs without calling encodeURIComponent().
+  This means special characters in these values could break requests or enable path
+  traversal. The fix wraps all dynamic URI segments with encodeURIComponent() across
+  seven Account Console page components.
 expected_findings:
-- file: operator/scripts/olm-testing.sh
-  line: 17
-  summary: Docker build command missing or using incorrect --ulimit nofile value;
-    should specify --ulimit nofile=1024000 to prevent file descriptor limits from
-    causing runtime failures
-- file: operator/src/main/resources/application.properties
-  line: 30
-  summary: Operator build configuration missing the ulimit setting that should be
-    applied by default during image building
+- file: themes/src/main/resources/theme/keycloak.v2/account/src/app/content/applications-page/ApplicationsPage.tsx
+  line: 100
+  summary: clientId is interpolated into the URL path without encodeURIComponent();
+    special characters could corrupt the request or allow path manipulation
+  line_side: pre_fix
+- file: themes/src/main/resources/theme/keycloak.v2/account/src/app/content/my-resources-page/ResourcesTable.tsx
+  line: 91
+  summary: resource._id is interpolated into URL path without URI encoding; same missing
+    encodeURIComponent() pattern repeated across multiple files
+  line_side: pre_fix
+- file: themes/src/main/resources/theme/keycloak.v2/account/src/app/content/signingin-page/SigningInPage.tsx
+  line: 147
+  summary: credentialId concatenated into URL path without encodeURIComponent(); user-influenced
+    values in URI paths must be encoded
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
-verified: false
-verified_by: null
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

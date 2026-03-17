@@ -1,30 +1,38 @@
 id: sdk-052
 repo: ProvableHQ/sdk
-base_commit: c9654b0b830c97f58931051d422c3a8290c4173c^
-head_commit: c9654b0b830c97f58931051d422c3a8290c4173c
-fix_commit: c9654b0b830c97f58931051d422c3a8290c4173c
-category: logic
+base_commit: dbe60ca6b879b9439fa8f48e2e2c22e218ce7113^
+head_commit: dbe60ca6b879b9439fa8f48e2e2c22e218ce7113
+fix_commit: dbe60ca6b879b9439fa8f48e2e2c22e218ce7113
+category: api-misuse
 difficulty: easy
-severity: medium
-language: rust
+severity: high
+language: typescript
 pr_size: medium
-description: 'PR #1099 introduced a duplicate test module `record.rs` alongside the
-  existing `records.rs` in `wasm/src/utilities/test/`, causing ambiguous imports.
-  This fix removes the duplicate `record.rs` file and updates all import paths to
-  consistently reference `records::` instead of `record::`.'
+description: The AleoNetworkClient automatically adds a default `X-Aleo-SDK-Version`
+  header on initialization with no way to remove or override it. When ProgramManager
+  constructs the network client, this non-standard header triggers CORS preflight
+  failures in browser environments. The fix adds setHeader/removeHeader methods and
+  an optional headers parameter to ProgramManager's constructor.
 expected_findings:
-- file: wasm/src/utilities/test/record.rs
-  line: 1
-  summary: 'Duplicate module: `record.rs` duplicates the existing `records.rs` module
-    and should be removed.'
-- file: wasm/src/account/signature.rs
-  line: 220
-  summary: 'Incorrect module import: should reference `records::` (plural) not `record::`
-    for test record constants.'
-- file: wasm/src/utilities/encrypt.rs
-  line: 301
-  summary: 'Incorrect module import: should reference `utilities::test::records::`
-    (plural) not `record::`.'
+- file: sdk/src/network-client.ts
+  line: 37
+  summary: Constructor sets default `X-Aleo-SDK-Version` header with no mechanism
+    to remove or override it after construction, causing CORS issues in browser contexts.
+  line_side: pre_fix
+- file: sdk/src/program-manager.ts
+  line: 90
+  summary: ProgramManager constructor creates AleoNetworkClient without exposing header
+    configuration, propagating the CORS-triggering default header with no way for
+    callers to control it.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

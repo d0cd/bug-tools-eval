@@ -1,34 +1,32 @@
 id: snarkVM-018
 repo: ProvableHQ/snarkVM
-base_commit: 382198c0b96171bc79da60269d877f485e60167e^
-head_commit: 382198c0b96171bc79da60269d877f485e60167e
-fix_commit: 382198c0b96171bc79da60269d877f485e60167e
+base_commit: 12cc5c6c72e020e78604f8f1c7cf2597c47165ce^
+head_commit: 12cc5c6c72e020e78604f8f1c7cf2597c47165ce
+fix_commit: 12cc5c6c72e020e78604f8f1c7cf2597c47165ce
 category: logic
-difficulty: medium
-severity: medium
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: Ledger::check_next_block failed to verify that the given block is the
-  direct successor of the latest block by height. It only checked whether a block
-  with that height already existed, deferring the actual height validation to Metadata::verify,
-  which produced confusing 'invalid previous state root' errors for out-of-sequence
-  blocks. The fix adds an early height comparison against the latest cached block
-  and a redundant check in advance_to_next_block to guard against race conditions.
+pr_size: tiny
+description: The `transfer_public` benchmark in `transaction.rs` used a hardcoded
+  base fee that was too low for the execution cost, causing a panic on `unwrap()`
+  when the fee validation failed. The fix increases the base fee constant passed to
+  `authorize_fee_public` so it meets the minimum required microcredits for the transaction.
 expected_findings:
-- file: ledger/src/check_next_block.rs
-  line: 21
-  summary: 'Missing early validation: check_next_block should verify the incoming
-    block''s height equals latest_block.height() + 1, not just check for duplicate
-    heights'
-- file: ledger/src/check_next_block.rs
-  line: 99
-  summary: Second call site also lacks the successor-height check against the latest
-    block, leading to deferred and confusing error messages
-- file: ledger/src/advance.rs
-  line: 91
-  summary: 'Missing race condition guard: advance_to_next_block should re-verify block
-    height matches expected next height before committing, in case ledger state changed
-    between check and advance'
+- file: ledger/benches/transaction.rs
+  line: 104
+  summary: Hardcoded base fee value in `authorize_fee_public` call is insufficient
+    for the `transfer_public` execution cost (requires at least 263388 microcredits);
+    increase the fee constant to avoid a panic on `unwrap()`.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,32 +1,35 @@
 id: leo-219
 repo: ProvableHQ/leo
-base_commit: af2347fb70c8715a971e98715b190fe2b3d417a1^
-head_commit: af2347fb70c8715a971e98715b190fe2b3d417a1
-fix_commit: af2347fb70c8715a971e98715b190fe2b3d417a1
-category: logic
-difficulty: hard
-severity: high
+base_commit: dac17f376812db87d379a83b52ffce4b8b48c59e^
+head_commit: dac17f376812db87d379a83b52ffce4b8b48c59e
+fix_commit: dac17f376812db87d379a83b52ffce4b8b48c59e
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: large
-description: The return indicator for function statements was stored as Option<Boolean>,
-  allowing None values that caused incorrect return propagation in functions with
-  multiple return paths or conditional returns. The fix changes the indicator to a
-  mandatory Boolean, ensuring every statement properly tracks its branch condition,
-  preventing incorrect results from functions with multiple returns and catching invalid
-  programs with duplicate returns in the same scope.
+pr_size: tiny
+description: A missing or extraneous newline in CLI output formatting. The fix adds
+  or adjusts a `println!();` call in the build and/or run command output to ensure
+  consistent spacing between output sections.
 expected_findings:
-- file: compiler/src/statement/statement.rs
-  line: 25
-  summary: Return indicator type was Option<Boolean> instead of Boolean, allowing
-    None values that break return propagation in multi-return functions
-- file: compiler/src/statement/conditional/conditional.rs
-  line: 49
-  summary: Conditional statement handling used optional indicator, failing to properly
-    propagate return conditions through nested branches
-- file: compiler/src/function/result/result.rs
-  line: 16
-  summary: Function result handling did not enforce mandatory return indicators, allowing
-    incorrect results when multiple return paths exist
+- file: leo/commands/build.rs
+  line: 182
+  summary: Missing or extra blank `println!();` causes inconsistent output formatting
+    between build stages
+  line_side: pre_fix
+- file: leo/commands/run.rs
+  line: 86
+  summary: Missing or extra blank `println!();` causes inconsistent output formatting
+    in run command output
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

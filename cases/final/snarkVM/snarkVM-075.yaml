@@ -1,34 +1,44 @@
 id: snarkVM-075
 repo: ProvableHQ/snarkVM
-base_commit: 776f1e8aa5c6079b5942aff551bb9160214133ac^
-head_commit: 776f1e8aa5c6079b5942aff551bb9160214133ac
-fix_commit: 776f1e8aa5c6079b5942aff551bb9160214133ac
-category: logic
-difficulty: medium
-severity: high
+base_commit: 5435d5c3d76cf9438073dae4011e28e0628dda8d^
+head_commit: 5435d5c3d76cf9438073dae4011e28e0628dda8d
+fix_commit: 5435d5c3d76cf9438073dae4011e28e0628dda8d
+category: performance
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: The block header Metadata was missing the `last_coinbase_target` field,
-  which is required to correctly calculate subsequent coinbase targets. Without tracking
-  the previous coinbase target, the consensus mechanism could not properly adjust
-  difficulty. The fix adds `last_coinbase_target` (u64) throughout the Metadata struct,
-  its serialization/deserialization, genesis initialization, and updates the ANCHOR_TIME
-  constant.
+pr_size: small
+description: 'CI was running out of memory (OOM) when executing memory-intensive synthesizer
+  tests on shared jobs. The fix reorganizes CI by moving heavy tests to a dedicated
+  multi-threaded job with appropriate instance sizing, annotating memory-intensive
+  tests with #[ignore], and commenting out highest-power test cases whose parameter
+  downloads were failing.'
 expected_findings:
-- file: synthesizer/src/block/header/metadata/mod.rs
-  line: 37
-  summary: Metadata struct is missing a `last_coinbase_target` field needed for computing
-    subsequent coinbase targets; without it, target adjustment logic lacks historical
-    context.
-- file: console/network/src/lib.rs
-  line: 87
-  summary: ANCHOR_TIME constant value may be incorrect for the intended consensus
-    timing, affecting coinbase target calculations.
-- file: synthesizer/src/block/header/metadata/to_hash.rs
-  line: 20
-  summary: Metadata bit length comment and hash input are incorrect (should be 432
-    bits, not the previous value) because `last_coinbase_target` (64 bits) is not
-    included in the hash preimage.
+- file: synthesizer/src/vm/execute.rs
+  line: 915
+  summary: 'Memory-intensive test not isolated: this test should be annotated with
+    #[ignore = "memory-intensive"] and run in a dedicated CI job to prevent OOM in
+    parallel test execution'
+  line_side: pre_fix
+- file: synthesizer/src/vm/mod.rs
+  line: 1356
+  summary: 'Memory-intensive test not isolated: this test should be annotated with
+    #[ignore = "memory-intensive"] and run in a dedicated CI job to prevent OOM in
+    parallel test execution'
+  line_side: pre_fix
+- file: .circleci/config.yml
+  line: 682
+  summary: Synthesizer test job uses default instance size which is insufficient for
+    memory-intensive tests; needs dedicated job with larger instance or test splitting
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

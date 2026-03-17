@@ -1,0 +1,77 @@
+id: sentry-072
+repo: getsentry/sentry
+base_commit: 5baa8960b03c58b7ca0b9db003f479ca0e8a998e^
+head_commit: 5baa8960b03c58b7ca0b9db003f479ca0e8a998e
+fix_commit: 5baa8960b03c58b7ca0b9db003f479ca0e8a998e
+category: logic
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: medium
+description: 'The whats-new sidebar component had multiple edge cases in its mark-seen
+  logic: an accidental cache write with an empty value, missing guard to prevent unnecessary
+  POST calls when all broadcasts were already seen, and a useEffect dependency on
+  the useMutation return that could cause redundant re-runs. Additionally, test mocks
+  used string query parameters while the implementation passed numbers, preventing
+  correct request matching.'
+expected_findings:
+- file: static/app/views/nav/primary/whatsNew/whatsNew.tsx
+  line: 74
+  summary: "Accidental cache write using an empty value \u2014 when broadcasts data\
+    \ is not yet loaded or empty, this overwrites the query cache with invalid/empty\
+    \ data"
+  line_side: pre_fix
+- file: static/app/views/nav/primary/whatsNew/whatsNew.tsx
+  line: 86
+  summary: 'Missing guard: mark-seen POST calls fire even when all broadcasts have
+    already been seen, causing unnecessary network requests'
+  line_side: pre_fix
+- file: static/app/views/nav/primary/whatsNew/whatsNew.tsx
+  line: 93
+  summary: useEffect dependency array includes markBroadcastsAsSeen from useMutation;
+    while mutate is referentially stable, the surrounding logic has edge cases where
+    mark-seen calls are missed or fired incorrectly due to data fetching being split
+    across child components
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110269
+reviewer_notes:
+- '[inline] **Bug:** The `markBroadcastsAsSeen` function from `useMutation` is in
+  a `useEffect` dependency array. Since it''s not referentially stable, it causes
+  the effect to re-run on every render. <sub>Severity: MEDIUM</sub> <!-- BUG_PREDICTION
+  -->  <details> <summary><b title="Reference ID: `11456513/0`">Sug'
+- '[inline] this is wrong. `mutate` returned from `useMutation` is stable'
+- '[inline] ### Test mock query type mismatch prevents correct matching  **Medium
+  Severity**  <!-- DESCRIPTION START --> The implementation in `whatsNew.tsx` passes
+  `limit` as a number (`{query: {limit: 3}}`), but every test mock uses `matchQuery({limit:
+  ''3''})` with a string. The `compareRecord` function uses l'
+reviewer_findings:
+- file: static/app/views/nav/primary/whatsNew/whatsNew.tsx
+  line: 74
+  summary: Fixes accidental cache write using an empty value
+  line_side: pre_fix
+- file: static/app/views/nav/primary/whatsNew/whatsNew.tsx
+  line: 86
+  summary: prevent post calls when all posts have been seen
+  line_side: pre_fix
+- file: static/app/views/nav/primary/whatsNew/whatsNew.tsx
+  line: 93
+  summary: '**Bug:** The `markBroadcastsAsSeen` function from `useMutation` is in
+    a `useEffect` dependency array. Since it''s not ref'
+  line_side: pre_fix
+- file: static/app/views/nav/primary/whatsNew/whatsNew.tsx
+  line: 93
+  summary: this is wrong. `mutate` returned from `useMutation` is stable
+  line_side: pre_fix
+- file: static/app/views/nav/primary/whatsNew/whatsNew.spec.tsx
+  line: 20
+  summary: '### Test mock query type mismatch prevents correct matching  **Medium
+    Severity**  <!-- DESCRIPTION START --> The impleme'
+  line_side: pre_fix
+quality_flags: []

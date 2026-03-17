@@ -1,26 +1,33 @@
 id: discourse-037
 repo: discourse/discourse
-base_commit: c819c83515372d3ad675e30788b3aa83c33160b1^
-head_commit: c819c83515372d3ad675e30788b3aa83c33160b1
-fix_commit: c819c83515372d3ad675e30788b3aa83c33160b1
-category: logic
+base_commit: 3d6db6027a5889558458e64affd2204fbc9a673c^
+head_commit: 38ad2405
+fix_commit: 3d6db6027a5889558458e64affd2204fbc9a673c
+category: api-misuse
 difficulty: easy
 severity: medium
-language: unknown
-pr_size: small
-description: A CSS selector for limiting width and preventing wrapping on select-kit
-  dropdown headers was scoped too broadly, applying to all `.select-kit .select-kit-header
-  .selected-name .name` elements instead of only the group dropdown on the /g page.
-  The fix narrows the selector to target only `.user-primary-navigation .group-dropdown`
-  so other select-kit dropdowns are not affected.
+language: javascript
+pr_size: tiny
+description: Badge grouping section titles used the `dasherize` helper to generate
+  HTML `id` attributes, but `dasherize` only converts camelCase to dash-case and does
+  not strip special characters (e.g., ampersands, parentheses). This produces invalid
+  HTML IDs that break anchor links and CSS selectors. The fix replaces `dasherize`
+  with `slugify`, which properly sanitizes all non-word characters.
 expected_findings:
-- file: app/assets/stylesheets/common/base/uc-modernize-foundation-theme.scss
-  line: 90
-  summary: 'Overly broad CSS selector: `.select-kit .select-kit-header .selected-name
-    .name` applies width restriction to all select-kit dropdowns instead of being
-    scoped to `.user-primary-navigation .group-dropdown`'
+- file: frontend/discourse/app/templates/badges/index.gjs
+  line: 1
+  summary: "Using `dasherize` to generate HTML `id` attributes from user-provided\
+    \ badge group names is incorrect \u2014 it does not sanitize special characters,\
+    \ producing invalid IDs. Should use `slugify` instead."
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 38285
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

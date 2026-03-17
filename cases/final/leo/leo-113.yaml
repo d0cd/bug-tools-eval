@@ -1,31 +1,36 @@
 id: leo-113
 repo: ProvableHQ/leo
-base_commit: 7d01bc95e464bf951aba8f0d86ca0dbb9199d99b^
-head_commit: 7d01bc95e464bf951aba8f0d86ca0dbb9199d99b
-fix_commit: 7d01bc95e464bf951aba8f0d86ca0dbb9199d99b
-category: api
-difficulty: medium
-severity: medium
+base_commit: 721852fd24408c00ff626549a5dfd5e2a3883c2e^
+head_commit: 721852fd24408c00ff626549a5dfd5e2a3883c2e
+fix_commit: 721852fd24408c00ff626549a5dfd5e2a3883c2e
+category: api-misuse
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: Leo sets a custom panic hook for its own error reporting, but this hook
-  remained active when invoking the Aleo CLI from within Leo commands (build, deploy,
-  new, run). This caused Aleo CLI panics to be caught by Leo's handler, producing
-  confusing or incorrect error messages. The fix calls `std::panic::take_hook()` to
-  remove Leo's panic hook before invoking the Aleo CLI.
+pr_size: large
+description: Dependency version bump of the `abnf` crate from an older version to
+  0.12.0, resolving a prior dependency conflict. The PR re-enables the `leo-abnf`
+  grammar crate that had been disabled due to the conflict. This is a maintenance/feature
+  change, not a bug fix.
 expected_findings:
-- file: leo/commands/build.rs
-  line: 180
-  summary: 'Missing panic hook removal: Leo''s custom panic hook is still active when
-    invoking the Aleo CLI, which will produce confusing error output if Aleo panics.'
-- file: leo/commands/deploy.rs
-  line: 50
-  summary: Missing panic hook removal before Aleo CLI invocation; Leo's panic hook
-    will intercept Aleo panics with incorrect context.
-- file: leo/commands/run.rs
-  line: 86
-  summary: Missing panic hook removal before Aleo CLI invocation; Leo's panic hook
-    will intercept Aleo panics with incorrect context.
+- file: grammar/Cargo.toml
+  line: 19
+  summary: Dependency version pinned to abnf 0.12.0; reviewer should verify the new
+    version's API is compatible with usage in main.rs
+  line_side: pre_fix
+- file: grammar/src/main.rs
+  line: 38
+  summary: Grammar parsing logic restored or updated to use abnf 0.12.0 API; verify
+    the ruleset() call and ABNF parsing behavior matches the new crate version
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

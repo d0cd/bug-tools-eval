@@ -1,33 +1,42 @@
 id: leo-092
 repo: ProvableHQ/leo
-base_commit: 82012cecb0951a369c6b37af314285eadde3c5f8^
-head_commit: 82012cecb0951a369c6b37af314285eadde3c5f8
-fix_commit: 82012cecb0951a369c6b37af314285eadde3c5f8
-category: api
+base_commit: 5cce8b4a0e27eb7d95cc3c70191150359073c215^
+head_commit: 23615c685825bcbefcce255b351e491a83c50c4d
+fix_commit: 5cce8b4a0e27eb7d95cc3c70191150359073c215
+category: logic
 difficulty: medium
 severity: high
 language: rust
-pr_size: small
-description: 'Two bugs in Leo''s error handling: (1) UtilError::network_error and
-  failed_to_retrieve_from_endpoint were annotated as @formatted (requiring source
-  spans) but are raised in contexts without spans, causing panics or misleading errors.
-  (2) The Display impl for Formatted errors silently suppressed the error message
-  when the source file couldn''t be found, hiding useful diagnostic information from
-  users.'
+pr_size: medium
+description: Incomplete work-in-progress cast expression feature was prematurely merged
+  into the Leo compiler. The WIP code added a CastExpression AST node, parser rules,
+  tokenizer support, type checking, SSA renaming, and code generation across 15 files,
+  but the implementation was incomplete and broken. The fix reverts all of these changes
+  (159 lines removed).
 expected_findings:
-- file: errors/src/common/formatted.rs
-  line: 88
-  summary: Display impl silently skips error output when source file lookup fails;
-    should still print the error message even if source_map.find_source_file returns
-    None
-- file: errors/src/errors/utils/util_errors.rs
-  line: 61
-  summary: network_error is marked @formatted but has no associated span; should be
-    @backtraced since it is called from contexts without source locations
-- file: errors/src/errors/utils/util_errors.rs
-  line: 138
-  summary: failed_to_retrieve_from_endpoint is marked @formatted but has no associated
-    span; should be @backtraced since it is called from contexts without source locations
+- file: compiler/ast/src/expressions/cast.rs
+  line: 1
+  summary: Incomplete CastExpression AST node definition should not have been merged
+    — WIP code that is not fully implemented and causes compiler issues
+  line_side: pre_fix
+- file: compiler/parser/src/parser/expression.rs
+  line: 1
+  summary: Incomplete cast expression parsing logic added as WIP — parser handles
+    'as' cast syntax but the downstream passes cannot correctly process it
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_expressions.rs
+  line: 1
+  summary: Incomplete type checking for cast expressions — WIP type checker code for
+    CastExpression is not fully implemented and may allow invalid casts or panic
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

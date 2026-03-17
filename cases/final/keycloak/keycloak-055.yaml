@@ -1,0 +1,35 @@
+id: keycloak-055
+repo: keycloak/keycloak
+base_commit: b1bdf7dd134be11c0a4b9b9cacee1a4afbfa4260^
+head_commit: b1bdf7dd134be11c0a4b9b9cacee1a4afbfa4260
+fix_commit: b1bdf7dd134be11c0a4b9b9cacee1a4afbfa4260
+category: style
+difficulty: easy
+severity: low
+language: unknown
+pr_size: small
+description: Broken URLs in CODING_GUIDELINES.md pointed to incorrect PatternFly archive
+  domain. The fix corrects the URLs to point to the valid https://v4-archive.patternfly.org
+  domain so that documentation links work properly.
+expected_findings:
+- file: js/CODING_GUIDELINES.md
+  line: 129
+  summary: 'Broken URL: PatternFly design guidelines link points to invalid domain;
+    should be https://v4-archive.patternfly.org'
+  line_side: pre_fix
+- file: js/CODING_GUIDELINES.md
+  line: 215
+  summary: 'Broken URL: Same incorrect PatternFly archive link repeated; should be
+    https://v4-archive.patternfly.org'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

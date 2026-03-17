@@ -1,24 +1,39 @@
 id: snarkOS-167
 repo: ProvableHQ/snarkOS
-base_commit: 6002d0f5b72e1accb952e090795cb3fee7330f8d^
-head_commit: 6002d0f5b72e1accb952e090795cb3fee7330f8d
-fix_commit: 6002d0f5b72e1accb952e090795cb3fee7330f8d
-category: logic
-difficulty: easy
-severity: low
+base_commit: e047ba2add043f56099b7dca0e77d51baf9b0b02^
+head_commit: e047ba2add043f56099b7dca0e77d51baf9b0b02
+fix_commit: e047ba2add043f56099b7dca0e77d51baf9b0b02
+category: security
+difficulty: medium
+severity: medium
 language: rust
 pr_size: small
-description: The start message unconditionally displayed REST server IP and JWT information
-  for all node types. The fix adds a condition to only show REST server details when
-  the node is a beacon or validator, since other node types (client, prover) do not
-  run a REST server.
+description: 'Bootnode addresses in the snarkOS config struct were serializable and
+  deserializable, allowing users (or attackers with config file access) to override
+  hardcoded bootnodes via the config file. This could enable eclipse attacks by pointing
+  a node to malicious bootnodes. The fix adds #[serde(skip_serializing, skip_deserializing)]
+  to the bootnode fields so they are no longer read from or written to the config
+  file.'
 expected_findings:
-- file: cli/src/commands/start.rs
-  line: 271
-  summary: 'Missing node-type guard: REST IP and JWT are printed unconditionally for
-    all node types, but only beacon and validator nodes run a REST server. Should
-    be wrapped in a conditional check (e.g., `if self.rest != 0` or checking node
-    type is beacon/validator).'
+- file: snarkOS/config.rs
+  line: 82
+  summary: Bootnode field is serializable/deserializable via serde, allowing user-controlled
+    override of bootstrap nodes through the config file — should be skipped to prevent
+    eclipse attacks
+  line_side: pre_fix
+- file: snarkOS/config.rs
+  line: 158
+  summary: Second bootnode-related field is also serializable/deserializable, same
+    issue — config file should not control bootnode selection
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

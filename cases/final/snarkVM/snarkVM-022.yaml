@@ -1,29 +1,41 @@
 id: snarkVM-022
 repo: ProvableHQ/snarkVM
-base_commit: 5b37dc7882e598b3abf4b4f1d49d8492d7c9749e^
-head_commit: 5b37dc7882e598b3abf4b4f1d49d8492d7c9749e
-fix_commit: 5b37dc7882e598b3abf4b4f1d49d8492d7c9749e
-category: api
-difficulty: easy
-severity: critical
+base_commit: 1485bdd42a6156e09dc09066b262302df9252bf0^
+head_commit: 1485bdd42a6156e09dc09066b262302df9252bf0
+fix_commit: 1485bdd42a6156e09dc09066b262302df9252bf0
+category: constraint
+difficulty: hard
+severity: high
 language: rust
-pr_size: tiny
-description: During block deserialization, the number of solutions to deserialize
-  was not checked against an upper bound before proceeding. This missing validation
-  existed for transactions and aborted IDs but was absent for solutions, potentially
-  allowing a malicious payload to specify an extremely large solution count and cause
-  resource exhaustion or crashes. The fix adds a bounds check consistent with the
-  existing checks for other deserialized collections, and also corrects a comment.
+pr_size: medium
+description: The `bond_public` function in `credits.aleo` did not check whether the
+  caller was a user account or a program when bonding as a validator. A program could
+  call `bond_public` with itself as the validator address, staking funds and becoming
+  a validator despite being unable to participate in consensus. The fix adds an assertion
+  that if `self.caller == validator_address`, then `self.caller == self.signer` (i.e.,
+  the caller is a user, not a program).
 expected_findings:
-- file: ledger/puzzle/src/solutions/bytes.rs
-  line: 20
-  summary: 'Missing bounds check: the number of solutions read during deserialization
-    is not validated against a maximum before allocating/iterating, unlike similar
-    checks for transactions and aborted IDs'
-- file: ledger/block/src/bytes.rs
-  line: 36
-  summary: Incorrect or missing comment describing the deserialization step for ratifications/solutions;
-    inconsistent with the bounds-checking pattern used for other fields
+- file: synthesizer/program/src/resources/credits.aleo
+  line: 121
+  summary: 'Missing caller-type check: `bond_public` should verify the caller is a
+    user (not a program) when bonding as a validator, since programs cannot participate
+    in consensus'
+  line_side: pre_fix
+- file: synthesizer/program/src/resources/credits.aleo
+  line: 123
+  summary: 'Missing caller-type check: after validating the stake amount, `bond_public`
+    proceeds to bond without verifying that the caller is a user account (self.caller
+    == self.signer) when bonding as a validator (self.caller == r0). A program can
+    bond as a validator even though programs cannot participate in consensus.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

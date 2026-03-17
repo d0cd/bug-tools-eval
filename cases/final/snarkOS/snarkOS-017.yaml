@@ -1,34 +1,30 @@
 id: snarkOS-017
 repo: ProvableHQ/snarkOS
-base_commit: 97b0eebf412ded0525e9f9bf961ac942dd3234c4^
-head_commit: 97b0eebf412ded0525e9f9bf961ac942dd3234c4
-fix_commit: 97b0eebf412ded0525e9f9bf961ac942dd3234c4
+base_commit: 1a134a2c470e34916723e4e26106d323fe652cdb^
+head_commit: 1a134a2c470e34916723e4e26106d323fe652cdb
+fix_commit: 1a134a2c470e34916723e4e26106d323fe652cdb
 category: logic
-difficulty: medium
+difficulty: easy
 severity: high
 language: rust
-pr_size: small
-description: The transaction broadcast REST endpoint incorrectly applied the SYNC_LENIENCY
-  check, preventing nodes that were behind on sync from broadcasting transactions
-  to the network. This caused hours of downtime for wallets and end-users during any
-  client outage or sync disruption. The fix allows broadcasting to proceed regardless
-  of sync state, while still preventing the out-of-sync node from processing the transaction
-  locally.
+pr_size: tiny
+description: The connection timeout constant was set too low, causing frequent connection
+  failures in real-world network conditions. The fix bumps CONNECTION_TIMEOUT_IN_MILLIS
+  to 1000 (1 second) to allow sufficient time for connections to establish.
 expected_findings:
-- file: node/rest/src/routes.rs
-  line: 629
-  summary: "SYNC_LENIENCY guard is applied too broadly \u2014 it blocks transaction\
-    \ broadcasting even though broadcast should succeed regardless of the node's sync\
-    \ state."
-- file: node/rest/src/routes.rs
-  line: 642
-  summary: "Transaction processing logic does not distinguish between local processing\
-    \ and network broadcast \u2014 an out-of-sync node should still be allowed to\
-    \ relay transactions to peers."
-- file: node/rest/src/routes.rs
-  line: 707
-  summary: Broadcast path is gated on sync leniency check, preventing valid transaction
-    propagation when the node is behind.
+- file: node/router/src/lib.rs
+  line: 128
+  summary: Connection timeout constant is too low for reliable network operation;
+    should be increased to at least 1000ms to prevent spurious connection failures
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 2041
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

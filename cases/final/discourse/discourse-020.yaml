@@ -1,35 +1,41 @@
 id: discourse-020
 repo: discourse/discourse
-base_commit: 77bab9e64562fe96a053ef6d57e74c0ebc30bcca^
-head_commit: 77bab9e64562fe96a053ef6d57e74c0ebc30bcca
-fix_commit: 77bab9e64562fe96a053ef6d57e74c0ebc30bcca
+base_commit: 1a68535ffb86e462bba86d2e43cd3820a870b3a0^
+head_commit: 1a68535ffb86e462bba86d2e43cd3820a870b3a0
+fix_commit: 1a68535ffb86e462bba86d2e43cd3820a870b3a0
 category: logic
-difficulty: medium
-severity: medium
+difficulty: easy
+severity: low
 language: ruby
-pr_size: medium
-description: When a user explicitly clicks 'Translate Post' on a bot post, the translation
-  job is queued but silently skipped because the detect_translate_post and detect_translate_topic
-  jobs unconditionally return early for bot content. The fix adds a setting-aware
-  check so bot content can be translated when explicitly requested or when the ai_translation_include_bot_content
-  setting is enabled, and moves that setting into the correct ai-features settings
-  group.
+pr_size: tiny
+description: Test specs used `freeze_time 31.days.ago` which is fragile across month
+  boundaries — when the current month has fewer than 31 days, the relative date arithmetic
+  produces unexpected results causing spec failures. The fix replaces the brittle
+  relative date with a stable value that avoids month-length edge cases.
 expected_findings:
-- file: plugins/discourse-ai/app/jobs/regular/detect_translate_post.rb
-  line: 17
-  summary: Unconditional early return skips bot posts even when translation is explicitly
-    requested by a user; should check ai_translation_include_bot_content setting or
-    allow explicit requests to bypass the bot filter
-- file: plugins/discourse-ai/app/jobs/regular/detect_translate_topic.rb
-  line: 17
-  summary: Unconditional early return skips bot topics even when translation is explicitly
-    requested; same logic gap as detect_translate_post
-- file: plugins/discourse-ai/app/controllers/discourse_ai/translation/translation_controller.rb
-  line: 90
-  summary: Posts query uses secured(guardian) which may exclude bot posts from translation
-    results even when user explicitly requests topic translation
+- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
+  line: 440
+  summary: 'Brittle date math: `31.days.ago` fails near short months; use a fixed
+    date or a safe relative offset like `30.days.ago` to avoid month-boundary issues'
+  line_side: pre_fix
+- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
+  line: 457
+  summary: Same brittle `31.days.ago` pattern — will intermittently fail depending
+    on calendar date when tests run
+  line_side: pre_fix
+- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
+  line: 533
+  summary: Same brittle `31.days.ago` pattern repeated a third time; all instances
+    need the same fix
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

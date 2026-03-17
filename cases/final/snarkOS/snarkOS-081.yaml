@@ -1,21 +1,38 @@
 id: snarkOS-081
 repo: ProvableHQ/snarkOS
-base_commit: d69bab74a28435c97c20d6acc75f3126516b97f0^
-head_commit: d69bab74a28435c97c20d6acc75f3126516b97f0
-fix_commit: d69bab74a28435c97c20d6acc75f3126516b97f0
-category: logic
+base_commit: 6fc8cd20ad35839fd6acd8c16cfb3d3c14f4efd6^
+head_commit: 6fc8cd20ad35839fd6acd8c16cfb3d3c14f4efd6
+fix_commit: 6fc8cd20ad35839fd6acd8c16cfb3d3c14f4efd6
+category: concurrency
 difficulty: medium
 severity: high
 language: rust
 pr_size: small
-description: Incorrect logic in handling unconfirmed blocks in the network ledger.
-  The fix corrects conditional checks or block processing order in src/network/ledger.rs
-  to properly validate and manage blocks that have not yet been confirmed on the chain.
+description: When a validator disconnects from the BFT network, its cached requests
+  were not being cleared. This could lead to stale cached data being used when the
+  validator reconnects or resources not being freed, potentially causing incorrect
+  consensus behavior. The fix adds a cache-clearing method in cache.rs and calls it
+  from the disconnect handler in gateway.rs.
 expected_findings:
-- file: src/network/ledger.rs
-  line: 0
-  summary: "Incorrect conditional logic in unconfirmed block handling \u2014 wrong\
-    \ comparison or missing edge case causes blocks to be improperly accepted or rejected"
+- file: node/bft/src/gateway.rs
+  line: 1085
+  summary: 'Missing cache invalidation on peer disconnect: when a validator disconnects,
+    cached validator requests should be cleared to prevent stale data from persisting
+    and causing incorrect behavior on reconnect.'
+  line_side: pre_fix
+- file: node/bft/src/helpers/cache.rs
+  line: 119
+  summary: Cache structure lacks a method to clear entries associated with a specific
+    peer/validator, allowing stale entries to accumulate after disconnections.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

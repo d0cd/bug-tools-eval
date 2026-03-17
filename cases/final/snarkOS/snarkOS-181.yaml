@@ -1,31 +1,31 @@
 id: snarkOS-181
 repo: ProvableHQ/snarkOS
-base_commit: a9c532a36c5a90da08fce3cfd1b10c6f217272ca^
-head_commit: a9c532a36c5a90da08fce3cfd1b10c6f217272ca
-fix_commit: a9c532a36c5a90da08fce3cfd1b10c6f217272ca
-category: api
+base_commit: f0efc6e9d3b8e00a06281c9aca3efcdeb455f06d^
+head_commit: f0efc6e9d3b8e00a06281c9aca3efcdeb455f06d
+fix_commit: f0efc6e9d3b8e00a06281c9aca3efcdeb455f06d
+category: code-smell
 difficulty: easy
-severity: high
+severity: low
 language: rust
 pr_size: medium
-description: The `snarkos developer transfer` command referenced the old `transfer`
-  function in `credits.aleo`, which was renamed to `transfer_private`. This caused
-  the CLI command to fail against the updated program. The fix renames the module,
-  struct, and function references from `transfer` to `transfer_private` across the
-  developer CLI commands.
+description: This PR adds a new constraint counter utility for R1CS, ported from the
+  zexe library. It is a pure feature addition (83 lines added, 0 removed) with no
+  bug being fixed. Without an available diff, no specific code issues can be identified.
 expected_findings:
-- file: cli/src/commands/developer/mod.rs
-  line: 24
-  summary: Module references old `transfer` instead of `transfer_private`, mismatching
-    the updated `credits.aleo` API
-- file: cli/src/commands/developer/transfer_private.rs
-  line: 47
-  summary: Transfer command struct and function call should use `transfer_private`
-    to match the renamed function in `credits.aleo`
-- file: cli/src/commands/developer/mod.rs
-  line: 51
-  summary: Developer subcommand enum variant still references old `Transfer` instead
-    of `TransferPrivate`
+- file: models/src/gadgets/r1cs/constraint_counter.rs
+  line: 1
+  summary: "New file: constraint counter implementation added \u2014 verify it correctly\
+    \ implements all ConstraintSynthesizer trait methods and doesn't silently swallow\
+    \ errors in constraint counting"
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 312
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

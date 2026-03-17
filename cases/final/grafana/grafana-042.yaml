@@ -1,24 +1,34 @@
 id: grafana-042
 repo: grafana/grafana
-base_commit: ccaa364240316dfc5f64b2da865fbca915fceaf4^
-head_commit: ccaa364240316dfc5f64b2da865fbca915fceaf4
-fix_commit: ccaa364240316dfc5f64b2da865fbca915fceaf4
-category: api
-difficulty: easy
-severity: medium
+base_commit: 56756f91671a926f22385a330b9d9c983dfcd902^
+head_commit: 56756f91671a926f22385a330b9d9c983dfcd902
+fix_commit: 56756f91671a926f22385a330b9d9c983dfcd902
+category: concurrency
+difficulty: hard
+severity: high
 language: go
 pr_size: small
-description: The go-mysql-server fork dependency was outdated, missing upstream updates
-  and security fixes. The update required adapting code in frame_table.go to match
-  an upstream API change in how the InRange comparison constant is referenced, while
-  also disabling CGo.
+description: Race condition in the broadcaster's select loop where an unsubscribe
+  message could be processed before its corresponding subscribe message, despite being
+  sent sequentially from the same goroutine. This left the subscriber channel unclosed,
+  causing tests to hang indefinitely. The fix drains all pending subscribe messages
+  before processing an unsubscribe.
 expected_findings:
-- file: pkg/expr/sql/frame_table.go
-  line: 110
-  summary: 'API change: the InRange constant comparison needs updating to match the
-    new go-mysql-server upstream API signature'
+- file: pkg/storage/unified/resource/broadcaster.go
+  line: 101
+  summary: 'Race condition: select statement can non-deterministically pick the unsubscribe
+    case before the subscribe case even though subscribe was buffered first, because
+    Go''s select chooses randomly among ready channels. Must drain pending subscribes
+    before processing unsubscribe to maintain ordering.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,25 +1,37 @@
 id: snarkVM-036
 repo: ProvableHQ/snarkVM
-base_commit: ed20562d6f97ef593f051ce3cc848644e785f817^
-head_commit: ed20562d6f97ef593f051ce3cc848644e785f817
-fix_commit: ed20562d6f97ef593f051ce3cc848644e785f817
-category: logic
-difficulty: medium
-severity: high
+base_commit: 2254ee67b20e19461b6479ccbb5449d82ec9c244^
+head_commit: 2254ee67b20e19461b6479ccbb5449d82ec9c244
+fix_commit: 2254ee67b20e19461b6479ccbb5449d82ec9c244
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: The block verification logic used the current block's cumulative proof
-  target instead of the previous block's cumulative proof target. This caused an asymmetry
-  between block production and verification, meaning blocks that were correctly produced
-  could fail verification (or vice versa). The fix changes the proof target lookup
-  in verify.rs to use `previous_block.cumulative_proof_target()` instead of the current
-  block's value.
+pr_size: small
+description: PR switches CI resource class to xlarge and fixes clippy warnings in
+  unreachable! macro invocations in event.rs and operation.rs. The clippy fixes likely
+  address the `non_fmt_panics` lint, where format arguments in unreachable!() were
+  not using proper format string syntax, which could cause the interpolated variable
+  to not appear in the panic message.
 expected_findings:
-- file: ledger/block/src/verify.rs
-  line: 373
-  summary: 'Wrong block used for proof target: should use `previous_block.cumulative_proof_target()`
-    instead of the current block''s cumulative proof target to ensure symmetry between
-    block production and verification.'
+- file: dpc/src/virtual_machine/event.rs
+  line: 149
+  summary: 'Clippy lint: unreachable!() macro uses format string with {} but may not
+    properly interpolate event_id — use format_args-style invocation'
+  line_side: pre_fix
+- file: dpc/src/virtual_machine/operation.rs
+  line: 176
+  summary: 'Clippy lint: unreachable!() macro uses format string with {} but may not
+    properly interpolate operation_id — use format_args-style invocation'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

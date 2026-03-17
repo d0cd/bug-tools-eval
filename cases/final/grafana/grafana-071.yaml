@@ -1,0 +1,35 @@
+id: grafana-071
+repo: grafana/grafana
+base_commit: 98ad2a23e464633ef8b85d26990ef9f02203de06^
+head_commit: 98ad2a23e464633ef8b85d26990ef9f02203de06
+fix_commit: 98ad2a23e464633ef8b85d26990ef9f02203de06
+category: api-misuse
+difficulty: easy
+severity: high
+language: go
+pr_size: tiny
+description: Test file references `runGrafana` and `TestRepo` without the required
+  `common.` package qualifier, causing compilation failures. The fix adds the `common.`
+  prefix so the symbols resolve correctly against the imported package.
+expected_findings:
+- file: pkg/tests/apis/provisioning/files_test.go
+  line: 1014
+  summary: 'Undefined symbol: `runGrafana` should be `common.RunGrafana` — missing
+    package qualifier causes compilation failure'
+  line_side: pre_fix
+- file: pkg/tests/apis/provisioning/files_test.go
+  line: 1014
+  summary: 'Undefined symbol: `TestRepo` should be `common.TestRepo` — missing package
+    qualifier causes compilation failure'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

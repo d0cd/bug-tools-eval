@@ -1,24 +1,33 @@
 id: leo-008
 repo: ProvableHQ/leo
-base_commit: 7450e27de3d17127314d242cb75d808ff74d0e07^
-head_commit: 7450e27de3d17127314d242cb75d808ff74d0e07
-fix_commit: 7450e27de3d17127314d242cb75d808ff74d0e07
+base_commit: 09451dd7cf1bb460e1a54e23f04761f8c7b864af^
+head_commit: 09451dd7cf1bb460e1a54e23f04761f8c7b864af
+fix_commit: 09451dd7cf1bb460e1a54e23f04761f8c7b864af
 category: logic
 difficulty: medium
 severity: high
-language: leo
-pr_size: medium
-description: The Leo compiler's ASG (Abstract Semantic Graph) did not enforce const
-  variable immutability. Variables declared as `const` could be reassigned without
-  any error being raised. The fix adds a validation check in the definition statement
-  handler that verifies const declarations are assigned constant values, and introduces
-  a new `invalid_const_assign` error type for violations.
+language: rust
+pr_size: small
+description: The `leo run` command failed to parse negative number arguments correctly
+  because they were being interpreted as CLI flags by snarkVM. The fix adds a '--'
+  separator when constructing the snarkVM command arguments, ensuring negative values
+  like '-5' are treated as positional arguments rather than option flags. A secondary
+  rename of `Deploy` to `LeoDeploy` was included for consistency.
 expected_findings:
-- file: asg/src/statement/definition.rs
-  line: 75
-  summary: 'Missing enforcement of const variable semantics: definitions declared
-    as `Declare::Const` are not checked to ensure assigned values are actually constant,
-    allowing mutable values to be assigned to const variables without error.'
+- file: leo/cli/commands/run.rs
+  line: 66
+  summary: Missing '--' separator when passing arguments to snarkVM causes negative
+    number inputs (e.g., '-5') to be misinterpreted as CLI flags instead of program
+    input values.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

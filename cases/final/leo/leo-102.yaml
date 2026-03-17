@@ -1,30 +1,32 @@
 id: leo-102
 repo: ProvableHQ/leo
-base_commit: 4a3e89f877d23afd6471d5353ae1790310743739^
-head_commit: 4a3e89f877d23afd6471d5353ae1790310743739
-fix_commit: 4a3e89f877d23afd6471d5353ae1790310743739
-category: api
+base_commit: 63335c00e6ca0d25f1bb0b84463615a054db3990^
+head_commit: 63335c00e6ca0d25f1bb0b84463615a054db3990
+fix_commit: 63335c00e6ca0d25f1bb0b84463615a054db3990
+category: logic
 difficulty: easy
 severity: medium
-language: rust
-pr_size: small
-description: CI was broken because compiler tests in compile.rs and execute.rs used
-  `disassemble_from_str` from `leo-disassembler`, but that crate was not declared
-  as a dev-dependency in compiler/compiler/Cargo.toml. The fix adds the missing dependency
-  and clears the sccache to ensure a clean rebuild.
+language: leo
+pr_size: medium
+description: The Leo PEG grammar rule for the subtraction operator lacked proper whitespace
+  handling around the '-' token, causing parsing ambiguity (e.g., distinguishing subtraction
+  from negation or negative literals). The fix adjusts the spacing rule in the pest
+  grammar. Deprecated fibonacci and square-root example directories were also removed.
 expected_findings:
-- file: compiler/compiler/Cargo.toml
-  line: 45
-  summary: 'Missing dev-dependency: `leo-disassembler` is used in test files (compile.rs,
-    execute.rs) but not declared in [dev-dependencies], causing CI compilation failure.'
-- file: compiler/compiler/tests/compile.rs
-  line: 28
-  summary: Import of `leo_disassembler::disassemble_from_str` will fail to compile
-    because the crate is not listed as a dev-dependency in Cargo.toml.
-- file: compiler/compiler/tests/execute.rs
-  line: 43
-  summary: Import of `leo_disassembler::disassemble_from_str` will fail to compile
-    because the crate is not listed as a dev-dependency in Cargo.toml.
+- file: ast/src/leo.pest
+  line: 114
+  summary: Subtraction operator grammar rule `operation_sub = { "-" }` lacks whitespace
+    padding, causing parser ambiguity between subtraction and negation; needs spacing
+    tokens around the operator
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,29 +1,29 @@
 id: leo-156
 repo: ProvableHQ/leo
-base_commit: 13dc1210912d7d05f67971ad486c48a1f6e8fb3f^
-head_commit: 13dc1210912d7d05f67971ad486c48a1f6e8fb3f
-fix_commit: 13dc1210912d7d05f67971ad486c48a1f6e8fb3f
-category: type
-difficulty: medium
-severity: high
+base_commit: a26bad9d1ddd7b989c3e5ae71d01faa66a2d510a^
+head_commit: a26bad9d1ddd7b989c3e5ae71d01faa66a2d510a
+fix_commit: a26bad9d1ddd7b989c3e5ae71d01faa66a2d510a
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: Returning a multidimensional array from a function caused an error when
-  the declared return type syntax differed from the value's type syntax (e.g., nested
-  array syntax `[[u8; 2]; 3]` vs tuple array syntax `[u8; (3, 2)]`). The fix adds
-  a `match_array_types` method to the `Type` enum that normalizes and compares array
-  dimensions regardless of syntax, and uses it in the return statement type checker
-  and value matching logic.
+pr_size: tiny
+description: 'A typo in a variable name: ''line_indicies'' was misspelled and corrected
+  to ''line_indices''. This is a purely cosmetic fix correcting an English spelling
+  error in an identifier, with no behavioral change.'
 expected_findings:
-- file: compiler/src/statement/return_/return_.rs
-  line: 30
-  summary: Return type check uses strict equality instead of semantic array type matching.
-    Should use `match_array_types()` to allow equivalent array type syntaxes (nested
-    vs tuple) to be accepted.
-- file: compiler/src/value/value.rs
-  line: 108
-  summary: Array value matching does not account for equivalent array type representations.
-    Needs to use `match_array_types()` to handle nested vs tuple array syntax equivalence.
+- file: compiler/parser/src/tokenizer/mod.rs
+  line: 193
+  summary: 'Typo in variable name: ''line_indicies'' should be ''line_indices'''
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

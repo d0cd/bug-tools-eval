@@ -1,30 +1,44 @@
 id: leo-172
 repo: ProvableHQ/leo
-base_commit: 0de200a6c2e21a5b91a8b239d46a2b98aa29e8b3^
-head_commit: 0de200a6c2e21a5b91a8b239d46a2b98aa29e8b3
-fix_commit: 0de200a6c2e21a5b91a8b239d46a2b98aa29e8b3
-category: logic
+base_commit: b61e2b4733653a633a0276685380186ab6a05998^
+head_commit: b61e2b4733653a633a0276685380186ab6a05998
+fix_commit: b61e2b4733653a633a0276685380186ab6a05998
+category: api-misuse
 difficulty: medium
-severity: medium
-language: leo
-pr_size: large
-description: The Leo compiler was missing validation checks for the number of inputs
-  and outputs in transitions. The fix adds proper bounds checking in the type checker
-  to emit clear error messages when transitions exceed the maximum allowed number
-  of inputs or outputs, while correctly exempting inline functions from these limits.
+severity: high
+language: rust
+pr_size: medium
+description: Network error responses (e.g., 'Too Many Requests') from API calls were
+  being cached as valid Aleo programs in the .aleo/registry directory, corrupting
+  the dependency cache. The fix adds validation that fetched content parses as a valid
+  program before writing to cache, and refactors network retrieval into a single shared
+  module to eliminate duplicated retrieval logic between `leo query` and the retriever.
 expected_findings:
-- file: compiler/passes/src/type_checking/visitor.rs
-  line: 1431
-  summary: 'Missing check: transitions should validate that the number of input parameters
-    does not exceed the maximum allowed (16 for non-inline functions)'
-- file: compiler/passes/src/type_checking/visitor.rs
-  line: 1527
-  summary: 'Missing check: transitions should validate that the number of output parameters
-    does not exceed the maximum allowed (16 for non-inline functions)'
-- file: compiler/passes/src/type_checking/mod.rs
-  line: 40
-  summary: No max_outputs field tracked in type checker state, preventing output count
-    validation
+- file: utils/retriever/src/retriever/mod.rs
+  line: 310
+  summary: Network response is cached without validating that it is a valid Aleo program.
+    Error responses (e.g., rate-limit messages) get written to the registry cache,
+    corrupting dependencies.
+  line_side: pre_fix
+- file: leo/cli/commands/query/mod.rs
+  line: 74
+  summary: Duplicated network retrieval logic that does not validate fetched program
+    content before use, allowing invalid/error responses to propagate.
+  line_side: pre_fix
+- file: utils/disassembler/src/lib.rs
+  line: 86
+  summary: disassemble_from_str does not validate that the input string is a parseable
+    program before processing, missing an opportunity to catch corrupted cache entries
+    early.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

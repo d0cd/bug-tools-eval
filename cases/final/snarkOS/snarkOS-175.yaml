@@ -1,38 +1,37 @@
 id: snarkOS-175
 repo: ProvableHQ/snarkOS
-base_commit: 17a0bedcde02e578f5467bc5f336d730824c6be3^
-head_commit: 17a0bedcde02e578f5467bc5f336d730824c6be3
-fix_commit: 17a0bedcde02e578f5467bc5f336d730824c6be3
-category: logic
-difficulty: medium
-severity: high
+base_commit: e8d3a90fe9d39ab2a83236c0835a3714651395f4^
+head_commit: e8d3a90fe9d39ab2a83236c0835a3714651395f4
+fix_commit: e8d3a90fe9d39ab2a83236c0835a3714651395f4
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: small
-description: The `on_connect` implementations across gateway and router files used
-  the raw peer connection address instead of resolving it to the peer's listener address.
-  When a peer initiates a connection, the connection address differs from the listener
-  address, causing pings to be sent to the wrong address and breaking peer communication.
-  The fix adds `resolve_to_listener()` calls to correctly map connection addresses
-  to listener addresses.
+pr_size: tiny
+description: When `self.inbound()` fails in the client and validator routers, the
+  error is silently swallowed with no logging, making it impossible to diagnose sync
+  and message-processing issues. The fix adds `error!()` logging on the failure path
+  so that inbound processing errors are visible in logs.
 expected_findings:
-- file: node/bft/src/gateway.rs
-  line: 1193
-  summary: Using raw `peer_addr` without resolving to listener address; when the peer
-    initiated the connection, `peer_addr` is the ephemeral connection address, not
-    the listener address. Should use `resolve_to_listener(&peer_addr)` to get the
-    correct address for sending pings.
 - file: node/src/client/router.rs
-  line: 65
-  summary: Using raw `peer_addr` without resolving to listener address via `self.router().resolve_to_listener(peer_addr)`.
-    Pings will be sent to the wrong address when the peer initiated the connection.
-- file: node/src/prover/router.rs
-  line: 60
-  summary: Using raw `peer_addr` without resolving to listener address via `self.router().resolve_to_listener(peer_addr)`.
-    Same bug pattern as in client and validator routers.
+  line: 146
+  summary: 'Silent error swallowing: the `Err` branch of `self.inbound()` discards
+    the error without logging, hiding message-processing failures from operators'
+  line_side: pre_fix
 - file: node/src/validator/router.rs
-  line: 66
-  summary: Using raw `peer_addr` without resolving to listener address via `self.router().resolve_to_listener(peer_addr)`.
-    Same bug pattern across all router implementations.
+  line: 137
+  summary: 'Silent error swallowing: the `Err` branch of `self.inbound()` discards
+    the error without logging, hiding message-processing failures from operators'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 3472
+reviewer_notes: []
+reviewer_findings: []
+quality_flags:
+- groundedness-failed

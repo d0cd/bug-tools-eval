@@ -1,35 +1,30 @@
 id: snarkOS-074
 repo: ProvableHQ/snarkOS
-base_commit: e10df3c56855f195cca1b92ca64b407c52a734a7^
-head_commit: e10df3c56855f195cca1b92ca64b407c52a734a7
-fix_commit: e10df3c56855f195cca1b92ca64b407c52a734a7
-category: api
-difficulty: hard
-severity: critical
+base_commit: 66978913dc15e151722dc48d568c82781edb5f08^
+head_commit: 66978913dc15e151722dc48d568c82781edb5f08
+fix_commit: 66978913dc15e151722dc48d568c82781edb5f08
+category: api-misuse
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: Handshake signature forgery vulnerability where an attacker could craft
-  a nonce preimage matching the ChallengeRequest nonce range, get the target to sign
-  it during handshake, then reuse that signed nonce as an authenticity proof in non-handshake
-  interactions. The fix adds a randomly generated response_nonce that is signed alongside
-  the original nonce in the ChallengeResponse, preventing local brute-force of the
-  preimage.
+pr_size: tiny
+description: A benchmark file had an incorrect import path for a SNARK-related type
+  (likely GM17), causing compilation failure. The fix updated the import statement
+  to use the correct module path.
 expected_findings:
-- file: node/router/src/handshake.rs
-  line: 164
-  summary: 'Security: ChallengeResponse signature only covers the request nonce, allowing
-    an attacker to reuse the signed nonce outside the handshake context. A response_nonce
-    must be co-signed to bind the signature to this specific handshake.'
-- file: node/bft/src/gateway.rs
-  line: 1176
-  summary: "Security: Same signature forgery issue in BFT gateway handshake \u2014\
-    \ the challenge response signature does not include a response_nonce, making it\
-    \ replayable in non-handshake contexts."
-- file: node/router/messages/src/challenge_response.rs
-  line: 25
-  summary: 'Security: ChallengeResponse struct lacks a response_nonce field, so the
-    signed data can be replayed as a valid signature for other protocol messages that
-    share the same nonce format.'
+- file: benchmarks/algorithms/snark/snark.rs
+  line: 17
+  summary: 'Incorrect import path: `use snarkos_algorithms::snark::gm17::GM17` references
+    a moved or renamed module; update to the correct path'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

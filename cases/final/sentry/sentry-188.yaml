@@ -1,0 +1,27 @@
+id: sentry-188
+repo: getsentry/sentry
+base_commit: fdd0c40aa2945378b87f246833be3dced706b398^
+head_commit: fdd0c40aa2945378b87f246833be3dced706b398
+fix_commit: fdd0c40aa2945378b87f246833be3dced706b398
+category: incomplete
+difficulty: easy
+severity: low
+language: typescript
+pr_size: medium
+description: Adds a button to open the Seer drawer when at least 1 artifact exists
+  in the autofix section. Without the diff, it is impossible to verify correctness,
+  but common issues in such changes include missing null/undefined checks on the artifacts
+  array, incorrect conditional rendering logic, and missing accessibility attributes
+  on the new button.
+expected_findings: []
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: null
+valid_for_code_review: false
+introducing_commit: null
+pr_number: 110432
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

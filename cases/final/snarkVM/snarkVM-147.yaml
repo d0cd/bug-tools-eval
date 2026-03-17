@@ -1,32 +1,40 @@
 id: snarkVM-147
 repo: ProvableHQ/snarkVM
-base_commit: 20cd2e3b8ea5860609354599da7d884551bf81b3^
-head_commit: 20cd2e3b8ea5860609354599da7d884551bf81b3
-fix_commit: 20cd2e3b8ea5860609354599da7d884551bf81b3
-category: logic
-difficulty: medium
+base_commit: cbd165c00746c19a5ce9a336077d361ac4c0b922^
+head_commit: cbd165c00746c19a5ce9a336077d361ac4c0b922
+fix_commit: cbd165c00746c19a5ce9a336077d361ac4c0b922
+category: cryptographic
+difficulty: hard
 severity: high
 language: rust
-pr_size: small
-description: The deployment store lacked special-case handling for the built-in `credits.aleo`
-  program. Without guards at three code paths (storage, retrieval, and removal), `credits.aleo`
-  could be incorrectly processed as a regular user deployment, potentially causing
-  data corruption or consensus issues. The fix adds checks at lines 259, 297, and
-  312 to short-circuit when the program ID is `credits.aleo`.
+pr_size: tiny
+description: The Schnorr signature verification gadget casts between G::ScalarField
+  and the constraint field F using raw byte serialization (FromBytes::read) without
+  any runtime or compile-time check that the two fields share the same modulus. If
+  instantiated with mismatched fields, the prover_response and verifier_challenge
+  would silently wrap to incorrect values, breaking signature verification soundness.
+  Additionally, the verify trait method hardcodes Blake2s as the PRF, limiting genericity.
 expected_findings:
-- file: synthesizer/src/store/transaction/deployment.rs
-  line: 259
-  summary: 'Missing guard: the deployment store path does not check if the program
-    ID is ''credits.aleo'' before processing, allowing the built-in program to be
-    handled as a regular deployment.'
-- file: synthesizer/src/store/transaction/deployment.rs
-  line: 297
-  summary: 'Missing guard: no special-case check for ''credits.aleo'' in this code
-    path, which should skip or handle the built-in program differently from user deployments.'
-- file: synthesizer/src/store/transaction/deployment.rs
-  line: 312
-  summary: 'Missing guard: no special-case check for ''credits.aleo'' in this code
-    path, allowing incorrect processing of the built-in genesis program.'
+- file: gadgets/src/algorithms/signature/schnorr.rs
+  line: 181
+  summary: 'Unsafe field cast: ScalarField is reinterpreted as constraint field F
+    via FromBytes::read with no modulus compatibility check — silently produces wrong
+    values if fields differ, breaking verification soundness'
+  line_side: pre_fix
+- file: gadgets/src/traits/algorithms/signature.rs
+  line: 42
+  summary: 'verify() method hardcodes Blake2s PRF in the trait signature (PG: PRFGadget<Blake2s,
+    F>), coupling the generic trait to a specific hash — should parameterize the hash
+    type'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,34 +1,35 @@
 id: leo-127
 repo: ProvableHQ/leo
-base_commit: 18b71d225b0eaada6e8ed4b9419ba82c1d998226^
-head_commit: 18b71d225b0eaada6e8ed4b9419ba82c1d998226
-fix_commit: 18b71d225b0eaada6e8ed4b9419ba82c1d998226
-category: type
-difficulty: medium
-severity: high
+base_commit: 8391d5a8141febcbaa8b127b80d9b507ee6bb06d^
+head_commit: 8391d5a8141febcbaa8b127b80d9b507ee6bb06d
+fix_commit: 8391d5a8141febcbaa8b127b80d9b507ee6bb06d
+category: logic
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: 'The Leo compiler''s type checker had multiple bugs: it failed to properly
-  validate type compatibility in ternary/binary expressions (allowing mismatched types),
-  did not detect missing return statements in functions, and did not catch usage of
-  undeclared variables. The fix adds a `has_return` tracking field to the type checker,
-  proper type-mismatch checks for ternary/binary expressions, and variable existence
-  validation.'
+pr_size: small
+description: Clippy lint failures due to multiline `else if` blocks that violate `collapsible_else_if`
+  or similar formatting rules introduced by a newer Rust version. The fix restructures
+  the `else { if ... }` patterns at two locations in formatted.rs to satisfy Clippy.
 expected_findings:
-- file: compiler/passes/src/type_checker/check_expressions.rs
-  line: 226
-  summary: "Ternary expression type checking does not properly validate that both\
-    \ branches have compatible types \u2014 mismatched types should produce a type\
-    \ error"
-- file: compiler/passes/src/type_checker/check_statements.rs
-  line: 31
-  summary: "Missing tracking of whether a function body contains a return statement\
-    \ \u2014 functions without returns are silently accepted instead of producing\
-    \ an error"
-- file: compiler/passes/src/type_checker/check_file.rs
-  line: 15
-  summary: Missing import/usage of TypeCheckerError for reporting undeclared variable
-    usage and invalid assignment targets
+- file: errors/src/common/formatted.rs
+  line: 214
+  summary: 'Clippy: collapsible else-if — `else { if ... }` block should be collapsed
+    into `else if ...`'
+  line_side: pre_fix
+- file: errors/src/common/formatted.rs
+  line: 375
+  summary: 'Clippy: collapsible else-if — `else { if ... }` block should be collapsed
+    into `else if ...`'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

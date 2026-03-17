@@ -1,28 +1,65 @@
 id: sentry-007
 repo: getsentry/sentry
-base_commit: 3894ee581ea20d71961cc565c67e5132cb6f3f15^
-head_commit: 3894ee581ea20d71961cc565c67e5132cb6f3f15
-fix_commit: 3894ee581ea20d71961cc565c67e5132cb6f3f15
-category: logic
+base_commit: 0df213435c12416e4222a806e0feeac4365fd2ad^
+head_commit: 0df213435c12416e4222a806e0feeac4365fd2ad
+fix_commit: 0df213435c12416e4222a806e0feeac4365fd2ad
+category: api-misuse
 difficulty: medium
-severity: high
+severity: medium
 language: typescript
-pr_size: tiny
-description: "The comparison data download query fires as soon as metric IDs are available,\
-  \ without waiting for the async Celery comparison task to reach SUCCESS state. This\
-  \ causes the download endpoint to return 404 (file not yet created), React Query\
-  \ caches the error, and when the task later completes the query never re-fires \u2014\
-  \ leaving the user with a persistent 'Comparison not found' error. The fix gates\
-  \ the download query's `enabled` condition on `mainArtifactComparison?.state ===\
-  \ SizeAnalysisComparisonState.SUCCESS`."
+pr_size: small
+description: "The fix for Y-axis formatting introduced a subtle bug: calling `toLocaleString()`\
+  \ without options on the result of `formatFloat(..., 4)` silently truncates numbers\
+  \ to 3 decimal places (the default `maximumFractionDigits` for `toLocaleString()`),\
+  \ discarding the 4-digit precision that `formatFloat` was explicitly asked to preserve.\
+  \ Additionally, the formatting is inconsistent \u2014 integer values get comma formatting\
+  \ via one path while non-integer values go through `toLocaleString()`, producing\
+  \ visually inconsistent output."
 expected_findings:
-- file: static/app/views/preprod/buildComparison/main/sizeCompareMainContent.tsx
-  line: 109
-  summary: 'Missing state guard: the download query''s `enabled` condition checks
-    for `!!baseArtifactId` but does not verify that the comparison state is SUCCESS
-    before firing. This causes premature requests that 404 and cache errors permanently.'
+- file: static/app/utils/discover/fieldRenderers.tsx
+  line: 307
+  summary: 'Calling `toLocaleString()` without `{ maximumFractionDigits: 4 }` silently
+    truncates the precision set by `formatFloat(..., 4)` from 4 decimal places to
+    3'
+  line_side: pre_fix
+- file: static/app/utils/discover/fieldRenderers.tsx
+  line: 310
+  summary: "Inconsistent formatting paths for integer vs non-integer numbers \u2014\
+    \ integers get abbreviation/comma formatting while floats go through `toLocaleString()`,\
+    \ producing visually mismatched output"
+  line_side: pre_fix
+- file: static/app/views/dashboards/widgets/timeSeriesWidget/formatters/formatYAxisValue.tsx
+  line: 1
+  summary: Y-axis formatter returns raw numeric strings without abbreviation; large
+    integers like 1000000 should be formatted as '1M' for readability
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110360
+reviewer_notes:
+- '[inline] **Bug:** Calling `toLocaleString()` without options truncates numbers
+  to 3 decimal places, overriding the precision set by `formatFloat(..., 4)`. <sub>Severity:
+  MEDIUM</sub> <!-- BUG_PREDICTION -->  <details> <summary><b title="Reference ID:
+  `11518778/0`">Suggested Fix</b></summary>  To preserve the'
+reviewer_findings:
+- file: static/app/utils/discover/fieldRenderers.tsx
+  line: 310
+  summary: '### Inconsistent comma formatting between integer and non-integer numbers  **Medium
+    Severity**  <!-- DESCRIPTION START -'
+  line_side: pre_fix
+- file: static/app/utils/discover/fieldRenderers.tsx
+  line: 307
+  summary: '**Bug:** Calling `toLocaleString()` without options truncates numbers
+    to 3 decimal places, overriding the precision set '
+  line_side: pre_fix
+- file: static/app/utils/discover/fieldRenderers.tsx
+  line: 307
+  summary: '### toLocaleString truncates to 3 decimal places silently  **Medium Severity**  <!--
+    DESCRIPTION START --> `formatFloat('
+  line_side: pre_fix
+quality_flags: []

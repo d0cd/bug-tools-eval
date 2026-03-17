@@ -1,27 +1,32 @@
 id: grafana-049
 repo: grafana/grafana
-base_commit: b37070c2419bf3dc7212d6985a3bd2bcae800fc7^
-head_commit: b37070c2419bf3dc7212d6985a3bd2bcae800fc7
-fix_commit: b37070c2419bf3dc7212d6985a3bd2bcae800fc7
-category: logic
-difficulty: easy
+base_commit: 60297e54b98179f9837e1a2e371b92d7ba3c9749^
+head_commit: 60297e54b98179f9837e1a2e371b92d7ba3c9749
+fix_commit: 60297e54b98179f9837e1a2e371b92d7ba3c9749
+category: security
+difficulty: medium
 severity: high
-language: typescript
+language: go
 pr_size: tiny
-description: In the VisualizationSuggestions component, when `newVizSuggestions` is
-  set to false and there is no data, clicking a suggestion called `applySuggestion`
-  with an incorrect boolean parameter that prevented the options panel from opening.
-  This caused a crash when subsequently switching panel types because the expected
-  panel options state was never initialized. The fix corrects the boolean argument
-  so the options panel opens properly even in the no-data scenario.
+description: The delegated permission check for provisioning was missing the necessary
+  permissions for rolebindings and roles. This caused the authlib client to deny RBAC
+  Check requests at the gate for basic Viewer/Editor roles, effectively breaking provisioning
+  workflows that rely on delegated permission checks.
 expected_findings:
-- file: public/app/features/panel/components/VizTypePicker/VisualizationSuggestions.tsx
-  line: 299
-  summary: 'Incorrect boolean parameter in applySuggestion call: the third argument
-    (false) prevents the options panel from opening in the no-data / newVizSuggestions=false
-    path, leading to a crash when switching panel types'
+- file: pkg/apimachinery/identity/context.go
+  line: 1
+  summary: Missing provisioning permissions (for rolebindings and roles) in the delegated
+    permission set, causing authlib client to deny RBAC Check requests instead of
+    forwarding them to the RBAC server
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 119742
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

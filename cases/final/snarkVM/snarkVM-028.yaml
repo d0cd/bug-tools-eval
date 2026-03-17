@@ -1,29 +1,26 @@
 id: snarkVM-028
 repo: ProvableHQ/snarkVM
-base_commit: 3cc1d742a3b9bb68c469230f01b6c3a409189a44^
-head_commit: 3cc1d742a3b9bb68c469230f01b6c3a409189a44
-fix_commit: 3cc1d742a3b9bb68c469230f01b6c3a409189a44
-category: logic
+base_commit: 186b5545a6e4b1516255628d5d2ca4398292dd6d^
+head_commit: 186b5545a6e4b1516255628d5d2ca4398292dd6d
+fix_commit: 186b5545a6e4b1516255628d5d2ca4398292dd6d
+category: style
 difficulty: easy
 severity: low
 language: rust
-pr_size: tiny
-description: Three separate validation checks in the puzzle module all logged the
-  identical message 'The proof target does not match the expected proof target', making
-  it impossible to distinguish which check failed during debugging. The fix deduplicates
-  the log messages by giving each location a distinct description (e.g., 'cached proof
-  target').
-expected_findings:
-- file: ledger/puzzle/src/lib.rs
-  line: 172
-  summary: 'Duplicate log message: ''The proof target does not match the expected
-    proof target'' is identical to other locations; should use a distinct message
-    like ''cached proof target'' to aid debugging'
-- file: ledger/puzzle/src/lib.rs
-  line: 195
-  summary: 'Duplicate log message: ''The proof target does not match the expected
-    proof target'' is identical to other locations; should use a distinct message
-    to differentiate this check'
+pr_size: xl
+description: This is a large merge commit syncing the sgx branch with testnet3. It
+  includes version bumps, CI config updates, license header changes, dependency updates,
+  and SGX compilation feature flags. There is no specific bug fix — it is a branch
+  synchronization PR.
+expected_findings: []
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: null
+valid_for_code_review: false
+introducing_commit: null
+pr_number: 1373
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

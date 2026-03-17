@@ -1,33 +1,38 @@
 id: snarkOS-072
 repo: ProvableHQ/snarkOS
-base_commit: 372f8cdf714c8854aeadee12f2c43c253918f64d^
-head_commit: 372f8cdf714c8854aeadee12f2c43c253918f64d
-fix_commit: 372f8cdf714c8854aeadee12f2c43c253918f64d
+base_commit: 6470b39f0d379517a1b8f0ae0ab78e7a28aa8959^
+head_commit: 6470b39f0d379517a1b8f0ae0ab78e7a28aa8959
+fix_commit: 6470b39f0d379517a1b8f0ae0ab78e7a28aa8959
 category: logic
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: medium
-description: The BFT sync module performed recursive certificate fetching from peers
-  without checking whether the node was already synced. This caused nodes that were
-  still syncing to unnecessarily fetch certificates recursively, potentially leading
-  to network congestion, resource exhaustion, or sync failures. The fix adds an `is_synced`
-  guard before recursive certificate fetching and also filters out aborted transmission
-  IDs in storage services.
+pr_size: small
+description: The build script (build.rs) was missing an additional locktick check
+  when resolving configuration values. The code at two parallel locations (around
+  lines 167 and 211) processes environment variable overrides for TOML configuration
+  values but failed to perform a necessary lock validation step, which could cause
+  build inconsistencies or incorrect configuration resolution. The fix adds the missing
+  locktick check at both code paths.
 expected_findings:
-- file: node/bft/src/sync/mod.rs
-  line: 557
-  summary: 'Missing `is_synced` guard: recursive certificate fetching proceeds even
-    when the node is not yet synced, which can cause excessive network requests and
-    sync failures.'
-- file: node/bft/storage-service/src/memory.rs
-  line: 120
-  summary: Aborted transmission IDs are not filtered out before processing, allowing
-    invalid/aborted transmissions to be included in results.
-- file: node/bft/storage-service/src/persistent.rs
-  line: 171
-  summary: Same missing filter for aborted transmission IDs in the persistent storage
-    implementation.
+- file: build.rs
+  line: 167
+  summary: Missing locktick check before processing env variable overrides for TOML
+    values; configuration could be resolved without proper lock validation
+  line_side: pre_fix
+- file: build.rs
+  line: 211
+  summary: Missing locktick check in second code path that overrides TOML values with
+    env variables; same validation gap as line 167
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

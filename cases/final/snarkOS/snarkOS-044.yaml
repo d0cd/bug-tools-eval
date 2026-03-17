@@ -1,28 +1,31 @@
 id: snarkOS-044
 repo: ProvableHQ/snarkOS
-base_commit: 411940b68e388254ea8121cdaedb10c093c2ed65^
-head_commit: 411940b68e388254ea8121cdaedb10c093c2ed65
-fix_commit: 411940b68e388254ea8121cdaedb10c093c2ed65
-category: logic
-difficulty: medium
-severity: high
+base_commit: 3b0a5a291644b0e6063a983a593c3de7bf834112^
+head_commit: 3b0a5a291644b0e6063a983a593c3de7bf834112
+fix_commit: 3b0a5a291644b0e6063a983a593c3de7bf834112
+category: api-misuse
+difficulty: easy
+severity: medium
 language: rust
 pr_size: tiny
-description: The peer disconnection handler failed to clear the `seen_outbound_block_requests`
-  cache, causing stale entries to persist after a peer disconnected. This could prevent
-  the node from re-requesting blocks from a reconnected peer or from other peers,
-  leading to synchronization issues. The fix adds a call to clear the relevant cache
-  entries in `Cache::clear_peer_entries` and invokes it during peer disconnect.
+description: The CLI endpoint response handling was checking for exactly HTTP 200
+  status code instead of using the is_success() method which covers all 2xx status
+  codes. This caused valid responses with status codes like 201 or 204 to be treated
+  as failures.
 expected_findings:
-- file: node/router/src/helpers/cache.rs
-  line: 196
-  summary: 'Missing cleanup of `seen_outbound_block_requests` in `clear_peer_entries`:
-    stale outbound block request entries persist after peer disconnect, preventing
-    future block requests to that peer.'
-- file: node/router/src/lib.rs
-  line: 514
-  summary: Peer disconnect handler should call cache clearing logic to invalidate
-    peer-specific cached entries including outbound block requests.
+- file: cli/src/commands/developer/mod.rs
+  line: 205
+  summary: 'HTTP status check is too strict: comparing against exact status code 200
+    instead of using is_success() to accept all 2xx responses'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

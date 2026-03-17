@@ -1,30 +1,32 @@
 id: leo-063
 repo: ProvableHQ/leo
-base_commit: 0bc0ee4b564294b5dee68c61b24966e2c3a666c6^
-head_commit: 0bc0ee4b564294b5dee68c61b24966e2c3a666c6
-fix_commit: 0bc0ee4b564294b5dee68c61b24966e2c3a666c6
-category: type
+base_commit: 438af6bf80751710f0be8515227bf281b50177c6^
+head_commit: 438af6bf80751710f0be8515227bf281b50177c6
+fix_commit: 438af6bf80751710f0be8515227bf281b50177c6
+category: code-smell
 difficulty: easy
-severity: medium
-language: rust
-pr_size: tiny
-description: The `LeoAst` struct in the `leo_ast` crate was renamed to `Ast`, but
-  the test file `symbol-table/tests/mod.rs` still imported and used the old name `LeoAst`.
-  This caused compilation failures in the symbol table tests. The fix updates the
-  import and usages to reference `Ast` instead of `LeoAst`.
+severity: low
+language: leo
+pr_size: small
+description: 'A test file declares two variables with the same name `character` in
+  the same scope, causing the second to shadow the first. The fix renames the second
+  variable to `character2` to avoid the name collision. This is a proactive test correction
+  ahead of a compiler fix (issue #1283) that would make duplicate variable names in
+  scope an error.'
 expected_findings:
-- file: symbol-table/tests/mod.rs
-  line: 16
-  summary: 'Stale import: `LeoAst` was renamed to `Ast` in `leo_ast` crate; this import
-    will fail to compile.'
-- file: symbol-table/tests/mod.rs
-  line: 27
-  summary: 'Usage of renamed struct: `LeoAst` should be `Ast` to match the updated
-    type name in `leo_ast`.'
-- file: symbol-table/tests/mod.rs
-  line: 45
-  summary: 'Usage of renamed struct: `LeoAst` should be `Ast` to match the updated
-    type name in `leo_ast`.'
+- file: tests/compiler/char/circuit.leo
+  line: 26
+  summary: Duplicate variable name `character` in the same scope shadows the earlier
+    declaration; should use a distinct name like `character2`
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

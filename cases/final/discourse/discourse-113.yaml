@@ -1,0 +1,39 @@
+id: discourse-113
+repo: discourse/discourse
+base_commit: f0f78151d6a4964a6da26833b7fb4bce3f965dfe^
+head_commit: f0f78151d6a4964a6da26833b7fb4bce3f965dfe
+fix_commit: f0f78151d6a4964a6da26833b7fb4bce3f965dfe
+category: logic
+difficulty: medium
+severity: high
+language: ruby
+pr_size: medium
+description: 'When importing an AI agent with force=true but no pre-existing agent,
+  the overwrite flag was not passed to `importer.import!`, so existing custom tools
+  with matching identifiers would not be overwritten. Additionally, `initial_attributes`
+  was captured inside the conditional block after the import could have mutated state,
+  though this was a secondary issue. The fix passes `overwrite: force_update` in the
+  else branch and moves the attribute snapshot before the conditional.'
+expected_findings:
+- file: plugins/discourse-ai/app/controllers/discourse_ai/admin/ai_agents_controller.rb
+  line: 131
+  summary: 'Missing overwrite parameter: `importer.import!` should pass `overwrite:
+    force_update` so that custom tools are overwritten when force=true even when no
+    existing agent is found'
+  line_side: pre_fix
+- file: plugins/discourse-ai/app/controllers/discourse_ai/admin/ai_agents_controller.rb
+  line: 126
+  summary: initial_attributes captured inside the if-block after the overwrite check;
+    should be captured before the branch to avoid potential mutation issues
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

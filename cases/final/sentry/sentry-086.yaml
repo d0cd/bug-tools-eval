@@ -1,0 +1,33 @@
+id: sentry-086
+repo: getsentry/sentry
+base_commit: 69aff585588a4e8575c5b694de2c98fc69e0ff7d^
+head_commit: 69aff585588a4e8575c5b694de2c98fc69e0ff7d
+fix_commit: 69aff585588a4e8575c5b694de2c98fc69e0ff7d
+category: logic
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: small
+description: When all threshold max values were cleared in the widget builder, the
+  code set the entire thresholds config to null, discarding the user's preferredPolarity
+  setting. Re-entering threshold values then defaulted polarity back to 'lower is
+  better' instead of preserving the user's prior selection. The fix extracts and preserves
+  preferredPolarity before clearing the threshold values.
+expected_findings:
+- file: static/app/views/dashboards/widgetBuilder/components/thresholds.tsx
+  line: 97
+  summary: When all max values are empty, thresholds is set to null, which drops the
+    preferredPolarity field. Should preserve preferredPolarity in the thresholds object
+    even when max values are cleared.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,36 +1,33 @@
 id: grafana-044
 repo: grafana/grafana
-base_commit: ce8de8c7a1ae5569d463005aa85e9e0d46348de3
-head_commit: 6a9016465211e00754c18af735e2539445a8db6c
-fix_commit: 6a9016465211e00754c18af735e2539445a8db6c
-category: logic
-difficulty: medium
-severity: high
-language: typescript
+base_commit: 59e5f8264959a4c24f671afa7e7b9761ee91176c^
+head_commit: 59e5f8264959a4c24f671afa7e7b9761ee91176c
+fix_commit: 59e5f8264959a4c24f671afa7e7b9761ee91176c
+category: code-smell
+difficulty: easy
+severity: low
+language: unknown
 pr_size: small
-description: During the transition from internal numeric dashboard IDs to UIDs, the
-  internal ID was dropped from the dashboard model and scene serialization paths.
-  However, the analytics/usage insights system still relied on `dashboard.id` (the
-  internal numeric ID) to emit dashboard view events and query analytics, causing
-  usage insights data to stop being recorded. The fix restores the deprecated internal
-  ID field through the serialization pipeline so analytics processors can continue
-  referencing it.
+description: 'The `typesVersions` field was added to `@grafana/alerting`''s package.json
+  as a backward-compatibility shim for a downstream consumer using `moduleResolution:
+  "node"`. Now that the root cause has been fixed upstream, this workaround is unnecessary
+  and inconsistent with how other `@grafana/*` packages are defined. The revert removes
+  the dead compatibility hack.'
 expected_findings:
-- file: public/app/features/dashboard/state/analyticsProcessor.ts
-  line: 2
-  summary: "Analytics emitDashboardViewEvent requires dashboard.id (internal numeric\
-    \ ID) but this field was removed from the dashboard model \u2014 usage insights\
-    \ will silently produce no data"
-- file: public/app/features/query/state/queryAnalytics.ts
-  line: 66
-  summary: dashboardId is set from dashboard.id which is no longer populated after
-    the UID migration, causing query analytics events to lack dashboard identification
-- file: public/app/features/dashboard-scene/scene/DashboardScene.tsx
-  line: 112
-  summary: DashboardScene state no longer carries the deprecated internal id field,
-    breaking downstream analytics consumers that depend on it
+- file: packages/grafana-alerting/package.json
+  line: 20
+  summary: 'Unnecessary `typesVersions` field: this backward-compat shim is inconsistent
+    with other @grafana/* packages and the root cause (moduleResolution: "node" in
+    the consumer) has been fixed upstream — remove it'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

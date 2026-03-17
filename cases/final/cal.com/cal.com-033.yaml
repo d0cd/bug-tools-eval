@@ -1,0 +1,38 @@
+id: cal.com-033
+repo: calcom/cal.com
+base_commit: 6a532c2271a0fe91f5ede51a851ba87e54b85629^
+head_commit: 6a532c2271a0fe91f5ede51a851ba87e54b85629
+fix_commit: 6a532c2271a0fe91f5ede51a851ba87e54b85629
+category: api-misuse
+difficulty: medium
+severity: medium
+language: typescript
+pr_size: medium
+description: The `ics.createEvent()` call in `generateIcsString.ts` does not handle
+  Yup ValidationError thrown when an attendee has a phone number instead of an email.
+  Because Yup's ValidationError is not an instance of `Error`, it bypasses existing
+  catch blocks and propagates as an unhandled 500. The fix catches this specific validation
+  failure and converts it to a 400 BadRequest.
+expected_findings:
+- file: packages/emails/lib/generateIcsString.ts
+  line: 57
+  summary: 'Missing error handling around ics.createEvent(): Yup ValidationError (not
+    an Error subclass) is thrown when attendees have phone numbers instead of emails,
+    causing an unhandled 500 instead of a 400'
+  line_side: pre_fix
+- file: packages/emails/lib/generateIcsString.ts
+  line: 113
+  summary: Same missing catch for Yup ValidationError in second ics.createEvent()
+    call path — phone-number attendees cause unhandled exception
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

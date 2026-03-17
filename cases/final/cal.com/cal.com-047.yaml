@@ -1,0 +1,32 @@
+id: cal.com-047
+repo: calcom/cal.com
+base_commit: a8e27c38328e9328a4ce860d8be51d4afbd271b9^
+head_commit: a8e27c38328e9328a4ce860d8be51d4afbd271b9
+fix_commit: a8e27c38328e9328a4ce860d8be51d4afbd271b9
+category: logic
+difficulty: easy
+severity: medium
+language: unknown
+pr_size: tiny
+description: The Dialpad conferencing integration's URL validation regex used `[a-zA-Z0-9]+`
+  for the meeting room path, rejecting valid personal meeting URLs containing hyphens,
+  dots, or underscores. The fix broadens the character class to `[a-zA-Z0-9._-]+`
+  to accept all real-world Dialpad meeting room slugs.
+expected_findings:
+- file: packages/app-store/dialpad/config.json
+  line: 15
+  summary: Overly restrictive regex character class `[a-zA-Z0-9]` rejects valid Dialpad
+    meeting room slugs containing hyphens, dots, or underscores (e.g. `user-name`).
+    Should be `[a-zA-Z0-9._-]`.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

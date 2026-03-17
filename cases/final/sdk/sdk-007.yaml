@@ -1,23 +1,43 @@
 id: sdk-007
 repo: ProvableHQ/sdk
-base_commit: 667813e99e0e3d7b3ec1776dd6b2855f63d58876^
-head_commit: 667813e99e0e3d7b3ec1776dd6b2855f63d58876
-fix_commit: 667813e99e0e3d7b3ec1776dd6b2855f63d58876
-category: logic
-difficulty: easy
-severity: medium
-language: javascript
-pr_size: tiny
-description: The change-version script had a bug in its regex replacement for the
-  @provablehq/wasm package version string. The replace call used an incorrect regex
-  pattern or replacement template, causing the build:create-leo-app script to fail
-  when updating version references.
+base_commit: 0ec911fdd3614b2f7977ab79370e885c5e0f823b^
+head_commit: 0ec911fdd3614b2f7977ab79370e885c5e0f823b
+fix_commit: 0ec911fdd3614b2f7977ab79370e885c5e0f823b
+category: type
+difficulty: medium
+severity: high
+language: typescript
+pr_size: medium
+description: Standard JSON.parse() was used to parse API responses containing large
+  integers (e.g., block heights, microcredit values), causing silent precision loss
+  for values exceeding Number.MAX_SAFE_INTEGER (2^53-1). The fix introduces a custom
+  parseJSON() utility in utils.ts that parses all integers as BigInt, and replaces
+  JSON.parse() calls throughout network-client.ts and record-provider.ts.
 expected_findings:
-- file: scripts/change-version.js
-  line: 19
-  summary: "Incorrect regex or replacement string in .replace() for '@provablehq/wasm'\
-    \ version \u2014 pattern likely malformed, causing version substitution to fail\
-    \ and breaking downstream build:create-leo-app"
+- file: sdk/src/network-client.ts
+  line: 1
+  summary: Uses standard JSON.parse() for API responses containing large integers
+    (block heights, microcredits), causing silent precision loss for values exceeding
+    Number.MAX_SAFE_INTEGER
+  line_side: pre_fix
+- file: sdk/src/record-provider.ts
+  line: 202
+  summary: getLatestHeight() relies on network client response parsed with JSON.parse(),
+    which can return imprecise block height values for heights exceeding 2^53-1
+  line_side: pre_fix
+- file: sdk/src/utils.ts
+  line: 1
+  summary: Missing BigInt-aware JSON parsing utility; all integer parsing defaults
+    to JavaScript Number type which cannot safely represent large blockchain integers
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

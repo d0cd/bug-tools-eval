@@ -1,0 +1,37 @@
+id: grafana-077
+repo: grafana/grafana
+base_commit: a7c9417dfe03b8b6c0b9f34d8669f80aebc4a2d2^
+head_commit: a7c9417dfe03b8b6c0b9f34d8669f80aebc4a2d2
+fix_commit: a7c9417dfe03b8b6c0b9f34d8669f80aebc4a2d2
+category: api-misuse
+difficulty: medium
+severity: high
+language: typescript
+pr_size: medium
+description: 'PR #117275 renamed the `namespace` property to `scope` in live channel
+  address parsing, but `namespace` was part of the public plugin API. This broke plugins
+  that constructed addresses using the old `namespace` format. The fix updates `parseLiveChannelAddress`
+  to accept both `scope` and `namespace` for backward compatibility.'
+expected_findings:
+- file: packages/grafana-data/src/types/live.ts
+  line: 125
+  summary: parseLiveChannelAddress only accepts `scope` in address format but plugins
+    use `namespace`; needs backward-compatible parsing to accept both `scope` and
+    `namespace` keys
+  line_side: pre_fix
+- file: packages/grafana-data/src/types/live.ts
+  line: 81
+  summary: Address format documentation references only `scope` but external consumers
+    still use `namespace`; public API contract broken by internal rename
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

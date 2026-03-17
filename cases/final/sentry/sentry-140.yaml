@@ -1,0 +1,33 @@
+id: sentry-140
+repo: getsentry/sentry
+base_commit: afcb05172298166d2e8e698d3df229989ae5eef7^
+head_commit: afcb05172298166d2e8e698d3df229989ae5eef7
+fix_commit: afcb05172298166d2e8e698d3df229989ae5eef7
+category: api-misuse
+difficulty: easy
+severity: medium
+language: python
+pr_size: tiny
+description: The feature flag `organizations:preprod-build-distribution-pr-comments`
+  was defined without `api_expose=True`, so it was never included in the organization
+  features API response. This caused the frontend `<Feature>` component to never see
+  the flag, preventing the PR comments toggle from rendering on the settings page.
+  The fix adds the missing `api_expose=True` parameter.
+expected_findings:
+- file: src/sentry/features/temporary.py
+  line: 0
+  summary: "Feature flag registration missing `api_expose=True` \u2014 flag will exist\
+    \ server-side but never be included in the organization features API response,\
+    \ making it invisible to the frontend `<Feature>` component"
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110407
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,43 @@
+id: discourse-092
+repo: discourse/discourse
+base_commit: d1ed87b649be18e2f9b054867e11d25ffc760778^
+head_commit: d1ed87b649be18e2f9b054867e11d25ffc760778
+fix_commit: d1ed87b649be18e2f9b054867e11d25ffc760778
+category: performance
+difficulty: medium
+severity: medium
+language: javascript
+pr_size: small
+description: The category edit workflow recomputed form state from the category model
+  on every render cycle, causing unnecessary re-renders and visible UI glitches such
+  as checkbox flashing on save. The fix extracts form data computation into an `initFormData()`
+  method called once at route load, so the FormKit form receives a stable initial
+  snapshot rather than a reactive object that triggers repeated reconciliation.
+expected_findings:
+- file: frontend/discourse/admin/controllers/edit-category/tabs.js
+  line: 14
+  summary: Form data is recomputed from the category model on every render instead
+    of being captured once at initialization, causing redundant re-renders and checkbox
+    flashing.
+  line_side: pre_fix
+- file: frontend/discourse/admin/routes/edit-category/tabs.js
+  line: 16
+  summary: Route does not call controller.initFormData() on model setup, so the controller
+    never snapshots form state at load time and instead recomputes it reactively.
+  line_side: pre_fix
+- file: frontend/discourse/admin/routes/new-category/tabs.js
+  line: 50
+  summary: Same missing initFormData() call in the new-category route, meaning the
+    new-category flow also suffers from repeated form-state recomputation.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,23 +1,37 @@
 id: leo-185
 repo: ProvableHQ/leo
-base_commit: 3c00cf5b5fa608bb030774eed58be123080e60cd^
-head_commit: 3c00cf5b5fa608bb030774eed58be123080e60cd
-fix_commit: 3c00cf5b5fa608bb030774eed58be123080e60cd
-category: logic
-difficulty: easy
-severity: low
-language: leo
-pr_size: tiny
-description: The `0x` literal tests were placed in the wrong test category/namespace.
-  By changing the category to 'expression' (ParseExpression), both the Rust parser
-  and ACL2 parser of Leo correctly produce a failure for these invalid inputs, ensuring
-  consistent test behavior across parser implementations.
+base_commit: be75b14795bd0a1e4aec92e50e399fc0835a5baf^
+head_commit: be75b14795bd0a1e4aec92e50e399fc0835a5baf
+fix_commit: be75b14795bd0a1e4aec92e50e399fc0835a5baf
+category: security
+difficulty: medium
+severity: high
+language: javascript
+pr_size: large
+description: The reverted GitHub Action allowed any user to trigger a workflow that
+  modifies the README by opening an issue with a specific title pattern. The add_contributor.js
+  script parsed issue titles to extract GitHub usernames and automatically committed
+  changes to the repository, creating a vector for injection or unauthorized repository
+  modifications. The revert removes this attack surface entirely.
 expected_findings:
-- file: tests/parser/expression/literal/int_fail.leo
+- file: .github/workflows/add_contributor.yml
   line: 1
-  summary: 'Test namespace annotation is incorrect: should be ''ParseExpression''
-    instead of the previous category, so that 0x literal tests trigger failures in
-    both the Rust and ACL2 parsers'
+  summary: GitHub Action triggered by issue events allows external users to trigger
+    automated commits to the repository — potential for abuse via crafted issue titles
+  line_side: pre_fix
+- file: .github/scripts/add_contributor.js
+  line: 1
+  summary: Script parses user-controlled issue title to extract GitHub username and
+    modifies README without sufficient input validation — injection risk
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,0 +1,38 @@
+id: sentry-073
+repo: getsentry/sentry
+base_commit: 5f194bc89b7da805ba8522af288ab7a18a39190f^
+head_commit: 5f194bc89b7da805ba8522af288ab7a18a39190f
+fix_commit: 5f194bc89b7da805ba8522af288ab7a18a39190f
+category: code-smell
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: tiny
+description: "The ModelsTable component on the agent models landing page was rendered\
+  \ without an ErrorBoundary wrapper, inconsistent with the established codebase pattern\
+  \ of wrapping table consumers with <ErrorBoundary mini>. A rendering error inside\
+  \ ModelsTable\u2014such as calling .toLowerCase() on a null modelId\u2014would propagate\
+  \ and crash the entire page instead of being contained to the table section."
+expected_findings:
+- file: static/app/views/insights/agentModels/views/modelsLandingPage.tsx
+  line: 1
+  summary: ModelsTable is rendered without an <ErrorBoundary mini> wrapper, breaking
+    the pattern used by other table consumers. A rendering error will crash the entire
+    page.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110509
+reviewer_notes:
+- '[review] Makes sense, though why are the types lying about `modelId`? If it''s
+  possible for that to error at runtime, we should change the type!'
+- "[thread] > Makes sense, though why are the types lying about `modelId`? If it's\
+  \ possible for that to error at runtime, we should change the type!\r \r I did update\
+  \ the types in the PR https://github.com/getsentry/sentry/pull/110505/changes \U0001F609"
+reviewer_findings: []
+quality_flags: []

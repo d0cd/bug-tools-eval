@@ -1,23 +1,42 @@
 id: leo-126
 repo: ProvableHQ/leo
-base_commit: db963aabea713fb700b4b2ef760171ad7125c942^
-head_commit: db963aabea713fb700b4b2ef760171ad7125c942
-fix_commit: db963aabea713fb700b4b2ef760171ad7125c942
-category: logic
+base_commit: 82012cecb0951a369c6b37af314285eadde3c5f8^
+head_commit: 82012cecb0951a369c6b37af314285eadde3c5f8
+fix_commit: 82012cecb0951a369c6b37af314285eadde3c5f8
+category: api-misuse
 difficulty: medium
-severity: high
-language: unknown
-pr_size: medium
-description: A critical block of code was accidentally omitted during a test-framework
-  rewrite, causing test errors to never be emitted and test expectations to never
-  be updated. The fix restored the missing code block, which caused all the .out expectation
-  files to be regenerated with correct values.
+severity: medium
+language: rust
+pr_size: small
+description: Two utility errors (network_error, failed_to_retrieve_from_endpoint)
+  were declared as @formatted, which requires source spans for display, but these
+  errors arise in contexts without associated spans. This caused their error messages
+  to be silently dropped. The fix changes them to @backtraced and also makes the Formatted
+  Display impl print the error message even when no source file is found.
 expected_findings:
-- file: tests/expectations/compiler/compiler/address/branch.leo.out
-  line: 1
-  summary: Test expectation file contains stale/incorrect values because the test
-    framework was missing the code block responsible for emitting errors and updating
-    expectations
+- file: errors/src/errors/utils/util_errors.rs
+  line: 61
+  summary: network_error is declared @formatted but has no associated span; should
+    be @backtraced so the error message is actually displayed
+  line_side: pre_fix
+- file: errors/src/errors/utils/util_errors.rs
+  line: 138
+  summary: failed_to_retrieve_from_endpoint is declared @formatted but has no associated
+    span; should be @backtraced
+  line_side: pre_fix
+- file: errors/src/common/formatted.rs
+  line: 88
+  summary: Display impl silently drops the error message when source file lookup fails;
+    should still print the message even without a source file
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

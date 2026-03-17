@@ -1,0 +1,39 @@
+id: sentry-146
+repo: getsentry/sentry
+base_commit: b7c6f55a9f94bc93828c04f5450e4e9d227191f9^
+head_commit: b7c6f55a9f94bc93828c04f5450e4e9d227191f9
+fix_commit: b7c6f55a9f94bc93828c04f5450e4e9d227191f9
+category: code-smell
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: small
+description: Derived grouping enhancement rules were hidden from regular users behind
+  a visibility condition (likely a superuser or feature-flag check), making the settings
+  confusing since users couldn't see rules that affected their issue grouping. The
+  fix removes the visibility restriction so all users can see and understand the derived
+  grouping configuration.
+expected_findings:
+- file: static/app/data/forms/projectIssueGrouping.tsx
+  line: 101
+  summary: Form field for 'Derived Grouping Enhancements' has a visibility predicate
+    that hides it from non-superusers; this should be visible to all users since the
+    rules affect their projects.
+  line_side: pre_fix
+- file: static/app/views/settings/projectIssueGrouping/index.tsx
+  line: 55
+  summary: JsonForm section conditionally rendered or gated behind a superuser/feature
+    check, preventing regular users from seeing derived grouping rules that apply
+    to their project.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

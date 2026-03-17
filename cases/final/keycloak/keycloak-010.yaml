@@ -1,28 +1,40 @@
 id: keycloak-010
 repo: keycloak/keycloak
-base_commit: 9d0bee9c59de6978f42e7e98f83ac78c35a6ca45^
-head_commit: 9d0bee9c59de6978f42e7e98f83ac78c35a6ca45
-fix_commit: 9d0bee9c59de6978f42e7e98f83ac78c35a6ca45
-category: api
-difficulty: easy
+base_commit: 17ba0017dca323e2d9e3ffe3bbc0c1108892810e^
+head_commit: 17ba0017dca323e2d9e3ffe3bbc0c1108892810e
+fix_commit: 17ba0017dca323e2d9e3ffe3bbc0c1108892810e
+category: api-misuse
+difficulty: medium
 severity: medium
-language: typescript
+language: java
 pr_size: small
-description: The Keycloak admin client's HTTP agent did not handle `FormData` payloads
-  correctly. When a `FormData` body was passed, it was likely JSON-serialized and
-  sent with an incorrect `Content-Type` header, causing multipart/form-data requests
-  (e.g., key uploads) to fail. The fix adds an `instanceof FormData` check to skip
-  JSON serialization and allow the runtime to set the proper content type.
+description: Environment properties in Keycloak's Quarkus configuration layer were
+  not recognized as user-modifiable. The Configuration class explicitly skipped validation
+  of env-sourced properties under the assumption users wouldn't specify them, and
+  KeycloakPropertiesConfigSource did not properly treat EnvConfigSource entries as
+  user-provided configuration. This caused downstream issues where env-based overrides
+  were silently ignored or not validated.
 expected_findings:
-- file: js/libs/keycloak-admin-client/src/resources/agent.ts
-  line: 209
-  summary: 'Missing handling for FormData payloads: the request agent unconditionally
-    serializes payloads as JSON, which corrupts FormData bodies and sets the wrong
-    Content-Type header.'
-- file: js/libs/keycloak-admin-client/src/resources/clients.ts
-  line: 979
-  summary: No uploadKey method exists to support FormData-based key upload requests,
-    meaning clients cannot upload keys via the admin API.
+- file: quarkus/runtime/src/main/java/org/keycloak/quarkus/runtime/configuration/Configuration.java
+  line: 51
+  summary: Environment-sourced properties are excluded from user-modifiable validation
+    with an incorrect assumption that users won't specify them via env vars. Env vars
+    are a standard user configuration mechanism and should be treated as user-modifiable.
+  line_side: pre_fix
+- file: quarkus/runtime/src/main/java/org/keycloak/quarkus/runtime/configuration/KeycloakPropertiesConfigSource.java
+  line: 31
+  summary: EnvConfigSource handling does not mark properties from environment variables
+    as user-modifiable, causing them to be treated as internal/system properties rather
+    than user-supplied configuration.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

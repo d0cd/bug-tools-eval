@@ -1,23 +1,39 @@
 id: snarkOS-151
 repo: ProvableHQ/snarkOS
-base_commit: 768a570538d12cf5a1e6211bbf4a7b4e393434fb^
-head_commit: 768a570538d12cf5a1e6211bbf4a7b4e393434fb
-fix_commit: 768a570538d12cf5a1e6211bbf4a7b4e393434fb
+base_commit: c683c11c3ffa58daa05acf8fbf4360d3ab9ad625^
+head_commit: c683c11c3ffa58daa05acf8fbf4360d3ab9ad625
+fix_commit: c683c11c3ffa58daa05acf8fbf4360d3ab9ad625
 category: logic
-difficulty: hard
-severity: medium
+difficulty: medium
+severity: high
 language: rust
-pr_size: xl
-description: Large refactoring PR that migrates modules from snarkVM, modularizes
-  node logic for different node types, and introduces prover logic. No diff is available
-  to identify a specific bug fix, and the PR description focuses on structural changes
-  rather than a bug fix. The confidence signals (keyword:fix) may be incidental rather
-  than indicative of a targeted bug fix.
+pr_size: tiny
+description: In `fetch_missing_certificates`, the function returns early with no results
+  when all requested certificate IDs already exist in the `unprocessed_certificate`
+  cache, ignoring the cached certificates entirely. This causes the validator to stall
+  and never finish processing when all missing certificates arrive via other channels
+  (e.g., `BatchCertificate` messages from peers) before the fetch completes.
 expected_findings:
-- file: cli/src/commands/start.rs
-  line: 1
-  summary: "Unable to identify specific bug location \u2014 PR is an XL refactoring/migration\
-    \ with no diff available; likely mislabeled as bug-fix"
+- file: node/bft/src/primary.rs
+  line: 1697
+  summary: Early return when no certificates need fetching over the network discards
+    certificates already present in the unprocessed_certificate cache. Should return
+    the cached certificates instead of an empty result.
+  line_side: pre_fix
+- file: node/bft/src/sync/mod.rs
+  line: 628
+  summary: 'Similar early-return logic in sync path: when all certificates are already
+    cached, the function should still return the cached certificates rather than terminating
+    with no results.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

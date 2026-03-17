@@ -3,30 +3,41 @@ repo: ProvableHQ/snarkVM
 base_commit: 5bb50a845c774f10247657947b9f1c9ec7f21d81^
 head_commit: 5bb50a845c774f10247657947b9f1c9ec7f21d81
 fix_commit: 5bb50a845c774f10247657947b9f1c9ec7f21d81
-category: logic
+category: security
 difficulty: hard
 severity: critical
 language: rust
 pr_size: large
-description: 'Block subdag verification was missing two critical checks: (1) ensuring
-  that the next block has consecutive rounds from the latest round in the ledger,
-  and (2) ensuring that the subdag is ''atomic'' and not a combination of subdags
-  from multiple blocks (via an is_linked check). Without these checks, block forging
-  attacks were possible. The fix adds round sequentiality verification in verify.rs
-  and subdag atomicity checks in check_next_block.rs.'
+description: 'The block subdag verification was missing two critical checks: ensuring
+  consecutive rounds from the latest ledger round, and ensuring the subdag is atomic
+  (not a combination of multiple blocks'' subdags). Without these checks, block forging
+  attacks were possible by submitting crafted subdags that skip rounds or combine
+  subdags from separate blocks.'
 expected_findings:
 - file: ledger/block/src/verify.rs
   line: 173
-  summary: 'Missing validation: subdag rounds are not checked for sequential ordering,
-    allowing blocks with non-consecutive rounds to pass verification'
+  summary: 'Missing check: subdag rounds must be sequential/consecutive from the latest
+    round in the ledger. Without this, a malicious subdag could skip rounds.'
+  line_side: pre_fix
 - file: ledger/src/check_next_block.rs
   line: 117
-  summary: 'Missing validation: no check that the block subdag is atomic (is_linked),
-    allowing a combined subdag from multiple blocks to be accepted as valid'
+  summary: 'Missing check: subdag must be ''linked'' (atomic), ensuring it is not
+    a combination of subdags from multiple blocks. Absence allows block forging via
+    combined subdags.'
+  line_side: pre_fix
 - file: ledger/src/check_next_block.rs
   line: 136
-  summary: 'Missing validation: no check ensuring consecutive rounds between the latest
-    ledger round and the next block''s subdag rounds'
+  summary: Missing is_linked verification on the subdag in the alternative check path,
+    same vulnerability as above.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

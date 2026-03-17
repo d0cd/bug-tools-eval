@@ -1,33 +1,30 @@
 id: sentry-046
 repo: getsentry/sentry
-base_commit: 9b0d843d1d4e068ade08c589ff74599ddc348f7d^
-head_commit: 9b0d843d1d4e068ade08c589ff74599ddc348f7d
-fix_commit: 9b0d843d1d4e068ade08c589ff74599ddc348f7d
-category: logic
+base_commit: 3940fa1e4b1d6c2f99a929b254362ad72247ef2b^
+head_commit: 3940fa1e4b1d6c2f99a929b254362ad72247ef2b
+fix_commit: 3940fa1e4b1d6c2f99a929b254362ad72247ef2b
+category: style
 difficulty: easy
-severity: medium
-language: typescript
-pr_size: small
-description: Categorical bar chart widgets in the Widget Viewer modal were incorrectly
-  treated as time series charts (LINE, AREA, BAR), receiving HALF_TABLE_ITEM_LIMIT
-  (10 rows) instead of the full table limit. The fix adds CATEGORICAL_BAR to the FULL_TABLE_ITEM_LIMIT
-  condition in all three query branches and passes widget.limit as tableItemLimit
-  to the chart container.
+severity: low
+language: python
+pr_size: tiny
+description: "This PR is purely a code formatting change \u2014 running `ruff format`\
+  \ on a single file to fix line wrapping or whitespace. There is no functional code\
+  \ change, bug fix, or behavioral modification."
 expected_findings:
-- file: static/app/components/modals/widgetViewerModal.tsx
-  line: 526
-  summary: 'Missing CATEGORICAL_BAR in DisplayType condition: categorical bar charts
-    incorrectly fall through to HALF_TABLE_ITEM_LIMIT instead of FULL_TABLE_ITEM_LIMIT'
-- file: static/app/components/modals/widgetViewerModal.tsx
-  line: 544
-  summary: "Missing CATEGORICAL_BAR in DisplayType condition for Release query branch\
-    \ \u2014 same half-limit bug"
-- file: static/app/components/modals/widgetViewerModal.tsx
-  line: 563
-  summary: "Missing CATEGORICAL_BAR in DisplayType condition for Discover query branch\
-    \ \u2014 same half-limit bug"
+- file: src/sentry/autopilot/tasks/missing_sdk_integration.py
+  line: 1
+  summary: 'Formatting-only change: line wrapping or whitespace does not match ruff
+    format rules'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 109618
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

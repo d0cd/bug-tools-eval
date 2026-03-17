@@ -1,31 +1,33 @@
 id: snarkOS-086
 repo: ProvableHQ/snarkOS
-base_commit: 38d5ad594bcef02312b1347f408811581c22b782^
-head_commit: 38d5ad594bcef02312b1347f408811581c22b782
-fix_commit: 38d5ad594bcef02312b1347f408811581c22b782
-category: api
-difficulty: medium
-severity: medium
+base_commit: 768a570538d12cf5a1e6211bbf4a7b4e393434fb^
+head_commit: 768a570538d12cf5a1e6211bbf4a7b4e393434fb
+fix_commit: 768a570538d12cf5a1e6211bbf4a7b4e393434fb
+category: incomplete
+difficulty: hard
+severity: low
 language: rust
-pr_size: large
-description: Metrics reporting for mpsc channels was unreliable because bare tokio::mpsc
-  channels were used throughout the codebase without instrumentation. The fix introduces
-  a wrapped_mpsc module that wraps tokio mpsc channels to automatically track and
-  report metrics (e.g., queue depth, send/receive counts), and replaces all bare channel
-  usage across consensus, network, and storage crates with the instrumented wrapper.
+pr_size: xl
+description: This is a large structural refactoring PR that migrates modules from
+  snarkVM, modularizes node logic by node type, and introduces prover logic. With
+  no diff available, the actual code changes cannot be inspected for correctness.
+  The PR appears to be an architectural reorganization rather than a targeted bug
+  fix.
 expected_findings:
-- file: network/src/node.rs
-  line: 34
-  summary: Bare tokio::mpsc channel used without metrics instrumentation; should use
-    wrapped_mpsc for reliable metrics reporting
-- file: consensus/src/consensus/mod.rs
-  line: 33
-  summary: Bare tokio::mpsc channel used without metrics instrumentation; channel
-    operations are not tracked for metrics
-- file: storage/src/storage/async_adapter.rs
-  line: 212
-  summary: Bare tokio::mpsc channel used without metrics instrumentation; should use
-    wrapped_mpsc to track channel queue depth and throughput
+- file: cli/src/commands/start.rs
+  line: 1
+  summary: 'Large-scale module migration: verify that all migrated modules retain
+    their original public API surface and that no re-exports were dropped during the
+    move from snarkVM'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 1992
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

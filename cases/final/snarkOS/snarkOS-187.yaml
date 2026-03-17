@@ -1,29 +1,45 @@
 id: snarkOS-187
 repo: ProvableHQ/snarkOS
-base_commit: 9e20cc141f64553f35ffdc959fb42217b489682f^
-head_commit: 9e20cc141f64553f35ffdc959fb42217b489682f
-fix_commit: 9e20cc141f64553f35ffdc959fb42217b489682f
-category: logic
-difficulty: medium
-severity: high
+base_commit: fea092cffe24661b5d4b183f22c9d7886b516d6d^
+head_commit: fea092cffe24661b5d4b183f22c9d7886b516d6d
+fix_commit: fea092cffe24661b5d4b183f22c9d7886b516d6d
+category: concurrency
+difficulty: hard
+severity: critical
 language: rust
 pr_size: small
-description: The `check_block_locators` function initialized `previous_block_height`
-  to `u32::MAX`, causing block locator validation to incorrectly accept or reject
-  locators due to a flawed initial height comparison. The fix corrects this initialization
-  and also introduces a maximum connection limit for sync nodes to prevent resource
-  exhaustion.
+description: 'The client sync mechanism suffered from two stall conditions: (1) an
+  RwLock deadlock where a write lock on `process` was held while a nested code path
+  attempted to acquire a read lock on the same RwLock, and (2) block request starvation
+  where sync requests could not make progress during block response processing. The
+  fix restructures lock acquisition order and adds yielding/scoping to prevent deadlock
+  and ensure block requests are not starved.'
 expected_findings:
-- file: ledger/src/state/ledger.rs
-  line: 509
-  summary: 'Incorrect initialization: `previous_block_height` is set to `u32::MAX`,
-    which causes the first block height comparison in the locator check loop to produce
-    wrong results. Should be initialized to the actual starting block height or a
-    sentinel that correctly handles the first iteration.'
-- file: src/network/peers.rs
-  line: 168
-  summary: "Missing limit on the number of connected sync nodes \u2014 no cap is enforced,\
-    \ allowing unbounded sync node connections which can degrade performance and stability."
+- file: node/sync/src/block_sync.rs
+  line: 233
+  summary: 'RwLock deadlock: write lock on `process` is held while a nested call path
+    attempts to acquire a read lock on the same RwLock, causing deadlock during block
+    response processing.'
+  line_side: pre_fix
+- file: node/sync/src/block_sync.rs
+  line: 612
+  summary: 'Block request starvation: sync block requests can stall indefinitely because
+    the response processing path holds resources without yielding, preventing new
+    block requests from being issued.'
+  line_side: pre_fix
+- file: node/sync/src/block_sync.rs
+  line: 692
+  summary: Missing synchronization or scoping around lock acquisition that contributes
+    to the deadlock scenario when block response processing takes significant time.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

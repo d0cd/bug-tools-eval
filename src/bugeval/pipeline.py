@@ -62,9 +62,13 @@ def _run_normalize(run_dir: Path, config_path: Path, context_level: str, dry_run
         click.echo(f"Normalized {success}/{len(raw_dirs)} results → {run_dir}/")
 
 
-def _run_judge(run_dir: Path, cases_dir: Path, dry_run: bool) -> None:
+def _run_judge(
+    run_dir: Path, cases_dir: Path, dry_run: bool, via_cli: bool = False, max_concurrent: int = 1
+) -> None:
     """Judge all normalized results in run_dir."""
-    count = judge_normalized_results(run_dir, cases_dir, dry_run)
+    count = judge_normalized_results(
+        run_dir, cases_dir, dry_run, via_cli=via_cli, max_concurrent=max_concurrent
+    )
     click.echo(f"Judged {count} result(s).")
 
 
@@ -104,6 +108,19 @@ def _run_analyze(run_dir: Path, cases_dir: Path, no_charts: bool) -> None:
 )
 @click.option("--no-charts", is_flag=True, default=False, help="Skip chart generation")
 @click.option("--dry-run", is_flag=True, default=False, help="Skip writes and LLM calls")
+@click.option(
+    "--via-cli",
+    is_flag=True,
+    default=False,
+    help="Use claude CLI subprocess for judging instead of Anthropic API",
+)
+@click.option(
+    "--max-concurrent",
+    default=1,
+    show_default=True,
+    type=int,
+    help="Number of cases to judge in parallel",
+)
 def pipeline(
     run_dir: str,
     config_path: str,
@@ -111,13 +128,15 @@ def pipeline(
     context_level: str,
     no_charts: bool,
     dry_run: bool,
+    via_cli: bool,
+    max_concurrent: int,
 ) -> None:
     """Normalize → judge → analyze a completed eval run in one shot."""
     resolved = Path(run_dir)
     click.echo("=== Stage 1: normalize ===")
     _run_normalize(resolved, Path(config_path), context_level, dry_run)
     click.echo("=== Stage 2: judge ===")
-    _run_judge(resolved, Path(cases_dir), dry_run)
+    _run_judge(resolved, Path(cases_dir), dry_run, via_cli=via_cli, max_concurrent=max_concurrent)
     click.echo("=== Stage 3: analyze ===")
     _run_analyze(resolved, Path(cases_dir), no_charts)
     click.echo("Pipeline complete.")

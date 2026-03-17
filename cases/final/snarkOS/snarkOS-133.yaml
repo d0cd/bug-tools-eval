@@ -1,23 +1,32 @@
 id: snarkOS-133
 repo: ProvableHQ/snarkOS
-base_commit: 1999e161235825f192009e7a0d4fd8b5a58574e4^
-head_commit: 1999e161235825f192009e7a0d4fd8b5a58574e4
-fix_commit: 1999e161235825f192009e7a0d4fd8b5a58574e4
+base_commit: b15ae1fd7c7afdc1bbc2ae561116f14ce4aacd50^
+head_commit: b15ae1fd7c7afdc1bbc2ae561116f14ce4aacd50
+fix_commit: b15ae1fd7c7afdc1bbc2ae561116f14ce4aacd50
 category: logic
-difficulty: hard
-severity: medium
+difficulty: medium
+severity: high
 language: rust
-pr_size: xl
-description: Large refactoring PR that migrates modules from snarkVM and modularizes
-  node logic. No diff is available and the PR description focuses on restructuring
-  rather than a specific bug fix, making it impossible to identify a concrete bug.
-  The auto-extracted findings are all generic file-level changes with no actionable
-  bug patterns.
+pr_size: small
+description: Provers that lost their connection to an operator never attempted to
+  reconnect, causing them to become permanently disconnected. The fix adds periodic
+  reconnection logic in the network server so that a prover will automatically attempt
+  to re-establish its connection to the operator at regular intervals.
 expected_findings:
-- file: cli/src/commands/start.rs
-  line: 1
-  summary: "Unable to identify specific bug location \u2014 PR is a large restructuring/migration\
-    \ with no available diff and no clear bug-fix description"
+- file: src/network/server.rs
+  line: 105
+  summary: 'Missing periodic reconnection logic: after obtaining `peers_router`, the
+    server does not schedule any task to detect a dropped operator connection and
+    attempt reconnection, causing provers to silently stay disconnected.'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

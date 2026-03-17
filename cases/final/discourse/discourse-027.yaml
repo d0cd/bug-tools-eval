@@ -1,32 +1,41 @@
 id: discourse-027
 repo: discourse/discourse
-base_commit: 7e566786db7a8dca898523453e89a21d4eadc8d5^
-head_commit: 7e566786db7a8dca898523453e89a21d4eadc8d5
-fix_commit: 7e566786db7a8dca898523453e89a21d4eadc8d5
+base_commit: 255c1dfaf32faa6045c2518cb33e438582aec125^
+head_commit: 255c1dfaf32faa6045c2518cb33e438582aec125
+fix_commit: 255c1dfaf32faa6045c2518cb33e438582aec125
 category: logic
-difficulty: easy
-severity: low
+difficulty: medium
+severity: medium
 language: ruby
-pr_size: tiny
-description: Test specs used `freeze_time 31.days.ago` which produces inconsistent
-  dates depending on the current month (not all months have 31 days), causing flaky
-  test failures around month boundaries. The fix replaces the relative 31-day offset
-  with a stable date expression that avoids month-length ambiguity.
+pr_size: medium
+description: The ProseMirror quote node spec did not store a displayName attribute,
+  so the markdown→ProseMirror→markdown round-trip discarded the user's display name
+  and fell back to just the username. Additionally, when the display name contained
+  no commas the split result was left as an array instead of being joined into a string.
 expected_findings:
-- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
-  line: 440
-  summary: 'Flaky date math: `31.days.ago` produces unreliable dates in months with
-    fewer than 31 days, causing intermittent test failures'
-- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
-  line: 457
-  summary: 'Flaky date math: `31.days.ago` produces unreliable dates in months with
-    fewer than 31 days, causing intermittent test failures'
-- file: plugins/discourse-ai/spec/lib/completions/prompt_messages_builder_spec.rb
-  line: 533
-  summary: 'Flaky date math: `31.days.ago` produces unreliable dates in months with
-    fewer than 31 days, causing intermittent test failures'
+- file: frontend/discourse/app/static/prosemirror/extensions/quote.js
+  line: 14
+  summary: Quote node spec missing displayName attribute — the ProseMirror node only
+    tracks username, so display name is lost on deserialization
+  line_side: pre_fix
+- file: frontend/discourse-markdown-it/src/features/quotes.js
+  line: 42
+  summary: Display name extracted via split but never emitted as a data-display-name
+    attribute on the aside token, so ProseMirror parser cannot pick it up
+  line_side: pre_fix
+- file: frontend/discourse-markdown-it/src/features/quotes.js
+  line: 91
+  summary: displayName left as an array (result of split) instead of joined into a
+    string when the name contains no commas, causing type mismatch downstream
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

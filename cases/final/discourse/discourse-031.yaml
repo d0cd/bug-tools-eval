@@ -1,30 +1,43 @@
 id: discourse-031
 repo: discourse/discourse
-base_commit: 313108a209d9969bf6d5f83c03cb94438d0a9598^
-head_commit: 313108a209d9969bf6d5f83c03cb94438d0a9598
-fix_commit: 313108a209d9969bf6d5f83c03cb94438d0a9598
-category: logic
+base_commit: 2d4b6ca946131ea1a5302f27ba50df38f8c96792^
+head_commit: 2d4b6ca946131ea1a5302f27ba50df38f8c96792
+fix_commit: 2d4b6ca946131ea1a5302f27ba50df38f8c96792
+category: security
 difficulty: medium
-severity: medium
-language: javascript
+severity: high
+language: ruby
 pr_size: medium
-description: 'The search page''s autocomplete menus (triggered by @ or #) were not
-  being tracked or destroyed during page navigation. When the user triggered autocomplete
-  and then navigated away (e.g., browser back button), the menu persisted on screen.
-  The fix stores references to autocomplete modifier instances so they can be properly
-  cleaned up in the willDestroyElement lifecycle hook.'
+description: The `accepted` and `not_accepted` policy endpoints lacked proper visibility
+  restrictions for private policies. Any logged-in user could enumerate which users
+  accepted or declined a private policy, since the inline checks only verified `can_see_groups_members?`
+  but never checked the `private?` flag on the policy itself. The fix extracts a `before_action`
+  that denies non-admin access to private policy user lists.
 expected_findings:
-- file: frontend/discourse/app/components/search-text-field.js
-  line: 20
-  summary: "Autocomplete instances created by applySearchAutocomplete are not stored\
-    \ or tracked, so they cannot be destroyed during element teardown \u2014 causes\
-    \ stale autocomplete menus to persist after navigation"
-- file: frontend/discourse/app/lib/search.js
-  line: 244
-  summary: applySearchAutocomplete does not return modifier references needed for
-    cleanup, preventing the caller from destroying autocomplete menus on navigation
+- file: plugins/discourse-policy/app/controllers/discourse_policy/policy_controller.rb
+  line: 7
+  summary: Missing before_action for visibility on `accepted` and `not_accepted` endpoints
+    — no check prevents non-admins from viewing private policy user lists
+  line_side: pre_fix
+- file: plugins/discourse-policy/app/controllers/discourse_policy/policy_controller.rb
+  line: 32
+  summary: Inline permission check in `accepted` only verifies `can_see_groups_members?`
+    but does not check `post_policy.private?`, allowing any user to see private policy
+    acceptances
+  line_side: pre_fix
+- file: plugins/discourse-policy/app/controllers/discourse_policy/policy_controller.rb
+  line: 49
+  summary: Duplicated inline permission check in `not_accepted` has the same missing
+    `private?` guard, leaking private policy non-acceptance lists
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

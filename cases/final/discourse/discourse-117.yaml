@@ -1,0 +1,37 @@
+id: discourse-117
+repo: discourse/discourse
+base_commit: f733e7217667d8afc0c536f7655b8fbda647b2c3^
+head_commit: f733e7217667d8afc0c536f7655b8fbda647b2c3
+fix_commit: f733e7217667d8afc0c536f7655b8fbda647b2c3
+category: style
+difficulty: easy
+severity: medium
+language: unknown
+pr_size: small
+description: WCAG accessibility stylesheet used hardcoded or incorrect CSS variable
+  values for button icon colors, causing buttons to not visually change color on hover/active/focus
+  states. The fix switches to proper Discourse theme variables that respond to button
+  interaction states, restoring correct WCAG-compliant color feedback.
+expected_findings:
+- file: app/assets/stylesheets/wcag.scss
+  line: 12
+  summary: Button icon color variable uses var(--primary-medium) which does not change
+    across button states; should use a state-aware variable to meet WCAG contrast
+    requirements on hover/active/focus
+  line_side: pre_fix
+- file: app/assets/stylesheets/wcag.scss
+  line: 192
+  summary: Duplicate hardcoded button icon color declaration that also fails to update
+    on state changes; same fix needed as line 12
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

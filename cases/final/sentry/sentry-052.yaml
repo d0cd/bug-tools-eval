@@ -1,24 +1,39 @@
 id: sentry-052
 repo: getsentry/sentry
-base_commit: 08312dfb18706015548b47d8c40d19865ee0eaf2^
-head_commit: 08312dfb18706015548b47d8c40d19865ee0eaf2
-fix_commit: 08312dfb18706015548b47d8c40d19865ee0eaf2
-category: logic
+base_commit: 3dfc1604372155fd118b79ff2c474a6e6ea3e865^
+head_commit: 3dfc1604372155fd118b79ff2c474a6e6ea3e865
+fix_commit: 3dfc1604372155fd118b79ff2c474a6e6ea3e865
+category: incomplete
 difficulty: easy
-severity: medium
-language: typescript
-pr_size: tiny
-description: The LinkButton component had a CSS box-shadow override that inadvertently
-  suppressed the browser's focus ring on transparent-variant link buttons, breaking
-  keyboard navigation accessibility. The fix removes the unnecessary box-shadow override
-  (4 lines deleted), restoring the default focus ring behavior.
+severity: low
+language: python
+pr_size: medium
+description: This PR propagates a new `viewer_context` parameter to most Seer API
+  call sites in the autofix module. The change is purely mechanical wiring with no
+  behavior change since the parameter defaults to None. The PR explicitly skips `_fetch_user_preference`
+  because it lacks org context, which could be considered an incomplete propagation
+  if that call site later needs viewer context.
 expected_findings:
-- file: static/app/components/core/button/linkButton.tsx
-  line: 105
-  summary: Unnecessary box-shadow override on LinkButton suppresses focus ring for
-    transparent variant, breaking keyboard accessibility
+- file: src/sentry/seer/autofix/autofix.py
+  line: 37
+  summary: 'Missing viewer_context propagation: verify all Seer API wrapper calls
+    in this file now receive the viewer_context parameter, and that the user_id extraction
+    correctly handles anonymous/system-triggered invocations'
+  line_side: pre_fix
+- file: src/sentry/seer/autofix/utils.py
+  line: 461
+  summary: 'Incomplete propagation: `_fetch_user_preference` is explicitly skipped
+    because it only has project_id. If this function calls a Seer API endpoint, it
+    may need org_id threaded through from the caller to provide viewer_context consistently'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
 verified: false
-verified_by: null
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,26 +1,32 @@
 id: snarkVM-017
 repo: ProvableHQ/snarkVM
-base_commit: 0dc2380f9723c465677952ed6f2d1f3b128630a5^
-head_commit: 0dc2380f9723c465677952ed6f2d1f3b128630a5
-fix_commit: 0dc2380f9723c465677952ed6f2d1f3b128630a5
-category: logic
+base_commit: 1198c62e67ac0e22ab887e009496c977ef4cc416^
+head_commit: 1198c62e67ac0e22ab887e009496c977ef4cc416
+fix_commit: 1198c62e67ac0e22ab887e009496c977ef4cc416
+category: style
 difficulty: easy
-severity: medium
+severity: low
 language: rust
-pr_size: small
-description: The `current_block_height` method panics when called on an empty block
-  store. The code unconditionally computes `u32::try_from(self.tree.read().number_of_leaves()).unwrap().saturating_sub(1)`
-  without first checking whether the store contains any blocks. The fix adds a guard
-  to handle the empty block store case gracefully instead of panicking.
+pr_size: tiny
+description: 'A doc comment on the batch header struct was outdated: it still mentioned
+  ''last election certificate ID'' as one of the fields, but that field had been removed
+  in a prior change. The fix updates the comment to accurately reflect the current
+  struct contents.'
 expected_findings:
-- file: ledger/store/src/block/mod.rs
-  line: 1197
-  summary: 'Missing empty-store guard: `current_block_height` will panic when `number_of_leaves()`
-    is 0. Should check for empty block store before computing height.'
-- file: ledger/store/src/block/mod.rs
-  line: 1384
-  summary: Same missing empty-store guard in the second implementation of `current_block_height`.
-    Needs a zero-leaves check before the height computation.
+- file: ledger/narwhal/batch-header/src/lib.rs
+  line: 37
+  summary: 'Outdated doc comment: mentions ''previous batch certificate IDs'' (or
+    election certificate ID) which is no longer a field in the batch header struct.
+    Comment should be updated to match actual fields.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

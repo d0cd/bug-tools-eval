@@ -1,26 +1,69 @@
 id: sentry-050
 repo: getsentry/sentry
-base_commit: 948dfedb37bd20bda491a233568f5e711899368a^
-head_commit: 948dfedb37bd20bda491a233568f5e711899368a
-fix_commit: 948dfedb37bd20bda491a233568f5e711899368a
-category: api
-difficulty: easy
-severity: medium
-language: python
-pr_size: small
-description: The artifact image endpoint uses a blanket `except Exception` handler
-  that returns 500 and logs to Sentry even when the objectstore image simply doesn't
-  exist (a normal condition). The fix adds a specific `except RequestError` clause
-  that returns 404 for missing images, reducing error monitoring noise and returning
-  the correct HTTP status.
+base_commit: 3d7c9ed0ec223191c608eccc7ba3e604b21dc238^
+head_commit: 3d7c9ed0ec223191c608eccc7ba3e604b21dc238
+fix_commit: 3d7c9ed0ec223191c608eccc7ba3e604b21dc238
+category: api-misuse
+difficulty: medium
+severity: high
+language: typescript
+pr_size: medium
+description: The `parseJsonWithFix` utility calls `JSON.parse` on AI message content
+  that may contain PII-filtered placeholder strings like `[Filtered]` or malformed
+  JSON escape sequences (e.g., `\p`), causing unhandled `SyntaxError` exceptions that
+  propagate to the rendering layer and crash the UI. The fix adds early detection
+  of filtered content and wraps the `fixJson` fallback path in try/catch to gracefully
+  handle unparseable input.
 expected_findings:
-- file: src/sentry/preprod/api/endpoints/project_preprod_artifact_image.py
-  line: 43
-  summary: 'Missing specific exception handling for objectstore RequestError: a 404
-    from objectstore is an expected condition but is caught by the blanket `except
-    Exception`, causing a 500 response and spurious Sentry alerts'
+- file: static/app/views/performance/newTraceDetails/traceDrawer/details/utils.tsx
+  line: 274
+  summary: '`parseJsonWithFix` calls `JSON.parse` without catching `SyntaxError` for
+    PII-filtered content like `[Filtered]` or strings with invalid escape sequences
+    (`\p`), causing unhandled exceptions that crash the UI'
+  line_side: pre_fix
+- file: static/app/views/performance/newTraceDetails/traceDrawer/details/utils.tsx
+  line: 281
+  summary: "The `fixJson` fallback path is not wrapped in try/catch \u2014 if `fixJson`\
+    \ itself produces invalid JSON or cannot recover the input, the subsequent `JSON.parse`\
+    \ will throw an uncaught `SyntaxError`"
+  line_side: pre_fix
+- file: static/app/views/performance/newTraceDetails/traceDrawer/details/utils.tsx
+  line: 291
+  summary: When parse fails and returns null, downstream callers like `transformPartsMessages`
+    do not guard against null, causing `TypeError` when accessing properties on the
+    parse result
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
 verified: false
 verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 109645
+reviewer_notes: []
+reviewer_findings:
+- file: static/app/views/performance/newTraceDetails/traceDrawer/details/utils.tsx
+  line: 274
+  summary: '### Early filtered check rejects valid JSON containing "[Filtered]" text  **Medium
+    Severity**  <!-- DESCRIPTION START --'
+  line_side: pre_fix
+- file: static/app/views/performance/newTraceDetails/traceDrawer/details/utils.tsx
+  line: 274
+  summary: Addressed
+  line_side: pre_fix
+- file: static/app/views/performance/newTraceDetails/traceDrawer/details/utils.tsx
+  line: 291
+  summary: '### Null parsed value causes TypeError in legacy transform callers  **Medium
+    Severity**  <!-- DESCRIPTION START --> `par'
+  line_side: pre_fix
+- file: static/app/views/performance/newTraceDetails/traceDrawer/details/utils.tsx
+  line: 291
+  summary: Addressed
+  line_side: pre_fix
+- file: static/app/views/performance/newTraceDetails/traceDrawer/details/utils.tsx
+  line: 281
+  summary: '### Filtered check skips recoverable JSON repair  **Medium Severity**  <!--
+    DESCRIPTION START --> `parseJsonWithFix` now'
+  line_side: pre_fix
+quality_flags: []

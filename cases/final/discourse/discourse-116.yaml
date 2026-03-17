@@ -1,0 +1,33 @@
+id: discourse-116
+repo: discourse/discourse
+base_commit: f5a4e085553e98813efa7694e05fb6b49e3f4fb3^
+head_commit: f5a4e085553e98813efa7694e05fb6b49e3f4fb3
+fix_commit: f5a4e085553e98813efa7694e05fb6b49e3f4fb3
+category: api-misuse
+difficulty: medium
+severity: medium
+language: ruby
+pr_size: small
+description: The TagGroupsForm component used @cached @dependentKeyCompat for its
+  buffered getter, which does not invalidate when classic component attrs change.
+  When navigating between tag groups, the BufferedProxy kept wrapping the stale model.
+  The fix switches to @computed("model") so the proxy is properly recreated on model
+  change, consistent with other computed properties in the same component.
+expected_findings:
+- file: app/assets/javascripts/discourse/app/components/tag-groups-form.gjs
+  line: 1
+  summary: '@cached @dependentKeyCompat on the buffered getter does not track classic
+    component attr changes; should use @computed("model") to ensure the BufferedProxy
+    is recreated when the model attr changes'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 38372
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

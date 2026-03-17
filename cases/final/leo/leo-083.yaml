@@ -1,24 +1,45 @@
 id: leo-083
 repo: ProvableHQ/leo
-base_commit: 585fc226e0a275531c98c44d83cc32ade202c66c^
-head_commit: 585fc226e0a275531c98c44d83cc32ade202c66c
-fix_commit: 585fc226e0a275531c98c44d83cc32ade202c66c
+base_commit: 5533f85d310150d158588414b738353a400017ca^
+head_commit: 5533f85d310150d158588414b738353a400017ca
+fix_commit: 5533f85d310150d158588414b738353a400017ca
 category: logic
 difficulty: medium
 severity: high
-language: rust
-pr_size: small
-description: When running `leo devnet` on a machine with an already-running tmux server,
-  the CONSENSUS_VERSION_HEIGHTS environment variable was inherited from the existing
-  server's environment instead of the current shell. The fix modifies the tmux command
-  arguments construction to explicitly set or pass the environment variable so the
-  devnet session uses the correct consensus version heights.
+language: leo
+pr_size: medium
+description: Multi-dimensional array tuple syntax dimensions were processed in the
+  wrong order. For a type like `[bool; (2, 3)]`, the compiler accepted the nested
+  literal `[[true; 2]; 3]` (incorrect) and rejected `[[true; 3]; 2]` (correct), because
+  dimension indices were consumed from the wrong end when validating nested array
+  initializers against tuple-style array types.
 expected_findings:
-- file: leo/cli/commands/devnet/mod.rs
-  line: 344
-  summary: Tmux command args do not explicitly set CONSENSUS_VERSION_HEIGHTS; existing
-    tmux server will use its own stale environment variables instead of the caller's
-    environment
+- file: compiler/src/expression/array/array.rs
+  line: 46
+  summary: dimensions.first() consumes dimensions in wrong order for nested array
+    initializers — outer dimension of tuple type (2,3) should map to outermost nesting
+    level, but first() grabs the innermost
+  line_side: pre_fix
+- file: compiler/src/expression/array/array.rs
+  line: 69
+  summary: 'Same reversed-dimension bug in the second match arm: dimensions.first()
+    picks the wrong dimension when validating array repeat initializers against tuple-style
+    multidimensional types'
+  line_side: pre_fix
+- file: typed/src/expression.rs
+  line: 501
+  summary: Iterating dimensions with .rev() causes dimension-to-nesting-level mapping
+    to be inverted — the tuple (2,3) dimensions get assigned inside-out when constructing
+    the typed AST
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

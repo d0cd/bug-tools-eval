@@ -41,6 +41,7 @@ class JudgeScore(BaseModel):
     reasoning: str
     comment_judgments: list[CommentJudgment] = []
     noise: NoiseStats = NoiseStats()
+    vote_agreement: float = 0.0  # fraction of votes matching the majority
 
 
 def majority_vote(votes: list[int]) -> int:

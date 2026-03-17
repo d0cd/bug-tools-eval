@@ -1,0 +1,36 @@
+id: grafana-104
+repo: grafana/grafana
+base_commit: dc14afdc1ab186baf2d51ba759ba60d113423c72^
+head_commit: dc14afdc1ab186baf2d51ba759ba60d113423c72
+fix_commit: dc14afdc1ab186baf2d51ba759ba60d113423c72
+category: api-misuse
+difficulty: medium
+severity: high
+language: typescript
+pr_size: medium
+description: 'The Prometheus datasource''s ad-hoc filter logic (`enhanceExprWithAdHocFilters`)
+  did not handle the multi-value `=|` and `!=|` operators introduced for the one-of
+  UI feature. When the `promQLScope` feature toggle was removed (PR #112035), all
+  users hit the older codepath which passed these unrecognized operators directly
+  into PromQL expressions, causing query failures. The fix remaps `=|` to `=~` and
+  `!=|` to `!~` by joining the `values` array into a regex pattern before the filter-reduce
+  step.'
+expected_findings:
+- file: packages/grafana-prometheus/src/datasource.ts
+  line: 754
+  summary: 'Unhandled operator: `filters.reduce(...)` passes `=|`/`!=|` operators
+    straight into PromQL without converting them to the equivalent regex operators
+    (`=~`/`!~`). Needs a remap step (e.g. `.map(remapOneOf)`) before the reduce to
+    translate multi-value one-of filters into regex matchers.'
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

@@ -1,33 +1,33 @@
 id: leo-069
 repo: ProvableHQ/leo
-base_commit: c85a8e1595a5674a59fe983adcbc8c48bffe0179^
-head_commit: c85a8e1595a5674a59fe983adcbc8c48bffe0179
-fix_commit: c85a8e1595a5674a59fe983adcbc8c48bffe0179
-category: logic
+base_commit: 475f6d37cc1fcb9006116210b83047a6755beae5^
+head_commit: 475f6d37cc1fcb9006116210b83047a6755beae5
+fix_commit: 475f6d37cc1fcb9006116210b83047a6755beae5
+category: constraint
 difficulty: easy
 severity: medium
 language: rust
-pr_size: small
-description: 'Three bugs found during documentation writing: (1) `eq` and `ne` operators
-  had incorrect precedence, not matching other relational comparators; (2) the `address`
-  keyword was missing from the protected/reserved names list in the parser grammar;
-  (3) successful compilation of `lib.leo` files silently discarded the result (`let
-  _program =`) instead of printing a success message to console.'
+pr_size: medium
+description: The Leo type checker did not validate that struct declarations contain
+  at least one member. Empty structs are invalid in the Aleo/snarkVM execution model,
+  but the compiler silently accepted them, leading to confusing downstream errors
+  or invalid programs. The fix adds an explicit type-checker error when a struct is
+  declared with no members.
 expected_findings:
-- file: ast/src/ast.rs
-  line: 45
-  summary: 'Operator precedence bug: `eq` and `ne` are defined at a different precedence
-    level than other relational comparators (`lt`, `le`, `gt`, `ge`); they should
-    all share the same precedence.'
-- file: ast/src/leo.pest
-  line: 9
-  summary: 'Missing protected keyword: `address` is not included in the protected/reserved
-    names list, allowing it to be used as an identifier when it should be reserved.'
-- file: leo/commands/build.rs
-  line: 55
-  summary: 'Silent discard: `let _program =` suppresses the compilation result for
-    `lib.leo` without printing a success message to the console. The underscore prefix
-    silences the unused variable warning.'
+- file: compiler/passes/src/type_checking/check_program.rs
+  line: 153
+  summary: 'Missing validation: struct declarations are not checked for having at
+    least one member. An empty struct (zero fields) should be rejected here with an
+    informative error, as it is invalid in the Aleo execution model.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

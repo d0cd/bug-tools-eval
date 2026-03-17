@@ -1,31 +1,41 @@
 id: leo-163
 repo: ProvableHQ/leo
-base_commit: 9f8bdb2d7e8f89c3ffd8ca3fd6274368732410f4^
-head_commit: 9f8bdb2d7e8f89c3ffd8ca3fd6274368732410f4
-fix_commit: 9f8bdb2d7e8f89c3ffd8ca3fd6274368732410f4
+base_commit: a704eddb5119b4994936b2f5a367a769cf7e06bb^
+head_commit: a704eddb5119b4994936b2f5a367a769cf7e06bb
+fix_commit: a704eddb5119b4994936b2f5a367a769cf7e06bb
 category: logic
-difficulty: easy
-severity: medium
-language: leo
-pr_size: medium
-description: 'Multiple bugs in Leo example projects: example directory names used
-  hyphens instead of underscores (causing path resolution failures), a typo in the
-  fibonacci description (''fibonnaci''), incorrect input values, and a missing import
-  (GroupValue) in the compiler''s value.rs. The fix renames example directories to
-  use underscores, corrects the typo, updates example inputs/configs, and adds the
-  missing import.'
+difficulty: medium
+severity: high
+language: rust
+pr_size: small
+description: Nested imports were not recognized because the compiler did not parse
+  definitions for imported programs. The fix ensures that when an import is processed,
+  its definitions (including transitive/nested imports) are fully parsed and stored,
+  so downstream code can resolve symbols from deeply nested import chains.
 expected_findings:
-- file: examples/fibonacci/Leo.toml
-  line: 1
-  summary: 'Typo in description: ''fibonnaci'' should be ''fibonacci'''
-- file: compiler/src/value/value.rs
-  line: 26
-  summary: Missing 'GroupValue' in the import from leo_typed, which is needed for
-    value representation
-- file: examples/hello-world/Leo.toml
-  line: 1
-  summary: Example directory uses hyphenated name 'hello-world' instead of 'hello_world',
-    causing path/package name mismatch
+- file: compiler/src/definition/definitions.rs
+  line: 13
+  summary: Definitions are not being parsed for imported programs — only the top-level
+    program's definitions are resolved, causing nested import symbols to be missing
+  line_side: pre_fix
+- file: compiler/src/import/store/import.rs
+  line: 10
+  summary: When fetching dependencies for an import, the code does not recursively
+    parse the imported program's definitions, so transitive imports are invisible
+  line_side: pre_fix
+- file: compiler/src/import/store/symbol.rs
+  line: 11
+  summary: Imported symbol storage does not account for symbols that come from nested
+    imports within the imported file
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

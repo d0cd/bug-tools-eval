@@ -1,32 +1,46 @@
 id: sdk-022
 repo: ProvableHQ/sdk
-base_commit: 6e501a9f0a8f1c46f26a66cf1bea8d3523095c66^
-head_commit: 6e501a9f0a8f1c46f26a66cf1bea8d3523095c66
-fix_commit: 6e501a9f0a8f1c46f26a66cf1bea8d3523095c66
+base_commit: 4621d93353e92af8226d763ad07eacc1f3f5d17d^
+head_commit: 4621d93353e92af8226d763ad07eacc1f3f5d17d
+fix_commit: 4621d93353e92af8226d763ad07eacc1f3f5d17d
 category: logic
-difficulty: medium
-severity: high
-language: rust
-pr_size: medium
-description: The record searching logic only found grouped records if they were within
-  50 record blocks of each other, rather than considering the entire block range.
-  The fix updates the search algorithm in records.rs to scan the full range, and adjusts
-  function signatures across blocking.rs and transfer.rs to propagate the corrected
-  record lookup behavior.
+difficulty: easy
+severity: medium
+language: javascript
+pr_size: small
+description: 'Two UI logic bugs in the algebra page: (1) The multiplicative inverse
+  calculation required both field elements to be populated, but it only needs one
+  input. The condition checked if num1 AND num2 were empty instead of handling the
+  single-input ''mulinv'' operation separately. (2) The scalar multiplication random
+  button did not trigger a recalculation of the result, so clicking ''Random'' left
+  stale output displayed.'
 expected_findings:
-- file: rust/src/program/helpers/records.rs
-  line: 70
-  summary: "Record search range is limited to 50 blocks \u2014 grouped records outside\
-    \ this window are silently missed. The search should consider the entire specified\
-    \ range."
-- file: rust/src/api/blocking.rs
-  line: 166
-  summary: Record search function returns records without commitment fields, preventing
-    callers from correlating records across the full block range.
-- file: rust/src/api/blocking.rs
-  line: 204
-  summary: "Same limited-range record search pattern \u2014 function signature does\
-    \ not return enough context to search the full range for grouped records."
+- file: website/src/tabs/algebra/FieldArithmetic.jsx
+  line: 47
+  summary: 'Incorrect guard condition: multiplicative inverse (''mulinv'') only requires
+    one field element, but the existing condition blocks calculation unless both num1
+    and num2 are populated. Should short-circuit for ''mulinv'' when only num1 is
+    present.'
+  line_side: pre_fix
+- file: website/src/tabs/algebra/GroupArithmetic.jsx
+  line: 152
+  summary: 'Missing result update: the onScalarRandom handler sets the scalar state
+    but does not trigger a recalculation of the group operation result, causing the
+    displayed result to be stale after clicking Random.'
+  line_side: pre_fix
+- file: website/src/tabs/algebra/GroupArithmetic.jsx
+  line: 270
+  summary: 'Same missing result update in a second onScalarRandom handler: random
+    scalar selection does not propagate to recompute the scalar multiplication output.'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: false
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

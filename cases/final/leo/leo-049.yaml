@@ -1,22 +1,36 @@
 id: leo-049
 repo: ProvableHQ/leo
-base_commit: 438af6bf80751710f0be8515227bf281b50177c6^
-head_commit: 438af6bf80751710f0be8515227bf281b50177c6
-fix_commit: 438af6bf80751710f0be8515227bf281b50177c6
-category: logic
+base_commit: 314d56a9e3626418e8a953ecb81f595555716459^
+head_commit: 314d56a9e3626418e8a953ecb81f595555716459
+fix_commit: 314d56a9e3626418e8a953ecb81f595555716459
+category: code-smell
 difficulty: easy
 severity: low
-language: leo
+language: rust
 pr_size: small
-description: 'Two variables in the same scope were both named `character`, causing
-  a shadowing conflict. The fix renames the second variable to `character2` to avoid
-  the naming collision. This was a test file fix done proactively before issue #1283
-  (which would make duplicate names an error) is resolved.'
+description: Doc test attributes in leo_package's lib.rs used an incorrect attribute
+  (likely `ignore` or `no-run` instead of the correct `no_run`) and one example called
+  the wrong method instead of `initialize`. This would cause doc tests to either silently
+  skip compilation checks or fail when run.
 expected_findings:
-- file: tests/compiler/char/circuit.leo
-  line: 26
-  summary: 'Duplicate variable name: a second `let character` declaration shadows
-    the first `character` in the same scope; should use a distinct name like `character2`.'
+- file: leo/package/src/lib.rs
+  line: 39
+  summary: 'Incorrect doc test attribute: should be `no_run` (underscore) to ensure
+    the example compiles but does not execute'
+  line_side: pre_fix
+- file: leo/package/src/lib.rs
+  line: 42
+  summary: Doc example calls wrong function; should call `initialize` to match the
+    documented API usage pattern
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

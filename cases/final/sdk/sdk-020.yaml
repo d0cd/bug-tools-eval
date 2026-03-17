@@ -1,23 +1,41 @@
 id: sdk-020
 repo: ProvableHQ/sdk
-base_commit: 818ab699b1e801d556cdefa4edf488ca4f2688a4^
-head_commit: 818ab699b1e801d556cdefa4edf488ca4f2688a4
-fix_commit: 818ab699b1e801d556cdefa4edf488ca4f2688a4
-category: api
+base_commit: 39b3b77dddc93012dde2c16b6634c430a282240c^
+head_commit: 39b3b77dddc93012dde2c16b6634c430a282240c
+fix_commit: 39b3b77dddc93012dde2c16b6634c430a282240c
+category: style
 difficulty: easy
-severity: high
+severity: low
 language: javascript
-pr_size: tiny
-description: The `useAleoWASM()` hook's return structure changed but the destructuring
-  in the develop/execute component was not updated. This caused `aleoWASM` to be undefined,
-  breaking key generation and program input display on the develop screen. The fix
-  updates the destructuring to match the new hook return shape.
+pr_size: small
+description: Ant Design Form layout configurations across multiple SDK website tabs
+  had labelCol span values that were too small, causing label text to collapse and
+  become unreadable. The fix adjusts labelCol and wrapperCol span values across 14
+  JSX files to restore proper label column widths.
 expected_findings:
-- file: website/src/tabs/develop/execute/index.jsx
-  line: 22
-  summary: 'Incorrect destructuring of useAleoWASM() return value: array destructuring
-    `const [aleoWASM] = useAleoWASM()` does not match the hook''s updated return structure,
-    resulting in undefined value.'
+- file: website/src/tabs/develop/Deploy.jsx
+  line: 200
+  summary: labelCol span value is too small, causing form labels to collapse/truncate;
+    span needs to be increased for readable label display
+  line_side: pre_fix
+- file: website/src/tabs/rest/GetMappingValue.jsx
+  line: 79
+  summary: labelCol span:4 is too narrow for the label text in this form layout, causing
+    visual collapse of the label column
+  line_side: pre_fix
+- file: website/src/tabs/record/DecryptRecord.jsx
+  line: 71
+  summary: labelCol span:4 is insufficient for label text width, causing labels to
+    wrap/collapse in the form layout
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

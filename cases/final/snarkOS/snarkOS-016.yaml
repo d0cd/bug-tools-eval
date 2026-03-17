@@ -1,22 +1,32 @@
 id: snarkOS-016
 repo: ProvableHQ/snarkOS
-base_commit: 3b0a5a291644b0e6063a983a593c3de7bf834112^
-head_commit: 3b0a5a291644b0e6063a983a593c3de7bf834112
-fix_commit: 3b0a5a291644b0e6063a983a593c3de7bf834112
-category: api
-difficulty: easy
+base_commit: 1999e161235825f192009e7a0d4fd8b5a58574e4^
+head_commit: 1999e161235825f192009e7a0d4fd8b5a58574e4
+fix_commit: 1999e161235825f192009e7a0d4fd8b5a58574e4
+category: incomplete
+difficulty: hard
 severity: medium
 language: rust
-pr_size: tiny
-description: The CLI endpoint response handler only accepted HTTP 200 status codes
-  as successful responses, ignoring other valid 2xx success codes (e.g., 201 Created,
-  202 Accepted, 204 No Content). The fix replaces the exact status code check with
-  `response.status().is_success()`, which matches any status in the 200-299 range.
+pr_size: xl
+description: This XL PR migrates modules from snarkVM, modularizes node logic, and
+  introduces prover logic. With no diff available and only configuration/documentation/build
+  files listed in the changed set, the actual code changes that introduce prover logic
+  and modularize node types cannot be analyzed for correctness.
 expected_findings:
-- file: cli/src/commands/developer/mod.rs
-  line: 205
-  summary: 'Incorrect HTTP status check: comparing against exactly 200 instead of
-    using `is_success()` to accept the full 2xx range of success codes.'
+- file: cli/src/commands/start.rs
+  line: 1
+  summary: Large migration PR restructures node startup logic; verify that all node
+    types (client, prover, validator) are correctly wired after modularization and
+    no execution paths were dropped during the migration
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: false
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 1992
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

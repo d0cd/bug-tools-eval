@@ -1,26 +1,33 @@
 id: leo-242
 repo: ProvableHQ/leo
-base_commit: afcace8b649fdb97c21e497bd1190cd19bdf3132^
-head_commit: afcace8b649fdb97c21e497bd1190cd19bdf3132
-fix_commit: afcace8b649fdb97c21e497bd1190cd19bdf3132
-category: logic
-difficulty: medium
+base_commit: f30bc410147167c12769b376d559cf5033df80b9^
+head_commit: f30bc410147167c12769b376d559cf5033df80b9
+fix_commit: f30bc410147167c12769b376d559cf5033df80b9
+category: api-misuse
+difficulty: easy
 severity: high
 language: rust
-pr_size: large
-description: The code generation for `commit_*` core functions (BHP512/768/1024, Pedersen64/128)
-  was incorrectly mapped in the `CoreFunction` enum's pattern matching. The match
-  arms for commit variants like `commit_to_address`, `commit_to_field`, and `commit_to_group`
-  were producing wrong instruction output (likely mapping to hash variants instead
-  of commit variants, or using incorrect algorithm size suffixes), causing incorrect
-  Aleo instructions to be generated.
+pr_size: small
+description: The Leo CLI constructed the program query URL by always appending an
+  edition (e.g. '/latest') even when the user did not specify one. The '/latest' endpoint
+  was deprecated or changed on the Aleo network API, causing program fetches to fail.
+  The fix omits the edition segment from the URL when none is explicitly provided,
+  allowing the API to return the latest program version by default.
 expected_findings:
-- file: compiler/ast/src/functions/core_function.rs
-  line: 99
-  summary: 'Incorrect pattern matching for commit_* core function variants: the match
-    arms for (sym::BHP512, sym::commit_to_address) and similar commit variants are
-    mapped to wrong CommitVariant constructors, producing incorrect code generation
-    output.'
+- file: leo/cli/commands/query/program.rs
+  line: 63
+  summary: 'API misuse: URL always includes an edition path segment (e.g. ''/latest'')
+    even when user did not specify one; the ''/latest'' endpoint is deprecated and
+    causes fetch failures — omit edition from URL when unspecified'
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

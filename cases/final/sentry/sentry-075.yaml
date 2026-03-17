@@ -1,0 +1,50 @@
+id: sentry-075
+repo: getsentry/sentry
+base_commit: 61497cae277c36a87ef8ee2f8197bd831d3a92d4^
+head_commit: 61497cae277c36a87ef8ee2f8197bd831d3a92d4
+fix_commit: 61497cae277c36a87ef8ee2f8197bd831d3a92d4
+category: incomplete
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: small
+description: The metrics UI filtered out metrics lacking a unit (`!has:metric.unit`)
+  but failed to also exclude metrics where the unit is explicitly stored as the string
+  "none". This incomplete filter allowed "none" to leak through as a visible unit
+  label in the metric selector, samples table, and alert rule field. The fix adds
+  `metric.unit:none` to the exclusion query and suppresses display of the literal
+  "none" unit string in select rows.
+expected_findings:
+- file: static/app/views/explore/metrics/metricToolbar/metricSelector.tsx
+  line: 79
+  summary: 'Incomplete filter query: `!has:metric.unit` excludes unset units but does
+    not exclude metrics where the unit is explicitly the string "none", allowing "none"
+    to appear as a selectable unit in the dropdown'
+  line_side: pre_fix
+- file: static/app/views/explore/metrics/hooks/useMetricSamplesTable.tsx
+  line: 1
+  summary: 'Same incomplete filter pattern: samples table query only checks `!has:metric.unit`
+    without also excluding `metric.unit:none`, so rows with explicit "none" unit slip
+    through'
+  line_side: pre_fix
+- file: static/app/views/alerts/rules/metric/eapMetricsField.tsx
+  line: 1
+  summary: Select rows render the literal string "none" as a visible unit label instead
+    of treating it equivalently to an unset unit and hiding it
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 110443
+reviewer_notes: []
+reviewer_findings:
+- file: static/app/views/explore/metrics/metricToolbar/metricSelector.tsx
+  line: 79
+  summary: '### Inconsistent unit fallback causes duplicate dropdown entries  **Medium
+    Severity**  <!-- DESCRIPTION START --> The `?'
+  line_side: pre_fix
+quality_flags: []

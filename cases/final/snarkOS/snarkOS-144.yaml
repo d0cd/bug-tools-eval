@@ -1,31 +1,47 @@
 id: snarkOS-144
 repo: ProvableHQ/snarkOS
-base_commit: 3b3fdc6d0e3c752da57a2cc9ae08d53f49f64765^
-head_commit: 3b3fdc6d0e3c752da57a2cc9ae08d53f49f64765
-fix_commit: 3b3fdc6d0e3c752da57a2cc9ae08d53f49f64765
-category: logic
+base_commit: b7a8012da3bfc066547772cda8ca63ddac814cb3^
+head_commit: c5c738f412e31fa50b6b8948fdcea95923bc8673
+fix_commit: b7a8012da3bfc066547772cda8ca63ddac814cb3
+category: incomplete
 difficulty: medium
-severity: high
+severity: medium
 language: rust
-pr_size: medium
-description: The Miner struct cached canon blockchain state (such as block height)
-  at construction time, causing subsequent mining iterations to operate on stale data.
-  The fix removed cached canon fields from the Miner struct and instead fetches fresh
-  canon information from consensus storage on each mining iteration.
+pr_size: large
+description: The devnet startup script did not propagate node failures during setup,
+  allowing the devnet to run in a degraded state without notice. Additionally, the
+  client peering topology was under-connected (clients connected to fewer validators
+  than needed), and multiple CI shell scripts had shellcheck warnings indicating potential
+  bugs such as unquoted variables and missing source directives.
 expected_findings:
-- file: consensus/src/miner.rs
-  line: 44
-  summary: Miner struct stores stale canon state at construction time; should fetch
-    fresh canon info from consensus.storage.canon() on each mining iteration instead
-    of caching it
-- file: consensus/src/miner.rs
-  line: 75
-  summary: Mining logic uses cached/stale block height rather than querying consensus.storage.canon().await
-    for the current canon height
-- file: consensus/src/miner.rs
-  line: 95
-  summary: Stale canon state reused across mining iterations; canon height and related
-    fields should be refreshed each iteration
+- file: cli/src/helpers/dev.rs
+  line: 43
+  summary: 'Devnet peering logic is incomplete: client nodes connect to only one validator
+    instead of two, leading to unreliable network topology during local devnet runs'
+  line_side: pre_fix
+- file: scripts/devnet.sh
+  line: 74
+  summary: Missing error handling around node startup — if a node process fails during
+    devnet setup, the script continues instead of shutting down, masking failures
+  line_side: pre_fix
+- file: .ci/devnet_ci.sh
+  line: 16
+  summary: 'Script lacks proper failure detection: a node crashing during devnet setup
+    does not cause the CI script to exit with an error code'
+  line_side: pre_fix
+- file: .ci/devnet_ci.sh
+  line: 50
+  summary: Shell script sources utility files without shellcheck directives and uses
+    unquoted variables, risking word-splitting bugs in CI environment
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

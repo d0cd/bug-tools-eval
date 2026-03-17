@@ -1,0 +1,32 @@
+id: cal.com-069
+repo: calcom/cal.com
+base_commit: e625308881f129ba684a96fd082c92adc7499f2c^
+head_commit: e625308881f129ba684a96fd082c92adc7499f2c
+fix_commit: e625308881f129ba684a96fd082c92adc7499f2c
+category: api-misuse
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: tiny
+description: The Stripe collectCard method threw a generic Error on failure, causing
+  the server error handler to map it to HTTP 500 (internal server error) instead of
+  HTTP 400 (bad request). The fix introduces a CollectCardFailure error code used
+  with ErrorWithCode, and maps it to 400 in getHttpStatusCode.
+expected_findings:
+- file: packages/app-store/stripepayment/lib/PaymentService.ts
+  line: 219
+  summary: Generic Error thrown instead of ErrorWithCode with a specific error code;
+    this causes collectCard failures to surface as HTTP 500 instead of HTTP 400 to
+    the client
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

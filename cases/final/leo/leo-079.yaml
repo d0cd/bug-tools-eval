@@ -1,24 +1,44 @@
 id: leo-079
 repo: ProvableHQ/leo
-base_commit: a313040a303461e8b29a1355d6d511cc141fb042^
-head_commit: a313040a303461e8b29a1355d6d511cc141fb042
-fix_commit: a313040a303461e8b29a1355d6d511cc141fb042
-category: api
+base_commit: 4fb0c73873c5ddb9eb40134333749141ffed9552^
+head_commit: 4fb0c73873c5ddb9eb40134333749141ffed9552
+fix_commit: 4fb0c73873c5ddb9eb40134333749141ffed9552
+category: logic
 difficulty: medium
 severity: high
 language: rust
 pr_size: tiny
-description: 'Logos lexer''s #[token] attribute only matches exact string literals
-  and does not interpret regex metacharacters. The definitions for group::*, signature::*,
-  and Future::* incorrectly used #[token(r"...[a-zA-Z]...")] instead of #[regex(r"...")],
-  so the patterns never matched real code like group::GEN, signature::verify, or Future::await.
-  The fix changes #[token] to #[regex] for these three entries.'
+description: The `PartialEq` implementation for `Identifier` was inconsistent with
+  its `Hash` implementation. When `IndexMap` encountered hash collisions on insert,
+  it fell back to `PartialEq` which did not compare all the fields that `Hash` used,
+  causing duplicate keys and random compiler failures (~1% of runs). The fix corrected
+  `PartialEq` (and the member-matching logic) to be consistent with `Hash`.
 expected_findings:
-- file: compiler/parser-lossless/src/tokens.rs
-  line: 109
-  summary: 'Incorrect use of #[token] with a regex pattern string; #[token] matches
-    the literal string and does not interpret regex metacharacters. Should be #[regex(...)]
-    so that character classes like [a-zA-Z] are evaluated as regex.'
+- file: ast/src/common/identifier.rs
+  line: 66
+  summary: 'PartialEq implementation for Identifier is inconsistent with Hash: it
+    does not compare all fields used by Hash, violating the Rust invariant that `a
+    == b` implies `hash(a) == hash(b)` and vice versa. This causes IndexMap to treat
+    distinct identifiers as equal (or equal ones as distinct) on hash collisions.'
+  line_side: pre_fix
+- file: ast/src/common/identifier.rs
+  line: 95
+  summary: Secondary Eq-related impl (likely PartialEq against a string/name type)
+    also uses incomplete comparison, compounding the inconsistency with Hash.
+  line_side: pre_fix
+- file: compiler/src/statement/assign/assignee/member.rs
+  line: 36
+  summary: Uses `.matches(name)` for identifier lookup instead of full equality, which
+    may mask or duplicate the incomplete-equality bug when searching members.
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

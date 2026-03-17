@@ -1,0 +1,38 @@
+id: sentry-142
+repo: getsentry/sentry
+base_commit: b0641488ff3c99ebdeeb73e459e5f3c1114125db^
+head_commit: b0641488ff3c99ebdeeb73e459e5f3c1114125db
+fix_commit: b0641488ff3c99ebdeeb73e459e5f3c1114125db
+category: api-misuse
+difficulty: easy
+severity: medium
+language: typescript
+pr_size: tiny
+description: handleChartTypeChange called useSetMetricVisualize (singular) instead
+  of useSetMetricVisualizes (plural), replacing the entire visualizes array with a
+  single-element array containing only the first visualize. This caused all aggregate/visualization
+  selections except the first to be dropped when changing chart type (line/area/bar).
+  The fix switches to the plural hook and maps over all visualizes.
+expected_findings:
+- file: static/app/views/explore/metrics/metricGraph/index.tsx
+  line: 70
+  summary: 'Wrong hook used: useSetMetricVisualize (singular) replaces entire visualizes
+    array with one element. Should use useSetMetricVisualizes (plural) and map over
+    all entries to preserve the full list.'
+  line_side: pre_fix
+- file: static/app/views/explore/metrics/metricGraph/index.tsx
+  line: 24
+  summary: Import should use useSetMetricVisualizes (plural) instead of useSetMetricVisualize
+    (singular) to support updating all visualizes at once.
+  line_side: pre_fix
+stats: null
+visibility: public
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

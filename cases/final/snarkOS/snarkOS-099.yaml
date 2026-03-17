@@ -1,32 +1,51 @@
 id: snarkOS-099
 repo: ProvableHQ/snarkOS
-base_commit: 1848cee4c23bc4cde940a3c69fd21349294518cd^
-head_commit: 1848cee4c23bc4cde940a3c69fd21349294518cd
-fix_commit: 1848cee4c23bc4cde940a3c69fd21349294518cd
-category: api
-difficulty: medium
+base_commit: 8bac2838424e7574e7bd639d5205714e33a549a6^
+head_commit: 8bac2838424e7574e7bd639d5205714e33a549a6
+fix_commit: 8bac2838424e7574e7bd639d5205714e33a549a6
+category: api-misuse
+difficulty: hard
 severity: high
 language: rust
 pr_size: xl
-description: The `dev execute` command assumed a V2 API endpoint, failing when used
-  against a V1 API. The fix detects the API version from the endpoint URL, adjusts
-  error parsing (JSON for V2, plain strings for V1), and handles V1's use of HTTP
-  500 instead of 404 for missing transactions when using `--wait`.
+description: The BFT consensus layer was bypassing the PendingBlock API and using
+  Block directly across ledger services, storage, sync, and consensus modules. This
+  PR restores the PendingBlock abstraction, which is required for correctly handling
+  blocks that have not yet been fully committed, and updates the snarkVM dependency
+  to a revision that supports the restored API.
 expected_findings:
-- file: cli/src/commands/developer/execute.rs
-  line: 152
-  summary: 'Missing API version detection: code assumes V2 endpoint behavior (e.g.,
-    JSON error responses, 404 for missing transactions) without checking whether the
-    endpoint is V1, which returns string errors and 500 status codes.'
-- file: cli/src/commands/developer/mod.rs
-  line: 43
-  summary: 'No version-aware endpoint parsing: the developer module lacks logic to
-    parse and differentiate V1 vs V2 API endpoints, causing incorrect request/response
-    handling for V1 APIs.'
-- file: cli/src/commands/developer/scan.rs
-  line: 28
-  summary: Block range parsing has redundant branches both fetching latest block height;
-    should be simplified and made version-aware for correct V1 API interaction.
+- file: node/bft/ledger-service/src/traits.rs
+  line: 108
+  summary: Trait method signature uses Block instead of PendingBlock, bypassing the
+    pending-block validation pipeline that ensures blocks are properly verified before
+    commitment
+  line_side: pre_fix
+- file: node/bft/src/sync/mod.rs
+  line: 31
+  summary: Import uses Block where PendingBlock should be used; sync module must operate
+    on pending blocks to correctly handle blocks that are not yet finalized in the
+    BFT pipeline
+  line_side: pre_fix
+- file: node/consensus/src/lib.rs
+  line: 355
+  summary: Consensus block advancement uses Block directly instead of PendingBlock
+    API, skipping the pending-block lifecycle that guards against premature block
+    commitment
+  line_side: pre_fix
+- file: node/bft/ledger-service/src/ledger.rs
+  line: 338
+  summary: Ledger service implementation constructs/returns `Block` where `PendingBlock`
+    should be used, causing the BFT layer to miss pending block state during commit
+    rounds.
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: false
+verified_by: auto-heuristic
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

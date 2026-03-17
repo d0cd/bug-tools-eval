@@ -1,29 +1,39 @@
 id: leo-090
 repo: ProvableHQ/leo
-base_commit: 5afe4a683daa403df74d67d67f90a88e19b20e77^
-head_commit: 5afe4a683daa403df74d67d67f90a88e19b20e77
-fix_commit: 5afe4a683daa403df74d67d67f90a88e19b20e77
-category: api
+base_commit: 5c706f288896b2896686841c157495ab5fbadda0^
+head_commit: 5c706f288896b2896686841c157495ab5fbadda0
+fix_commit: 5c706f288896b2896686841c157495ab5fbadda0
+category: code-smell
 difficulty: easy
-severity: medium
+severity: low
 language: rust
 pr_size: small
-description: The transaction query CLI lacked support for the `/transaction/unconfirmed`
-  endpoint and used manual `conflicts_with` declarations for mutually exclusive arguments,
-  which is error-prone as arguments grow. The fix adds the `--unconfirmed` flag, refactors
-  argument exclusivity to use `clap::ArgGroup`, and corrects the `--confirmed` help
-  text to clarify it returns both original and fee transactions.
+description: 'PR fixes broken documentation links in README.md and addresses multiple
+  clippy lints across the compiler and CLI codebase. Changes are cosmetic: correcting
+  URLs, removing unnecessary clones or conversions, and satisfying compiler warnings.'
 expected_findings:
-- file: leo/cli/commands/query/transaction.rs
-  line: 20
-  summary: 'Missing ArgGroup definition: mutually exclusive transaction query flags
-    (--confirmed, --unconfirmed) should use clap::ArgGroup instead of manual conflicts_with
-    to prevent missed conflict declarations as new flags are added.'
-- file: leo/cli/commands/query/transaction.rs
-  line: 91
-  summary: No support for querying the /transaction/unconfirmed endpoint; the match
-    logic needs a branch to handle the --unconfirmed flag and construct the appropriate
-    API URL.
+- file: README.md
+  line: 95
+  summary: 'Broken documentation link: URL points to incorrect or outdated path on
+    developer.aleo.org'
+  line_side: pre_fix
+- file: compiler/ast/src/input/input_ast.rs
+  line: 73
+  summary: 'Clippy lint: unnecessary conversion or clone that can be simplified'
+  line_side: pre_fix
+- file: compiler/passes/src/type_checking/check_expressions.rs
+  line: 142
+  summary: 'Clippy lint: redundant field access pattern repeated across multiple match
+    arms (lines 142, 405, 451)'
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

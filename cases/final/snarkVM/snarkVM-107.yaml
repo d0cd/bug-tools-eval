@@ -1,33 +1,41 @@
 id: snarkVM-107
 repo: ProvableHQ/snarkVM
-base_commit: e5b9df99a6e7504ec31a12ed40acd4625e45d246^
-head_commit: e5b9df99a6e7504ec31a12ed40acd4625e45d246
-fix_commit: e5b9df99a6e7504ec31a12ed40acd4625e45d246
-category: logic
-difficulty: hard
-severity: high
+base_commit: 7b45db1e9b52f107784da134d4cc8ca4d4e4144b^
+head_commit: 7b45db1e9b52f107784da134d4cc8ca4d4e4144b
+fix_commit: 7b45db1e9b52f107784da134d4cc8ca4d4e4144b
+category: code-smell
+difficulty: easy
+severity: low
 language: rust
-pr_size: xl
-description: 'The record ciphertext encoding and inner circuit had multiple issues:
-  program ID was not publicly exposed in records, record members were not individually
-  encoded as field elements (causing unnecessary constraints), and the inner circuit
-  included unnecessary transition ID and function type checks inflating constraint
-  counts. The fix restructures record encoding, exposes program ID publicly, and removes
-  redundant circuit checks, reducing constraints from ~253K to ~244K.'
+pr_size: medium
+description: The PR fixes string type usage in Rust source files (likely converting
+  between String/&str or fixing string formatting) in the gadgets synthesis and DPC
+  components modules. It also comments out the clippy CI job in the GitHub Actions
+  workflow, presumably to unblock CI while clippy warnings are addressed separately.
 expected_findings:
-- file: dpc/src/circuits/inner_circuit.rs
-  line: 59
-  summary: Inner circuit includes unnecessary transition ID verification and function
-    type checks that inflate constraint count; program ID should be a public input
-    rather than private
-- file: algorithms/src/encryption/ecies_poseidon.rs
-  line: 115
-  summary: Encryption encode/decode does not handle record members as individual field
-    elements, leading to suboptimal ciphertext representation and excess constraints
-- file: dpc/src/circuits/inner_public_variables.rs
-  line: 20
-  summary: "Inner public variables struct missing program ID field \u2014 program\
-    \ ID should be exposed as a public variable in the circuit for correctness"
+- file: errors/src/gadgets/synthesis.rs
+  line: 1
+  summary: String type usage issue — likely using owned String where &str would suffice,
+    or incorrect string conversion method
+  line_side: pre_fix
+- file: models/src/dpc/dpc_components.rs
+  line: 1
+  summary: String type usage issue — same pattern as synthesis.rs, inconsistent or
+    inefficient string handling
+  line_side: pre_fix
+- file: .github/workflows/ci.yml
+  line: 1
+  summary: Clippy CI job commented out rather than removed — disabling linting reduces
+    code quality enforcement and should be temporary with a tracking issue
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

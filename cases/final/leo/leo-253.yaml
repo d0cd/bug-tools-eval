@@ -1,30 +1,32 @@
 id: leo-253
 repo: ProvableHQ/leo
-base_commit: 38448b986e986af57e4f712e5fad0e7536a0b4ab^
-head_commit: 38448b986e986af57e4f712e5fad0e7536a0b4ab
-fix_commit: 38448b986e986af57e4f712e5fad0e7536a0b4ab
-category: logic
+base_commit: ff94b149d7938ada6b076766ad10cb1d4876ad1b^
+head_commit: ff94b149d7938ada6b076766ad10cb1d4876ad1b
+fix_commit: ff94b149d7938ada6b076766ad10cb1d4876ad1b
+category: code-smell
 difficulty: easy
-severity: medium
-language: leo
-pr_size: large
-description: CI and compiler fixes after a refactor. The PR updates deprecated blake2s
-  imports in the prelude, fixes expression compilation references, updates test address
-  literals to the new format, and adjusts the WASM CI workflow. These were broken
-  references and stale test data left behind by a prior refactor.
+severity: low
+language: rust
+pr_size: xl
+description: Test code used `include_bytes!` followed by `String::from_utf8_lossy`
+  (or similar) to load .leo source files as strings, when `include_str!` does the
+  same thing in one step. This PR is a mechanical refactoring of nearly all compiler
+  integration tests to use the simpler macro.
 expected_findings:
-- file: compiler/src/prelude/mod.rs
-  line: 14
-  summary: Stale or incorrect import paths in the prelude module after refactor; blake2s
-    references need updating to match new module structure.
-- file: compiler/src/expression/expression.rs
-  line: 179
-  summary: Incorrect or missing match arm for expression compilation (e.g., function
-    variant handling) introduced during refactor.
-- file: .github/workflows/wasm.yml
-  line: 1
-  summary: WASM CI workflow configuration broken after refactor; needs updates to
-    match new project structure.
+- file: compiler/tests/mod.rs
+  line: 64
+  summary: Helper function accepts &str but callers were previously converting from
+    bytes unnecessarily; the parse_program signature could be simplified or callers
+    should use include_str! directly
+  line_side: pre_fix
 stats: null
 visibility: public
 needs_manual_review: true
+verified: false
+verified_by: null
+valid_for_code_review: true
+introducing_commit: null
+pr_number: 470
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []

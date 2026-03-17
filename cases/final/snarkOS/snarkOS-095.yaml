@@ -1,31 +1,38 @@
 id: snarkOS-095
 repo: ProvableHQ/snarkOS
-base_commit: a041d33f66ea8589b90ffe9889c37cb73e1cac7b^
-head_commit: a041d33f66ea8589b90ffe9889c37cb73e1cac7b
-fix_commit: a041d33f66ea8589b90ffe9889c37cb73e1cac7b
-category: api
-difficulty: medium
-severity: medium
+base_commit: 84ebceb01e1468b2a9ae751be14f9d16e96617fb^
+head_commit: 84ebceb01e1468b2a9ae751be14f9d16e96617fb
+fix_commit: 84ebceb01e1468b2a9ae751be14f9d16e96617fb
+category: style
+difficulty: easy
+severity: low
 language: rust
-pr_size: medium
-description: A fix across the node trait hierarchy and its implementations (beacon,
-  client, prover, validator). The small diff spread across many files suggests a trait
-  method signature or API contract was incorrect, requiring coordinated changes to
-  the trait definition in traits.rs and all implementing modules, along with dependent
-  code in the router, ledger, and REST routes.
+pr_size: small
+description: Multiple typos in code comments and warning messages across the BFT gateway
+  and router modules. The fix corrects misspellings in documentation comments (e.g.,
+  'removable' likely should be different wording) and warning string literals without
+  changing any logic.
 expected_findings:
-- file: node/src/traits.rs
-  line: 1
-  summary: Trait definition likely had an incorrect method signature or missing/wrong
-    constraint that propagated errors to all implementors
+- file: node/bft/src/gateway.rs
+  line: 1120
+  summary: 'Typo in comment: misspelled word in the outbound event cache comment'
+  line_side: pre_fix
+- file: node/router/src/heartbeat.rs
+  line: 105
+  summary: Typo in doc comment for function describing removable connected peers
+  line_side: pre_fix
 - file: node/router/src/lib.rs
-  line: 1
-  summary: Router implementation likely used an incorrect API or had a mismatched
-    trait bound that needed to be updated
-- file: node/rest/src/routes.rs
-  line: 1
-  summary: REST route handler likely called a node API incorrectly or had a wrong
-    type/parameter that was corrected
+  line: 509
+  summary: Typo in warn! message about promoting peer from connecting to connected
+  line_side: pre_fix
 stats: null
 visibility: public
-needs_manual_review: true
+needs_manual_review: false
+verified: true
+verified_by: v1-git-mined
+valid_for_code_review: true
+introducing_commit: null
+pr_number: null
+reviewer_notes: []
+reviewer_findings: []
+quality_flags: []
