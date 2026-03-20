@@ -1,117 +1,118 @@
-"""Pydantic schemas for test cases, candidates, and related types."""
+"""Core data models for bug-finding evaluation."""
 
 from __future__ import annotations
 
-from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
-class Category(StrEnum):
-    logic = "logic"
-    memory = "memory"
-    concurrency = "concurrency"
-    api_misuse = "api-misuse"
-    type = "type"
-    cryptographic = "cryptographic"
-    constraint = "constraint"
-    code_smell = "code-smell"
-    security = "security"
-    performance = "performance"
-    style = "style"
-    incomplete = "incomplete"
+class CaseKind(StrEnum):
+    bug = "bug"
+    clean = "clean"
 
 
-class Difficulty(StrEnum):
-    easy = "easy"
-    medium = "medium"
-    hard = "hard"
-
-
-class Severity(StrEnum):
-    low = "low"
-    medium = "medium"
-    high = "high"
-    critical = "critical"
-
-
-class PRSize(StrEnum):
-    tiny = "tiny"
-    small = "small"
-    medium = "medium"
-    large = "large"
-    xl = "xl"
-
-
-class Visibility(StrEnum):
-    public = "public"
-    private = "private"
-
-
-class ExpectedFinding(BaseModel):
+class BuggyLine(BaseModel):
     file: str
     line: int
-    summary: str
-    line_side: str = "pre_fix"  # "pre_fix" (- side) or "post_fix" (+ side)
+    content: str = ""
+
+
+class ReviewThread(BaseModel):
+    path: str = ""
+    line: int = 0
+    is_resolved: bool = False
+    comments: list[str] = []
+
+
+class PRRelation(BaseModel):
+    pr_number: int
+    role: str  # "introducing" | "partial_fix" | "full_fix" | "revert" | "regression"
+    commit: str
+    title: str = ""
+    merge_date: str = ""
+    author: str = ""
+
+
+class GroundTruth(BaseModel):
+    introducing_commit: str | None = None
+    blame_confidence: str = ""  # "A" | "B" | "C" | "D"
+    buggy_lines: list[BuggyLine] = []
+    fix_summary: str = ""
+    fix_pr_numbers: list[int] = []
+
+
+class Validation(BaseModel):
+    claude_verdict: str = ""  # "confirmed" | "disputed" | "ambiguous"
+    gemini_verdict: str = ""
+    agreement: bool = False
+    test_validated: bool = False
 
 
 class CaseStats(BaseModel):
-    lines_added: int
-    lines_deleted: int
-    files_changed: int
-    hunks: int
+    lines_added: int = 0
+    lines_deleted: int = 0
+    files_changed: int = 0
 
 
 class TestCase(BaseModel):
+    # Identity
     id: str
     repo: str
+    kind: CaseKind
+    language: str = "rust"
+
+    # Git coordinates
     base_commit: str
-    head_commit: str
-    fix_commit: str
-    category: Category
-    difficulty: Difficulty
-    severity: Severity
-    language: str
-    pr_size: PRSize
-    description: str
-    expected_findings: list[ExpectedFinding]
+    fix_commit: str = ""
+    fix_pr_number: int | None = None
+
+    # Introducing PR data (what the tool sees)
+    introducing_pr_number: int | None = None
+    introducing_pr_title: str = ""
+    introducing_pr_body: str = ""
+    introducing_pr_commit_messages: list[str] = []
+    introducing_pr_commit_shas: list[str] = []
+    introducing_pr_author: str = ""
+    introducing_pr_merge_date: str = ""
+    introducing_pr_review_comments: list[str] = []
+    introducing_pr_review_threads: list[ReviewThread] = []
+    introducing_pr_ci_status: str = ""
+
+    # Fix PR data (for ground truth construction)
+    fix_pr_title: str = ""
+    fix_pr_body: str = ""
+    fix_pr_commit_messages: list[str] = []
+    fix_pr_commit_shas: list[str] = []
+    fix_pr_merge_date: str = ""
+    fix_pr_review_comments: list[str] = []
+    fix_pr_review_threads: list[ReviewThread] = []
+    fix_pr_discussion_comments: list[str] = []
+    fix_pr_merge_method: str = ""
+    fix_pr_ci_status: str = ""
+
+    # Issue data
+    linked_issues: list[int] = []
+    issue_bodies: dict[int, str] = {}
+    issue_labels: list[str] = []
+    referenced_issues: list[int] = []
+
+    # PR relationship graph
+    related_prs: list[PRRelation] = []
+
+    # Ground truth (None for clean cases)
+    truth: GroundTruth | None = None
+
+    # Validation
+    validation: Validation | None = None
+
+    # Classification metadata
+    category: str = ""
+    difficulty: str = ""
+    severity: str = ""
+    pr_size: str = ""
     stats: CaseStats | None = None
-    visibility: Visibility = Visibility.public
-    needs_manual_review: bool = False
-    verified: bool = False
-    verified_by: str | None = None
-    valid_for_code_review: bool = True
-    introducing_commit: str | None = None
-    """SHA of the commit that first introduced this issue. Analysis-only — never
-    passed to evaluation agents. None when unknown (PR-scraped cases)."""
-    pr_number: int | None = None
-    reviewer_notes: list[str] = []
-    reviewer_findings: list[ExpectedFinding] = []
-    quality_flags: list[str] = []
-
-
-class Candidate(BaseModel):
-    repo: str
-    pr_number: int
-    fix_commit: str
-    base_commit: str | None = None
-    head_commit: str | None = None
-    confidence: float = Field(ge=0.0, le=1.0)
-    signals: list[str]
-    title: str
-    body: str
-    labels: list[str]
-    files_changed: list[str]
-    diff_stats: CaseStats
-    expected_findings: list[ExpectedFinding]
-    language: str
-    pr_size: PRSize
-    reviewer_notes: list[str] = []  # reviewer comments that identified the bug
-    reviewer_findings: list[ExpectedFinding] = []  # structured inline review positions
-
-
-class ScrapeState(BaseModel):
-    repo: str
-    last_scraped_at: datetime
-    processed_pr_numbers: list[int]
+    bug_description: str = ""
+    bug_description_source: str = ""
+    bug_latency_days: int | None = None
+    same_author_fix: bool = False

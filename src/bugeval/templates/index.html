@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}bugeval — Dashboard{% endblock %}
+{% block title %}bugeval v2 -- Dashboard{% endblock %}
 {% block content %}
 <h1>Dashboard</h1>
 
@@ -9,103 +9,208 @@
     <div class="stat-label">Total Cases</div>
   </div>
   <div class="stat-card">
-    <div class="stat-num">{{ needs_review }}</div>
-    <div class="stat-label">Needs Manual Review</div>
+    <div class="stat-num">{{ bug_count }}</div>
+    <div class="stat-label">Bug Cases</div>
   </div>
   <div class="stat-card">
-    <div class="stat-num">{{ reviewed }}</div>
-    <div class="stat-label">Reviewed</div>
+    <div class="stat-num">{{ clean_count }}</div>
+    <div class="stat-label">Clean Cases</div>
   </div>
+</div>
+
+{% if by_repo %}
+<h2>By Repository</h2>
+<div class="stat-grid">
+  {% for repo, count in by_repo.items() %}
   <div class="stat-card">
-    <div class="stat-num">{{ total - reviewed }}</div>
-    <div class="stat-label">Unreviewed</div>
+    <div class="stat-num">{{ count }}</div>
+    <div class="stat-label">{{ repo }}</div>
   </div>
+  {% endfor %}
 </div>
-
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
-  <!-- By repo -->
-  <div class="card">
-    <h2>By Repo</h2>
-    <table>
-      <thead><tr><th>Repo</th><th>Cases</th><th>Reviewed</th><th>%</th></tr></thead>
-      <tbody>
-        {% for repo, stats in by_repo.items() %}
-        <tr>
-          <td><a href="/cases?repo={{ repo }}">{{ repo }}</a></td>
-          <td>{{ stats.count }}</td>
-          <td>{{ stats.reviewed }}</td>
-          <td>{{ "%.0f"|format(stats.reviewed / stats.count * 100 if stats.count else 0) }}%</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- By category -->
-  <div class="card">
-    <h2>By Category</h2>
-    <table>
-      <thead><tr><th>Category</th><th>Count</th></tr></thead>
-      <tbody>
-        {% for cat, n in cat_dist.items() %}
-        <tr><td>{{ cat }}</td><td>{{ n }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-
-  <!-- By difficulty/severity -->
-  <div class="card">
-    <h2>By Difficulty</h2>
-    <table>
-      <thead><tr><th>Difficulty</th><th>Count</th></tr></thead>
-      <tbody>
-        {% for d, n in diff_dist.items() %}
-        <tr><td>{{ d }}</td><td>{{ n }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <h2 style="margin-top:14px;">By Severity</h2>
-    <table>
-      <thead><tr><th>Severity</th><th>Count</th></tr></thead>
-      <tbody>
-        {% for s, n in sev_dist.items() %}
-        <tr><td>{{ s }}</td><td>{{ n }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-
-<!-- Pipeline progress -->
-{% if pipeline_statuses %}
-<h2>Pipeline Progress</h2>
-{% for ps in pipeline_statuses %}
-<div class="card">
-  <h3>{{ ps.name }}</h3>
-  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
-    <span class="pipeline-stage stage-done">cases</span>
-    <span>→</span>
-    {% set norm_pct = (ps.normalized / ps.expected * 100) if ps.expected > 0 else 0 %}
-    <span class="pipeline-stage {% if norm_pct >= 100 %}stage-done{% elif norm_pct > 0 %}stage-partial{% else %}stage-missing{% endif %}">
-      normalize {{ ps.normalized }}/{{ ps.expected }}
-    </span>
-    <span>→</span>
-    {% set judge_pct = (ps.judged / ps.expected * 100) if ps.expected > 0 else 0 %}
-    <span class="pipeline-stage {% if judge_pct >= 100 %}stage-done{% elif judge_pct > 0 %}stage-partial{% else %}stage-missing{% endif %}">
-      judge {{ ps.judged }}/{{ ps.expected }}
-    </span>
-    <span>→</span>
-    <span class="pipeline-stage {% if ps.has_analysis %}stage-done{% else %}stage-missing{% endif %}">
-      analyze {% if ps.has_analysis %}✓{% else %}–{% endif %}
-    </span>
-  </div>
-  {% if ps.tools_run %}
-  <div class="text-muted">Tools: {{ ps.tools_run | join(", ") }}</div>
-  {% endif %}
-</div>
-{% endfor %}
-{% else %}
-<div class="card text-muted">No runs found in results directory.</div>
 {% endif %}
+
+{% if by_blame_confidence %}
+<h2>By Blame Confidence</h2>
+<div class="stat-grid">
+  {% for tier, count in by_blame_confidence.items() %}
+  <div class="stat-card">
+    <div class="stat-num">{{ count }}</div>
+    <div class="stat-label">Tier {{ tier }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if by_validation %}
+<h2>By Validation Status</h2>
+<div class="stat-grid">
+  {% for status, count in by_validation.items() %}
+  <div class="stat-card">
+    <div class="stat-num">{{ count }}</div>
+    <div class="stat-label">{{ status }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div style="margin:18px 0;">
+  <a href="/cases">Case Browser</a> &middot;
+  <a href="/runs">Runs</a> &middot;
+  <a href="/metrics">Metrics</a> &middot;
+  <a href="/compare">Compare Runs</a> &middot;
+  <a href="/golden">Golden Set</a>
+</div>
+
+<div style="display:flex;justify-content:space-between;align-items:center;">
+  <h2>Experiments</h2>
+  <button class="btn btn-primary btn-sm" onclick="showNewModal()">
+    New Experiment
+  </button>
+</div>
+
+<div id="experiments-loading" class="card text-muted">Loading...</div>
+<div id="experiments-content" style="display:none;">
+  <div id="active-experiments"></div>
+  <div id="ungrouped-section" style="display:none;">
+    <h2>Ungrouped Runs</h2>
+    <div id="ungrouped-runs"></div>
+  </div>
+  <div id="archived-section" style="display:none;">
+    <h2 style="cursor:pointer;" onclick="toggleArchived()">
+      Archived Experiments <span id="archived-toggle">&#9654;</span>
+    </h2>
+    <div id="archived-experiments" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- New Experiment Modal -->
+<div id="new-exp-modal" style="display:none;position:fixed;inset:0;
+  background:rgba(0,0,0,0.3);z-index:100;
+  align-items:center;justify-content:center;">
+  <div class="card" style="width:480px;max-width:90vw;">
+    <h2 style="margin-top:0;">New Experiment</h2>
+    <form id="new-exp-form" onsubmit="createExperiment(event)">
+      <div style="margin-bottom:10px;">
+        <label for="exp-name" style="font-weight:600;font-size:13px;">Name</label>
+        <input type="text" id="exp-name" required style="width:100%;padding:6px 10px;border:1px solid var(--color-border);border-radius:var(--radius-sm);font-size:13px;">
+      </div>
+      <div style="margin-bottom:10px;">
+        <label for="exp-notes" style="font-weight:600;font-size:13px;">Notes</label>
+        <textarea id="exp-notes" rows="3" style="width:100%;padding:6px 10px;border:1px solid var(--color-border);border-radius:var(--radius-sm);font-size:13px;"></textarea>
+      </div>
+      <div style="margin-bottom:10px;">
+        <label style="font-weight:600;font-size:13px;">Runs</label>
+        <div id="exp-runs-checkboxes" class="text-muted">Loading runs...</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px;">
+        <button type="submit" class="btn btn-primary">Create</button>
+        <button type="button" class="btn btn-secondary" onclick="hideNewModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+let _allRuns = [];
+let _archivedOpen = false;
+
+function runCard(r) {
+  return `<div style="margin:6px 0;padding:8px 12px;
+    background:var(--color-surface);border-radius:var(--radius-sm);
+    border:1px solid var(--color-border-light);">
+    <a href="/runs/${r.name}" style="font-weight:600;font-size:13px;">${r.name}</a>
+    <div class="text-muted mt-8">
+      results: ${r.results_count} | scores: ${r.scores_count}
+    </div>
+  </div>`;
+}
+
+function expCard(exp) {
+  const notes = exp.notes.length > 120 ? exp.notes.slice(0, 120) + '...' : exp.notes;
+  const runsHtml = exp.runs.length
+    ? exp.runs.map(runCard).join('')
+    : '<div class="text-muted" style="padding:8px 0;">No runs assigned</div>';
+  return `<div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <h3 style="margin:0 0 4px;text-transform:none;letter-spacing:normal;font-size:14px;">${exp.name}</h3>
+        ${notes ? '<div class="text-muted" style="margin-bottom:6px;">' + notes + '</div>' : ''}
+        <div class="text-muted">${exp.runs.length} run(s) &middot; created ${exp.created || 'unknown'}</div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="archiveExperiment('${exp.id}')">
+        ${exp.status === 'archived' ? 'Unarchive' : 'Archive'}
+      </button>
+    </div>
+    ${runsHtml}
+  </div>`;
+}
+
+function render(data) {
+  const active = data.experiments.filter(e => e.status !== 'archived');
+  const archived = data.experiments.filter(e => e.status === 'archived');
+  const activeEl = document.getElementById('active-experiments');
+  activeEl.innerHTML = active.length
+    ? active.map(expCard).join('')
+    : '<div class="card text-muted">No active experiments.</div>';
+  const ungroupedEl = document.getElementById('ungrouped-runs');
+  const ungroupedSec = document.getElementById('ungrouped-section');
+  if (data.ungrouped.length) {
+    ungroupedSec.style.display = '';
+    ungroupedEl.innerHTML = data.ungrouped.map(r => `<div class="card">${runCard(r)}</div>`).join('');
+  } else { ungroupedSec.style.display = 'none'; }
+  const archivedEl = document.getElementById('archived-experiments');
+  const archivedSec = document.getElementById('archived-section');
+  if (archived.length) {
+    archivedSec.style.display = '';
+    archivedEl.innerHTML = archived.map(expCard).join('');
+  } else { archivedSec.style.display = 'none'; }
+  _allRuns = data.ungrouped.map(r => r.name);
+  document.getElementById('experiments-loading').style.display = 'none';
+  document.getElementById('experiments-content').style.display = '';
+}
+
+function loadExperiments() {
+  fetch('/api/experiments').then(r => r.json()).then(render);
+}
+
+function toggleArchived() {
+  _archivedOpen = !_archivedOpen;
+  document.getElementById('archived-experiments').style.display = _archivedOpen ? '' : 'none';
+  document.getElementById('archived-toggle').innerHTML = _archivedOpen ? '&#9660;' : '&#9654;';
+}
+
+function showNewModal() {
+  const modal = document.getElementById('new-exp-modal');
+  modal.style.display = 'flex';
+  const container = document.getElementById('exp-runs-checkboxes');
+  container.innerHTML = _allRuns.length
+    ? _allRuns.map(r => `<label style="display:block;margin:2px 0;"><input type="checkbox" name="runs" value="${r}"> ${r}</label>`).join('')
+    : '<span class="text-muted">No ungrouped runs available</span>';
+}
+
+function hideNewModal() {
+  document.getElementById('new-exp-modal').style.display = 'none';
+  document.getElementById('new-exp-form').reset();
+}
+
+function createExperiment(e) {
+  e.preventDefault();
+  const name = document.getElementById('exp-name').value.trim();
+  const notes = document.getElementById('exp-notes').value.trim();
+  const checks = document.querySelectorAll('#exp-runs-checkboxes input:checked');
+  const runs = Array.from(checks).map(c => c.value);
+  fetch('/api/experiments', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({name, notes, runs}),
+  }).then(r => { if (r.ok) { hideNewModal(); loadExperiments(); } else r.json().then(d => alert(d.error || 'Error')); });
+}
+
+function archiveExperiment(id) {
+  fetch(`/api/experiments/${id}/archive`, {method: 'POST'}).then(() => loadExperiments());
+}
+
+loadExperiments();
+</script>
 {% endblock %}

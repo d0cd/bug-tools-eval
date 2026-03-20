@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Runs{% endblock %}
+{% block content %}
+<h1>Runs</h1>
+{% if runs %}
+<table>
+  <tr><th>Run</th><th>Results</th><th>Scores</th><th>Charts</th></tr>
+  {% for r in runs %}
+  <tr>
+    <td><a href="/runs/{{ r.name }}">{{ r.name }}</a></td>
+    <td>{{ r.results_count }}</td>
+    <td>{{ r.scores_count }}</td>
+    <td>{% if r.has_charts %}<span class="badge badge-green">yes</span>{% else %}<span class="badge badge-gray">no</span>{% endif %}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% else %}
+<div class="card text-muted">No runs found in results directory.</div>
+{% endif %}
+{% endblock %}

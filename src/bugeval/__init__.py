@@ -1,1 +1,1 @@
-# bugeval - AI code review tools evaluation framework
+"""Bug-finding evaluation framework v2."""

@@ -1,141 +1,127 @@
-"""YAML load/save helpers for test cases and candidates."""
+"""YAML I/O and checkpoint helpers."""
 
 from __future__ import annotations
 
-import hashlib
 import json
-import subprocess
-import sys
-from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import yaml
 
-from bugeval.models import Candidate, TestCase
+from bugeval.models import TestCase
+from bugeval.result_models import ToolResult
+from bugeval.score_models import CaseScore
 
 
 def save_case(case: TestCase, path: Path) -> None:
-    """Serialize a TestCase to YAML and write to path."""
+    """Serialize a TestCase to YAML."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         yaml.safe_dump(case.model_dump(mode="json"), f, sort_keys=False)
 
 
 def load_case(path: Path) -> TestCase:
-    """Load a TestCase from a YAML file."""
-    if not path.exists():
-        raise FileNotFoundError(f"Case file not found: {path}")
+    """Load a TestCase from YAML."""
     with open(path) as f:
         data = yaml.safe_load(f)
     return TestCase(**data)
 
 
-def save_candidates(candidates: list[Candidate], path: Path) -> None:
-    """Serialize a list of Candidates to YAML and write to path."""
+def load_cases(cases_dir: Path) -> list[TestCase]:
+    """Load all TestCase YAMLs from a directory tree."""
+    cases: list[TestCase] = []
+    for p in sorted(cases_dir.rglob("*.yaml")):
+        cases.append(load_case(p))
+    return cases
+
+
+def save_result(result: ToolResult, path: Path) -> None:
+    """Serialize a ToolResult to YAML."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = [c.model_dump(mode="json") for c in candidates]
     with open(path, "w") as f:
-        yaml.safe_dump(data, f, sort_keys=False)
+        yaml.safe_dump(result.model_dump(mode="json"), f, sort_keys=False)
 
 
-def load_candidates(path: Path) -> list[Candidate]:
-    """Load a list of Candidates from a YAML file."""
-    if not path.exists():
-        raise FileNotFoundError(f"Candidates file not found: {path}")
+def load_result(path: Path) -> ToolResult:
+    """Load a ToolResult from YAML."""
     with open(path) as f:
         data = yaml.safe_load(f)
-    if not data:
-        return []
-    return [Candidate(**item) for item in data]
+    return ToolResult(**data)
 
 
-def load_all_cases(cases_dir: Path) -> list[TestCase]:
-    """Load all TestCase YAML files from a directory."""
-    cases: list[TestCase] = []
-    for yaml_file in sorted(cases_dir.rglob("*.yaml")):
-        cases.append(load_case(yaml_file))
-    return cases
+def save_score(score: CaseScore, path: Path) -> None:
+    """Serialize a CaseScore to YAML."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        yaml.safe_dump(score.model_dump(mode="json"), f, sort_keys=False)
+
+
+def load_score(path: Path) -> CaseScore:
+    """Load a CaseScore from YAML."""
+    with open(path) as f:
+        data = yaml.safe_load(f)
+    return CaseScore(**data)
+
+
+def load_checkpoint(path: Path) -> set[str]:
+    """Load a checkpoint file (JSON set of completed IDs)."""
+    if not path.exists():
+        return set()
+    data = json.loads(path.read_text())
+    return set(data)
+
+
+def save_checkpoint(done: set[str], path: Path) -> None:
+    """Save a checkpoint file (JSON list of completed IDs)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(sorted(done), indent=2))
 
 
 def write_run_metadata(
     run_dir: Path,
-    tools: list[str],
+    tool: str,
     context_level: str,
     cases_dir: Path,
     *,
-    limit: int = 0,
-    patches_dir: Path | None = None,
-    config_path: str = "config/config.yaml",
-    allowed_tools: str = "",
+    model: str = "",
+    thinking_budget: int = 0,
+    timeout: int = 300,
 ) -> None:
-    """Write run_metadata.json for reproducibility tracing."""
-    git_sha = ""
+    """Write run_metadata.json for reproducibility."""
+    import hashlib
+    import subprocess
+    import sys
+    from datetime import UTC, datetime
+
+    meta: dict[str, Any] = {
+        "created_at": datetime.now(tz=UTC).isoformat(),
+        "tool": tool,
+        "context_level": context_level,
+        "model": model,
+        "thinking_budget": thinking_budget,
+        "timeout": timeout,
+        "cases_dir": str(cases_dir),
+    }
+    # Git commit
     try:
         result = subprocess.run(
             ["git", "rev-parse", "HEAD"],
-            capture_output=True,
-            text=True,
-            timeout=5,
+            capture_output=True, text=True, timeout=5,
         )
-        git_sha = result.stdout.strip() if result.returncode == 0 else ""
+        if result.returncode == 0:
+            meta["code_commit"] = result.stdout.strip()
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
-
-    dataset_commit = ""
-    try:
-        result = subprocess.run(
-            ["git", "log", "-1", "--format=%H", "--", str(cases_dir)],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-        dataset_commit = result.stdout.strip() if result.returncode == 0 else ""
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        pass
-
-    config_hash = ""
-    config_file = Path(config_path)
-    if config_file.exists():
-        config_hash = "sha256:" + hashlib.sha256(config_file.read_bytes()).hexdigest()
-
-    # Resolve the prompt file actually used: context-level-specific takes priority
-    # (mirrors load_agent_prompt resolution order).
-    config_dir = Path("config")
-    resolved_prompt_path: Path | None = None
-    for candidate in [
-        config_dir / f"agent_prompt_{context_level}.md",
-        config_dir / "agent_prompt.md",
-    ]:
-        if candidate.exists():
-            resolved_prompt_path = candidate
-            break
-
-    agent_prompt_hash = ""
-    agent_prompt_file = ""
-    if resolved_prompt_path is not None:
-        prompt_bytes = resolved_prompt_path.read_bytes()
-        agent_prompt_hash = "sha256:" + hashlib.sha256(prompt_bytes).hexdigest()
-        agent_prompt_file = str(resolved_prompt_path)
-        # Save verbatim snapshot so we can compare prompts across runs without relying
-        # on git history (the file may be edited between runs).
-        (run_dir / "agent_prompt_snapshot.md").write_bytes(prompt_bytes)
-
-    total_cases = sum(1 for _ in cases_dir.rglob("*.yaml")) if cases_dir.exists() else 0
-
-    metadata = {
-        "created_at": datetime.now(tz=UTC).isoformat(),
-        "git_sha": git_sha,
-        "config_hash": config_hash,
-        "context_level": context_level,
-        "allowed_tools": allowed_tools,
-        "tools": tools,
-        "cases_dir": str(cases_dir),
-        "limit": limit,
-        "patches_dir": str(patches_dir) if patches_dir is not None else None,
-        "dataset_commit": dataset_commit,
-        "total_cases": total_cases,
-        "agent_prompt_file": agent_prompt_file,
-        "agent_prompt_hash": agent_prompt_hash,
-        "python_version": sys.version.split()[0],
-    }
-    (run_dir / "run_metadata.json").write_text(json.dumps(metadata, indent=2))
+    # Config hash
+    config_path = Path("config/config.yaml")
+    if config_path.exists():
+        meta["config_sha256"] = hashlib.sha256(
+            config_path.read_bytes()
+        ).hexdigest()
+    # Case count
+    if cases_dir.exists():
+        meta["total_cases"] = sum(1 for _ in cases_dir.rglob("*.yaml"))
+    meta["python_version"] = sys.version.split()[0]
+    (run_dir / "run_metadata.json").write_text(
+        json.dumps(meta, indent=2)
+    )

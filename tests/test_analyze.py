@@ -1,435 +1,471 @@
-# tests/test_analyze.py
 """Tests for analyze module."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-import yaml
-
 from bugeval.analyze import (
-    aggregate_scores,
+    benjamini_hochberg,
+    bootstrap_ci,
+    build_comparison_table,
     compute_catch_rate,
-    compute_snr,
-    generate_csv,
-    generate_markdown,
+    cost_per_bug,
+    export_csv,
+    false_alarm_rate,
+    load_scores,
+    median_localization_distance,
+    permutation_test,
+    run_analysis,
+    severity_weighted_catch_rate,
+    signal_to_noise,
+    slice_scores,
 )
-from bugeval.judge_models import JudgeScore, NoiseStats
-from bugeval.models import (
-    Category,
-    Difficulty,
-    ExpectedFinding,
-    PRSize,
-    Severity,
-    TestCase,
-    Visibility,
-)
+from bugeval.io import save_score
+from bugeval.models import CaseKind, GroundTruth, TestCase
+from bugeval.result_models import ToolResult
+from bugeval.score_models import CaseScore, CommentScore, CommentVerdict
 
 
-def _make_scores(data: list[tuple[str, str, int, float]]) -> list[JudgeScore]:
-    """Helper: (case_id, tool, score, snr) → list[JudgeScore]."""
-    return [
-        JudgeScore(
-            test_case_id=cid,
-            tool=tool,
-            score=score,
-            votes=[score, score, score],
-            reasoning="test",
-            noise=NoiseStats(total_comments=4, true_positives=int(snr * 4), snr=snr),
-        )
-        for cid, tool, score, snr in data
-    ]
-
-
-def test_compute_catch_rate_basic() -> None:
-    scores = _make_scores(
-        [
-            ("c1", "greptile", 2, 0.5),
-            ("c2", "greptile", 0, 0.0),
-            ("c3", "greptile", 3, 1.0),
-        ]
-    )
-    rate = compute_catch_rate(scores)
-    assert rate == pytest.approx(2 / 3)
-
-
-def test_compute_catch_rate_empty() -> None:
-    assert compute_catch_rate([]) == 0.0
-
-
-def test_compute_snr_average() -> None:
-    scores = _make_scores(
-        [
-            ("c1", "greptile", 2, 0.5),
-            ("c2", "greptile", 1, 0.25),
-        ]
-    )
-    assert compute_snr(scores) == pytest.approx(0.375)
-
-
-def test_aggregate_scores_groups_by_tool() -> None:
-    scores = _make_scores(
-        [
-            ("c1", "greptile", 2, 0.5),
-            ("c2", "coderabbit", 3, 1.0),
-            ("c3", "greptile", 0, 0.0),
-        ]
-    )
-    agg = aggregate_scores(scores)
-    assert set(agg.keys()) == {"greptile", "coderabbit"}
-    assert agg["greptile"]["catch_rate"] == pytest.approx(0.5)
-    assert agg["coderabbit"]["catch_rate"] == pytest.approx(1.0)
-    assert agg["greptile"]["count"] == 2
-
-
-def test_generate_csv(tmp_path: Path) -> None:
-    scores = _make_scores([("c1", "greptile", 2, 0.5)])
-    agg = aggregate_scores(scores)
-    path = tmp_path / "scores.csv"
-    generate_csv(agg, path)
-    content = path.read_text()
-    assert "greptile" in content
-    assert "catch_rate" in content
-
-
-def test_generate_markdown(tmp_path: Path) -> None:
-    scores = _make_scores([("c1", "greptile", 2, 0.5)])
-    agg = aggregate_scores(scores)
-    md = generate_markdown(agg)
-    assert "| Tool |" in md
-    assert "greptile" in md
-
-
-# ---- Phase 8 additions: slicing + cost metrics ----
-
-
-def _make_case(
-    case_id: str = "case-001",
-    category: str = "logic",
-    difficulty: str = "medium",
-    severity: str = "high",
-    pr_size: str = "small",
-    language: str = "rust",
-) -> TestCase:
+def _bug_case(case_id: str, repo: str = "R/a", severity: str = "medium") -> TestCase:
     return TestCase(
         id=case_id,
-        repo="org/repo",
+        repo=repo,
+        kind=CaseKind.bug,
         base_commit="abc",
-        head_commit="def",
-        fix_commit="ghi",
-        category=Category(category),
-        difficulty=Difficulty(difficulty),
-        severity=Severity(severity),
-        language=language,
-        pr_size=PRSize(pr_size),
-        description="test case",
-        expected_findings=[ExpectedFinding(file="a.rs", line=1, summary="bug")],
+        severity=severity,
+        truth=GroundTruth(buggy_lines=[]),
     )
 
 
-def test_load_cases_lookup(tmp_path: Path) -> None:
-    from bugeval.analyze import load_cases_lookup
+def _clean_case(case_id: str, repo: str = "R/a") -> TestCase:
+    return TestCase(id=case_id, repo=repo, kind=CaseKind.clean, base_commit="abc")
 
-    case = _make_case("case-001")
-    (tmp_path / "case-001.yaml").write_text(
-        yaml.safe_dump(case.model_dump(mode="json"), sort_keys=False)
+
+def _score(
+    case_id: str,
+    tool: str = "copilot",
+    caught: bool = False,
+    loc_dist: int | None = None,
+    det: int = 0,
+    quality: int = 0,
+    tp: int = 0,
+    fp: int = 0,
+    novel: int = 0,
+    false_al: bool = False,
+) -> CaseScore:
+    scores: list[CommentScore] = []
+    for i in range(tp):
+        scores.append(CommentScore(comment_index=i, verdict=CommentVerdict.tp))
+    for i in range(novel):
+        scores.append(
+            CommentScore(comment_index=tp + i, verdict=CommentVerdict.tp_novel)
+        )
+    for i in range(fp):
+        scores.append(
+            CommentScore(comment_index=tp + novel + i, verdict=CommentVerdict.fp)
+        )
+    return CaseScore(
+        case_id=case_id,
+        tool=tool,
+        caught=caught,
+        localization_distance=loc_dist,
+        detection_score=det,
+        review_quality=quality,
+        tp_count=tp,
+        fp_count=fp,
+        novel_count=novel,
+        false_alarm=false_al,
+        comment_scores=scores,
     )
-    lookup = load_cases_lookup(tmp_path)
-    assert "case-001" in lookup
-    assert lookup["case-001"].category.value == "logic"
 
 
-def test_load_cases_lookup_empty_dir(tmp_path: Path) -> None:
-    from bugeval.analyze import load_cases_lookup
-
-    assert load_cases_lookup(tmp_path) == {}
-
-
-def test_load_normalized_lookup(tmp_path: Path) -> None:
-    from bugeval.analyze import load_normalized_lookup
-    from bugeval.result_models import NormalizedResult, ResultMetadata
-
-    r = NormalizedResult(
-        test_case_id="case-001",
-        tool="greptile",
-        context_level="diff-only",
-        metadata=ResultMetadata(cost_usd=0.05),
-    )
-    (tmp_path / "case-001-greptile.yaml").write_text(
-        yaml.safe_dump(r.model_dump(mode="json"), sort_keys=False)
-    )
-    lookup = load_normalized_lookup(tmp_path)
-    assert ("case-001", "greptile") in lookup
-    assert lookup[("case-001", "greptile")].metadata.cost_usd == pytest.approx(0.05)
-
-
-def test_slice_scores_by_dimension() -> None:
-    from bugeval.analyze import slice_scores
-
-    scores = _make_scores(
-        [
-            ("c1", "greptile", 2, 0.5),
-            ("c2", "greptile", 0, 0.0),
+class TestComputeCatchRate:
+    def test_basic(self) -> None:
+        scores = [
+            _score("a", caught=True),
+            _score("b", caught=True),
+            _score("c", caught=True),
+            _score("d"),
+            _score("e"),
         ]
-    )
-    cases = {
-        "c1": _make_case("c1", difficulty="easy"),
-        "c2": _make_case("c2", difficulty="hard"),
-    }
-    groups = slice_scores(scores, cases, "difficulty")
-    assert set(groups.keys()) == {"easy", "hard"}
-    assert len(groups["easy"]) == 1
-    assert len(groups["hard"]) == 1
+        assert compute_catch_rate(scores) == 0.6
+
+    def test_empty(self) -> None:
+        assert compute_catch_rate([]) == 0.0
 
 
-def test_slice_scores_unknown_case() -> None:
-    from bugeval.analyze import slice_scores
+class TestBootstrapCI:
+    def test_returns_interval(self) -> None:
+        values = [1.0, 2.0, 3.0, 4.0, 5.0]
+        lo, hi = bootstrap_ci(values, n_bootstrap=5000)
+        mean = sum(values) / len(values)
+        assert lo <= mean <= hi
 
-    scores = _make_scores([("missing-case", "greptile", 2, 0.5)])
-    groups = slice_scores(scores, {}, "difficulty")
-    assert "unknown" in groups
+    def test_all_same(self) -> None:
+        lo, hi = bootstrap_ci([1.0, 1.0, 1.0, 1.0], n_bootstrap=1000)
+        assert lo == 1.0
+        assert hi == 1.0
 
 
-def test_slice_scores_by_context() -> None:
-    from bugeval.analyze import slice_scores_by_context
-    from bugeval.result_models import NormalizedResult
+class TestPermutationTest:
+    def test_identical_groups(self) -> None:
+        g = [1.0, 2.0, 3.0, 4.0, 5.0]
+        p = permutation_test(g, g, n_permutations=5000)
+        assert p > 0.05
 
-    scores = _make_scores(
-        [
-            ("c1", "greptile", 2, 0.5),
-            ("c2", "greptile", 0, 0.0),
+    def test_different_groups(self) -> None:
+        a = [100.0, 101.0, 102.0, 103.0, 104.0]
+        b = [0.0, 1.0, 2.0, 3.0, 4.0]
+        p = permutation_test(a, b, n_permutations=5000)
+        assert p < 0.05
+
+
+class TestBenjaminiHochberg:
+    def test_known(self) -> None:
+        pvals = [0.001, 0.01, 0.04, 0.06, 0.5]
+        sig = benjamini_hochberg(pvals, alpha=0.05)
+        # Rank 1: 0.001 <= 0.01, Rank 2: 0.01 <= 0.02, Rank 3: 0.04 > 0.03
+        assert sig[0] is True
+        assert sig[1] is True
+        assert sig[2] is False
+        assert sig[3] is False
+        assert sig[4] is False
+
+
+class TestSeverityWeightedCatchRate:
+    def test_weighting(self) -> None:
+        cases = [
+            _bug_case("a", severity="critical"),
+            _bug_case("b", severity="low"),
         ]
-    )
-    results = {
-        ("c1", "greptile"): NormalizedResult(
-            test_case_id="c1", tool="greptile", context_level="diff-only"
-        ),
-        ("c2", "greptile"): NormalizedResult(
-            test_case_id="c2", tool="greptile", context_level="diff+repo"
-        ),
-    }
-    groups = slice_scores_by_context(scores, results)
-    assert set(groups.keys()) == {"diff-only", "diff+repo"}
-
-
-def test_compute_cost_per_tool() -> None:
-    from bugeval.analyze import compute_cost_per_tool
-    from bugeval.result_models import NormalizedResult, ResultMetadata
-
-    scores = _make_scores(
-        [
-            ("c1", "greptile", 2, 0.5),
-            ("c2", "greptile", 0, 0.0),
+        scores = [
+            _score("a", caught=True),  # weight=4
+            _score("b", caught=False),  # weight=1
         ]
-    )
-    results = {
-        ("c1", "greptile"): NormalizedResult(
-            test_case_id="c1",
-            tool="greptile",
-            metadata=ResultMetadata(cost_usd=0.10),
-        ),
-        ("c2", "greptile"): NormalizedResult(
-            test_case_id="c2",
-            tool="greptile",
-            metadata=ResultMetadata(cost_usd=0.05),
-        ),
-    }
-    cost = compute_cost_per_tool(scores, results)
-    assert cost["greptile"]["total_cost_usd"] == pytest.approx(0.15)
-    assert cost["greptile"]["cost_per_review"] == pytest.approx(0.075)
-    assert cost["greptile"]["cost_per_detection"] == pytest.approx(0.15)
+        rate = severity_weighted_catch_rate(scores, cases)
+        # 4 / (4+1) = 0.8
+        assert abs(rate - 0.8) < 1e-9
 
 
-def test_slice_scores_by_visibility() -> None:
-    from bugeval.analyze import slice_scores
-
-    scores = _make_scores(
-        [
-            ("c1", "greptile", 2, 0.5),
-            ("c2", "greptile", 0, 0.0),
+class TestMedianLocalizationDistance:
+    def test_basic(self) -> None:
+        scores = [
+            _score("a", caught=True, loc_dist=2),
+            _score("b", caught=True, loc_dist=4),
+            _score("c", caught=True, loc_dist=6),
+            _score("d", caught=False),
         ]
-    )
-    cases = {
-        "c1": TestCase(
-            id="c1",
-            repo="org/repo",
-            base_commit="abc",
-            head_commit="def",
-            fix_commit="ghi",
-            category=Category("logic"),
-            difficulty=Difficulty("medium"),
-            severity=Severity("high"),
-            language="rust",
-            pr_size=PRSize("small"),
-            description="test",
-            expected_findings=[ExpectedFinding(file="a.rs", line=1, summary="bug")],
-            visibility=Visibility.public,
-        ),
-        "c2": TestCase(
-            id="c2",
-            repo="org/repo",
-            base_commit="abc",
-            head_commit="def",
-            fix_commit="ghi",
-            category=Category("logic"),
-            difficulty=Difficulty("medium"),
-            severity=Severity("high"),
-            language="rust",
-            pr_size=PRSize("small"),
-            description="test",
-            expected_findings=[ExpectedFinding(file="a.rs", line=1, summary="bug")],
-            visibility=Visibility.private,
-        ),
-    }
-    groups = slice_scores(scores, cases, "visibility")
-    assert set(groups.keys()) == {"public", "private"}
-    assert len(groups["public"]) == 1
-    assert len(groups["private"]) == 1
+        assert median_localization_distance(scores) == 4.0
+
+    def test_no_catches(self) -> None:
+        assert median_localization_distance([_score("a")]) is None
 
 
-def test_generate_dx_markdown() -> None:
-    from bugeval.analyze import generate_dx_markdown
-    from bugeval.result_models import DxAssessment, NormalizedResult
-
-    results = {
-        ("c1", "greptile"): NormalizedResult(
-            test_case_id="c1",
-            tool="greptile",
-            dx=DxAssessment(
-                actionability=4, false_positive_burden=2, integration_friction=3, response_latency=5
-            ),
-        ),
-    }
-    md = generate_dx_markdown(results)
-    assert "DX Assessment" in md
-    assert "greptile" in md
-    assert "4.0" in md
-
-
-def test_analyze_skips_dx_when_absent() -> None:
-    from bugeval.analyze import generate_dx_markdown
-    from bugeval.result_models import NormalizedResult
-
-    results = {
-        ("c1", "greptile"): NormalizedResult(test_case_id="c1", tool="greptile"),
-    }
-    md = generate_dx_markdown(results)
-    assert md == ""
-
-
-def test_generate_slice_markdown() -> None:
-    from bugeval.analyze import generate_slice_markdown
-
-    scores = _make_scores(
-        [
-            ("c1", "greptile", 2, 0.5),
-            ("c2", "greptile", 0, 0.0),
+class TestUsefulnessRate:
+    def test_ratio(self) -> None:
+        scores = [
+            _score("a", tp=2, novel=1, fp=2),  # 3 useful / 5 total
+            _score("b", tp=1, fp=1),            # 1 useful / 2 total
         ]
-    )
-    cases = {
-        "c1": _make_case("c1", difficulty="easy"),
-        "c2": _make_case("c2", difficulty="hard"),
-    }
-    md = generate_slice_markdown(scores, cases, "difficulty")
-    assert "difficulty" in md.lower()
-    assert "easy" in md
-    assert "hard" in md
-    assert "greptile" in md
+        # 4 useful / 7 total (usefulness_rate was removed; use signal_to_noise)
+        assert abs(signal_to_noise(scores) - 4 / 7) < 1e-9
 
 
-def test_generate_confidence_band_markdown_basic() -> None:
-    from bugeval.analyze import generate_confidence_band_markdown
-    from bugeval.result_models import Comment, NormalizedResult
-
-    scores = _make_scores(
-        [
-            ("c1", "anthropic-api", 2, 0.5),
-            ("c2", "anthropic-api", 0, 0.0),
-            ("c3", "anthropic-api", 3, 1.0),
+class TestFalseAlarmRate:
+    def test_rate(self) -> None:
+        # We need cases to know which are clean, but false_alarm_rate uses
+        # the false_alarm field on CaseScore. We'll mark some as false_alarm.
+        scores = [
+            _score("clean-1", false_al=True),
+            _score("clean-2", false_al=False),
+            _score("clean-3", false_al=True),
+            _score("bug-1"),  # bug case, not counted
         ]
-    )
-    results: dict = {
-        ("c1", "anthropic-api"): NormalizedResult(
-            test_case_id="c1",
-            tool="anthropic-api",
-            comments=[Comment(body="b", confidence=0.6)],
-        ),
-        ("c2", "anthropic-api"): NormalizedResult(
-            test_case_id="c2",
-            tool="anthropic-api",
-            comments=[Comment(body="b", confidence=0.8)],
-        ),
-        ("c3", "anthropic-api"): NormalizedResult(
-            test_case_id="c3",
-            tool="anthropic-api",
-            comments=[Comment(body="b", confidence=0.95)],
-        ),
-    }
-    md = generate_confidence_band_markdown(scores, results)
-    assert "Confidence Band" in md
-    assert "0.5" in md or "[0.5" in md
-
-
-def test_slice_scores_by_verified() -> None:
-    from bugeval.analyze import slice_scores
-
-    scores = _make_scores(
-        [
-            ("c1", "greptile", 2, 0.5),
-            ("c2", "greptile", 0, 0.0),
+        cases = [
+            _clean_case("clean-1"),
+            _clean_case("clean-2"),
+            _clean_case("clean-3"),
+            _bug_case("bug-1"),
         ]
-    )
-    cases = {
-        "c1": TestCase(
-            id="c1",
-            repo="org/repo",
-            base_commit="abc",
-            head_commit="def",
-            fix_commit="ghi",
-            category=Category("logic"),
-            difficulty=Difficulty("medium"),
-            severity=Severity("high"),
-            language="rust",
-            pr_size=PRSize("small"),
-            description="test",
-            expected_findings=[ExpectedFinding(file="a.rs", line=1, summary="bug")],
-            verified=True,
-        ),
-        "c2": TestCase(
-            id="c2",
-            repo="org/repo",
-            base_commit="abc",
-            head_commit="def",
-            fix_commit="ghi",
-            category=Category("logic"),
-            difficulty=Difficulty("medium"),
-            severity=Severity("high"),
-            language="rust",
-            pr_size=PRSize("small"),
-            description="test",
-            expected_findings=[ExpectedFinding(file="a.rs", line=1, summary="bug")],
-            verified=False,
-        ),
-    }
-    groups = slice_scores(scores, cases, "verified")
-    assert set(groups.keys()) == {"True", "False"}
-    assert len(groups["True"]) == 1
-    assert len(groups["False"]) == 1
+        # 2/3 clean cases with false alarm
+        rate = false_alarm_rate(scores, cases)
+        assert abs(rate - 2 / 3) < 1e-9
 
 
-def test_generate_confidence_band_markdown_empty_when_no_confidence() -> None:
-    """When no comments have confidence data, returns empty string."""
-    from bugeval.analyze import generate_confidence_band_markdown
-    from bugeval.result_models import Comment, NormalizedResult
+class TestSignalToNoise:
+    def test_ratio(self) -> None:
+        scores = [
+            _score("a", tp=3, novel=1, fp=2),  # 4 useful / 6
+            _score("b", tp=0, fp=2),            # 0 useful / 2
+        ]
+        # 4 / 8
+        assert abs(signal_to_noise(scores) - 0.5) < 1e-9
 
-    scores = _make_scores([("c1", "greptile", 2, 0.5)])
-    results: dict = {
-        ("c1", "greptile"): NormalizedResult(
-            test_case_id="c1",
-            tool="greptile",
-            comments=[Comment(body="no confidence here")],
-        ),
-    }
-    md = generate_confidence_band_markdown(scores, results)
-    assert md == ""
+
+class TestCostPerBug:
+    def test_basic(self) -> None:
+        scores = [
+            _score("a", caught=True),
+            _score("b", caught=True),
+            _score("c"),
+        ]
+        results = [
+            ToolResult(case_id="a", tool="t", cost_usd=10.0),
+            ToolResult(case_id="b", tool="t", cost_usd=20.0),
+            ToolResult(case_id="c", tool="t", cost_usd=30.0),
+        ]
+        cpb = cost_per_bug(scores, results)
+        assert cpb is not None
+        assert abs(cpb - 30.0) < 1e-9  # 60/2
+
+    def test_no_catches(self) -> None:
+        assert cost_per_bug([_score("a")], [ToolResult(case_id="a", tool="t")]) is None
+
+
+class TestSliceScores:
+    def test_by_repo(self) -> None:
+        cases = [_bug_case("a", repo="R/x"), _bug_case("b", repo="R/y")]
+        scores = [_score("a"), _score("b")]
+        sliced = slice_scores(scores, cases, "repo", "R/x")
+        assert len(sliced) == 1
+        assert sliced[0].case_id == "a"
+
+
+class TestBuildComparisonTable:
+    def test_columns(self) -> None:
+        cases = [_bug_case("a"), _clean_case("b")]
+        all_scores = {
+            "copilot": [
+                _score("a", tool="copilot", caught=True, tp=1, quality=3),
+                _score("b", tool="copilot"),
+            ],
+        }
+        all_results = {
+            "copilot": [
+                ToolResult(case_id="a", tool="copilot", cost_usd=1.0),
+                ToolResult(case_id="b", tool="copilot", cost_usd=1.0),
+            ],
+        }
+        table = build_comparison_table(all_scores, all_results, cases)
+        assert len(table) == 1
+        row = table[0]
+        assert row["tool"] == "copilot"
+        assert "catch_rate" in row
+        assert "ci_lower" in row
+        assert "ci_upper" in row
+        assert "mean_quality" in row
+        assert "false_alarm_rate" in row
+        assert "precision" in row
+        assert "snr" in row
+        assert "cost_per_bug" in row
+
+
+class TestJudgeFailedExcludedFromQualityMetrics:
+    def test_judge_failed_excluded(self) -> None:
+        """Judge-failed scores should not affect mean_quality."""
+        cases = [_bug_case("a"), _bug_case("b")]
+        good = _score("a", tool="copilot", caught=True, tp=1, quality=3)
+        failed = _score("b", tool="copilot", caught=False, quality=0)
+        failed.judge_failed = True
+
+        all_scores = {"copilot": [good, failed]}
+        all_results = {
+            "copilot": [
+                ToolResult(case_id="a", tool="copilot", cost_usd=1.0),
+                ToolResult(case_id="b", tool="copilot", cost_usd=1.0),
+            ],
+        }
+        table = build_comparison_table(all_scores, all_results, cases)
+        row = table[0]
+        # mean_quality should only include the non-failed score (quality=3)
+        assert row["mean_quality"] == 3.0
+
+    def test_caught_metric_still_includes_all(self) -> None:
+        """The mechanical caught metric should include all cases."""
+        cases = [_bug_case("a"), _bug_case("b")]
+        good = _score("a", tool="copilot", caught=True, tp=1, quality=3)
+        failed = _score("b", tool="copilot", caught=False, quality=0)
+        failed.judge_failed = True
+
+        all_scores = {"copilot": [good, failed]}
+        all_results = {
+            "copilot": [
+                ToolResult(case_id="a", tool="copilot", cost_usd=1.0),
+                ToolResult(case_id="b", tool="copilot", cost_usd=1.0),
+            ],
+        }
+        table = build_comparison_table(all_scores, all_results, cases)
+        row = table[0]
+        # catch_rate = 1/2 (both bug cases counted)
+        assert row["catch_rate"] == 0.5
+
+
+class TestExportCSV:
+    def test_writes_file(self, tmp_path: Path) -> None:
+        table = [{"tool": "copilot", "catch_rate": 0.5}]
+        out = tmp_path / "out.csv"
+        export_csv(table, out)
+        text = out.read_text()
+        assert "tool" in text
+        assert "copilot" in text
+
+
+class TestLoadScores:
+    def test_loads(self, tmp_path: Path) -> None:
+        s = _score("a", tool="copilot")
+        save_score(s, tmp_path / "a__copilot.yaml")
+        loaded = load_scores(tmp_path)
+        assert len(loaded) == 1
+        assert loaded[0].case_id == "a"
+
+
+class TestRunAnalysis:
+    def test_no_charts(self, tmp_path: Path) -> None:
+        # Set up minimal directory structure
+        scores_dir = tmp_path / "scores"
+        scores_dir.mkdir()
+        results_dir = tmp_path / "results"
+        results_dir.mkdir()
+        cases_dir = tmp_path / "cases"
+        cases_dir.mkdir()
+
+        s = _score("a", tool="copilot", caught=True, tp=1)
+        save_score(s, scores_dir / "a__copilot.yaml")
+
+        from bugeval.io import save_case, save_result
+
+        save_case(_bug_case("a"), cases_dir / "a.yaml")
+        save_result(
+            ToolResult(case_id="a", tool="copilot", cost_usd=1.0),
+            results_dir / "a__copilot.yaml",
+        )
+
+        run_analysis(tmp_path, cases_dir, no_charts=True)
+        assert (tmp_path / "comparison.csv").exists()
+
+
+class TestRunAnalysisPairwiseComparisons:
+    def test_pairwise_output(self, tmp_path: Path, capsys: object) -> None:
+        """Verify permutation test runs when 2+ tools are present."""
+        scores_dir = tmp_path / "scores"
+        scores_dir.mkdir()
+        results_dir = tmp_path / "results"
+        results_dir.mkdir()
+        cases_dir = tmp_path / "cases"
+        cases_dir.mkdir()
+
+        from bugeval.io import save_case, save_result
+
+        save_case(_bug_case("a"), cases_dir / "a.yaml")
+
+        # Two tools with different catch results
+        s1 = _score("a", tool="copilot", caught=True, tp=1)
+        s2 = _score("a", tool="agent", caught=False, fp=1)
+        save_score(s1, scores_dir / "a__copilot.yaml")
+        save_score(s2, scores_dir / "a__agent.yaml")
+
+        save_result(
+            ToolResult(case_id="a", tool="copilot", cost_usd=1.0),
+            results_dir / "a__copilot.yaml",
+        )
+        save_result(
+            ToolResult(case_id="a", tool="agent", cost_usd=1.0),
+            results_dir / "a__agent.yaml",
+        )
+
+        run_analysis(tmp_path, cases_dir, no_charts=True)
+
+        captured = capsys.readouterr()  # type: ignore[union-attr]
+        assert "Pairwise Comparisons" in captured.err or "Pairwise Comparisons" in captured.out
+        assert "agent vs copilot" in captured.err or "agent vs copilot" in captured.out
+
+
+class TestSeverityWeightedInTable:
+    def test_column_present(self) -> None:
+        cases = [_bug_case("a", severity="critical")]
+        all_scores = {
+            "copilot": [_score("a", tool="copilot", caught=True, tp=1)],
+        }
+        all_results = {
+            "copilot": [ToolResult(case_id="a", tool="copilot", cost_usd=1.0)],
+        }
+        table = build_comparison_table(all_scores, all_results, cases)
+        assert len(table) == 1
+        assert "severity_weighted_catch_rate" in table[0]
+        assert table[0]["severity_weighted_catch_rate"] == 1.0
+
+
+class TestContextLevelSlice:
+    def test_slice_by_context_level(self) -> None:
+        cases = [_bug_case("a"), _bug_case("b")]
+        s1 = CaseScore(
+            case_id="a", tool="t", caught=True, context_level="diff-only",
+        )
+        s2 = CaseScore(
+            case_id="b", tool="t", caught=False, context_level="diff+repo",
+        )
+        sliced = slice_scores([s1, s2], cases, "context_level", "diff-only")
+        assert len(sliced) == 1
+        assert sliced[0].case_id == "a"
+
+
+class TestLocalizationDistanceInTable:
+    def test_present_when_caught(self) -> None:
+        cases = [_bug_case("a"), _bug_case("b")]
+        all_scores = {
+            "copilot": [
+                _score("a", tool="copilot", caught=True, loc_dist=3),
+                _score("b", tool="copilot", caught=True, loc_dist=7),
+            ],
+        }
+        all_results = {
+            "copilot": [
+                ToolResult(case_id="a", tool="copilot", cost_usd=1.0),
+                ToolResult(case_id="b", tool="copilot", cost_usd=1.0),
+            ],
+        }
+        table = build_comparison_table(all_scores, all_results, cases)
+        assert len(table) == 1
+        assert "median_localization" in table[0]
+        assert table[0]["median_localization"] == 5.0
+
+    def test_none_when_no_catches(self) -> None:
+        cases = [_bug_case("a")]
+        all_scores = {
+            "copilot": [_score("a", tool="copilot", caught=False)],
+        }
+        all_results = {
+            "copilot": [ToolResult(case_id="a", tool="copilot", cost_usd=1.0)],
+        }
+        table = build_comparison_table(all_scores, all_results, cases)
+        assert table[0]["median_localization"] is None
+
+
+class TestJudgeFailedReportedInAnalysis:
+    def test_warning_output(self, tmp_path: Path, capsys: object) -> None:
+        scores_dir = tmp_path / "scores"
+        scores_dir.mkdir()
+        results_dir = tmp_path / "results"
+        results_dir.mkdir()
+        cases_dir = tmp_path / "cases"
+        cases_dir.mkdir()
+
+        from bugeval.io import save_case, save_result
+
+        save_case(_bug_case("a"), cases_dir / "a.yaml")
+
+        s = _score("a", tool="copilot", caught=False)
+        s.judge_failed = True
+        save_score(s, scores_dir / "a__copilot.yaml")
+
+        save_result(
+            ToolResult(case_id="a", tool="copilot", cost_usd=1.0),
+            results_dir / "a__copilot.yaml",
+        )
+
+        run_analysis(tmp_path, cases_dir, no_charts=True)
+
+        captured = capsys.readouterr()  # type: ignore[union-attr]
+        combined = captured.err + captured.out
+        assert "judge failures" in combined
+        assert "scored as 0/0" in combined

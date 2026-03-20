@@ -1,149 +1,68 @@
 {% extends "base.html" %}
-{% block title %}Metrics — bugeval{% endblock %}
+{% block title %}Metrics{% endblock %}
 {% block content %}
 <h1>Metrics</h1>
 
-<div class="card">
-  <select onchange="if(this.value) window.location='/metrics/'+this.value; else window.location='/metrics'">
-    <option value="">Select run…</option>
-    {% for r in runs %}<option value="{{ r }}" {% if r == selected_run %}selected{% endif %}>{{ r }}</option>{% endfor %}
-  </select>
-  <a href="/metrics" class="btn btn-secondary btn-sm" style="margin-left:6px;">List all</a>
+<div class="filter-bar">
+  <form method="GET" action="/metrics" style="display:flex;gap:8px;align-items:center;">
+    <select name="run" onchange="if(this.value)window.location='/metrics/'+this.value">
+      <option value="">Select a run...</option>
+      {% for r in runs %}
+      <option value="{{ r }}" {{ 'selected' if run_data and selected_run == r }}>{{ r }}</option>
+      {% endfor %}
+    </select>
+  </form>
 </div>
 
-{% if run_data is none %}
-<h2>Available Runs</h2>
-{% if runs %}
-<table>
-  <thead><tr><th>Run</th><th>Action</th></tr></thead>
-  <tbody>
-    {% for r in runs %}
-    <tr>
-      <td>{{ r }}</td>
-      <td><a href="/metrics/{{ r }}" class="btn btn-primary btn-sm">View</a></td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<div class="card text-muted">No runs found.</div>
-{% endif %}
-
-{% else %}
-
-<h2>{{ selected_run }}</h2>
-
-<!-- Overall stats -->
+{% if run_data %}
 <div class="stat-grid">
-  <div class="stat-card">
-    <div class="stat-num">{{ run_data.scores | length }}</div>
-    <div class="stat-label">Total Scores</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-num">{{ "%.1f%%"|format(run_data.catch_rate * 100) }}</div>
-    <div class="stat-label">Overall Detection Rate</div>
-  </div>
-  <div class="stat-card">
-    <div class="stat-num">{{ "%.2f"|format(run_data.avg_snr) }}</div>
-    <div class="stat-label">Avg SNR</div>
-  </div>
-  <div class="stat-card">
-    {% set kr = run_data.kappa_report %}
-    <div class="stat-num {% if kr.calibrated %}kappa-ok{% else %}kappa-bad{% endif %}">
-      {{ "%.3f"|format(kr.kappa) if kr.n_pairs > 0 else "–" }}
-    </div>
-    <div class="stat-label">Cohen's κ {% if kr.calibrated %}✓{% endif %}</div>
-  </div>
+  <div class="stat-card"><div class="stat-num">{{ run_data.total_scores }}</div><div class="stat-label">Scores</div></div>
+  <div class="stat-card"><div class="stat-num">{{ run_data.caught }}</div><div class="stat-label">Caught</div></div>
+  <div class="stat-card"><div class="stat-num">{{ "%.1f%%"|format(run_data.catch_rate * 100) }}</div><div class="stat-label">Catch Rate</div></div>
+  <div class="stat-card"><div class="stat-num">{{ "%.1f%%"|format(run_data.false_alarm_rate * 100) }}</div><div class="stat-label">False Alarm</div></div>
+  <div class="stat-card"><div class="stat-num">{{ "%.2f"|format(run_data.snr) }}</div><div class="stat-label">Signal/Noise</div></div>
 </div>
 
-<!-- Per-tool table -->
-{% if run_data.agg %}
-<div class="card">
-  <h2>Per-Tool Summary</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Tool</th>
-        <th>Cases</th>
-        <th>Detection Rate</th>
-        <th>Avg Score</th>
-        <th>Avg SNR</th>
-        {% for s in scoring_scale %}<th>Score {{ s }}</th>{% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for tool, m in run_data.agg.items() %}
-      <tr>
-        <td>{{ tool }}</td>
-        <td>{{ m.count }}</td>
-        <td>
-          {% set pct = m.catch_rate * 100 %}
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span>{{ "%.1f%%"|format(pct) }}</span>
-            <div class="progress-bar-wrap" style="width:80px;">
-              <div class="progress-bar-fill" style="width:{{ pct }}%;"></div>
-            </div>
-          </div>
-        </td>
-        <td>{{ "%.2f"|format(m.avg_score) }}</td>
-        <td>{{ "%.2f"|format(m.avg_snr) }}</td>
-        {% set dist = m.score_dist %}
-        {% for s in scoring_scale %}<td>{{ dist.get(s, 0) }}</td>{% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+{% if run_data.contaminated > 0 %}
+<div class="card" style="border-color:var(--color-amber);">
+  <strong>Warning:</strong> {{ run_data.contaminated }} potentially contaminated results
+</div>
+{% endif %}
+{% if run_data.judge_failures > 0 %}
+<div class="card" style="border-color:var(--color-red);">
+  <strong>Warning:</strong> {{ run_data.judge_failures }} judge failures (scored as 0)
 </div>
 {% endif %}
 
-<!-- Cost table -->
-{% if run_data.cost_by_tool %}
-{% set any_cost = run_data.cost_by_tool.values() | selectattr("total") | list %}
-{% if any_cost %}
-<div class="card">
-  <h2>Cost</h2>
-  <table>
-    <thead>
-      <tr><th>Tool</th><th>Total</th><th>Per Review</th><th>Per Detection</th></tr>
-    </thead>
-    <tbody>
-      {% for tool, c in run_data.cost_by_tool.items() %}
-      <tr>
-        <td>{{ tool }}</td>
-        <td>${{ "%.4f"|format(c.total) }}</td>
-        <td>${{ "%.4f"|format(c.per_review) }}</td>
-        <td>${{ "%.4f"|format(c.per_detection) }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
+{% if run_data.table %}
+<h2>Tool Comparison</h2>
+<table>
+  <tr><th>Tool</th><th>Catch Rate</th><th>CI</th><th>Quality</th><th>FAR</th><th>Precision</th><th>SNR</th><th>$/bug</th><th>Time(s)</th></tr>
+  {% for row in run_data.table %}
+  <tr>
+    <td>{{ row.tool }}</td>
+    <td>{{ "%.1f%%"|format(row.catch_rate * 100) }}</td>
+    <td>{{ "%.1f"|format(row.ci_lower * 100) }}-{{ "%.1f%%"|format(row.ci_upper * 100) }}</td>
+    <td>{{ row.mean_quality }}</td>
+    <td>{{ "%.1f%%"|format(row.false_alarm_rate * 100) }}</td>
+    <td>{{ "%.1f%%"|format(row.precision * 100) }}</td>
+    <td>{{ "%.2f"|format(row.snr) }}</td>
+    <td>{{ "$%.2f"|format(row.cost_per_bug) if row.cost_per_bug is not none else '-' }}</td>
+    <td>{{ "%.1f"|format(row.mean_time_seconds) }}</td>
+  </tr>
+  {% endfor %}
+</table>
 {% endif %}
 
-<!-- DX summary -->
-{% if run_data.dx_summary %}
-<div class="card">
-  <h2>DX Assessment</h2>
-  <table>
-    <thead>
-      <tr><th>Tool</th><th>Actionability</th><th>FP Burden</th><th>Integration</th><th>Latency</th></tr>
-    </thead>
-    <tbody>
-      {% for tool, avgs in run_data.dx_summary.items() %}
-      <tr>
-        <td>{{ tool }}</td>
-        <td>{{ "%.1f"|format(avgs.actionability) }}</td>
-        <td>{{ "%.1f"|format(avgs.false_positive_burden) }}</td>
-        <td>{{ "%.1f"|format(avgs.integration_friction) }}</td>
-        <td>{{ "%.1f"|format(avgs.response_latency) }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  <p style="margin-top:8px;"><a href="/dx?run={{ selected_run }}" class="btn btn-secondary btn-sm">Enter DX scores →</a></p>
-</div>
+{% if has_catch_rate_chart is defined and has_catch_rate_chart %}
+<h2>Charts</h2>
+<img class="chart-img" src="/metrics/{{ selected_run }}/chart/catch_rate.png" alt="Catch Rate">
+{% endif %}
+{% if has_detection_dist_chart is defined and has_detection_dist_chart %}
+<img class="chart-img" src="/metrics/{{ selected_run }}/chart/detection_dist.png" alt="Detection Distribution">
 {% endif %}
 
+{% else %}
+<div class="card text-muted">Select a run above to view metrics.</div>
 {% endif %}
 {% endblock %}

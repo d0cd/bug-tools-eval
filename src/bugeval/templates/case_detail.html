@@ -1,139 +1,79 @@
 {% extends "base.html" %}
-{% block title %}{{ case.id }} — bugeval{% endblock %}
+{% block title %}Case {{ case.id }}{% endblock %}
 {% block content %}
-
-<div class="nav-arrows">
-  {% if prev_id %}<a href="/cases/{{ prev_id }}" class="btn btn-secondary btn-sm">← {{ prev_id }}</a>{% endif %}
-  <a href="/cases" class="btn btn-secondary btn-sm">List</a>
-  {% if next_id %}<a href="/cases/{{ next_id }}" class="btn btn-secondary btn-sm">{{ next_id }} →</a>{% endif %}
-  <span style="margin-left:auto;">
-    {% if reviewed %}<span class="badge badge-green">✓ Reviewed</span>{% else %}<span class="badge badge-gray">Unreviewed</span>{% endif %}
-  </span>
+<div style="display:flex;gap:8px;margin-bottom:14px;">
+  {% if prev_id %}<a href="/cases/{{ prev_id }}" class="btn btn-secondary btn-sm">&larr; Prev</a>{% endif %}
+  {% if next_id %}<a href="/cases/{{ next_id }}" class="btn btn-secondary btn-sm">Next &rarr;</a>{% endif %}
 </div>
 
 <h1>{{ case.id }}</h1>
-<p class="text-muted">{{ case.repo }} · {{ case.language }} · {{ case.category.value }} · {{ case.difficulty.value }} · {{ case.severity.value }}</p>
 
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">
-
-  <!-- Left: Edit form -->
+<div class="two-col">
   <div class="card">
-    <h2>Edit Case</h2>
-    <form method="post" class="edit-form">
-      <input type="hidden" name="action" value="save">
-
-      <div class="form-row">
-        <label>Category</label>
-        <select name="category">
-          {% for c in categories %}<option value="{{ c }}" {% if c == case.category.value %}selected{% endif %}>{{ c }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="form-row">
-        <label>Difficulty</label>
-        <select name="difficulty">
-          {% for d in difficulties %}<option value="{{ d }}" {% if d == case.difficulty.value %}selected{% endif %}>{{ d }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="form-row">
-        <label>Severity</label>
-        <select name="severity">
-          {% for s in severities %}<option value="{{ s }}" {% if s == case.severity.value %}selected{% endif %}>{{ s }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="form-row">
-        <label>PR Size</label>
-        <select name="pr_size">
-          {% for ps in pr_sizes %}<option value="{{ ps }}" {% if ps == case.pr_size.value %}selected{% endif %}>{{ ps }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="form-row">
-        <label>Visibility</label>
-        <select name="visibility">
-          {% for v in visibilities %}<option value="{{ v }}" {% if v == case.visibility.value %}selected{% endif %}>{{ v }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="form-row">
-        <label>Base commit</label>
-        <input type="text" name="base_commit" value="{{ case.base_commit }}">
-      </div>
-      <div class="form-row">
-        <label>Head commit</label>
-        <input type="text" name="head_commit" value="{{ case.head_commit }}">
-      </div>
-      <div class="form-row">
-        <label>Description</label>
-        <textarea name="description">{{ case.description }}</textarea>
-      </div>
-
-      <div class="form-row">
-        <label>Needs review</label>
-        <label>
-          <input type="checkbox" name="needs_manual_review" {% if case.needs_manual_review %}checked{% endif %}>
-          needs_manual_review
-        </label>
-      </div>
-
-      <h3>Expected Findings</h3>
-      {% for ef in case.expected_findings %}{% set i = loop.index0 %}
-      <div class="finding-row">
-        <div class="form-row">
-          <label>File</label>
-          <input type="text" name="ef_file_{{ i }}" value="{{ ef.file }}">
-        </div>
-        <div class="form-row">
-          <label>Line</label>
-          <input type="text" name="ef_line_{{ i }}" value="{{ ef.line }}">
-        </div>
-        <div class="form-row">
-          <label>Summary</label>
-          <input type="text" name="ef_summary_{{ i }}" value="{{ ef.summary }}">
-        </div>
-      </div>
-      {% endfor %}
-      <!-- Extra empty slot for adding a new finding -->
-      {% set next_i = case.expected_findings | length %}
-      <div class="finding-row">
-        <div class="form-row"><label>File</label><input type="text" name="ef_file_{{ next_i }}" value=""></div>
-        <div class="form-row"><label>Line</label><input type="text" name="ef_line_{{ next_i }}" value=""></div>
-        <div class="form-row"><label>Summary</label><input type="text" name="ef_summary_{{ next_i }}" value=""></div>
-      </div>
-
-      <div class="form-row">
-        <label>Mark reviewed</label>
-        <label><input type="checkbox" name="mark_reviewed"> mark as reviewed on save</label>
-      </div>
-
-      <div class="actions-bar">
-        <button type="submit" class="btn btn-primary">Save</button>
-        <button type="submit" name="action" value="accept" class="btn btn-success">Accept as-is</button>
-        <button type="submit" name="action" value="skip" class="btn btn-secondary">Skip →</button>
-      </div>
-    </form>
+    <h3>Identity</h3>
+    <p><strong>Repo:</strong> {{ case.repo }}</p>
+    <p><strong>Kind:</strong> <span class="badge {{ 'badge-red' if case.kind.value == 'bug' else 'badge-green' }}">{{ case.kind.value }}</span></p>
+    <p><strong>Language:</strong> {{ case.language }}</p>
+    <p><strong>Category:</strong> {{ case.category or '-' }}</p>
+    <p><strong>Difficulty:</strong> {{ case.difficulty or '-' }}</p>
+    <p><strong>Severity:</strong> {{ case.severity or '-' }}</p>
+    <p><strong>PR Size:</strong> {{ case.pr_size or '-' }}</p>
   </div>
-
-  <!-- Right: Diff viewer -->
-  <div>
-    <div class="card">
-      <h2>Diff — {{ case.head_commit[:8] }}</h2>
-      <div class="diff-block" id="diff-view">{% for line in diff_text.splitlines() %}<span class="{% if line.startswith('+') and not line.startswith('+++') %}diff-add{% elif line.startswith('-') and not line.startswith('---') %}diff-del{% elif line.startswith('@@') %}diff-hunk{% endif %}">{{ line }}
-</span>{% endfor %}</div>
-    </div>
-
-    <div class="card mt-8">
-      <h2>Expected Findings</h2>
-      {% if case.expected_findings %}
-      <table>
-        <thead><tr><th>File</th><th>Line</th><th>Summary</th></tr></thead>
-        <tbody>
-          {% for ef in case.expected_findings %}
-          <tr><td>{{ ef.file }}</td><td>{{ ef.line }}</td><td>{{ ef.summary }}</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% else %}
-      <p class="text-muted">No expected findings.</p>
-      {% endif %}
-    </div>
+  <div class="card">
+    <h3>Git Coordinates</h3>
+    <p><strong>Base commit:</strong> <code>{{ case.base_commit[:12] }}</code></p>
+    {% if case.fix_commit %}<p><strong>Fix commit:</strong> <code>{{ case.fix_commit[:12] }}</code></p>{% endif %}
+    {% if case.introducing_pr_number %}<p><strong>Introducing PR:</strong> #{{ case.introducing_pr_number }} {{ case.introducing_pr_title }}</p>{% endif %}
+    {% if case.fix_pr_number %}<p><strong>Fix PR:</strong> #{{ case.fix_pr_number }}</p>{% endif %}
+    {% if case.introducing_pr_merge_date %}<p><strong>Introducing merged:</strong> {{ case.introducing_pr_merge_date }}</p>{% endif %}
+    {% if case.fix_pr_merge_date %}<p><strong>Fix merged:</strong> {{ case.fix_pr_merge_date }}</p>{% endif %}
   </div>
 </div>
+
+{% if case.bug_description %}
+<div class="card">
+  <h3>Bug Description</h3>
+  <p>{{ case.bug_description }}</p>
+  {% if case.bug_description_source %}<p class="text-muted">Source: {{ case.bug_description_source }}</p>{% endif %}
+</div>
+{% endif %}
+
+{% if case.truth %}
+<div class="card">
+  <h3>Ground Truth</h3>
+  <p><strong>Blame confidence:</strong> <span class="badge badge-blue">{{ case.truth.blame_confidence }}</span></p>
+  {% if case.truth.introducing_commit %}<p><strong>Introducing commit:</strong> <code>{{ case.truth.introducing_commit[:12] }}</code></p>{% endif %}
+  {% if case.truth.fix_summary %}<p><strong>Fix summary:</strong> {{ case.truth.fix_summary }}</p>{% endif %}
+  {% if case.truth.buggy_lines %}
+  <h3>Buggy Lines</h3>
+  <table>
+    <tr><th>File</th><th>Line</th><th>Content</th></tr>
+    {% for bl in case.truth.buggy_lines %}
+    <tr><td>{{ bl.file }}</td><td>{{ bl.line }}</td><td><code>{{ bl.content }}</code></td></tr>
+    {% endfor %}
+  </table>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if case.validation %}
+<div class="card">
+  <h3>Validation</h3>
+  <p><strong>Claude:</strong> {{ case.validation.claude_verdict }}</p>
+  <p><strong>Gemini:</strong> {{ case.validation.gemini_verdict }}</p>
+  <p><strong>Agreement:</strong> {% if case.validation.agreement %}<span class="badge badge-green">yes</span>{% else %}<span class="badge badge-red">no</span>{% endif %}</p>
+</div>
+{% endif %}
+
+{% if case.related_prs %}
+<div class="card">
+  <h3>Related PRs</h3>
+  <table>
+    <tr><th>PR</th><th>Role</th><th>Title</th><th>Date</th></tr>
+    {% for pr in case.related_prs %}
+    <tr><td>#{{ pr.pr_number }}</td><td>{{ pr.role }}</td><td>{{ pr.title }}</td><td>{{ pr.merge_date }}</td></tr>
+    {% endfor %}
+  </table>
+</div>
+{% endif %}
 {% endblock %}

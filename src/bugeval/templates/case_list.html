@@ -1,91 +1,61 @@
 {% extends "base.html" %}
-{% block title %}Cases — bugeval{% endblock %}
+{% block title %}Cases{% endblock %}
 {% block content %}
-<h1>Cases <span class="text-muted">({{ total }} matching)</span></h1>
-
-{% if next_unreviewed %}
-<div style="margin-bottom:12px;">
-  <a href="/cases/{{ next_unreviewed }}" class="btn btn-primary">Next Unreviewed (needs_manual_review) →</a>
+<h1>Cases</h1>
+<div class="filter-bar" id="filter-bar">
+  <select id="f-repo"><option value="">All repos</option></select>
+  <select id="f-kind"><option value="">All kinds</option></select>
+  <input type="text" id="f-q" placeholder="Search...">
+  <button class="btn btn-sm btn-primary" onclick="loadCases()">Filter</button>
 </div>
-{% endif %}
-
-<form method="get" class="filter-bar">
-  <select name="repo">
-    <option value="">All repos</option>
-    {% for r in repos %}<option value="{{ r }}" {% if filters.repo == r %}selected{% endif %}>{{ r }}</option>{% endfor %}
-  </select>
-  <select name="category">
-    <option value="">All categories</option>
-    {% for c in categories %}<option value="{{ c }}" {% if filters.category == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
-  </select>
-  <select name="difficulty">
-    <option value="">All difficulties</option>
-    {% for d in difficulties %}<option value="{{ d }}" {% if filters.difficulty == d %}selected{% endif %}>{{ d }}</option>{% endfor %}
-  </select>
-  <select name="severity">
-    <option value="">All severities</option>
-    {% for s in severities %}<option value="{{ s }}" {% if filters.severity == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
-  </select>
-  <select name="needs_manual_review">
-    <option value="">Any review flag</option>
-    <option value="true" {% if filters.needs_manual_review == "true" %}selected{% endif %}>Needs review</option>
-    <option value="false" {% if filters.needs_manual_review == "false" %}selected{% endif %}>No review needed</option>
-  </select>
-  <select name="reviewed">
-    <option value="">Any reviewed state</option>
-    <option value="true" {% if filters.reviewed == "true" %}selected{% endif %}>Reviewed</option>
-    <option value="false" {% if filters.reviewed == "false" %}selected{% endif %}>Unreviewed</option>
-  </select>
-  <button type="submit" class="btn btn-primary btn-sm">Filter</button>
-  <a href="/cases" class="btn btn-secondary btn-sm">Reset</a>
-</form>
-
-<table>
-  <thead>
-    <tr>
-      <th><a href="/cases?sort=id{% if filter_query %}&{{ filter_query }}{% endif %}">ID</a></th>
-      <th><a href="/cases?sort=repo{% if filter_query %}&{{ filter_query }}{% endif %}">Repo</a></th>
-      <th>Category</th>
-      <th>Difficulty</th>
-      <th>Severity</th>
-      <th title="Needs Manual Review">NMR</th>
-      <th>Reviewed</th>
-      <th>Action</th>
-    </tr>
-  </thead>
-  <tbody>
-    {% for case in cases %}
-    <tr>
-      <td><a href="/cases/{{ case.id }}">{{ case.id }}</a></td>
-      <td>{{ case.repo }}</td>
-      <td><span class="badge badge-blue">{{ case.category.value }}</span></td>
-      <td>
-        {% if case.difficulty.value == "easy" %}<span class="badge badge-green">easy</span>
-        {% elif case.difficulty.value == "medium" %}<span class="badge badge-yellow">medium</span>
-        {% else %}<span class="badge badge-red">hard</span>{% endif %}
-      </td>
-      <td>
-        {% if case.severity.value == "critical" %}<span class="badge badge-red">critical</span>
-        {% elif case.severity.value == "high" %}<span class="badge badge-yellow">high</span>
-        {% else %}<span class="badge badge-gray">{{ case.severity.value }}</span>{% endif %}
-      </td>
-      <td>{% if case.needs_manual_review %}<span class="badge badge-yellow">⚑</span>{% endif %}</td>
-      <td>
-        {% if case.id in reviewed_ids %}<span class="badge badge-green">✓</span>
-        {% else %}<span class="badge badge-gray">–</span>{% endif %}
-      </td>
-      <td><a href="/cases/{{ case.id }}" class="btn btn-primary btn-sm">Review</a></td>
-    </tr>
-    {% endfor %}
-  </tbody>
-</table>
-
-{% if total_pages > 1 %}
-{% set pq = "sort=" ~ filters.sort ~ ("&" ~ filter_query if filter_query else "") %}
-<div class="pagination">
-  {% if page > 1 %}<a href="?page={{ page - 1 }}&{{ pq }}">← Prev</a>{% endif %}
-  <span class="current">{{ page }} / {{ total_pages }}</span>
-  {% if page < total_pages %}<a href="?page={{ page + 1 }}&{{ pq }}">Next →</a>{% endif %}
-</div>
-{% endif %}
+<div id="cases-table"></div>
+<div id="pagination" class="pagination"></div>
+<script>
+let currentPage = 1;
+function loadCases(page) {
+  page = page || 1; currentPage = page;
+  const repo = document.getElementById('f-repo').value;
+  const kind = document.getElementById('f-kind').value;
+  const q = document.getElementById('f-q').value;
+  const params = new URLSearchParams({repo, kind, q, page, per_page: 50});
+  fetch('/api/cases?' + params).then(r => r.json()).then(data => {
+    // Populate filters on first load
+    const repoSel = document.getElementById('f-repo');
+    if (repoSel.options.length <= 1 && data.filters) {
+      data.filters.repos.forEach(r => {
+        const o = document.createElement('option'); o.value = r; o.textContent = r;
+        repoSel.appendChild(o);
+      });
+      const kindSel = document.getElementById('f-kind');
+      data.filters.kinds.forEach(k => {
+        const o = document.createElement('option'); o.value = k; o.textContent = k;
+        kindSel.appendChild(o);
+      });
+    }
+    let html = '<table><tr><th>ID</th><th>Repo</th><th>Kind</th><th>Category</th><th>Difficulty</th><th>Blame</th><th>Validation</th></tr>';
+    data.cases.forEach(c => {
+      html += `<tr>
+        <td><a href="/cases/${c.id}">${c.id}</a></td>
+        <td>${c.repo}</td>
+        <td><span class="badge ${c.kind==='bug'?'badge-red':'badge-green'}">${c.kind}</span></td>
+        <td>${c.category || '-'}</td>
+        <td>${c.difficulty || '-'}</td>
+        <td>${c.blame_confidence || '-'}</td>
+        <td>${c.validation_status || '-'}</td>
+      </tr>`;
+    });
+    html += '</table>';
+    document.getElementById('cases-table').innerHTML = html;
+    // Pagination
+    let pHtml = '';
+    for (let i = 1; i <= data.pages; i++) {
+      pHtml += i === data.page
+        ? `<span class="current">${i}</span>`
+        : `<a href="#" onclick="loadCases(${i});return false;">${i}</a>`;
+    }
+    document.getElementById('pagination').innerHTML = `<span class="text-muted">${data.total} cases</span> ` + pHtml;
+  });
+}
+loadCases();
+</script>
 {% endblock %}

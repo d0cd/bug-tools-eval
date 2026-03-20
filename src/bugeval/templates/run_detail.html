@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Run {{ run_id }}{% endblock %}
+{% block content %}
+<h1>{{ run_id }}</h1>
+<div class="card">
+  <p>Results: {{ status.results_count }} | Scores: {{ status.scores_count }}</p>
+  <p><a href="/metrics/{{ run_id }}">View Metrics</a></p>
+</div>
+<h2>Notes</h2>
+{% for n in notes %}
+<div class="card">
+  <div class="text-muted">{{ n.timestamp }}</div>
+  <div>{{ n.text }}</div>
+</div>
+{% endfor %}
+<form method="POST" action="/runs/{{ run_id }}/notes" style="margin-top:12px;">
+  <textarea name="text" rows="2" style="width:100%;padding:8px;border:1px solid var(--color-border);border-radius:var(--radius-sm);font-size:13px;" placeholder="Add a note..."></textarea>
+  <button type="submit" class="btn btn-primary btn-sm mt-8">Add Note</button>
+</form>
+{% endblock %}

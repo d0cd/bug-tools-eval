@@ -1,198 +1,86 @@
-# bug-tools-eval configuration
-# See docs/experiment-design.md for schema documentation
-
-github:
-  eval_org: "bug-tools-eval"
-
-# Maximum simultaneous agent/API calls across all tools.
-# 1 = fully sequential (safe default). Increase for parallelism.
-max_concurrent: 1
+# Reference configuration — NOT loaded by code at runtime.
+# Values are hardcoded in source. This file documents defaults.
 
 tools:
-  - name: greptile
-    type: api        # pr | api | agent
-    github_app: greptile
-    cooldown_seconds: 30
-    api_endpoint: "https://api.greptile.com/v2/review"
-    api_key_env: "GREPTILE_API_KEY"
-
-  - name: coderabbit
+  copilot:
     type: pr
-    github_app: coderabbit-ai
-    cooldown_seconds: 30
+    display_name: GitHub Copilot
+    timeout_seconds: 600
 
-  - name: bugbot
+  greptile:
     type: pr
-    github_app: linear-bugbot
-    cooldown_seconds: 30
-
-  - name: augment-code
-    type: pr
-    github_app: augment-code
-    cooldown_seconds: 30
-
-  - name: deepsource
-    type: pr
-    github_app: deepsource-io
-    cooldown_seconds: 60
-
-  - name: graphite-diamond
-    type: pr
-    github_app: graphite-app
-    cooldown_seconds: 30
-
-  # Legacy names kept for backward compatibility
-  - name: claude-code-cli
-    type: agent
-    cooldown_seconds: 0
-
-  - name: anthropic-api
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "ANTHROPIC_API_KEY"
-
-  - name: anthropic-api-sonnet
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "ANTHROPIC_API_KEY"
-    model: "claude-sonnet-4-6"
+    display_name: Greptile
     timeout_seconds: 300
 
-  - name: anthropic-api-opus
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "ANTHROPIC_API_KEY"
-    model: "claude-opus-4-6"
-    timeout_seconds: 600
-
-  # Anthropic Claude CLI tiers
-  - name: claude-cli-haiku
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "ANTHROPIC_API_KEY"
-    model: "claude-haiku-4-5"
+  coderabbit:
+    type: pr
+    display_name: CodeRabbit
     timeout_seconds: 300
 
-  - name: claude-cli-sonnet
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "ANTHROPIC_API_KEY"
-    model: "claude-sonnet-4-6"
+  agent:
+    type: agent-api
+    display_name: Claude Agent (API)
+    model: claude-sonnet-4-6
+    max_turns: 10
     timeout_seconds: 600
 
-  - name: claude-cli-opus
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "ANTHROPIC_API_KEY"
-    model: "claude-opus-4-6"
+  agent-gemini:
+    type: agent-api
+    display_name: Gemini Agent (API)
+    model: gemini-2.5-flash
+    max_turns: 10
     timeout_seconds: 600
 
-  # Google Gemini CLI tiers
-  - name: gemini-cli-flash-lite
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "GEMINI_API_KEY"
-    model: "gemini-2.5-flash-lite"
+  agent-openai:
+    type: agent-api
+    display_name: OpenAI Agent (API)
+    model: o4-mini
+    max_turns: 10
+    timeout_seconds: 600
 
-  - name: gemini-cli-flash
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "GEMINI_API_KEY"
-    model: "gemini-2.5-flash"
+  agent-cli-claude:
+    type: agent-cli
+    display_name: Claude Code CLI
+    timeout_seconds: 600
 
-  # OpenAI Codex CLI tiers
-  - name: codex-cli-mini
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "OPENAI_API_KEY"
-    model: "gpt-4.1-mini"
+  agent-cli-gemini:
+    type: agent-cli
+    display_name: Gemini CLI
+    timeout_seconds: 600
 
-  - name: codex-cli-o4
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "OPENAI_API_KEY"
-    model: "o4-mini"
+  agent-cli-codex:
+    type: agent-cli
+    display_name: OpenAI Codex CLI
+    timeout_seconds: 600
 
-  # Google Gemini API (SDK) tiers
-  - name: google-api-flash-lite
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "GEMINI_API_KEY"
-    model: "gemini-2.5-flash-lite"
-
-  - name: google-api-flash
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "GEMINI_API_KEY"
-    model: "gemini-2.5-flash"
-
-  # OpenAI API (SDK) tiers
-  - name: openai-api-mini
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "OPENAI_API_KEY"
-    model: "gpt-4.1-mini"
-
-  - name: openai-api-o4
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "OPENAI_API_KEY"
-    model: "o4-mini"
-
-  - name: claude-agent-sdk-sonnet
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "ANTHROPIC_API_KEY"
-    model: "claude-sonnet-4-6"
-
-  - name: claude-agent-sdk-opus
-    type: agent
-    cooldown_seconds: 0
-    api_key_env: "ANTHROPIC_API_KEY"
-    model: "claude-opus-4-6"
+  agent-sdk:
+    type: agent-sdk
+    display_name: Claude Agent SDK
+    model: claude-sonnet-4-6
+    max_turns: 10
+    timeout_seconds: 600
 
 repos:
-  # ProvableHQ repos (local checkouts available at ~/work/Aleo/<name>)
-  snarkVM: ProvableHQ/snarkVM
-  leo: ProvableHQ/leo
-  snarkOS: ProvableHQ/snarkOS
-  sdk: ProvableHQ/sdk
-  # Greptile benchmark repos (scrape-github only; no local checkout)
-  sentry: getsentry/sentry
-  cal.com: calcom/cal.com
-  grafana: grafana/grafana
-  keycloak: keycloak/keycloak
-  discourse: discourse/discourse
-
-context_levels:
-  - diff-only
-  - diff+repo
-  - diff+repo+domain
+  ProvableHQ/snarkVM:
+    language: rust
+    domain: blockchain
+  ProvableHQ/snarkOS:
+    language: rust
+    domain: blockchain
+  ProvableHQ/leo:
+    language: rust
+    domain: compiler
+  AleoNet/sdk:
+    language: rust
+    domain: sdk
 
 scoring:
-  scale: [0, 1, 2, 3]
-  labels:
-    0: missed
-    1: wrong-area
-    2: correct-id
-    3: correct-id-and-fix
-  catch_threshold: 2
+  judge_model: claude-haiku-4-5
+  judge_temperature: 0
+  mechanical_tolerance: 10
+  contamination_threshold: 0.5
 
-judging:
-  models:                      # ensemble: one vote per tier → cross-model consensus
-    - "claude-haiku-4-5"       # vote 1
-    - "claude-sonnet-4-6"      # vote 2
-    - "claude-opus-4-6"        # vote 3
-  human_sample_rate: 0.25    # fraction of cases for human review
-  calibration_threshold: 0.85  # min LLM/human agreement
-  model: "claude-opus-4-6"   # single-model fallback (used if models list is empty)
-
-pricing:
-  # per-1M token rates: [input_usd, output_usd]
-  claude-sonnet-4-6: [3.0, 15.0]
-  claude-haiku-4-5: [0.80, 4.0]
-  claude-opus-4-6: [15.0, 75.0]
-  gemini-2.5-flash-lite: [0.0, 0.0]
-  gemini-2.5-flash: [0.15, 0.60]
-  gpt-4.1-mini: [0.40, 1.60]
-  o4-mini: [1.10, 4.40]
+defaults:
+  concurrency: 5
+  mine_limit: 200
+  mine_since: "2023-01-01"

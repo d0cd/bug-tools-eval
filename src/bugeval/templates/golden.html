@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Golden Set{% endblock %}
+{% block content %}
+<h1>Golden Set</h1>
+
+<div class="card" style="margin-bottom:16px;">
+  <h2 style="margin-top:0;">Quick Add Case</h2>
+  <div class="text-muted" style="margin-bottom:8px;">
+    Paste a GitHub fix PR URL to automatically create a test case.
+  </div>
+  <div style="display:flex;gap:8px;">
+    <input type="text" id="add-case-url"
+      placeholder="https://github.com/owner/repo/pull/123"
+      style="flex:1;padding:6px 10px;border:1px solid var(--color-border);border-radius:var(--radius-sm);font-size:13px;font-family:var(--font-body);">
+    <button class="btn btn-primary btn-sm" onclick="addCase()">Add Case</button>
+  </div>
+  <div id="add-case-status" style="margin-top:8px;"></div>
+</div>
+
+<script>
+function addCase() {
+  var url = document.getElementById('add-case-url').value.trim();
+  if (!url) return;
+  var status = document.getElementById('add-case-status');
+  status.innerHTML = '<span class="text-muted">Adding case...</span>';
+  document.querySelector('[onclick="addCase()"]').disabled = true;
+  fetch('/api/add-case', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({pr_url: url})
+  }).then(function(r) {
+    return r.json().then(function(data) {
+      document.querySelector('[onclick="addCase()"]').disabled = false;
+      if (r.ok) {
+        status.innerHTML = '<span class="badge badge-green">Created ' + data.case_id +
+          '</span> <a href="/cases/' + data.case_id + '">View</a>';
+        document.getElementById('add-case-url').value = '';
+      } else {
+        status.innerHTML = '<span class="badge badge-red">' + data.error + '</span>';
+      }
+    });
+  }).catch(function(err) {
+    document.querySelector('[onclick="addCase()"]').disabled = false;
+    status.innerHTML = '<span class="badge badge-red">Network error</span>';
+  });
+}
+</script>
+
+<div class="stat-grid">
+  <div class="stat-card"><div class="stat-num">{{ total }}</div><div class="stat-label">Total</div></div>
+  <div class="stat-card"><div class="stat-num">{{ confirmed }}</div><div class="stat-label">Confirmed</div></div>
+  <div class="stat-card"><div class="stat-num">{{ disputed }}</div><div class="stat-label">Disputed</div></div>
+  <div class="stat-card"><div class="stat-num">{{ unreviewed }}</div><div class="stat-label">Unreviewed</div></div>
+</div>
+
+{% if next_unreviewed %}
+<p><a href="/cases/{{ next_unreviewed }}" class="btn btn-primary btn-sm">Review Next Unreviewed</a></p>
+{% endif %}
+
+<div class="filter-bar">
+  <form method="GET" style="display:flex;gap:8px;align-items:center;">
+    <select name="status">
+      <option value="">All statuses</option>
+      <option value="confirmed" {{ 'selected' if filter_status == 'confirmed' }}>Confirmed</option>
+      <option value="disputed" {{ 'selected' if filter_status == 'disputed' }}>Disputed</option>
+      <option value="unreviewed" {{ 'selected' if filter_status == 'unreviewed' }}>Unreviewed</option>
+    </select>
+    <select name="repo">
+      <option value="">All repos</option>
+      {% for r in repos %}<option value="{{ r }}" {{ 'selected' if filter_repo == r }}>{{ r }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+  </form>
+</div>
+
+<table>
+  <tr><th>Case</th><th>Repo</th><th>Kind</th><th>Status</th><th>Actions</th></tr>
+  {% for item in items %}
+  <tr>
+    <td><a href="/cases/{{ item.case_id }}">{{ item.case_id }}</a></td>
+    <td>{{ item.repo }}</td>
+    <td>{{ item.kind }}</td>
+    <td>
+      {% if item.golden_status == 'confirmed' %}<span class="badge badge-green">confirmed</span>
+      {% elif item.golden_status == 'disputed' %}<span class="badge badge-red">disputed</span>
+      {% else %}<span class="badge badge-gray">unreviewed</span>{% endif %}
+    </td>
+    <td>
+      <form method="POST" action="/golden/{{ item.case_id }}" style="display:inline;">
+        <button name="status" value="confirmed" class="btn btn-sm btn-success">Confirm</button>
+        <button name="status" value="disputed" class="btn btn-sm btn-danger">Dispute</button>
+      </form>
+    </td>
+  </tr>
+  {% endfor %}
+</table>
+
+{% if pages > 1 %}
+<div class="pagination">
+  {% for p in range(1, pages + 1) %}
+    {% if p == page %}<span class="current">{{ p }}</span>
+    {% else %}<a href="?page={{ p }}&status={{ filter_status }}&repo={{ filter_repo }}">{{ p }}</a>{% endif %}
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

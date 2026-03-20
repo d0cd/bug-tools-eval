@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Compare Runs{% endblock %}
+{% block content %}
+<h1>Compare Runs</h1>
+<div class="card">
+  <p>Available runs:</p>
+  <ul>
+    {% for r in runs %}
+    <li><a href="/metrics/{{ r }}">{{ r }}</a></li>
+    {% endfor %}
+  </ul>
+  {% if not runs %}
+  <p class="text-muted">No runs found.</p>
+  {% endif %}
+</div>
+{% endblock %}

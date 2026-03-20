@@ -1,254 +1,143 @@
-"""Tests for YAML I/O round-trips."""
+"""Tests for YAML I/O and checkpoint helpers."""
+
+from __future__ import annotations
 
 import json
 from pathlib import Path
 
-import pytest
-
 from bugeval.io import (
-    load_all_cases,
-    load_candidates,
     load_case,
-    save_candidates,
+    load_cases,
+    load_checkpoint,
+    load_result,
+    load_score,
     save_case,
+    save_checkpoint,
+    save_result,
+    save_score,
     write_run_metadata,
 )
-from bugeval.models import (
-    Candidate,
-    CaseStats,
-    Category,
-    Difficulty,
-    ExpectedFinding,
-    PRSize,
-    Severity,
-    TestCase,
-)
+from bugeval.models import CaseKind, TestCase
+from bugeval.result_models import ToolResult
+from bugeval.score_models import CaseScore
 
 
-def make_test_case(id_: str = "test-001") -> TestCase:
-    return TestCase(
-        id=id_,
-        repo="provable-org/aleo-lang",
-        base_commit="abc123def456abc123def456abc123def456abc1",
-        head_commit="def456abc123def456abc123def456abc123def4",
-        fix_commit="ghi789ghi789ghi789ghi789ghi789ghi789ghi7",
-        category=Category.logic,
-        difficulty=Difficulty.medium,
-        severity=Severity.high,
-        language="rust",
-        pr_size=PRSize.small,
-        description="A logic bug in the type checker",
-        expected_findings=[ExpectedFinding(file="src/main.rs", line=42, summary="Off-by-one")],
-        stats=None,
-    )
+class TestCaseIO:
+    def test_round_trip(self, tmp_path: Path, sample_case: TestCase) -> None:
+        p = tmp_path / "case.yaml"
+        save_case(sample_case, p)
+        loaded = load_case(p)
+        assert loaded.id == sample_case.id
+        assert loaded.kind == CaseKind.bug
+        assert loaded.truth is not None
+        assert loaded.truth.blame_confidence == "A"
+        assert len(loaded.truth.buggy_lines) == 1
+        assert loaded.truth.buggy_lines[0].file == "consensus/src/worker.rs"
+        assert loaded.validation is not None
+        assert loaded.validation.agreement is True
+        assert loaded.issue_bodies == sample_case.issue_bodies
+        assert len(loaded.related_prs) == 2
+        assert loaded.bug_latency_days == 25
 
+    def test_round_trip_clean(self, tmp_path: Path, clean_case: TestCase) -> None:
+        p = tmp_path / "clean.yaml"
+        save_case(clean_case, p)
+        loaded = load_case(p)
+        assert loaded.kind == CaseKind.clean
+        assert loaded.truth is None
 
-def make_candidate(pr_number: int = 1) -> Candidate:
-    return Candidate(
-        repo="provable-org/aleo-lang",
-        pr_number=pr_number,
-        fix_commit="abc123def456abc123def456abc123def456abc1",
-        confidence=0.7,
-        signals=["has_bug_label"],
-        title="Fix bug",
-        body="Fixes #1",
-        labels=["bug"],
-        files_changed=["src/main.rs"],
-        diff_stats=CaseStats(lines_added=5, lines_deleted=3, files_changed=1, hunks=2),
-        expected_findings=[],
-        language="rust",
-        pr_size=PRSize.tiny,
-    )
-
-
-class TestSaveLoadCase:
-    def test_round_trip(self, tmp_path: Path) -> None:
-        case = make_test_case()
-        path = tmp_path / "test-001.yaml"
-        save_case(case, path)
-        loaded = load_case(path)
-        assert loaded == case
-
-    def test_saves_yaml_file(self, tmp_path: Path) -> None:
-        case = make_test_case()
-        path = tmp_path / "case.yaml"
-        save_case(case, path)
-        assert path.exists()
-
-    def test_stats_round_trip(self, tmp_path: Path) -> None:
-        case = make_test_case()
-        case = case.model_copy(
-            update={"stats": CaseStats(lines_added=10, lines_deleted=5, files_changed=2, hunks=3)}
-        )
-        path = tmp_path / "case-stats.yaml"
-        save_case(case, path)
-        loaded = load_case(path)
-        assert loaded.stats is not None
-        assert loaded.stats.lines_added == 10
-
-    def test_load_missing_file_raises(self, tmp_path: Path) -> None:
-        with pytest.raises(FileNotFoundError):
-            load_case(tmp_path / "nonexistent.yaml")
-
-
-class TestSaveLoadCandidates:
-    def test_round_trip(self, tmp_path: Path) -> None:
-        candidates = [make_candidate(1), make_candidate(2)]
-        path = tmp_path / "candidates.yaml"
-        save_candidates(candidates, path)
-        loaded = load_candidates(path)
-        assert len(loaded) == 2
-        assert loaded[0].pr_number == 1
-        assert loaded[1].pr_number == 2
-
-    def test_empty_list(self, tmp_path: Path) -> None:
-        path = tmp_path / "empty.yaml"
-        save_candidates([], path)
-        loaded = load_candidates(path)
-        assert loaded == []
-
-    def test_load_missing_raises(self, tmp_path: Path) -> None:
-        with pytest.raises(FileNotFoundError):
-            load_candidates(tmp_path / "nonexistent.yaml")
-
-
-class TestLoadAllCases:
-    def test_loads_multiple_files(self, tmp_path: Path) -> None:
-        cases_dir = tmp_path / "cases"
-        cases_dir.mkdir()
-        save_case(make_test_case("a-001"), cases_dir / "a-001.yaml")
-        save_case(make_test_case("a-002"), cases_dir / "a-002.yaml")
-        loaded = load_all_cases(cases_dir)
+    def test_load_cases(
+        self, tmp_path: Path, sample_case: TestCase, clean_case: TestCase
+    ) -> None:
+        d = tmp_path / "cases" / "repo"
+        d.mkdir(parents=True)
+        save_case(sample_case, d / "case-001.yaml")
+        save_case(clean_case, d / "case-002.yaml")
+        loaded = load_cases(tmp_path / "cases")
         assert len(loaded) == 2
         ids = {c.id for c in loaded}
-        assert ids == {"a-001", "a-002"}
+        assert ids == {"snarkVM-001", "clean-001"}
 
-    def test_empty_dir(self, tmp_path: Path) -> None:
-        cases_dir = tmp_path / "cases"
-        cases_dir.mkdir()
-        loaded = load_all_cases(cases_dir)
-        assert loaded == []
+
+class TestResultIO:
+    def test_round_trip(self, tmp_path: Path, sample_result: ToolResult) -> None:
+        p = tmp_path / "result.yaml"
+        save_result(sample_result, p)
+        loaded = load_result(p)
+        assert loaded.case_id == "snarkVM-001"
+        assert loaded.tool == "copilot"
+        assert len(loaded.comments) == 2
+        assert loaded.comments[0].file == "consensus/src/worker.rs"
+        assert loaded.time_seconds == 45.2
+
+
+class TestScoreIO:
+    def test_round_trip(self, tmp_path: Path, sample_score: CaseScore) -> None:
+        p = tmp_path / "score.yaml"
+        save_score(sample_score, p)
+        loaded = load_score(p)
+        assert loaded.case_id == "snarkVM-001"
+        assert loaded.caught is True
+        assert loaded.detection_score == 3
+        assert len(loaded.comment_scores) == 2
+
+
+class TestCheckpoint:
+    def test_empty(self, tmp_path: Path) -> None:
+        p = tmp_path / "checkpoint.json"
+        assert load_checkpoint(p) == set()
+
+    def test_round_trip(self, tmp_path: Path) -> None:
+        p = tmp_path / "checkpoint.json"
+        done = {"case-001", "case-002", "case-003"}
+        save_checkpoint(done, p)
+        loaded = load_checkpoint(p)
+        assert loaded == done
+
+    def test_idempotent(self, tmp_path: Path) -> None:
+        p = tmp_path / "checkpoint.json"
+        save_checkpoint({"a", "b"}, p)
+        save_checkpoint({"a", "b", "c"}, p)
+        assert load_checkpoint(p) == {"a", "b", "c"}
 
 
 class TestWriteRunMetadata:
-    def test_creates_metadata_file(self, tmp_path: Path) -> None:
+    def test_creates_file(self, tmp_path: Path) -> None:
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
         cases_dir = tmp_path / "cases"
         cases_dir.mkdir()
-        write_run_metadata(tmp_path, ["tool-a"], "diff-only", cases_dir)
-        assert (tmp_path / "run_metadata.json").exists()
+        write_run_metadata(run_dir, "agent", "diff-only", cases_dir)
+        assert (run_dir / "run_metadata.json").exists()
 
-    def test_contains_required_fields(self, tmp_path: Path) -> None:
+    def test_contains_tool_and_context(self, tmp_path: Path) -> None:
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
         cases_dir = tmp_path / "cases"
         cases_dir.mkdir()
-        write_run_metadata(tmp_path, ["tool-a", "tool-b"], "diff+repo", cases_dir, limit=5)
-        data = json.loads((tmp_path / "run_metadata.json").read_text())
-        assert data["tools"] == ["tool-a", "tool-b"]
-        assert data["context_level"] == "diff+repo"
-        assert data["cases_dir"] == str(cases_dir)
-        assert data["limit"] == 5
-        assert "git_sha" in data
-        assert "created_at" in data
+        write_run_metadata(
+            run_dir, "greptile", "diff+repo", cases_dir,
+            model="claude-opus-4-6", thinking_budget=1024, timeout=600,
+        )
+        meta = json.loads((run_dir / "run_metadata.json").read_text())
+        assert meta["tool"] == "greptile"
+        assert meta["context_level"] == "diff+repo"
+        assert meta["model"] == "claude-opus-4-6"
+        assert meta["thinking_budget"] == 1024
+        assert meta["timeout"] == 600
+        assert "created_at" in meta
+        assert "python_version" in meta
 
-    def test_dataset_commit_is_hex_or_empty(self, tmp_path: Path) -> None:
+    def test_handles_missing_config(
+        self, tmp_path: Path, monkeypatch: object,
+    ) -> None:
+        run_dir = tmp_path / "run"
+        run_dir.mkdir()
         cases_dir = tmp_path / "cases"
         cases_dir.mkdir()
-        write_run_metadata(tmp_path, ["tool-a"], "diff-only", cases_dir)
-        data = json.loads((tmp_path / "run_metadata.json").read_text())
-        dc = data["dataset_commit"]
-        assert dc == "" or (len(dc) == 40 and all(c in "0123456789abcdef" for c in dc))
-
-    def test_total_cases_matches_case_count(self, tmp_path: Path) -> None:
-        cases_dir = tmp_path / "cases"
-        cases_dir.mkdir()
-        save_case(make_test_case("case-001"), cases_dir / "case-001.yaml")
-        save_case(make_test_case("case-002"), cases_dir / "case-002.yaml")
-        write_run_metadata(tmp_path, ["tool-a"], "diff-only", cases_dir)
-        data = json.loads((tmp_path / "run_metadata.json").read_text())
-        assert data["total_cases"] == 2
-
-    def test_patches_dir_stored(self, tmp_path: Path) -> None:
-        cases_dir = tmp_path / "cases"
-        cases_dir.mkdir()
-        patches_dir = tmp_path / "patches"
-        write_run_metadata(tmp_path, ["tool-a"], "diff-only", cases_dir, patches_dir=patches_dir)
-        data = json.loads((tmp_path / "run_metadata.json").read_text())
-        assert data["patches_dir"] == str(patches_dir)
-
-    def test_limit_zero_by_default(self, tmp_path: Path) -> None:
-        cases_dir = tmp_path / "cases"
-        cases_dir.mkdir()
-        write_run_metadata(tmp_path, ["tool-a"], "diff-only", cases_dir)
-        data = json.loads((tmp_path / "run_metadata.json").read_text())
-        assert data["limit"] == 0
-
-    def test_context_level_specific_prompt_resolved(self, tmp_path: Path) -> None:
-        """agent_prompt_hash should reflect the context-level-specific file, not the generic one."""
-        cases_dir = tmp_path / "cases"
-        cases_dir.mkdir()
-        config_dir = tmp_path / "config"
-        config_dir.mkdir()
-        (config_dir / "agent_prompt.md").write_text("generic prompt")
-        (config_dir / "agent_prompt_diff+repo.md").write_text("diff+repo prompt")
-
-        orig = Path.cwd()
-        import os
-        os.chdir(tmp_path)
-        try:
-            write_run_metadata(tmp_path, ["tool-a"], "diff+repo", cases_dir)
-        finally:
-            os.chdir(orig)
-
-        data = json.loads((tmp_path / "run_metadata.json").read_text())
-        assert data["agent_prompt_file"].endswith("agent_prompt_diff+repo.md")
-        assert data["agent_prompt_hash"].startswith("sha256:")
-        # Snapshot should contain the context-specific content
-        snapshot = (tmp_path / "agent_prompt_snapshot.md").read_text()
-        assert snapshot == "diff+repo prompt"
-
-    def test_generic_prompt_fallback_when_no_context_specific(self, tmp_path: Path) -> None:
-        """Falls back to agent_prompt.md when no context-level-specific file exists."""
-        cases_dir = tmp_path / "cases"
-        cases_dir.mkdir()
-        config_dir = tmp_path / "config"
-        config_dir.mkdir()
-        (config_dir / "agent_prompt.md").write_text("generic prompt")
-
-        import os
-        orig = Path.cwd()
-        os.chdir(tmp_path)
-        try:
-            write_run_metadata(tmp_path, ["tool-a"], "diff+repo", cases_dir)
-        finally:
-            os.chdir(orig)
-
-        data = json.loads((tmp_path / "run_metadata.json").read_text())
-        assert data["agent_prompt_file"].endswith("agent_prompt.md")
-        snapshot = (tmp_path / "agent_prompt_snapshot.md").read_text()
-        assert snapshot == "generic prompt"
-
-    def test_no_prompt_file_graceful(self, tmp_path: Path) -> None:
-        """No config dir at all: hash is empty string, no snapshot written."""
-        cases_dir = tmp_path / "cases"
-        cases_dir.mkdir()
-
-        import os
-        orig = Path.cwd()
-        os.chdir(tmp_path)
-        try:
-            write_run_metadata(tmp_path, ["tool-a"], "diff-only", cases_dir)
-        finally:
-            os.chdir(orig)
-
-        data = json.loads((tmp_path / "run_metadata.json").read_text())
-        assert data["agent_prompt_hash"] == ""
-        assert data["agent_prompt_file"] == ""
-        assert not (tmp_path / "agent_prompt_snapshot.md").exists()
-
-    def test_agent_prompt_file_in_metadata(self, tmp_path: Path) -> None:
-        """agent_prompt_file key is always present in metadata."""
-        cases_dir = tmp_path / "cases"
-        cases_dir.mkdir()
-        write_run_metadata(tmp_path, ["tool-a"], "diff-only", cases_dir)
-        data = json.loads((tmp_path / "run_metadata.json").read_text())
-        assert "agent_prompt_file" in data
-        assert "agent_prompt_hash" in data
+        # Change to tmp_path so config/config.yaml does not exist
+        monkeypatch.chdir(tmp_path)  # type: ignore[union-attr]
+        write_run_metadata(run_dir, "agent", "", cases_dir)
+        meta = json.loads((run_dir / "run_metadata.json").read_text())
+        assert "config_sha256" not in meta
+        assert meta["tool"] == "agent"

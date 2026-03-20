@@ -1,337 +1,427 @@
 # Experiment Design
 
-Reference document for the bug-tools-eval study. See `docs/runbook.md` for the step-by-step execution guide and `.claude/CLAUDE.md` for project conventions.
-
----
-
 ## 1. Objective
 
-Evaluate whether commercial AI code review tools (PR-integrated or API-based) can reliably catch real bugs in Provable's codebases at a quality level that justifies their cost, compared to a purpose-built in-house agent using Claude Code CLI and the Anthropic API. The primary output is a build-vs-buy recommendation supported by empirical detection rates, noise ratios, and cost-per-bug-caught across controlled, reproducible test cases.
+Evaluate whether a custom Claude-based agent can match or exceed commercial AI code review tools at finding bugs in ProvableHQ Rust/ZK repositories.
 
----
+The tools under test are: GitHub Copilot (PR-based), Greptile (API), and several variants of a custom Claude agent (API, CLI, SDK). Each tool reviews the **introducing PR** -- the pull request that introduced the bug -- not the fix PR. This is the key design choice: the tool sees exactly what a human reviewer would have seen at review time, and the fix PR is held back as ground truth.
+
+Target repos: `ProvableHQ/snarkVM`, `ProvableHQ/snarkOS`, `ProvableHQ/leo`, `AleoNet/sdk`.
 
 ## 2. Tools Under Evaluation
 
 ### Commercial (PR-based)
 
-| Tool | Mode | Notes |
-|------|------|-------|
-| CodeRabbit | PR | Primary PR mode; CLI if available |
-| BugBot (Linear) | PR | Requires Linear GitHub App |
-| Augment Code | PR | Requires GitHub App install |
-| DeepSource | PR | Static + AI hybrid |
-| Graphite Diamond | PR | Requires Graphite GitHub App |
+| Tool | Type | Runner | Notes |
+|------|------|--------|-------|
+| `copilot` | PR | `copilot_runner.py` | Fork repo, open PR with introducing changes, poll for Copilot review, scrape comments, close PR |
+| `greptile` | PR | `greptile_runner.py` | Same PR lifecycle as Copilot; reuses fork infrastructure from `copilot_runner.py` |
+| `coderabbit` | PR | `coderabbit_runner.py` | Same PR lifecycle as Copilot; reuses fork infrastructure from `copilot_runner.py` |
 
-### Commercial (API-based)
+### In-house agents (API — model capability comparison)
 
-| Tool | Mode | Notes |
-|------|------|-------|
-| Greptile | API | Diff submission via REST API |
+All three API runners share identical tools (`read_file`, `list_directory`, `search_text`), identical prompts, identical tool execution, and identical anti-contamination measures. Differences in scores reflect **model capability**, not tooling.
 
-### In-house agents
+| Tool | Runner | Default Model | Cost (per MTok in/out) |
+|------|--------|---------------|----------------------|
+| `agent` | `agent_runner.run_anthropic_api` | `claude-sonnet-4-6` | $3.00 / $15.00 |
+| `agent-gemini` | `agent_runner.run_google_api` | `gemini-2.5-flash` | $0.15 / $0.60 |
+| `agent-openai` | `agent_runner.run_openai_api` | `o4-mini` | $1.10 / $4.40 |
 
-| Tool | Mode | Model |
-|------|------|-------|
-| `claude-cli-haiku` | CLI (Docker) | claude-haiku-4-5 |
-| `claude-cli-sonnet` | CLI (Docker) | claude-sonnet-4-6 |
-| `claude-cli-opus` | CLI (Docker) | claude-opus-4-6 |
-| `anthropic-api-sonnet` | API | claude-sonnet-4-6 |
-| `anthropic-api-opus` | API | claude-opus-4-6 |
-| `claude-agent-sdk-sonnet` | Agent SDK | claude-sonnet-4-6 |
-| `claude-agent-sdk-opus` | Agent SDK | claude-opus-4-6 |
-| `gemini-cli-flash-lite` | CLI | gemini-2.5-flash-lite |
-| `gemini-cli-flash` | CLI | gemini-2.5-flash |
-| `codex-cli-mini` | CLI | gpt-4.1-mini |
-| `codex-cli-o4` | CLI | o4-mini |
-| `google-api-flash-lite` | SDK | gemini-2.5-flash-lite |
-| `google-api-flash` | SDK | gemini-2.5-flash |
-| `openai-api-mini` | SDK | gpt-4.1-mini |
-| `openai-api-o4` | SDK | o4-mini |
+### In-house agents (CLI — product capability comparison)
 
-All tools are evaluated against the same test case dataset. Commercial PR tools are isolated to per-tool fork repos in a dedicated GitHub org. Full tool definitions are in `config/config.yaml`.
+Each vendor's CLI brings its own system prompt, tool set, and agent loop. Scores measure **product capability** — how well the product works out of the box.
 
----
+| Tool | Binary | Notes |
+|------|--------|-------|
+| `agent-cli-claude` | `claude` | `--output-format json`, `--allowedTools Read,Glob,Grep` |
+| `agent-cli-gemini` | `gemini` | `--yolo` for repo access |
+| `agent-cli-codex` | `codex` | `--sandbox read-only` or `workspace-write` |
 
-## 3. Dataset
+### In-house agents (SDK)
 
-### Source repos
+| Tool | Runner | Default Model |
+|------|--------|---------------|
+| `agent-sdk` | `agent_runner.run_agent_sdk` | `claude-sonnet-4-6` |
 
-Four Provable repos (Rust, blockchain/ZK) and five public repos (Python, TypeScript, Ruby, Go, Java) for cross-domain validation.
+All models are configurable via `--model` flag. API runners support extended thinking via `--thinking-budget`. A per-case cost ceiling of `$2.00` is enforced for all API runners.
 
-### Current composition
+### Interpretation guide
 
-| Repo | Cases | Language | Domain |
-|------|-------|----------|--------|
-| leo | 253 | Rust | ZK compiler |
-| snarkVM | 186 | Rust | ZK virtual machine |
-| snarkOS | 187 | Rust | Blockchain node |
-| sdk | 56 | Rust | SDK / tooling |
-| sentry | 191 | Python | Error monitoring |
-| cal.com | 77 | TypeScript | Calendar scheduling |
-| discourse | 119 | Ruby | Forum software |
-| grafana | 122 | Go | Observability |
-| keycloak | 80 | Java | Identity management |
-| **Total** | **1,271** | | |
+| Question | Use these runners |
+|----------|------------------|
+| Which **model** is best at finding bugs? | API runners (`agent`, `agent-gemini`, `agent-openai`) |
+| Which **product** catches the most bugs? | CLI runners (`agent-cli-*`) |
+| Is it worth building in-house vs buying? | Compare all runners against commercial PR tools |
+| Does repo context help? | Compare `diff-only` vs `diff+repo` within a single runner |
 
-~54% Provable/Rust, ~46% public/mixed-language.
+## 3. Dataset Construction Pipeline
 
-### Selection criteria
+The pipeline runs five sequential stages, each with its own CLI command and checkpoint file:
 
-- Bug was introduced in an identifiable commit (not a multi-year accumulation)
-- Ground truth is the fix commit, which is reviewable
-- Bug is non-trivial (not a typo or obvious syntax error)
-- Reproducible: patch applies cleanly to base commit
+### 3.1 Mine (`bugeval mine`)
 
-### Test case schema
+**Module:** `mine.py`
 
-```yaml
-id: "leo-001"
-repo: "ProvableHQ/leo"
-base_commit: "abc123"           # Clean state (bug not yet present)
-head_commit: "def456"           # Bug-introducing commit
-fix_commit:  "ghi789"           # Ground truth fix
-category: "logic"               # See Category enum below
-difficulty: "medium"            # easy | medium | hard
-severity: "high"                # low | medium | high | critical
-language: "rust"
-pr_size: "medium"               # tiny (<10L) | small | medium | large | xl (>500L)
-description: "Off-by-one in loop bounds causes silent data corruption"
-expected_findings:
-  - file: "src/compiler/pass.rs"
-    line: 142
-    summary: "Loop upper bound should be `n` not `n-1`"
-    line_side: "pre_fix"        # "pre_fix" (- side) or "post_fix" (+ side)
-# Auto-populated by validate_cases:
-stats:
-  lines_added: 12
-  lines_deleted: 3
-  files_changed: 2
-  hunks: 1
-# Data quality fields:
-visibility: "public"            # public | private
-needs_manual_review: false
-verified: false
-verified_by: null
-valid_for_code_review: true
-introducing_commit: null        # SHA of bug-introducing commit (analysis-only)
-pr_number: null                 # GitHub PR number (for scraped cases)
-reviewer_notes: []
-reviewer_findings: []           # Additional expected findings
-quality_flags: []               # e.g. ["groundedness-failed"]
+Scrapes merged PRs from a GitHub repo via `gh pr list`, filters to those with fix signals (keywords like "fix", "bug", "revert" in title/body, or bug-related labels). Filters out PRs that are too small (<3 lines), too large (>1000 lines), or documentation-only.
+
+For each fix PR, fetches rich metadata via GraphQL batch queries (commits, reviews, review threads, discussion comments, closing issues) and builds a `TestCase` YAML with the fix PR data populated. Also detects cross-references between PRs and revert chains to build the `related_prs` relationship graph.
+
+**Outputs:** `cases/<repo>/<repo>-NNN.yaml` with `kind: bug`, fix PR fields populated, ground truth empty.
+**Checkpoint:** `.mine_checkpoint.json` (keyed by PR number).
+
+### 3.2 Blame (`bugeval blame`)
+
+**Module:** `blame.py`
+
+Finds the commit that introduced the bug by running `git blame -C -C -C` on lines deleted by the fix commit. Uses majority vote across blamed SHAs to select the introducing commit, with confidence tiers:
+
+- **Tier A:** >60% of blamed lines point to the same commit
+- **Tier B:** 40-60% agreement
+- **Tier C:** <40% agreement, or file-level fallback (most recent commit touching the same files)
+- **Tier D:** Omission bug -- no deleted lines, blamed via enclosing function signature
+
+Merge commits are resolved to the feature branch (second parent). Initial commits are excluded.
+
+After identifying the introducing commit, resolves it to its parent PR via the GitHub API (`repos/{owner}/{name}/commits/{sha}/pulls`) and populates the `introducing_pr_*` fields on the TestCase. Also computes `bug_latency_days` (time between introducing and fix merges) and sets `base_commit` to the parent of the introducing commit.
+
+**Outputs:** Updates existing case YAMLs with `truth.introducing_commit`, `truth.blame_confidence`, `introducing_pr_*` fields, `base_commit`.
+**Checkpoint:** `.blame_checkpoint.json` (keyed by case ID).
+
+### 3.3 Ground Truth (`bugeval ground-truth`)
+
+**Module:** `ground_truth.py`
+
+Computes `buggy_lines` via diff intersection: lines **added** by the introducing commit that were **deleted** (or modified) by the fix commit, with a 3-line drift tolerance. This identifies the exact lines where the bug was introduced.
+
+Also extracts bug descriptions (priority: issue body > PR body > PR title > commit message), computes metadata (latency, same-author fix), and heuristically classifies bugs by category (concurrency, runtime, memory, logic, security, type, other), difficulty (easy/medium/hard based on fix size), and severity (critical/high/medium/low from labels and keywords).
+
+**Outputs:** Updates case YAMLs with `truth.buggy_lines`, `bug_description`, `category`, `difficulty`, `severity`, `bug_latency_days`, `same_author_fix`.
+**Checkpoint:** `.ground_truth_checkpoint.json` (keyed by case ID).
+
+### 3.4 Validate (`bugeval validate`)
+
+**Module:** `validate.py`
+
+Cross-model validation: sends the introducing diff and bug description to Claude (Haiku) and optionally Gemini, asking each to independently judge whether the diff introduces the described bug. Parses verdicts as `confirmed`, `disputed`, or `ambiguous`.
+
+Agreement requires both models to return the same verdict. A case is `test_validated` only if both agree on `confirmed`. Gemini support is currently a placeholder that returns `ambiguous`.
+
+**Outputs:** Updates case YAMLs with `validation.claude_verdict`, `validation.gemini_verdict`, `validation.agreement`, `validation.test_validated`.
+**Checkpoint:** `.validate_checkpoint.json` (keyed by case ID).
+
+### 3.5 Clean Cases (`bugeval clean-cases`)
+
+**Module:** `clean_cases.py`
+
+Generates negative control cases (`kind: clean`) by fetching merged PRs that lack any fix signal. Filters identically to mine (size bounds, code-only). Additionally checks that no subsequent PR references the candidate (no later fix), to reduce the chance of including a PR that actually introduced a bug.
+
+Clean cases use the PR itself as the introducing PR (the tool reviews this PR as if it were a normal code review), with `truth: null`.
+
+**Outputs:** `cases/<repo>/<repo>-clean-NNN.yaml`.
+**Checkpoint:** `.clean_checkpoint.json` (keyed by PR number).
+
+## 4. Test Case Schema
+
+The `TestCase` model (defined in `models.py`) separates tool-visible data from ground truth:
+
+### Tool-Visible Fields (Introducing PR)
+- `introducing_pr_number`, `introducing_pr_title`, `introducing_pr_body` -- the PR the tool reviews
+- `introducing_pr_commit_messages`, `introducing_pr_commit_shas` -- commits in the introducing PR
+- `introducing_pr_author`, `introducing_pr_merge_date`
+- `introducing_pr_review_comments` -- original human review comments
+- `introducing_pr_ci_status` -- CI state at merge time
+- `base_commit` -- parent of introducing commit (workspace checkout target)
+
+### Ground Truth Fields (Fix PR, Hidden from Tools)
+- `fix_commit`, `fix_pr_number`, `fix_pr_title`, `fix_pr_body`
+- `fix_pr_commit_messages`, `fix_pr_commit_shas`, `fix_pr_merge_date`
+- `fix_pr_review_comments`, `fix_pr_discussion_comments`
+- `fix_pr_merge_method`, `fix_pr_ci_status`
+- `truth: GroundTruth` -- introducing_commit, blame_confidence, buggy_lines, fix_summary, fix_pr_numbers
+- `validation: Validation` -- claude_verdict, gemini_verdict, agreement, test_validated
+
+### Classification
+- `kind: CaseKind` -- `bug` or `clean`
+- `category` -- concurrency, runtime, memory, logic, security, type, other
+- `difficulty` -- easy (<10 lines), medium (10-50), hard (50+)
+- `severity` -- critical, high, medium, low
+- `pr_size` -- tiny (<10), small (10-50), medium (50-200), large (200-500), xl (500+)
+- `language` -- detected from file extensions (rust, python, typescript, etc.)
+
+### Relationship Graph
+- `related_prs: list[PRRelation]` -- role is one of: introducing, partial_fix, full_fix, revert, regression, related
+- `linked_issues`, `issue_bodies`, `issue_labels`, `referenced_issues`
+
+### Derived Metadata
+- `bug_latency_days` -- days between introducing merge and fix merge
+- `same_author_fix` -- whether the same person wrote both PRs
+- `stats: CaseStats` -- lines_added, lines_deleted, files_changed
+
+## 5. Ground Truth Construction
+
+Buggy lines are identified via **diff intersection**:
+
+1. Parse the introducing commit's diff to extract **added lines** (file, line number, content).
+2. Parse the fix commit's diff (or multiple fix diffs from `truth.fix_pr_numbers`) to extract **deleted lines**.
+3. For each added line in the introducing diff, check if any deleted line in the fix diff matches within a **3-line tolerance** (`_LINE_DRIFT_TOLERANCE = 3`) on the same file.
+4. Matching lines become `BuggyLine(file, line, content)`.
+
+The 3-line tolerance accounts for minor line drift caused by intermediate commits between the introducing and fix commits.
+
+### Blame Confidence Tiers
+
+Confidence reflects how reliably the introducing commit was identified:
+
+| Tier | Criteria | Reliability |
+|------|----------|-------------|
+| A | >60% of blamed lines converge on one commit | High -- strong blame signal |
+| B | 40-60% convergence | Moderate -- some noise |
+| C | <40% convergence, or file-level fallback | Low -- weak signal |
+| D | Omission bug, enclosing-function blame | Lowest -- heuristic guess |
+| excluded | No fix lines to blame, initial commit, or git error | Case excluded from analysis |
+
+The analysis module reports results separately for high-confidence cases (tier A/B) vs all cases.
+
+## 6. Context Levels
+
+Agent tools (`agent`, `agent-cli-*`, `agent-sdk`) support three context levels, controlled by `--context`:
+
+| Level | What the tool sees | Tools available |
+|-------|-------------------|----------------|
+| `diff-only` | Sanitized diff + PR metadata only | None (CLI tools have file access disabled) |
+| `diff+repo` | Diff + full repo checkout at `base_commit` | `read_file`, `list_directory`, `search_text` (API); `Read`, `Glob`, `Grep` (CLI/SDK) |
+| `diff+repo+domain` | Above + ZK/Rust domain hints in system prompt | Same as `diff+repo` |
+
+Domain hints (for `diff+repo+domain`) include: cryptographic correctness, consensus safety, serialization round-trip fidelity, resource exhaustion / DoS vectors, and unsafe blocks / FFI boundaries.
+
+Non-agent tools have fixed context: Copilot, Greptile, and CodeRabbit always operate at `diff+repo` (they see the full PR on a fork).
+
+### Workspace-as-Fixture Pattern
+
+Agent tools use a **workspace-as-fixture** pattern. Instead of passing context through prompt text, `materialize_workspace` writes structured files into the workspace:
+
+- `diff.patch` -- the sanitized unified diff
+- `.pr/description.md` -- scrubbed PR title and body
+- `.pr/commits.txt` -- scrubbed commit messages
+- `.pr/domain.md` -- domain hints (only for `diff+repo+domain`)
+
+The agent reads `diff.patch` and `.pr/description.md` from the workspace, not from the prompt. This keeps prompts consistent across runners and context levels.
+
+Workspace setup (`setup_workspace`) clones the repo at `base_commit` via `clone_at_sha` so the tool cannot see post-fix code.
+
+## 7. Scoring
+
+Scoring has two layers, implemented in `score.py` and `score_models.py`.
+
+### Layer 1: Mechanical Catch Rate (Primary Metric)
+
+No LLM required. For each tool comment with `line > 0`, checks if `file` matches a ground truth buggy file and `abs(comment.line - buggy_line.line) <= 10` (tolerance). File matching handles partial paths (`a/b/c.rs` matches `b/c.rs`).
+
+- `caught: bool` -- at least one comment within tolerance
+- `localization_distance: int | None` -- distance of best match
+
+Comments with `line == 0` are classified as `low-value` and excluded from mechanical catch matching (but still counted in comment totals). Comments shorter than 20 chars or matching generic bodies ("lgtm", "looks good", "+1", etc.) are also classified as `low-value`.
+
+For clean cases (`kind: clean`), any non-empty comment set is a `false_alarm`. All comments on clean cases are classified as FP (since `truth` is None).
+
+In `--dry-run` mode (no LLM), a mechanical heuristic assigns detection scores: `caught` + `suggested_fix` present → score 3, `caught` only → score 2, not caught → score 0.
+
+### Layer 2: LLM Quality Judge
+
+Uses `claude-haiku-4-5` (temperature=0) to evaluate review quality. The judge sees the known bug description, buggy lines, and the tool's comments, then returns:
+
+- **Detection Score (0-3):** 0=missed, 1=wrong-area, 2=correct-id, 3=correct-id-and-fix
+- **Review Quality (0-4):** 0=useless, 1=shallow, 2=adequate, 3=strong, 4=exceptional
+- **Comment Verdicts:** per-comment classification as TP, TP-novel, FP, or low-value
+
+The judge prompt explicitly instructs independent scoring of detection vs quality -- a review can have high quality even if it missed the specific known bug.
+
+LLM verdicts override mechanical comment classifications, and TP/FP/novel counts are recounted after override. **TP-novel is an LLM-only verdict** -- the mechanical classifier cannot assign it (it can only distinguish TP, FP, and low-value).
+
+Judge failures (API errors, parse failures) are tracked via `judge_failed`. Failed cases are excluded from quality-dependent metrics (review_quality, comment verdicts) but **included** in catch rate (the mechanical metric is unaffected).
+
+When `--dry-run` is passed to `bugeval score`, only mechanical scoring runs (no LLM calls).
+
+### Contamination Detection
+
+Before scoring, `detect_contamination` checks if tool comments overlap suspiciously with fix PR text (title, body, commit messages, review comments). If >50% of a comment's tokens appear in fix PR text, the result is flagged as `potentially_contaminated`.
+
+## 8. Evaluation Architecture
+
+### Dispatch (`evaluate.py`)
+
+The `evaluate_tool` orchestrator:
+
+1. Loads all cases from `cases_dir`
+2. Creates `run_dir` with `metadata.json` (tool, context_level, start time)
+3. Filters to pending cases via checkpoint (`checkpoint.json`, keyed by `{case_id}::{tool}::{context}`)
+4. For each case, calls `process_case` which dispatches to the appropriate runner:
+   - `copilot` -> `copilot_runner.run_copilot`
+   - `greptile` -> `greptile_runner.run_greptile`
+   - `coderabbit` -> `coderabbit_runner.run_coderabbit`
+   - `agent` -> `agent_runner.run_anthropic_api`
+   - `agent-gemini` -> `agent_runner.run_google_api`
+   - `agent-openai` -> `agent_runner.run_openai_api`
+   - `agent-cli-*` -> `agent_runner.run_agent_cli` (dispatches to claude/gemini/codex)
+   - `agent-sdk` -> `agent_runner.run_agent_sdk`
+
+5. Saves `ToolResult` YAML to `run_dir/results/{case_id}--{tool}--{context}.yaml`
+6. Updates checkpoint after each case
+
+### Concurrency
+
+`ThreadPoolExecutor` with configurable `--concurrency`. Checkpoint writes are protected by a threading lock.
+
+### Runner Details
+
+**Copilot:** Full lifecycle -- `ensure_fork` -> `create_eval_branch` (checkout `introducing~1`, apply patch, push) -> `_isolate_fork` (force-push default branch to `introducing~1` so PR diff only shows introducing changes) -> `open_eval_pr` -> `poll_for_review` (15s intervals) -> `scrape_pr_comments` (filter to Copilot-authored) -> `close_eval_pr`.
+
+**Greptile:** Same PR lifecycle as Copilot; reuses fork infrastructure from `copilot_runner.py`. Polls for `greptile`-authored reviews.
+
+**CodeRabbit:** Same PR lifecycle as Copilot; reuses fork infrastructure from `copilot_runner.py`. Polls for `coderabbitai`-authored reviews.
+
+**Agent API:** Multi-turn conversation loop (up to 10 turns). Tools (`read_file`, `list_directory`, `search_text`) execute locally with path traversal guards. Thinking blocks are captured in transcripts. Cost ceiling ($2.00) and timeout enforced per turn.
+
+**Agent CLI:** Shared `_run_cli_tool` dispatcher builds command, pipes prompt via stdin, parses stdout. Claude CLI uses `--system-prompt` flag and `--output-format json`. Gemini uses `--yolo` for repo access. Codex uses `--sandbox read-only` or `workspace-write`.
+
+**Agent SDK:** Async iteration over `query()` messages. Captures `AssistantMessage` and `ResultMessage` for transcript and cost.
+
+### Anti-Contamination
+
+- `sanitize_diff` strips commit SHAs, author/date headers, From: lines
+- `_scrub_fix_references` removes lines containing fix/bug keywords and issue references from PR metadata shown to tools
+- Copilot fork isolation resets default branch so PR diff only contains introducing changes
+
+### Transcript Storage
+
+All runners save conversation transcripts to `run_dir/transcripts/` as JSON for debugging and audit.
+
+### Result Storage
+
+```
+run_dir/
+  run_metadata.json       # reproducibility: tool, context, model, code_commit, config_sha256, python_version
+  checkpoint.json         # completed case::tool::context keys
+  results/
+    {case_id}--{tool}--{context}.yaml
+  scores/
+    {case_id}__{tool}.yaml
+    checkpoint.json
+  transcripts/
+    {case_id}.json              # agent API/SDK: full conversation history
+    {case_id}-{cli_tool}.json   # agent CLI: prompt + stdout/stderr
+    {case_id}-copilot.json      # copilot: PR metadata, scrubbed title/body, raw comments, diff
+    {case_id}-greptile.json     # greptile: same as copilot
+    {case_id}-coderabbit.json   # coderabbit: same as copilot
+  comparison.csv
+  charts/
+    catch_rate.png
+    detection_dist.png
 ```
 
-### Category enum
+`run_metadata.json` is written automatically by `evaluate_tool()` on the first invocation. It captures the git commit SHA, config file hash, tool name, context level, model, thinking budget, timeout, case count, and Python version for reproducibility.
 
-`logic` | `memory` | `concurrency` | `api-misuse` | `type` | `cryptographic` | `constraint` | `code-smell` | `security` | `performance` | `style` | `incomplete`
+## 9. Analysis
 
-### Dataset quality verification
-
-The `groundedness-check` command (`bugeval groundedness-check`) verifies that `expected_findings` actually exist in the pre-fix diff. It uses an LLM (Haiku by default) to check whether the described bug is visible at the cited file and line in the patch. Cases that fail are flagged with `quality_flags: ["groundedness-failed"]` and `needs_manual_review: true`. This is a post-curation QA step, not part of the evaluation pipeline.
-
----
-
-## 4. Context Levels
-
-Each test case is run at three context levels to isolate what information drives detection:
-
-| Level | What the tool receives | What it tests |
-|-------|----------------------|---------------|
-| `diff-only` | The patch alone | Can the tool catch bugs from the diff with no repo context? |
-| `diff+repo` | Patch + full repo at base commit | Does repo context improve detection? |
-| `diff+repo+domain` | Patch + repo + domain-specific prompt | Does domain knowledge (e.g., ZK proof semantics) unlock harder bugs? |
-
-Context levels apply to in-house agents. Commercial tools receive context according to their native flow (PR tools see the full PR; API tools receive the diff).
-
----
-
-## 5. Architecture
-
-```
-┌───────────────────────────────────────────────────────────────┐
-│  Dataset Layer                                                 │
-│  cases/final/*.yaml  →  patches/*.patch                        │
-│  (ground truth, immutable during runs)                         │
-└───────────────────────────┬───────────────────────────────────┘
-                            │
-              ┌─────────────┼─────────────┐
-              ▼             ▼             ▼
-      ┌───────────┐  ┌───────────┐  ┌───────────┐
-      │ PR Mode   │  │ API Mode  │  │ Agent Mode│
-      │ run-pr-   │  │ run-api-  │  │ run-agent-│
-      │ eval      │  │ eval      │  │ eval      │
-      └─────┬─────┘  └─────┬─────┘  └─────┬─────┘
-            └───────────────┴───────────────┘
-                            │ raw tool output
-                            ▼
-                 ┌─────────────────────┐
-                 │  normalize          │
-                 │  raw → NormalizedResult YAML │
-                 └──────────┬──────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │  judge              │
-                 │  LLM-as-judge (3×)  │
-                 │  → JudgeScore YAML  │
-                 └──────────┬──────────┘
-                            ▼
-                 ┌─────────────────────┐
-                 │  analyze            │
-                 │  → report.md, CSV,  │
-                 │    charts           │
-                 └─────────────────────┘
-```
-
-The `pipeline` command runs normalize → judge → analyze in sequence. Each stage can also be run independently.
-
-**PR mode:** Each commercial PR-based tool gets its own fork of each source repo in a dedicated eval GitHub org. A branch is created, the patch applied, and a PR opened. The tool reviews naturally. Comments are scraped via `gh api`.
-
-**API mode:** Diff sent directly to the tool's API; response captured.
-
-**Agent mode:** Repo cloned at base commit (optionally in Docker). Patch applied. Agent runs with structured prompt. Output captured as structured findings.
-
----
-
-## 6. Execution Protocol
-
-### Checkpoint and resume
-
-Each eval command writes a `checkpoint.yaml` tracking per-(case, tool) status. Interrupted runs resume automatically from the last completed pair.
-
-### Isolation guarantees
-
-- Each tool's fork is independent — no cross-tool contamination
-- Docker containers destroyed after each agent run (when `--use-docker` is set)
-- Branches deleted after PR closed
-- No run mutates `cases/` or `patches/`
-
-### Parallelism
-
-- Async across tools (`asyncio.gather`): all tools process the same case concurrently
-- Sequential within each fork: one PR at a time per fork repo
-- Configurable `--max-concurrent` and per-tool `cooldown_seconds` in `config.yaml`
-
----
-
-## 7. Scoring Rubric
-
-| Score | Label | Meaning | Example |
-|-------|-------|---------|---------|
-| 0 | missed | Bug not identified at all | Tool reviews the PR, comments on style, misses the logic error |
-| 1 | wrong-area | Flagged in the right file but wrong line/issue | Tool flags a nearby variable but not the off-by-one |
-| 2 | correct-id | Identifies correct file + approximate line | "This loop bound looks off" on the right line |
-| 3 | correct-id-and-fix | Correct ID + actionable fix suggestion | "Change `n-1` to `n` here — off-by-one error" |
-
-Scoring is per test case, not per comment. A tool that makes 20 comments but gets the bug right scores a 2 or 3.
-
----
-
-## 8. Judging
-
-### LLM-as-judge
-
-- **Ensemble:** 3 models vote independently (Haiku 4.5, Sonnet 4.6, Opus 4.6) — majority wins
-- **Fallback:** single-model mode using Opus (when ensemble is not configured)
-- **Prompt:** `config/judge_prompt.md` — includes rubric, ground truth, tool output (blinded)
-- **Output per vote:** score (0–3), reasoning, per-comment classification (TP / FP / low-value)
-- **Noise metrics:** total comments, true positives, SNR (TP / total)
-
-### Human-as-judge (calibration)
-
-- 25% random sample, stratified by tool and difficulty
-- Blinded: tool identity redacted
-- Randomized: cases shuffled to prevent order effects
-- Agreement metric: Cohen's kappa between LLM judge and human judges
-- **Calibration threshold:** kappa ≥ 0.85 required before LLM scores are accepted at scale
-- Infrastructure: `bugeval human-judge export/import-scores/kappa`
-
-### Calibration process
-
-1. Run human judging on initial 25% sample
-2. Compute kappa per score level
-3. If kappa < 0.85: adjust judge prompt, re-calibrate
-4. Once calibrated: LLM judge runs at scale
-
----
-
-## 9. Metrics
-
-### Detection
+### Metrics (`analyze.py`)
 
 | Metric | Definition |
 |--------|-----------|
-| Catch rate | % of cases scoring ≥ 2 |
-| Score distribution | % at each 0–3 level |
-| Catch rate by slice | Catch rate broken down by category, difficulty, severity, PR size, language, repo, visibility, context level |
+| Catch rate | Fraction of bug cases where `caught=True` |
+| Severity-weighted catch rate | Catch rate weighted by severity (critical=4, high=3, medium=2, low=1) |
+| Median localization distance | Median line distance for caught cases |
+| Mean review quality | Average `review_quality` score (0-4), excluding judge failures |
+| False alarm rate | Fraction of clean cases with any bug comments |
+| Precision | TP / (TP + FP) across all comments |
+| Signal-to-noise | (TP + TP-novel) / total comments |
+| Cost per bug | Total cost / number of catches |
+| Mean time | Average `time_seconds` per case |
+| Mean time seconds | Average wall-clock time per evaluation |
 
-### Noise
+### Statistical Methods
 
-| Metric | Definition |
-|--------|-----------|
-| Total comments | All comments produced per review |
-| True positives | Comments classified as TP by judge |
-| SNR | true_positives / total_comments |
+- **Bootstrap CI:** 10,000 resamples with seed 42, 95% confidence interval on catch rate
+- **Permutation test:** 10,000 permutations, two-sided test for difference in means between tool pairs
+- **Benjamini-Hochberg FDR:** Applied to pairwise p-values at alpha=0.05
 
-### Cost
+### Slicing Dimensions
 
-| Metric | Definition |
-|--------|-----------|
-| Cost per review | API/token cost per test case (from `metadata.cost_usd`) |
-| Cost per bug caught | Cost per review / catch rate |
+Analysis reports catch rate broken down by: `repo`, `category`, `difficulty`, `severity`, `pr_size`, `blame_confidence`, `context_level`, `issue_linked`.
 
-### Statistical measures
+A separate high-confidence analysis (tier A/B only) is reported for each tool.
 
-| Metric | Definition |
-|--------|-----------|
-| Bootstrap 95% CI | Confidence interval on catch rate (2,000 resamples) |
-| Permutation p-value | Two-sided test for pairwise tool differences (5,000 permutations) |
+### Output
 
-### Developer Experience (DX)
+- `comparison.csv` -- full comparison table
+- Stdout: tab-separated table, per-dimension slices, high-confidence subset, pairwise comparisons with significance markers
+- `charts/catch_rate.png` -- bar chart of catch rates
+- `charts/detection_dist.png` -- detection score histograms per tool
 
-Qualitative assessment (1–5 scale per dimension):
-- Comment actionability
-- False positive burden
-- Integration friction
-- Response latency
+## 10. Pitfalls and Mitigations
 
----
+### Contamination
 
-## 10. Analysis Dimensions
+**Risk:** Tools may have seen the fix PR during training or in their indexed codebase.
 
-All metrics are sliced along these dimensions:
+**Mitigations:**
+- Tools review the *introducing* PR, not the fix -- the fix PR text is never shown
+- `sanitize_diff` strips identifying metadata (SHAs, author, dates) from diffs
+- `_scrub_fix_references` removes fix-related keywords and issue references from PR metadata
+- Copilot fork isolation resets the fork's default branch so the PR diff only contains introducing changes
+- Greptile and CodeRabbit fork isolation resets the fork's default branch, same as Copilot
+- Post-hoc `detect_contamination` flags results with >50% token overlap with fix PR text
+- Contaminated results are reported separately and can be excluded from analysis
 
-| Dimension | Values |
-|-----------|--------|
-| Tool | 23 tool definitions (see §2) |
-| Category | 12 categories (see §3) |
-| Difficulty | easy, medium, hard |
-| Severity | low, medium, high, critical |
-| Context level | diff-only, diff+repo, diff+repo+domain |
-| PR size | tiny, small, medium, large, xl |
-| Visibility | public, private |
-| Language | rust, python, typescript, ruby, go, java |
-| Verified | true, false |
+### Self-Evaluation Bias
 
-Primary comparison: tool × catch rate. Secondary: tool × cost-per-bug. Tertiary: context level × catch rate for in-house agents.
+**Risk:** Using Claude as both the agent under test and the LLM judge.
 
----
+**Mitigations:**
+- Primary metric (mechanical catch rate) requires zero LLM involvement
+- LLM judge uses a different model (Haiku) than the agent (Sonnet)
+- Judge scores (detection, quality) are secondary metrics
+- Judge failures are tracked and excluded from quality analysis
+- The judge prompt scores detection and quality independently
 
-## 11. Pitfalls and Mitigations
+### Context Asymmetry
 
-| Pitfall | Mitigation |
-|---------|-----------|
-| **Dataset contamination** | Use private Provable repos alongside public repos; public repos provide cross-domain validation |
-| **Survivorship bias** | Include bugs across all severity levels, not just obvious ones |
-| **Context prompt quality** | Standardize prompts across context levels; version them in `config/` |
-| **Config drift** | Tool configs versioned in `config/config.yaml`; pinned at run start via `run_metadata.json` |
-| **Self-eval bias** | LLM judge evaluates all tools including Claude agents — same judge for all, blinded. Plan: add non-Claude judges (Gemini, GPT) for cross-validation |
-| **Tool caching** | Run on fresh PRs; delete branches after close; use forks not original repos |
-| **Time decay** | Complete all tool runs within a single dataset version; tag `dataset-v1`, `dataset-v2` before runs |
-| **Context asymmetry** | Commercial PR tools see PR metadata; agents get configurable context. Report results per-context-level; add a `diff-only` agent baseline for fair comparison |
-| **Domain knowledge advantage** | `diff+repo+domain` context gives agents ZK-specific hints. Always compare against `diff-only` as a level playing field |
-| **Multiple comparisons** | Apply FDR correction (Benjamini-Hochberg) to pairwise p-values |
+**Risk:** Tools receive different amounts of context, making comparison unfair.
 
----
+**Mitigations:**
+- Copilot, Greptile, and CodeRabbit always operate at `diff+repo` (inherent to their design)
+- Agent tools are tested at all three context levels (`diff-only`, `diff+repo`, `diff+repo+domain`)
+- Analysis slices by `context_level` so same-context comparisons are straightforward
+- Workspace checkout is at `base_commit` (parent of introducing commit) -- no tool sees post-fix code
 
-## 12. External Benchmarking
+### Ground Truth Quality
 
-The `export-predictions` / `import-predictions` commands allow external tools to benchmark against this dataset without running inside the framework. Export produces a JSONL file with a standardized `Prediction` schema (instance_id, tool, context_level, findings); import converts predictions back to `NormalizedResult` YAMLs for scoring through the judge → analyze pipeline.
+**Risk:** Buggy lines computed via diff intersection may be incomplete or noisy.
+
+**Mitigations:**
+- Blame confidence tiers (A/B/C/D) quantify reliability; analysis reports high-confidence subset separately
+- Cross-model validation (Claude + Gemini) checks whether the introducing diff actually introduces the described bug
+- 3-line drift tolerance in ground truth construction accounts for intermediate commits
+- Mechanical catch rate uses a generous 10-line tolerance
+- Omission bugs (pure additions) are handled via enclosing-function blame (tier D) and flagged as lower confidence
+- Initial commits are excluded entirely
+
+### Clean Case Validity
+
+**Risk:** "Clean" PRs might actually contain bugs.
+
+**Mitigations:**
+- Clean PRs are filtered to exclude any fix-signal keywords or labels
+- `check_not_subsequently_fixed` searches for later PRs that reference the candidate, rejecting any that have fix signals
+- False alarm rate on clean cases is reported as a metric
+
+### Cost and Rate Limits
+
+**Risk:** Evaluation runs are expensive and may hit API rate limits.
+
+**Mitigations:**
+- Per-case cost ceiling ($2.00) on API agent
+- Checkpoint resume on all pipeline stages (mine, blame, ground-truth, validate, evaluate, score)
+- `--dry-run` flag on evaluate and score commands for validation without API calls
+- Configurable `--concurrency` and `--timeout` per evaluation run
+
