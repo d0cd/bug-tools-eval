@@ -82,24 +82,36 @@ def run_blame(
     file: str, lines: list[int], cwd: Path, at_rev: str = "HEAD",
 ) -> dict[int, str]:
     """Run git blame at a specific revision for specific lines."""
-    result: dict[int, str] = {}
-    for line_num in lines:
-        try:
-            output = run_git(
-                "blame", "-C", "-C", "-C",
-                f"-L{line_num},{line_num}",
-                "--porcelain", at_rev, "--", file,
-                cwd=cwd,
-            )
-        except GitError:
-            log.debug("Blame failed for %s:%d", file, line_num)
-            continue
+    if not lines:
+        return {}
 
-        # First line of porcelain: <sha> <orig_line> <final_line> <count>
-        first_line = output.split("\n", 1)[0] if output else ""
-        parts = first_line.split()
-        if parts:
-            result[line_num] = parts[0]
+    # Blame a single contiguous range covering all requested lines
+    min_line = min(lines)
+    max_line = max(lines)
+    try:
+        output = run_git(
+            "blame", "-C", "-C", "-C",
+            f"-L{min_line},{max_line}",
+            "--porcelain", at_rev, "--", file,
+            cwd=cwd,
+        )
+    except GitError:
+        log.debug("Blame failed for %s", file)
+        return {}
+
+    # Parse porcelain output: each blamed section starts with
+    # "<sha> <orig_line> <final_line> [count]"
+    line_set = set(lines)
+    result: dict[int, str] = {}
+    for raw_line in output.splitlines():
+        parts = raw_line.split()
+        if len(parts) >= 3 and len(parts[0]) >= 7:
+            try:
+                final_line = int(parts[2])
+                if final_line in line_set:
+                    result[final_line] = parts[0]
+            except (ValueError, IndexError):
+                continue
 
     return result
 

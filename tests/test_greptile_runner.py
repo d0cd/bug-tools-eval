@@ -116,18 +116,14 @@ class TestRunGreptile:
     @patch("bugeval.greptile_runner.scrape_greptile_comments")
     @patch("bugeval.greptile_runner.poll_for_greptile_review")
     @patch("bugeval.greptile_runner.open_eval_pr")
-    @patch("bugeval.greptile_runner._isolate_fork")
-    @patch("bugeval.greptile_runner._default_branch", return_value="main")
-    @patch("bugeval.greptile_runner.create_eval_branch")
-    @patch("bugeval.greptile_runner.ensure_fork")
+    @patch("bugeval.greptile_runner.create_eval_branches")
+    @patch("bugeval.greptile_runner.ensure_tool_repo")
     @patch("bugeval.greptile_runner._get_patch_diff")
     def test_success(
         self,
         mock_diff: MagicMock,
         mock_fork: MagicMock,
         mock_branch: MagicMock,
-        mock_default_br: MagicMock,
-        mock_isolate: MagicMock,
         mock_open: MagicMock,
         mock_poll: MagicMock,
         mock_scrape: MagicMock,
@@ -137,7 +133,7 @@ class TestRunGreptile:
     ) -> None:
         mock_diff.return_value = "diff content"
         mock_fork.return_value = "testuser/leo"
-        mock_branch.return_value = "eval/leo-001"
+        mock_branch.return_value = ("base-abc", "review-abc")
         mock_open.return_value = 99
         mock_poll.return_value = True
         mock_raw.return_value = [
@@ -148,29 +144,26 @@ class TestRunGreptile:
             Comment(file="src/main.rs", line=42, body="Bug found"),
         ]
         case = _make_case()
-        result = run_greptile(case, tmp_path)
+        result = run_greptile(case, tmp_path, org="testuser")
         assert result.case_id == "leo-001"
         assert result.tool == "greptile"
         assert len(result.comments) == 1
         assert result.error == ""
-        mock_close.assert_called_once()
-        mock_isolate.assert_called_once()
+        mock_close.assert_called_once_with(
+            "testuser/leo", 99, "review-abc", "base-abc",
+        )
 
     @patch("bugeval.greptile_runner.close_eval_pr")
     @patch("bugeval.greptile_runner.poll_for_greptile_review")
     @patch("bugeval.greptile_runner.open_eval_pr")
-    @patch("bugeval.greptile_runner._isolate_fork")
-    @patch("bugeval.greptile_runner._default_branch", return_value="main")
-    @patch("bugeval.greptile_runner.create_eval_branch")
-    @patch("bugeval.greptile_runner.ensure_fork")
+    @patch("bugeval.greptile_runner.create_eval_branches")
+    @patch("bugeval.greptile_runner.ensure_tool_repo")
     @patch("bugeval.greptile_runner._get_patch_diff")
     def test_timeout(
         self,
         mock_diff: MagicMock,
         mock_fork: MagicMock,
         mock_branch: MagicMock,
-        mock_default_br: MagicMock,
-        mock_isolate: MagicMock,
         mock_open: MagicMock,
         mock_poll: MagicMock,
         mock_close: MagicMock,
@@ -178,17 +171,19 @@ class TestRunGreptile:
     ) -> None:
         mock_diff.return_value = "diff content"
         mock_fork.return_value = "testuser/leo"
-        mock_branch.return_value = "eval/leo-001"
+        mock_branch.return_value = ("base-abc", "review-abc")
         mock_open.return_value = 99
         mock_poll.return_value = False
         case = _make_case()
-        result = run_greptile(case, tmp_path, timeout=60)
+        result = run_greptile(case, tmp_path, timeout=60, org="testuser")
         assert result.case_id == "leo-001"
         assert result.tool == "greptile"
         assert "timeout" in result.error.lower()
-        mock_close.assert_called_once()
+        mock_close.assert_called_once_with(
+            "testuser/leo", 99, "review-abc", "base-abc",
+        )
 
-    @patch("bugeval.greptile_runner.ensure_fork")
+    @patch("bugeval.greptile_runner.ensure_tool_repo")
     @patch("bugeval.greptile_runner._get_patch_diff")
     def test_error(
         self,
@@ -216,18 +211,14 @@ class TestGreptileTranscript:
     @patch("bugeval.greptile_runner.scrape_greptile_comments")
     @patch("bugeval.greptile_runner.poll_for_greptile_review")
     @patch("bugeval.greptile_runner.open_eval_pr")
-    @patch("bugeval.greptile_runner._isolate_fork")
-    @patch("bugeval.greptile_runner._default_branch", return_value="main")
-    @patch("bugeval.greptile_runner.create_eval_branch")
-    @patch("bugeval.greptile_runner.ensure_fork")
+    @patch("bugeval.greptile_runner.create_eval_branches")
+    @patch("bugeval.greptile_runner.ensure_tool_repo")
     @patch("bugeval.greptile_runner._get_patch_diff")
     def test_transcript_saved(
         self,
         mock_diff: MagicMock,
         mock_fork: MagicMock,
         mock_branch: MagicMock,
-        mock_default_br: MagicMock,
-        mock_isolate: MagicMock,
         mock_open: MagicMock,
         mock_poll: MagicMock,
         mock_scrape: MagicMock,
@@ -237,7 +228,7 @@ class TestGreptileTranscript:
     ) -> None:
         mock_diff.return_value = "diff content"
         mock_fork.return_value = "testuser/leo"
-        mock_branch.return_value = "eval/leo-001"
+        mock_branch.return_value = ("base-abc", "review-abc")
         mock_open.return_value = 99
         mock_poll.return_value = True
         mock_raw.return_value = [
@@ -250,7 +241,8 @@ class TestGreptileTranscript:
         transcript_dir = tmp_path / "transcripts"
         case = _make_case()
         result = run_greptile(
-            case, tmp_path, transcript_dir=transcript_dir,
+            case, tmp_path, org="testuser",
+            transcript_dir=transcript_dir,
         )
         assert result.transcript_path != ""
         path = Path(result.transcript_path)
@@ -265,18 +257,14 @@ class TestGreptileTranscript:
     @patch("bugeval.greptile_runner.scrape_greptile_comments")
     @patch("bugeval.greptile_runner.poll_for_greptile_review")
     @patch("bugeval.greptile_runner.open_eval_pr")
-    @patch("bugeval.greptile_runner._isolate_fork")
-    @patch("bugeval.greptile_runner._default_branch", return_value="main")
-    @patch("bugeval.greptile_runner.create_eval_branch")
-    @patch("bugeval.greptile_runner.ensure_fork")
+    @patch("bugeval.greptile_runner.create_eval_branches")
+    @patch("bugeval.greptile_runner.ensure_tool_repo")
     @patch("bugeval.greptile_runner._get_patch_diff")
     def test_no_transcript_without_dir(
         self,
         mock_diff: MagicMock,
         mock_fork: MagicMock,
         mock_branch: MagicMock,
-        mock_default_br: MagicMock,
-        mock_isolate: MagicMock,
         mock_open: MagicMock,
         mock_poll: MagicMock,
         mock_scrape: MagicMock,
@@ -286,11 +274,11 @@ class TestGreptileTranscript:
     ) -> None:
         mock_diff.return_value = "diff content"
         mock_fork.return_value = "testuser/leo"
-        mock_branch.return_value = "eval/leo-001"
+        mock_branch.return_value = ("base-abc", "review-abc")
         mock_open.return_value = 99
         mock_poll.return_value = True
         mock_raw.return_value = []
         mock_scrape.return_value = []
         case = _make_case()
-        result = run_greptile(case, tmp_path)
+        result = run_greptile(case, tmp_path, org="testuser")
         assert result.transcript_path == ""

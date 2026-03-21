@@ -126,18 +126,41 @@ class TestRunBlame:
     def test_multiple_lines(self, mock_run_git: object) -> None:
         from unittest.mock import MagicMock
 
-        output1 = PORCELAIN_OUTPUT
-        output2 = PORCELAIN_OUTPUT.replace(
-            "abc123abc123abc123abc123abc123abc123abc1",
-            "def456def456def456def456def456def456def4",
+        # Single call returns porcelain output for the range covering both lines
+        combined = (
+            "abc123abc123abc123abc123abc123abc123abc1 10 10 1\n"
+            "author Alice\n"
+            "author-mail <alice@example.com>\n"
+            "author-time 1234567890\n"
+            "author-tz +0000\n"
+            "committer Bob\n"
+            "committer-mail <bob@example.com>\n"
+            "committer-time 1234567890\n"
+            "committer-tz +0000\n"
+            "summary Some commit message\n"
+            "filename src/foo.rs\n"
+            "\tlet y = 2;\n"
+            "def456def456def456def456def456def456def4 11 11 1\n"
+            "author Alice\n"
+            "author-mail <alice@example.com>\n"
+            "author-time 1234567890\n"
+            "author-tz +0000\n"
+            "committer Bob\n"
+            "committer-mail <bob@example.com>\n"
+            "committer-time 1234567890\n"
+            "committer-tz +0000\n"
+            "summary Another commit\n"
+            "filename src/foo.rs\n"
+            "\tlet z = 3;\n"
         )
-        mock_fn = MagicMock(side_effect=[output1, output2])
+        mock_fn = MagicMock(return_value=combined)
         with patch("bugeval.blame.run_git", mock_fn):
             result = run_blame("src/foo.rs", [10, 11], cwd=Path("/repo"))
         assert result == {
             10: "abc123abc123abc123abc123abc123abc123abc1",
             11: "def456def456def456def456def456def456def4",
         }
+        mock_fn.assert_called_once()
 
     def test_git_error_skips_line(self) -> None:
         from unittest.mock import MagicMock
@@ -212,12 +235,12 @@ class TestFindIntroducingCommit:
             "+    fixed;\n"
         )
 
+        sha = "intro111intro111intro111intro111intro111"
         porcelain = (
-            "intro111intro111intro111intro111intro111 10 10 1\n"
-            "author A\n"
-            "summary msg\n"
-            "filename src/foo.rs\n"
-            "\tline\n"
+            f"{sha} 11 11 1\n"
+            "author A\nsummary msg\nfilename src/foo.rs\n\tline\n"
+            f"{sha} 12 12 1\n"
+            "author A\nsummary msg\nfilename src/foo.rs\n\tline\n"
         )
 
         def git_side_effect(
@@ -268,13 +291,20 @@ class TestFindIntroducingCommit:
             "+    fixed;\n"
         )
 
-        blame_shas = [
-            "aaa1" * 10,  # 2 lines → 50%
-            "aaa1" * 10,
-            "bbb2" * 10,  # 2 lines → 50%
-            "bbb2" * 10,
-        ]
-        call_idx = [0]
+        sha_a = "aaa1" * 10
+        sha_b = "bbb2" * 10
+        # Single blame call for range L11,14 returns 4 lines:
+        # 2 from sha_a (lines 11,12) and 2 from sha_b (lines 13,14)
+        blame_porcelain = (
+            f"{sha_a} 11 11 2\n"
+            "author A\nsummary msg\nfilename src/foo.rs\n\tline1;\n"
+            f"{sha_a} 12 12\n"
+            "author A\nsummary msg\nfilename src/foo.rs\n\tline2;\n"
+            f"{sha_b} 13 13 2\n"
+            "author A\nsummary msg\nfilename src/foo.rs\n\tline3;\n"
+            f"{sha_b} 14 14\n"
+            "author A\nsummary msg\nfilename src/foo.rs\n\tline4;\n"
+        )
 
         def git_side_effect(
             *args: str, cwd: Path, timeout: int = 60
@@ -283,15 +313,7 @@ class TestFindIntroducingCommit:
             if "diff" in joined and "fixsha" in joined:
                 return diff_output
             if "blame" in joined:
-                sha = blame_shas[call_idx[0]]
-                call_idx[0] += 1
-                return (
-                    f"{sha} 10 10 1\n"
-                    "author A\n"
-                    "summary msg\n"
-                    "filename src/foo.rs\n"
-                    "\tline\n"
-                )
+                return blame_porcelain
             if "--format=%P" in joined:
                 return "singleparent\n"
             if "rev-list" in joined:
@@ -561,7 +583,7 @@ class TestPopulateBlame:
         )
 
         porcelain = (
-            "introsha1introsha1introsha1introsha1intr 10 10 1\n"
+            "introsha1introsha1introsha1introsha1intr 11 11 1\n"
             "author A\n"
             "summary msg\n"
             "filename src/foo.rs\n"
@@ -619,7 +641,7 @@ class TestPopulateBlame:
         )
 
         porcelain = (
-            "introsha1introsha1introsha1introsha1intr 10 10 1\n"
+            "introsha1introsha1introsha1introsha1intr 11 11 1\n"
             "author A\n"
             "summary msg\n"
             "filename src/foo.rs\n"

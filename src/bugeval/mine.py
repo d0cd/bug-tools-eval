@@ -502,17 +502,32 @@ def build_case_from_pr(
     )
 
 
-def find_duplicate(cases_dir: Path, fix_pr_number: int) -> str | None:
-    """Return case_id if a case with this fix_pr_number already exists, else None."""
+def build_dedup_index(cases_dir: Path) -> dict[int, str]:
+    """Scan all YAMLs once, return {fix_pr_number: case_id}."""
+    index: dict[int, str] = {}
     for p in sorted(cases_dir.rglob("*.yaml")):
         try:
-            with open(p) as f:
-                data = yaml.safe_load(f)
-            if data and data.get("fix_pr_number") == fix_pr_number:
-                return str(data.get("id", p.stem))
+            data = yaml.safe_load(p.read_text())
+            pr_num = data.get("fix_pr_number") if data else None
+            if pr_num is not None:
+                index[pr_num] = str(data.get("id", p.stem))
         except Exception:
             continue
-    return None
+    return index
+
+
+def find_duplicate(
+    cases_dir: Path,
+    fix_pr_number: int,
+    *,
+    index: dict[int, str] | None = None,
+) -> str | None:
+    """Return case_id if a case with this fix_pr_number already exists, else None."""
+    if index is not None:
+        return index.get(fix_pr_number)
+    # Fallback: scan (for single-call use in add_case.py)
+    idx = build_dedup_index(cases_dir)
+    return idx.get(fix_pr_number)
 
 
 # --- Orchestration ---
@@ -581,11 +596,13 @@ def mine_repo(
     existing = sorted(repo_dir.glob(f"{repo_slug}-*.yaml"))
     next_num = len(existing) + 1
 
+    dedup_index = build_dedup_index(repo_dir)
+
     cases: list[TestCase] = []
     for pr in pending_prs:
         pr_num = int(pr["number"])
 
-        dup = find_duplicate(repo_dir, pr_num)
+        dup = find_duplicate(repo_dir, pr_num, index=dedup_index)
         if dup:
             log.info("Skipping PR #%d: duplicate of %s", pr_num, dup)
             done.add(str(pr_num))
@@ -608,6 +625,7 @@ def mine_repo(
         )
         save_case(case, repo_dir / f"{case_id}.yaml")
         cases.append(case)
+        dedup_index[pr_num] = case_id
 
         done.add(str(pr_num))
         save_checkpoint(done, checkpoint_path)

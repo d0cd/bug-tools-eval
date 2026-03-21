@@ -87,25 +87,59 @@ def compute_buggy_lines(
     return result
 
 
+_BUG_KEYWORDS = {
+    "bug", "fix", "error", "crash", "panic", "wrong", "incorrect",
+    "broken", "fail", "issue", "regression", "mishandl", "overflow",
+    "underflow", "null", "missing", "invalid",
+}
+
+
+def _looks_like_bug_report(text: str) -> bool:
+    """Check if text contains bug-related keywords (not a feature request)."""
+    lower = text.lower()
+    return any(kw in lower for kw in _BUG_KEYWORDS)
+
+
 def extract_bug_description(case: TestCase) -> tuple[str, str]:
-    """Extract the best bug description from available metadata."""
-    # Priority: issue body > PR body > PR title > commit message
-    if case.issue_bodies:
-        # Use the first (or longest) issue body
-        body = max(case.issue_bodies.values(), key=len)
-        if body.strip():
-            return body.strip(), "issue"
+    """Extract the best bug description from available metadata.
 
+    Priority:
+    1. Fix PR body (directly describes what was fixed)
+    2. Fix PR title (concise summary of the fix)
+    3. Issue body ONLY if it looks like a bug report (not a feature request)
+    4. Fix PR commit messages
+    5. Fix PR review comments that mention the bug
+    """
+    # Fix PR body is the most reliable source — it describes the fix
     if case.fix_pr_body and case.fix_pr_body.strip():
-        return case.fix_pr_body.strip(), "pr_body"
+        body = case.fix_pr_body.strip()
+        # Skip very short bodies (e.g., "LGTM" or just a link)
+        if len(body) > 20:
+            return body, "pr_body"
 
+    # Fix PR title
     if case.fix_pr_title and case.fix_pr_title.strip():
         return case.fix_pr_title.strip(), "pr_title"
 
+    # Issue bodies — only if they look like actual bug reports
+    if case.issue_bodies:
+        for _num, body in sorted(
+            case.issue_bodies.items(), key=lambda x: len(x[1]), reverse=True,
+        ):
+            if body.strip() and _looks_like_bug_report(body):
+                return body.strip(), "issue"
+
+    # Commit messages
     if case.fix_pr_commit_messages:
         msg = case.fix_pr_commit_messages[0]
         if msg.strip():
             return msg.strip(), "commit_msg"
+
+    # Review comments that mention the bug
+    if case.fix_pr_review_comments:
+        for comment in case.fix_pr_review_comments:
+            if _looks_like_bug_report(comment) and len(comment.strip()) > 30:
+                return comment.strip(), "review_comment"
 
     return "", ""
 

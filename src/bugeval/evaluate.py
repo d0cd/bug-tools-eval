@@ -60,6 +60,8 @@ def process_case(
     thinking_budget: int = 0,
     model: str = "",
     org: str = "",
+    docker: bool = False,
+    docker_image: str = "bugeval-agent",
 ) -> ToolResult:
     """Dispatch to the appropriate runner and save the result."""
     diff = get_diff_for_case(case, repo_dir)
@@ -67,6 +69,34 @@ def process_case(
     workspace: Path | None = None
     if context_level != "diff-only":
         workspace = repo_dir
+
+    # Docker dispatch: run agent-cli-* or agent-sdk inside a container
+    if docker and (tool.startswith("agent-cli") or tool == "agent-sdk"):
+        from bugeval.agent_runner import run_docker, setup_workspace
+
+        if context_level != "diff-only":
+            ws_dir = run_dir / "workspaces"
+            ws_dir.mkdir(parents=True, exist_ok=True)
+            workspace = setup_workspace(
+                case, f"https://github.com/{case.repo}.git",
+                context_level, ws_dir,
+            )
+
+        parts = tool.split("-", 2)
+        cli_name = parts[2] if len(parts) > 2 else "claude"
+
+        transcript_dir = run_dir / "transcripts"
+        transcript_dir.mkdir(parents=True, exist_ok=True)
+        result = run_docker(
+            case, diff, workspace, context_level,
+            cli_tool=cli_name, timeout=timeout,
+            transcript_dir=transcript_dir,
+            model=model, image=docker_image,
+        )
+        results_dir = run_dir / "results"
+        fname = result_filename(case.id, tool, context_level)
+        save_result(result, results_dir / fname)
+        return result
 
     if tool == "greptile":
         from bugeval.greptile_runner import run_greptile
@@ -225,6 +255,8 @@ def evaluate_tool(
     thinking_budget: int = 0,
     model: str = "",
     org: str = "",
+    docker: bool = False,
+    docker_image: str = "bugeval-agent",
 ) -> None:
     """Main orchestrator: load cases, process each, checkpoint progress."""
     cases = load_cases(cases_dir)
@@ -262,19 +294,30 @@ def evaluate_tool(
             logger.info("[dry-run] Would process %s with %s", c.id, tool)
         return
 
+    checkpoint_batch_size = 5
+
     if concurrency <= 1:
+        pending_keys: list[str] = []
         for c in pending:
             try:
                 process_case(
                     c, tool, context_level, repo_dir, run_dir, timeout,
                     thinking_budget=thinking_budget,
                     model=model, org=org,
+                    docker=docker, docker_image=docker_image,
                 )
             except Exception:
                 logger.exception("Error processing %s", c.id)
             key = _checkpoint_key(c.id, tool, context_level)
+            pending_keys.append(key)
+            if len(pending_keys) >= checkpoint_batch_size:
+                with _checkpoint_lock:
+                    done.update(pending_keys)
+                    save_checkpoint(done, checkpoint_path)
+                pending_keys = []
+        if pending_keys:
             with _checkpoint_lock:
-                done.add(key)
+                done.update(pending_keys)
                 save_checkpoint(done, checkpoint_path)
     else:
         with ThreadPoolExecutor(max_workers=concurrency) as pool:
@@ -284,18 +327,27 @@ def evaluate_tool(
                     repo_dir, run_dir, timeout,
                     thinking_budget=thinking_budget,
                     model=model, org=org,
+                    docker=docker, docker_image=docker_image,
                 ): c
                 for c in pending
             }
+            pending_keys_concurrent: list[str] = []
             for future in as_completed(futures):
                 c = futures[future]
                 try:
                     future.result()
                     key = _checkpoint_key(c.id, tool, context_level)
-                    with _checkpoint_lock:
-                        done.add(key)
-                        save_checkpoint(done, checkpoint_path)
+                    pending_keys_concurrent.append(key)
+                    if len(pending_keys_concurrent) >= checkpoint_batch_size:
+                        with _checkpoint_lock:
+                            done.update(pending_keys_concurrent)
+                            save_checkpoint(done, checkpoint_path)
+                        pending_keys_concurrent = []
                 except Exception:
                     logger.warning(
                         "Error processing %s, will retry next run", c.id,
                     )
+            if pending_keys_concurrent:
+                with _checkpoint_lock:
+                    done.update(pending_keys_concurrent)
+                    save_checkpoint(done, checkpoint_path)

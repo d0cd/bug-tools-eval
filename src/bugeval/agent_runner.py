@@ -422,7 +422,7 @@ def run_anthropic_api(
     diff: str,
     repo_dir: Path | None,
     context_level: str,
-    max_turns: int = 10,
+    max_turns: int = 30,
     timeout: int = 300,
     transcript_dir: Path | None = None,
     thinking_budget: int = 0,
@@ -579,7 +579,7 @@ def run_google_api(
     diff: str,
     repo_dir: Path | None,
     context_level: str,
-    max_turns: int = 10,
+    max_turns: int = 30,
     timeout: int = 300,
     transcript_dir: Path | None = None,
     thinking_budget: int = 0,
@@ -808,7 +808,7 @@ def run_openai_api(
     diff: str,
     repo_dir: Path | None,
     context_level: str,
-    max_turns: int = 10,
+    max_turns: int = 30,
     timeout: int = 300,
     transcript_dir: Path | None = None,
     thinking_budget: int = 0,
@@ -1319,13 +1319,28 @@ async def _run_agent_sdk_async(
     transcript_dir: Path | None = None,
     model: str = "",
 ) -> ToolResult:
-    """Run Claude Code via Agent SDK with full cost/transcript tracking."""
+    """Run Claude Code via Agent SDK.
+
+    Uses the proven v1 approach: stream messages, capture AssistantMessage
+    content for transcript, read final result from ResultMessage.result.
+    """
     try:
         from claude_agent_sdk import (  # type: ignore[import-untyped]
             AssistantMessage,
             ClaudeAgentOptions,
+            CLIConnectionError,
+            CLINotFoundError,
             ResultMessage,
             query,
+        )
+        from claude_agent_sdk.types import (  # type: ignore[import-untyped]
+            TextBlock as _SdkTextBlock,
+        )
+        from claude_agent_sdk.types import (
+            ThinkingBlock as _SdkThinkingBlock,
+        )
+        from claude_agent_sdk.types import (
+            ToolUseBlock as _SdkToolUseBlock,
         )
     except ImportError:
         return ToolResult(
@@ -1338,7 +1353,7 @@ async def _run_agent_sdk_async(
     system_prompt = build_system_prompt(context_level)
     sanitized = sanitize_diff(diff)
 
-    # Materialize workspace files -- SDK agent reads from cwd
+    # Materialize workspace files — SDK agent reads from cwd
     effective_repo = repo_dir
     if repo_dir is not None:
         effective_repo = materialize_workspace(
@@ -1350,84 +1365,105 @@ async def _run_agent_sdk_async(
             case, sanitized, tmp_ws, context_level,
         )
 
-    # SDK agent can read files from cwd, so no inline diff needed
+    # SDK agent reads files from cwd, no inline diff needed
     user_prompt = build_user_prompt(
         case, sanitized, context_level, inline_diff=False,
     )
 
-    # Configure tools based on context level
-    if context_level == "diff-only":
-        allowed_tools: list[str] = ["WebSearch"]
-    else:
-        allowed_tools = ["Read", "Glob", "Grep", "WebSearch"]
+    # Same tools for all context levels — the workspace content differs, not the tools.
+    # diff-only: workspace has only diff.patch + .pr/ files
+    # diff+repo: workspace has full repo clone + diff.patch + .pr/ files
+    allowed_tools: list[str] = ["Read", "Glob", "Grep", "WebSearch"]
 
-    options = ClaudeAgentOptions(
-        system_prompt=system_prompt,
-        model=model or MODEL,
-        allowed_tools=allowed_tools if allowed_tools else None,  # type: ignore[arg-type]
-        cwd=str(effective_repo) if effective_repo else None,
-        max_turns=10,
-    )
+    # Explicitly block dangerous tools
+    disallowed = ["Edit", "Write", "Bash", "NotebookEdit"]
+
+    effective_model = model or MODEL
+    sdk_kwargs: dict[str, Any] = {
+        "system_prompt": system_prompt,
+        "model": effective_model,
+        "allowed_tools": allowed_tools,
+        "disallowed_tools": disallowed,
+        "cwd": str(effective_repo) if effective_repo else None,
+        "max_turns": 30,
+        "permission_mode": "acceptEdits",
+        "env": {"CLAUDECODE": ""},  # Allow spawning from nested session
+    }
+    # max_budget_usd is None by default (no budget cap)
+    options = ClaudeAgentOptions(**sdk_kwargs)
 
     start = time.monotonic()
     total_cost = 0.0
-    transcript_messages: list[dict[str, Any]] = []
-    final_text = ""
     session_id = ""
+    result_text = ""
+    transcript_messages: list[dict[str, Any]] = []
 
     try:
         async for message in query(prompt=user_prompt, options=options):
             if time.monotonic() - start > timeout:
-                elapsed = time.monotonic() - start
                 return ToolResult(
                     case_id=case.id,
                     tool="agent-sdk",
                     context_level=context_level,
-                    time_seconds=round(elapsed, 2),
+                    time_seconds=round(time.monotonic() - start, 2),
                     cost_usd=total_cost,
                     error=f"Agent SDK timeout after {timeout}s",
                 )
 
             if isinstance(message, AssistantMessage):
+                # Capture content blocks for transcript
                 msg_entry: dict[str, Any] = {"role": "assistant", "content": []}
                 for block in message.content:
-                    block_type = getattr(block, "type", None)
-                    if block_type == "text":
-                        final_text = block.text  # type: ignore[union-attr]
+                    if isinstance(block, _SdkTextBlock):
                         msg_entry["content"].append(
-                            {"type": "text", "text": block.text}  # type: ignore[union-attr]
+                            {"type": "text", "text": block.text}
                         )
-                    elif block_type == "thinking":
-                        msg_entry["content"].append({
-                            "type": "thinking",
-                            "thinking": getattr(block, "thinking", str(block)),
-                        })
-                    elif block_type == "tool_use":
+                    elif isinstance(block, _SdkThinkingBlock):
+                        msg_entry["content"].append(
+                            {"type": "thinking", "thinking": block.thinking}
+                        )
+                    elif isinstance(block, _SdkToolUseBlock):
                         msg_entry["content"].append({
                             "type": "tool_use",
-                            "name": getattr(block, "name", ""),
-                            "input": getattr(block, "input", {}),
+                            "name": block.name,
+                            "input": block.input,
                         })
                 transcript_messages.append(msg_entry)
 
             elif isinstance(message, ResultMessage):
-                cost = getattr(message, "total_cost_usd", 0) or 0
-                total_cost += cost
-                session_id = getattr(message, "session_id", "") or ""
+                # Final result — this is where the agent's output lives
+                result_text = message.result or ""
+                total_cost = message.total_cost_usd or 0.0
+                session_id = message.session_id or ""
 
-    except Exception as exc:
-        elapsed = time.monotonic() - start
+    except CLINotFoundError as exc:
         return ToolResult(
             case_id=case.id,
             tool="agent-sdk",
             context_level=context_level,
-            time_seconds=round(elapsed, 2),
+            time_seconds=round(time.monotonic() - start, 2),
+            error=f"claude CLI not found: {exc}",
+        )
+    except CLIConnectionError as exc:
+        return ToolResult(
+            case_id=case.id,
+            tool="agent-sdk",
+            context_level=context_level,
+            time_seconds=round(time.monotonic() - start, 2),
+            error=f"CLI connection error: {exc}",
+        )
+    except Exception as exc:
+        return ToolResult(
+            case_id=case.id,
+            tool="agent-sdk",
+            context_level=context_level,
+            time_seconds=round(time.monotonic() - start, 2),
             cost_usd=total_cost,
             error=str(exc),
         )
 
     elapsed = time.monotonic() - start
-    comments = parse_agent_findings(final_text)
+    comments = parse_agent_findings(result_text)
 
     # Save transcript
     transcript_path = ""
@@ -1436,7 +1472,9 @@ async def _run_agent_sdk_async(
         t_path = transcript_dir / f"{case.id}-sdk.json"
         data = {
             "session_id": session_id,
+            "model": effective_model,
             "messages": transcript_messages,
+            "result_text": result_text,
             "cost_usd": total_cost,
             "elapsed_seconds": round(elapsed, 2),
         }
@@ -1452,6 +1490,154 @@ async def _run_agent_sdk_async(
         cost_usd=total_cost,
         transcript_path=transcript_path,
     )
+
+
+def is_docker_available() -> bool:
+    """Check if Docker daemon is reachable."""
+    try:
+        result = subprocess.run(
+            ["docker", "info"], capture_output=True, timeout=5,
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
+def _build_docker_cli_cmd(cli_tool: str, model: str) -> list[str]:
+    """Build the inner CLI command to run inside the Docker container."""
+    if cli_tool == "claude":
+        cmd = [
+            "claude", "-p", "--output-format", "json",
+            "--max-turns", "30",
+            "--dangerously-skip-permissions",
+            "--allowedTools",
+            "Read,Glob,Grep,Bash,WebSearch",
+        ]
+        if model:
+            cmd.extend(["--model", model])
+        return cmd
+    elif cli_tool == "gemini":
+        cmd = ["gemini", "-p", "--output-format", "json", "--yolo"]
+        if model:
+            cmd.extend(["-m", model])
+        return cmd
+    elif cli_tool == "codex":
+        cmd = [
+            "codex", "exec", "--json",
+            "--sandbox", "workspace-write",
+        ]
+        if model:
+            cmd.extend(["-m", model])
+        return cmd
+    return [cli_tool]
+
+
+def run_docker(
+    case: TestCase,
+    diff: str,
+    repo_dir: Path | None,
+    context_level: str,
+    cli_tool: str = "claude",
+    timeout: int = 600,
+    transcript_dir: Path | None = None,
+    model: str = "",
+    image: str = "bugeval-agent",
+) -> ToolResult:
+    """Run a CLI tool inside a Docker container with the workspace mounted.
+
+    The container:
+    - Mounts the workspace at /work (read-write)
+    - Passes ANTHROPIC_API_KEY from host environment
+    - Runs as non-root user 'agent'
+    - Is removed after execution (--rm)
+    - Has full outbound network (needed for API + WebSearch)
+    - Allows Bash tool (safe inside container)
+    """
+    sanitized = sanitize_diff(diff)
+    system_prompt = build_system_prompt(context_level)
+
+    # Materialize workspace
+    effective_repo = repo_dir
+    if repo_dir is not None:
+        effective_repo = materialize_workspace(
+            case, sanitized, repo_dir, context_level,
+        )
+    elif context_level == "diff-only":
+        tmp_ws = Path(tempfile.mkdtemp(prefix="bugeval-ws-"))
+        effective_repo = materialize_workspace(
+            case, sanitized, tmp_ws, context_level,
+        )
+
+    user_prompt = build_user_prompt(
+        case, sanitized, context_level, inline_diff=False,
+    )
+    full_prompt = f"{system_prompt}\n\n{user_prompt}"
+
+    # Build inner CLI command
+    inner_cmd = _build_docker_cli_cmd(cli_tool, model)
+
+    # Build docker command
+    workspace_path = str(effective_repo) if effective_repo else "/dev/null"
+    docker_cmd: list[str] = [
+        "docker", "run", "--rm",
+        "-e", "ANTHROPIC_API_KEY",
+        "-v", f"{workspace_path}:/work",
+        "-w", "/work",
+        image,
+    ] + inner_cmd
+
+    tool_label = f"agent-docker-{cli_tool}"
+    start = time.monotonic()
+
+    try:
+        result = subprocess.run(
+            docker_cmd,
+            input=full_prompt,
+            capture_output=True, text=True, timeout=timeout,
+        )
+        elapsed = time.monotonic() - start
+
+        # Parse output based on CLI tool
+        if cli_tool == "claude":
+            response_text, cost_usd = _claude_parse_output(result.stdout)
+        else:
+            response_text, cost_usd = _plain_parse_output(result.stdout)
+
+        transcript_path = ""
+        if transcript_dir:
+            transcript_path = _save_cli_transcript(
+                transcript_dir, case.id, f"docker-{cli_tool}",
+                full_prompt,
+                _try_parse_json_or_raw(result.stdout)
+                if cli_tool == "claude"
+                else {"stdout": result.stdout[:5000], "stderr": result.stderr[:2000]},
+            )
+
+        comments = parse_agent_findings(response_text)
+        return ToolResult(
+            case_id=case.id, tool=tool_label,
+            context_level=context_level,
+            comments=comments,
+            time_seconds=round(elapsed, 2),
+            cost_usd=cost_usd,
+            transcript_path=transcript_path,
+        )
+    except subprocess.TimeoutExpired:
+        elapsed = time.monotonic() - start
+        return ToolResult(
+            case_id=case.id, tool=tool_label,
+            context_level=context_level,
+            time_seconds=round(elapsed, 2),
+            error=f"Docker container timed out after {timeout}s",
+        )
+    except FileNotFoundError:
+        elapsed = time.monotonic() - start
+        return ToolResult(
+            case_id=case.id, tool=tool_label,
+            context_level=context_level,
+            time_seconds=round(elapsed, 2),
+            error="docker CLI not found on PATH",
+        )
 
 
 def run_agent_sdk(

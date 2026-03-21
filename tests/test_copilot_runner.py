@@ -11,7 +11,7 @@ from bugeval.copilot_runner import (
     _get_patch_diff,
     _isolate_fork,
     close_eval_pr,
-    create_eval_branch,
+    create_eval_branches,
     ensure_fork,
     open_eval_pr,
     poll_for_review,
@@ -75,22 +75,23 @@ class TestEnsureFork:
         assert mock_gh.call_count == 1
 
 
-class TestCreateEvalBranch:
+class TestCreateEvalBranches:
     @patch("bugeval.copilot_runner.subprocess.run")
-    def test_creates_branch_and_pushes(
+    def test_creates_branches_and_pushes(
         self, mock_run: MagicMock, tmp_path: Path,
     ) -> None:
         mock_run.return_value = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="", stderr="",
         )
         case = _make_case()
-        result = create_eval_branch(
+        base_branch, head_branch = create_eval_branches(
             fork="testuser/snarkVM",
             case=case,
             patch_diff="diff --git a/f.rs b/f.rs\n",
             repo_dir=tmp_path,
         )
-        assert result == "eval/snarkVM-001"
+        assert base_branch.startswith("base-")
+        assert head_branch.startswith("review-")
         assert mock_run.call_count >= 3  # checkout, apply, push
         # Verify checkout uses parent of base_commit (introducing_commit fallback)
         first_call_args = mock_run.call_args_list[0][0][0]
@@ -106,7 +107,7 @@ class TestCreateEvalBranch:
         case = _make_case(
             truth=GroundTruth(introducing_commit="intro999"),
         )
-        create_eval_branch(
+        create_eval_branches(
             fork="testuser/snarkVM",
             case=case,
             patch_diff="diff --git a/f.rs b/f.rs\n",
@@ -117,59 +118,62 @@ class TestCreateEvalBranch:
 
 
 class TestOpenEvalPr:
-    @patch("bugeval.copilot_runner._default_branch", return_value="main")
     @patch("bugeval.copilot_runner.run_gh")
     def test_returns_pr_number(
-        self, mock_gh: MagicMock, mock_default: MagicMock,
+        self, mock_gh: MagicMock,
     ) -> None:
-        mock_gh.return_value = json.dumps({"number": 99})
+        mock_gh.return_value = "https://github.com/testuser/snarkVM/pull/99\n"
         case = _make_case()
         result = open_eval_pr(
-            "testuser/snarkVM", "eval/snarkVM-001", case,
+            "testuser/snarkVM", "review-abc", "base-abc", case,
         )
         assert result == 99
 
-    @patch("bugeval.copilot_runner._default_branch", return_value="develop")
     @patch("bugeval.copilot_runner.run_gh")
-    def test_uses_detected_default_branch(
-        self, mock_gh: MagicMock, mock_default: MagicMock,
+    def test_targets_base_branch(
+        self, mock_gh: MagicMock,
     ) -> None:
-        mock_gh.return_value = json.dumps({"number": 7})
+        mock_gh.return_value = "https://github.com/testuser/snarkVM/pull/7\n"
         case = _make_case()
-        open_eval_pr("testuser/snarkVM", "eval/snarkVM-001", case)
+        open_eval_pr(
+            "testuser/snarkVM", "review-abc", "base-abc", case,
+        )
         call_args = mock_gh.call_args[0]
-        assert "develop" in call_args
+        assert "--base" in call_args
+        base_idx = list(call_args).index("--base")
+        assert call_args[base_idx + 1] == "base-abc"
 
-    @patch("bugeval.copilot_runner._default_branch", return_value="main")
     @patch("bugeval.copilot_runner.run_gh")
-    def test_uses_pr_metadata(
-        self, mock_gh: MagicMock, mock_default: MagicMock,
-    ) -> None:
-        mock_gh.return_value = json.dumps({"number": 7})
+    def test_uses_pr_metadata(self, mock_gh: MagicMock) -> None:
+        mock_gh.return_value = "https://github.com/testuser/snarkVM/pull/7\n"
         case = _make_case(
             introducing_pr_title="Refactor validator rotation logic",
             introducing_pr_body="Detailed body about refactoring",
         )
-        open_eval_pr("testuser/snarkVM", "eval/snarkVM-001", case)
+        open_eval_pr(
+            "testuser/snarkVM", "review-abc", "base-abc", case,
+        )
         call_args = mock_gh.call_args[0]
-        # Title and body are scrubbed for anti-contamination
+        # Title is in CLI args
         assert "Refactor validator rotation logic" in call_args
-        assert "Detailed body about refactoring" in call_args
+        # Body is written to a temp file (--body-file), not in CLI args
+        assert "--body-file" in call_args
 
-    @patch("bugeval.copilot_runner._default_branch", return_value="main")
     @patch("bugeval.copilot_runner.run_gh")
     def test_scrubs_fix_references_in_title(
-        self, mock_gh: MagicMock, mock_default: MagicMock,
+        self, mock_gh: MagicMock,
     ) -> None:
-        mock_gh.return_value = json.dumps({"number": 7})
+        mock_gh.return_value = "https://github.com/testuser/snarkVM/pull/7\n"
         case = _make_case(
             introducing_pr_title="Fix overflow",
             introducing_pr_body="",
         )
-        open_eval_pr("testuser/snarkVM", "eval/snarkVM-001", case)
+        open_eval_pr(
+            "testuser/snarkVM", "review-abc", "base-abc", case,
+        )
         call_args = mock_gh.call_args[0]
-        # "Fix overflow" gets scrubbed, falls back to eval-{case.id}
-        assert "eval-snarkVM-001" in call_args
+        # "Fix overflow" gets scrubbed, falls back to "code changes"
+        assert "code changes" in call_args
 
 
 class TestScrapePrComments:
@@ -224,12 +228,14 @@ class TestScrapePrComments:
 
 class TestCloseEvalPr:
     @patch("bugeval.copilot_runner.run_gh")
-    def test_closes_and_deletes_branch(
+    def test_closes_and_deletes_branches(
         self, mock_gh: MagicMock,
     ) -> None:
         mock_gh.return_value = ""
-        close_eval_pr("testuser/snarkVM", 99, "eval/snarkVM-001")
-        assert mock_gh.call_count == 2  # close PR + delete branch
+        close_eval_pr(
+            "testuser/snarkVM", 99, "review-abc", "base-abc",
+        )
+        assert mock_gh.call_count == 3  # close PR + delete head + delete base
 
 
 class TestPollForReview:
@@ -270,9 +276,7 @@ class TestRunCopilot:
     @patch("bugeval.copilot_runner.scrape_pr_comments")
     @patch("bugeval.copilot_runner.poll_for_review")
     @patch("bugeval.copilot_runner.open_eval_pr")
-    @patch("bugeval.copilot_runner._isolate_fork")
-    @patch("bugeval.copilot_runner._default_branch", return_value="main")
-    @patch("bugeval.copilot_runner.create_eval_branch")
+    @patch("bugeval.copilot_runner.create_eval_branches")
     @patch("bugeval.copilot_runner.ensure_fork")
     @patch("bugeval.copilot_runner._get_patch_diff")
     def test_success(
@@ -280,8 +284,6 @@ class TestRunCopilot:
         mock_diff: MagicMock,
         mock_fork: MagicMock,
         mock_branch: MagicMock,
-        mock_default_br: MagicMock,
-        mock_isolate: MagicMock,
         mock_open: MagicMock,
         mock_poll: MagicMock,
         mock_scrape: MagicMock,
@@ -291,7 +293,7 @@ class TestRunCopilot:
     ) -> None:
         mock_diff.return_value = "diff content"
         mock_fork.return_value = "testuser/snarkVM"
-        mock_branch.return_value = "eval/snarkVM-001"
+        mock_branch.return_value = ("base-abc", "review-abc")
         mock_open.return_value = 99
         mock_poll.return_value = True
         mock_raw.return_value = [
@@ -310,17 +312,14 @@ class TestRunCopilot:
         assert result.tool == "copilot"
         assert len(result.comments) == 1
         assert result.error == ""
-        mock_close.assert_called_once()
-        mock_isolate.assert_called_once()
+        mock_close.assert_called_once_with(
+            "testuser/snarkVM", 99, "review-abc", "base-abc",
+        )
 
     @patch("bugeval.copilot_runner.close_eval_pr")
-    @patch("bugeval.copilot_runner._scrape_raw_comments")
-    @patch("bugeval.copilot_runner.scrape_pr_comments")
     @patch("bugeval.copilot_runner.poll_for_review")
     @patch("bugeval.copilot_runner.open_eval_pr")
-    @patch("bugeval.copilot_runner._isolate_fork")
-    @patch("bugeval.copilot_runner._default_branch", return_value="main")
-    @patch("bugeval.copilot_runner.create_eval_branch")
+    @patch("bugeval.copilot_runner.create_eval_branches")
     @patch("bugeval.copilot_runner.ensure_fork")
     @patch("bugeval.copilot_runner._get_patch_diff")
     def test_timeout(
@@ -328,18 +327,14 @@ class TestRunCopilot:
         mock_diff: MagicMock,
         mock_fork: MagicMock,
         mock_branch: MagicMock,
-        mock_default_br: MagicMock,
-        mock_isolate: MagicMock,
         mock_open: MagicMock,
         mock_poll: MagicMock,
-        mock_scrape: MagicMock,
-        mock_raw: MagicMock,
         mock_close: MagicMock,
         tmp_path: Path,
     ) -> None:
         mock_diff.return_value = "diff content"
         mock_fork.return_value = "testuser/snarkVM"
-        mock_branch.return_value = "eval/snarkVM-001"
+        mock_branch.return_value = ("base-abc", "review-abc")
         mock_open.return_value = 99
         mock_poll.return_value = False
         case = _make_case()
@@ -347,7 +342,9 @@ class TestRunCopilot:
         assert result.case_id == "snarkVM-001"
         assert result.tool == "copilot"
         assert "timeout" in result.error.lower()
-        mock_close.assert_called_once()
+        mock_close.assert_called_once_with(
+            "testuser/snarkVM", 99, "review-abc", "base-abc",
+        )
 
     @patch("bugeval.copilot_runner.ensure_fork")
     @patch("bugeval.copilot_runner._get_patch_diff")
@@ -438,9 +435,7 @@ class TestCopilotTranscript:
     @patch("bugeval.copilot_runner.scrape_pr_comments")
     @patch("bugeval.copilot_runner.poll_for_review")
     @patch("bugeval.copilot_runner.open_eval_pr")
-    @patch("bugeval.copilot_runner._isolate_fork")
-    @patch("bugeval.copilot_runner._default_branch", return_value="main")
-    @patch("bugeval.copilot_runner.create_eval_branch")
+    @patch("bugeval.copilot_runner.create_eval_branches")
     @patch("bugeval.copilot_runner.ensure_fork")
     @patch("bugeval.copilot_runner._get_patch_diff")
     def test_transcript_saved(
@@ -448,8 +443,6 @@ class TestCopilotTranscript:
         mock_diff: MagicMock,
         mock_fork: MagicMock,
         mock_branch: MagicMock,
-        mock_default_br: MagicMock,
-        mock_isolate: MagicMock,
         mock_open: MagicMock,
         mock_poll: MagicMock,
         mock_scrape: MagicMock,
@@ -459,7 +452,7 @@ class TestCopilotTranscript:
     ) -> None:
         mock_diff.return_value = "diff content"
         mock_fork.return_value = "testuser/snarkVM"
-        mock_branch.return_value = "eval/snarkVM-001"
+        mock_branch.return_value = ("base-abc", "review-abc")
         mock_open.return_value = 99
         mock_poll.return_value = True
         mock_raw.return_value = [
@@ -492,9 +485,7 @@ class TestCopilotTranscript:
     @patch("bugeval.copilot_runner.scrape_pr_comments")
     @patch("bugeval.copilot_runner.poll_for_review")
     @patch("bugeval.copilot_runner.open_eval_pr")
-    @patch("bugeval.copilot_runner._isolate_fork")
-    @patch("bugeval.copilot_runner._default_branch", return_value="main")
-    @patch("bugeval.copilot_runner.create_eval_branch")
+    @patch("bugeval.copilot_runner.create_eval_branches")
     @patch("bugeval.copilot_runner.ensure_fork")
     @patch("bugeval.copilot_runner._get_patch_diff")
     def test_no_transcript_without_dir(
@@ -502,8 +493,6 @@ class TestCopilotTranscript:
         mock_diff: MagicMock,
         mock_fork: MagicMock,
         mock_branch: MagicMock,
-        mock_default_br: MagicMock,
-        mock_isolate: MagicMock,
         mock_open: MagicMock,
         mock_poll: MagicMock,
         mock_scrape: MagicMock,
@@ -513,7 +502,7 @@ class TestCopilotTranscript:
     ) -> None:
         mock_diff.return_value = "diff content"
         mock_fork.return_value = "testuser/snarkVM"
-        mock_branch.return_value = "eval/snarkVM-001"
+        mock_branch.return_value = ("base-abc", "review-abc")
         mock_open.return_value = 99
         mock_poll.return_value = True
         mock_raw.return_value = []

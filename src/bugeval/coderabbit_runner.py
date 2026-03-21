@@ -11,19 +11,32 @@ from typing import Any
 from bugeval.agent_runner import _scrub_fix_references
 from bugeval.copilot_runner import (
     _get_patch_diff,
-    _isolate_fork,
     close_eval_pr,
-    create_eval_branch,
+    create_eval_branches,
     ensure_fork,
+    ensure_tool_repo,
     open_eval_pr,
     poll_for_review,
     scrape_pr_comments,
 )
-from bugeval.mine import run_gh
+from bugeval.mine import GhError, run_gh
 from bugeval.models import TestCase
 from bugeval.result_models import Comment, ToolResult
 
 log = logging.getLogger(__name__)
+
+
+def _trigger_coderabbit(fork: str, pr_number: int) -> None:
+    """Comment @coderabbitai review to trigger a review on non-default branches."""
+    try:
+        run_gh(
+            "pr", "comment", str(pr_number),
+            "--repo", fork,
+            "--body", "@coderabbitai review",
+        )
+        log.info("Triggered CodeRabbit review on PR #%d", pr_number)
+    except GhError:
+        log.warning("Failed to trigger CodeRabbit on PR #%d", pr_number)
 
 
 def poll_for_coderabbit_review(
@@ -32,7 +45,8 @@ def poll_for_coderabbit_review(
     timeout: int = 300,
     poll_interval: int = 15,
 ) -> bool:
-    """Poll until a CodeRabbit review appears or timeout."""
+    """Trigger CodeRabbit via @coderabbitai review, then poll."""
+    _trigger_coderabbit(fork, pr_number)
     return poll_for_review(fork, pr_number, "coderabbitai", timeout, poll_interval)
 
 
@@ -104,29 +118,22 @@ def run_coderabbit(
     """Run the full CodeRabbit evaluation lifecycle for a test case."""
     start = time.monotonic()
     fork = ""
-    branch = ""
+    base_branch = ""
+    head_branch = ""
     pr_number = 0
     patch_diff = ""
     try:
         patch_diff = _get_patch_diff(case, repo_dir)
-        fork = ensure_fork(case.repo, org=org)
-        branch = create_eval_branch(
+        fork = ensure_tool_repo(case.repo, "coderabbit", org) if org else ensure_fork(case.repo)
+
+        base_branch, head_branch = create_eval_branches(
             fork=fork,
             case=case,
             patch_diff=patch_diff,
             repo_dir=repo_dir,
         )
 
-        # Isolate the fork
-        introducing = (
-            (case.truth.introducing_commit if case.truth else None)
-            or case.base_commit
-        )
-        if introducing:
-            default_br = _default_branch(fork)
-            _isolate_fork(fork, introducing, default_br, repo_dir)
-
-        pr_number = open_eval_pr(fork, branch, case)
+        pr_number = open_eval_pr(fork, head_branch, base_branch, case)
 
         scrubbed_title = (
             _scrub_fix_references(case.introducing_pr_title)
@@ -146,7 +153,7 @@ def run_coderabbit(
             if transcript_dir:
                 _save_coderabbit_transcript(
                     transcript_dir, case.id,
-                    fork=fork, branch=branch, pr_number=pr_number,
+                    fork=fork, branch=head_branch, pr_number=pr_number,
                     scrubbed_title=scrubbed_title,
                     scrubbed_body=scrubbed_body,
                     raw_comments=[], patch_diff=patch_diff,
@@ -171,7 +178,7 @@ def run_coderabbit(
         if transcript_dir:
             transcript_path = _save_coderabbit_transcript(
                 transcript_dir, case.id,
-                fork=fork, branch=branch, pr_number=pr_number,
+                fork=fork, branch=head_branch, pr_number=pr_number,
                 scrubbed_title=scrubbed_title,
                 scrubbed_body=scrubbed_body,
                 raw_comments=raw_comments, patch_diff=patch_diff,
@@ -196,9 +203,9 @@ def run_coderabbit(
             error=str(exc),
         )
     finally:
-        if pr_number and fork and branch:
+        if pr_number and fork and head_branch:
             try:
-                close_eval_pr(fork, pr_number, branch)
+                close_eval_pr(fork, pr_number, head_branch, base_branch)
             except Exception:
                 log.warning(
                     "Failed to clean up PR #%d on %s",

@@ -17,7 +17,7 @@ git clone https://github.com/ProvableHQ/leo.git repos/leo
 ```
 
 One-time GitHub org setup (needed for Step 3):
-1. Create org `bug-finder-eval` at github.com/organizations/new
+1. Create org `bug-tools-eval` at github.com/organizations/new
 2. Install GitHub Copilot, Greptile, and CodeRabbit Apps on the org
 
 ---
@@ -123,14 +123,14 @@ for tool in copilot greptile coderabbit; do
     --cases-dir cases/leo-pilot1 \
     --run-dir results/pilot-03-$tool \
     --repo-dir repos/leo \
-    --org bug-finder-eval \
+    --org bug-tools-eval \
     --concurrency 1 \
     --timeout 600
 done
 ```
 
 **Check for each tool:**
-- Fork created at `bug-finder-eval/leo`
+- Fork created at `bug-tools-eval/leo`
 - PR opened with scrubbed title (no fix/bug keywords)
 - Tool review appears (check transcript for author)
 - Comments scraped and filtered correctly
@@ -239,7 +239,7 @@ for tool in copilot greptile coderabbit; do
     --cases-dir cases/leo \
     --run-dir results/pilot-07-pr-tools \
     --repo-dir repos/leo \
-    --org bug-finder-eval \
+    --org bug-tools-eval \
     --concurrency 1 \
     --timeout 600
 done

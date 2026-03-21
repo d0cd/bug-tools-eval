@@ -27,11 +27,18 @@ def load_case(path: Path) -> TestCase:
     return TestCase(**data)
 
 
-def load_cases(cases_dir: Path) -> list[TestCase]:
-    """Load all TestCase YAMLs from a directory tree."""
+def load_cases(cases_dir: Path, *, include_excluded: bool = False) -> list[TestCase]:
+    """Load TestCase YAMLs from a directory tree.
+
+    By default, cases with ``excluded=True`` are filtered out.
+    Pass ``include_excluded=True`` for curation/dashboard views.
+    """
     cases: list[TestCase] = []
     for p in sorted(cases_dir.rglob("*.yaml")):
-        cases.append(load_case(p))
+        case = load_case(p)
+        if not include_excluded and case.excluded:
+            continue
+        cases.append(case)
     return cases
 
 

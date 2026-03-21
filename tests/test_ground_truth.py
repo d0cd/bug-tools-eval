@@ -193,20 +193,31 @@ class TestExtractBugDescription:
         defaults.update(overrides)
         return TestCase(**defaults)  # type: ignore[arg-type]
 
-    def test_from_issue(self) -> None:
+    def test_pr_body_preferred_over_generic_issue(self) -> None:
+        """PR body wins over issue body that doesn't look like a bug report."""
         case = self._make_case(
-            issue_bodies={123: "Issue body text"},
-            fix_pr_body="PR body",
+            issue_bodies={123: "I'd like a feature for token registry"},
+            fix_pr_body="This fixes the crash in the parser module",
             fix_pr_title="PR title",
         )
         desc, source = extract_bug_description(case)
-        assert source == "issue"
-        assert "Issue body text" in desc
+        assert source == "pr_body"
+        assert "crash" in desc
+
+    def test_bug_issue_wins_when_no_pr_body(self) -> None:
+        """Issue with bug keywords wins when PR body is empty."""
+        case = self._make_case(
+            issue_bodies={123: "Bug report: the parser crashes on invalid input"},
+            fix_pr_body="",
+            fix_pr_title="Fix parser crash",
+        )
+        desc, source = extract_bug_description(case)
+        assert source == "pr_title"  # title comes before issue in priority
 
     def test_from_pr_body(self) -> None:
         case = self._make_case(
             issue_bodies={},
-            fix_pr_body="PR body text here",
+            fix_pr_body="PR body text here is long enough",
             fix_pr_title="PR title",
         )
         desc, source = extract_bug_description(case)

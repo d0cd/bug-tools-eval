@@ -13,9 +13,9 @@ bugeval validate --cases-dir cases/leo --repo-dir ./repos/leo
 bugeval clean-cases --repo ProvableHQ/leo --cases-dir cases/leo
 
 # 2. Evaluation (PR tools need --org for forks)
-bugeval evaluate --tool copilot --cases-dir cases/leo --run-dir results/run-001 --repo-dir ./repos/leo --org bug-finder-eval
-bugeval evaluate --tool greptile --cases-dir cases/leo --run-dir results/run-001 --repo-dir ./repos/leo --org bug-finder-eval
-bugeval evaluate --tool coderabbit --cases-dir cases/leo --run-dir results/run-001 --repo-dir ./repos/leo --org bug-finder-eval
+bugeval evaluate --tool copilot --cases-dir cases/leo --run-dir results/run-001 --repo-dir ./repos/leo --org bug-tools-eval
+bugeval evaluate --tool greptile --cases-dir cases/leo --run-dir results/run-001 --repo-dir ./repos/leo --org bug-tools-eval
+bugeval evaluate --tool coderabbit --cases-dir cases/leo --run-dir results/run-001 --repo-dir ./repos/leo --org bug-tools-eval
 bugeval evaluate --tool agent --cases-dir cases/leo --run-dir results/run-001 --repo-dir ./repos/leo --context diff+repo
 
 # 3. Scoring and analysis
@@ -25,13 +25,45 @@ bugeval analyze --run-dir results/run-001 --cases-dir cases/leo
 
 ## GitHub Org Setup
 
-The evaluation org is `bug-finder-eval`. For each target repo (leo, snarkOS, snarkVM, sdk), forks are created per tool under this org.
+The evaluation org is `bug-tools-eval`. Each tool gets its own isolated repo per source repo (e.g., `bug-tools-eval/leo-copilot`).
 
-- `ensure_fork()` creates forks lazily during evaluation -- no manual setup needed
-- Each PR tool (copilot, greptile, coderabbit) needs its GitHub App installed on the org's forks
-- `--org bug-finder-eval` must be passed to `bugeval evaluate` for all PR-based tools
+- `ensure_tool_repo()` creates per-tool repos lazily (e.g., `leo-copilot`, `leo-greptile`, `leo-coderabbit`)
+- Repos must be **public** for free-tier tool access
+- Each PR tool needs its GitHub App installed on the org
+- `--org bug-tools-eval` must be passed to `bugeval evaluate` for all PR-based tools
 
-Fork naming follows GitHub defaults: `bug-finder-eval/leo`, `bug-finder-eval/snarkOS`, etc.
+### App installation
+
+| Tool | GitHub App | Trigger |
+|------|-----------|---------|
+| Copilot | GitHub Copilot (native) | Automatic on PR open (can take 10+ min) |
+| CodeRabbit | `coderabbitai` | Automatic on PR open |
+| Greptile | `greptile-apps` | Comment `@greptileai` on PR (auto-triggered by runner) |
+
+### Parallel PR tool execution
+
+PR tools share a local repo clone for `git checkout` and `git push`, which causes lock contention if run in parallel. **Create per-tool clones:**
+
+```bash
+# One-time setup per source repo
+git clone https://github.com/ProvableHQ/leo.git repos/leo
+for tool in copilot greptile coderabbit; do
+  git clone --local repos/leo repos/leo-$tool
+done
+
+# Run all tools in parallel (each uses its own clone)
+for tool in copilot greptile coderabbit; do
+  uv run bugeval evaluate \
+    --tool $tool \
+    --cases-dir cases/leo \
+    --run-dir results/run-pr-tools \
+    --repo-dir repos/leo-$tool \
+    --org bug-tools-eval \
+    --timeout 900 \
+    --concurrency 1 &
+done
+wait
+```
 
 ## Dashboard
 

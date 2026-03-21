@@ -116,3 +116,7 @@ class TestCase(BaseModel):
     bug_description_source: str = ""
     bug_latency_days: int | None = None
     same_author_fix: bool = False
+
+    # Curation
+    excluded: bool = False
+    excluded_reason: str = ""

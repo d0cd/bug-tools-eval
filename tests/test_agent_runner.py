@@ -14,11 +14,13 @@ from bugeval.agent_runner import (
     _scrub_fix_references,
     build_system_prompt,
     build_user_prompt,
+    is_docker_available,
     materialize_workspace,
     parse_agent_findings,
     run_agent_cli,
     run_agent_sdk,
     run_anthropic_api,
+    run_docker,
     run_google_api,
     run_openai_api,
     sanitize_diff,
@@ -854,9 +856,10 @@ class TestSaveTranscriptThinkingBlocks:
 # Agent SDK tests
 # ---------------------------------------------------------------------------
 
-def _make_sdk_mocks() -> types.ModuleType:
-    """Create a fake claude_agent_sdk module with mock classes."""
+def _make_sdk_mocks() -> tuple[types.ModuleType, types.ModuleType]:
+    """Create fake claude_agent_sdk + claude_agent_sdk.types modules."""
     mod = types.ModuleType("claude_agent_sdk")
+    types_mod = types.ModuleType("claude_agent_sdk.types")
 
     class ClaudeAgentOptions:
         def __init__(self, **kwargs: object) -> None:
@@ -870,40 +873,78 @@ def _make_sdk_mocks() -> types.ModuleType:
     class ResultMessage:
         def __init__(
             self, total_cost_usd: float = 0.0, session_id: str = "",
+            result: str = "",
         ) -> None:
             self.total_cost_usd = total_cost_usd
             self.session_id = session_id
+            self.result = result
+
+    class CLINotFoundError(Exception):
+        pass
+
+    class CLIConnectionError(Exception):
+        pass
+
+    class TextBlock:
+        def __init__(self, text: str = "") -> None:
+            self.text = text
+
+    class ThinkingBlock:
+        def __init__(self, thinking: str = "", signature: str = "") -> None:
+            self.thinking = thinking
+            self.signature = signature
+
+    class ToolUseBlock:
+        def __init__(
+            self, id: str = "", name: str = "",
+            input: dict[str, object] | None = None,
+        ) -> None:
+            self.id = id
+            self.name = name
+            self.input = input or {}
 
     mod.ClaudeAgentOptions = ClaudeAgentOptions  # type: ignore[attr-defined]
     mod.AssistantMessage = AssistantMessage  # type: ignore[attr-defined]
     mod.ResultMessage = ResultMessage  # type: ignore[attr-defined]
-    return mod
+    mod.CLINotFoundError = CLINotFoundError  # type: ignore[attr-defined]
+    mod.CLIConnectionError = CLIConnectionError  # type: ignore[attr-defined]
+    mod.query = None  # type: ignore[attr-defined]
+
+    types_mod.TextBlock = TextBlock  # type: ignore[attr-defined]
+    types_mod.ThinkingBlock = ThinkingBlock  # type: ignore[attr-defined]
+    types_mod.ToolUseBlock = ToolUseBlock  # type: ignore[attr-defined]
+
+    return mod, types_mod
 
 
-def _sdk_text_block(text: str) -> MagicMock:
-    b = MagicMock()
-    b.type = "text"
-    b.text = text
-    return b
+def _sdk_text_block(text: str) -> object:
+    """Create a TextBlock-like object for SDK tests."""
+    _, types_mod = _make_sdk_mocks()
+    return types_mod.TextBlock(text=text)  # type: ignore[attr-defined]
 
 
 class TestRunAgentSdkSuccess:
     def test_mocked_sdk_returns_result(self, tmp_path: Path) -> None:
-        sdk_mod = _make_sdk_mocks()
+        sdk_mod, sdk_types_mod = _make_sdk_mocks()
         AssistantMessage = sdk_mod.AssistantMessage  # type: ignore[attr-defined]
         ResultMessage = sdk_mod.ResultMessage  # type: ignore[attr-defined]
 
-        text_block = _sdk_text_block(
-            '[{"file":"f.rs","line":1,"description":"bug"}]',
-        )
+        findings_json = '[{"file":"f.rs","line":1,"description":"bug"}]'
+        text_block = _sdk_text_block(findings_json)
 
         async def fake_query(**kwargs: object):  # type: ignore[no-untyped-def]
             yield AssistantMessage(content=[text_block])
-            yield ResultMessage(total_cost_usd=0.05, session_id="sess-123")
+            yield ResultMessage(
+                total_cost_usd=0.05, session_id="sess-123",
+                result=findings_json,
+            )
 
         sdk_mod.query = fake_query  # type: ignore[attr-defined]
 
-        with patch.dict(sys.modules, {"claude_agent_sdk": sdk_mod}):
+        with patch.dict(sys.modules, {
+            "claude_agent_sdk": sdk_mod,
+            "claude_agent_sdk.types": sdk_types_mod,
+        }):
             case = _make_case()
             result = run_agent_sdk(
                 case, SAMPLE_DIFF, None, "diff-only",
@@ -934,7 +975,7 @@ class TestRunAgentSdkImportError:
 
 class TestRunAgentSdkTimeout:
     def test_timeout_returns_error(self) -> None:
-        sdk_mod = _make_sdk_mocks()
+        sdk_mod, sdk_types_mod = _make_sdk_mocks()
         AssistantMessage = sdk_mod.AssistantMessage  # type: ignore[attr-defined]
 
         async def slow_query(**kwargs: object):  # type: ignore[no-untyped-def]
@@ -944,7 +985,10 @@ class TestRunAgentSdkTimeout:
 
         sdk_mod.query = slow_query  # type: ignore[attr-defined]
 
-        with patch.dict(sys.modules, {"claude_agent_sdk": sdk_mod}):
+        with patch.dict(sys.modules, {
+            "claude_agent_sdk": sdk_mod,
+            "claude_agent_sdk.types": sdk_types_mod,
+        }):
             case = _make_case()
             # Use timeout=0 so the first check (monotonic - start > 0) triggers
             result = run_agent_sdk(
@@ -957,7 +1001,7 @@ class TestRunAgentSdkTimeout:
 
 class TestRunAgentSdkTranscriptSaved:
     def test_transcript_file_created(self, tmp_path: Path) -> None:
-        sdk_mod = _make_sdk_mocks()
+        sdk_mod, sdk_types_mod = _make_sdk_mocks()
         AssistantMessage = sdk_mod.AssistantMessage  # type: ignore[attr-defined]
         ResultMessage = sdk_mod.ResultMessage  # type: ignore[attr-defined]
 
@@ -968,7 +1012,10 @@ class TestRunAgentSdkTranscriptSaved:
         sdk_mod.query = fake_query  # type: ignore[attr-defined]
 
         transcript_dir = tmp_path / "transcripts"
-        with patch.dict(sys.modules, {"claude_agent_sdk": sdk_mod}):
+        with patch.dict(sys.modules, {
+            "claude_agent_sdk": sdk_mod,
+            "claude_agent_sdk.types": sdk_types_mod,
+        }):
             case = _make_case()
             result = run_agent_sdk(
                 case, SAMPLE_DIFF, None, "diff-only",
@@ -986,7 +1033,7 @@ class TestRunAgentSdkTranscriptSaved:
 
 class TestRunAgentSdkCostTracking:
     def test_cost_from_result_message(self) -> None:
-        sdk_mod = _make_sdk_mocks()
+        sdk_mod, sdk_types_mod = _make_sdk_mocks()
         AssistantMessage = sdk_mod.AssistantMessage  # type: ignore[attr-defined]
         ResultMessage = sdk_mod.ResultMessage  # type: ignore[attr-defined]
 
@@ -996,7 +1043,10 @@ class TestRunAgentSdkCostTracking:
 
         sdk_mod.query = fake_query  # type: ignore[attr-defined]
 
-        with patch.dict(sys.modules, {"claude_agent_sdk": sdk_mod}):
+        with patch.dict(sys.modules, {
+            "claude_agent_sdk": sdk_mod,
+            "claude_agent_sdk.types": sdk_types_mod,
+        }):
             case = _make_case()
             result = run_agent_sdk(
                 case, SAMPLE_DIFF, None, "diff-only", timeout=300,
@@ -1007,7 +1057,7 @@ class TestRunAgentSdkCostTracking:
 
 class TestRunAgentSdkDiffOnlyNoTools:
     def test_allowed_tools_websearch_only_for_diff_only(self) -> None:
-        sdk_mod = _make_sdk_mocks()
+        sdk_mod, sdk_types_mod = _make_sdk_mocks()
         AssistantMessage = sdk_mod.AssistantMessage  # type: ignore[attr-defined]
         ResultMessage = sdk_mod.ResultMessage  # type: ignore[attr-defined]
 
@@ -1027,17 +1077,20 @@ class TestRunAgentSdkDiffOnlyNoTools:
 
         sdk_mod.query = fake_query  # type: ignore[attr-defined]
 
-        with patch.dict(sys.modules, {"claude_agent_sdk": sdk_mod}):
+        with patch.dict(sys.modules, {
+            "claude_agent_sdk": sdk_mod,
+            "claude_agent_sdk.types": sdk_types_mod,
+        }):
             case = _make_case()
             run_agent_sdk(case, SAMPLE_DIFF, None, "diff-only", timeout=300)
 
         assert len(captured_options) == 1
-        assert captured_options[0]["allowed_tools"] == ["WebSearch"]
+        assert captured_options[0]["allowed_tools"] == ["Read", "Glob", "Grep", "WebSearch"]
 
 
 class TestRunAgentSdkContextLevels:
     def test_tools_set_for_diff_repo(self) -> None:
-        sdk_mod = _make_sdk_mocks()
+        sdk_mod, sdk_types_mod = _make_sdk_mocks()
         AssistantMessage = sdk_mod.AssistantMessage  # type: ignore[attr-defined]
         ResultMessage = sdk_mod.ResultMessage  # type: ignore[attr-defined]
 
@@ -1057,7 +1110,10 @@ class TestRunAgentSdkContextLevels:
 
         sdk_mod.query = fake_query  # type: ignore[attr-defined]
 
-        with patch.dict(sys.modules, {"claude_agent_sdk": sdk_mod}):
+        with patch.dict(sys.modules, {
+            "claude_agent_sdk": sdk_mod,
+            "claude_agent_sdk.types": sdk_types_mod,
+        }):
             case = _make_case()
             run_agent_sdk(case, SAMPLE_DIFF, None, "diff+repo", timeout=300)
 
@@ -1065,7 +1121,7 @@ class TestRunAgentSdkContextLevels:
         assert captured_options[0]["allowed_tools"] == ["Read", "Glob", "Grep", "WebSearch"]
 
     def test_tools_set_for_diff_repo_domain(self) -> None:
-        sdk_mod = _make_sdk_mocks()
+        sdk_mod, sdk_types_mod = _make_sdk_mocks()
         AssistantMessage = sdk_mod.AssistantMessage  # type: ignore[attr-defined]
         ResultMessage = sdk_mod.ResultMessage  # type: ignore[attr-defined]
 
@@ -1085,7 +1141,10 @@ class TestRunAgentSdkContextLevels:
 
         sdk_mod.query = fake_query  # type: ignore[attr-defined]
 
-        with patch.dict(sys.modules, {"claude_agent_sdk": sdk_mod}):
+        with patch.dict(sys.modules, {
+            "claude_agent_sdk": sdk_mod,
+            "claude_agent_sdk.types": sdk_types_mod,
+        }):
             case = _make_case()
             run_agent_sdk(
                 case, SAMPLE_DIFF, None, "diff+repo+domain", timeout=300,
@@ -1164,7 +1223,7 @@ class TestRunAgentApiModelOverride:
 
 class TestRunAgentSdkModelOverride:
     def test_model_override_passed_to_sdk(self) -> None:
-        sdk_mod = _make_sdk_mocks()
+        sdk_mod, sdk_types_mod = _make_sdk_mocks()
         AssistantMessage = sdk_mod.AssistantMessage  # type: ignore[attr-defined]
         ResultMessage = sdk_mod.ResultMessage  # type: ignore[attr-defined]
 
@@ -1184,7 +1243,10 @@ class TestRunAgentSdkModelOverride:
 
         sdk_mod.query = fake_query  # type: ignore[attr-defined]
 
-        with patch.dict(sys.modules, {"claude_agent_sdk": sdk_mod}):
+        with patch.dict(sys.modules, {
+            "claude_agent_sdk": sdk_mod,
+            "claude_agent_sdk.types": sdk_types_mod,
+        }):
             case = _make_case()
             run_agent_sdk(
                 case, SAMPLE_DIFF, None, "diff-only",
@@ -1748,3 +1810,240 @@ class TestRunOpenaiApiWebSearch:
         func_tools = [t for t in tools if t.get("type") == "function"]
         assert len(web_tools) == 1
         assert len(func_tools) == 3  # read_file, list_directory, search_text
+
+
+# ---------------------------------------------------------------------------
+# Docker runner tests
+# ---------------------------------------------------------------------------
+
+
+class TestRunDockerBuildsCorrectCommand:
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_builds_correct_claude_command(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        import subprocess as sp
+
+        output = {
+            "result": '[{"file":"f.rs","line":1,"description":"bug"}]',
+            "cost": {"input_tokens": 10, "output_tokens": 5},
+        }
+        mock_run.return_value = sp.CompletedProcess(
+            args=["docker"], returncode=0,
+            stdout=json_mod.dumps(output), stderr="",
+        )
+        case = _make_case()
+        result = run_docker(
+            case, SAMPLE_DIFF, None, "diff-only",
+            cli_tool="claude", timeout=600,
+        )
+        assert result.error == ""
+        cmd = mock_run.call_args[0][0]
+        assert cmd[0] == "docker"
+        assert "run" in cmd
+        assert "--rm" in cmd
+        # The inner command should contain claude
+        cmd_str = " ".join(cmd)
+        assert "claude" in cmd_str
+        assert "--dangerously-skip-permissions" in cmd_str
+
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_builds_gemini_command(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        import subprocess as sp
+
+        mock_run.return_value = sp.CompletedProcess(
+            args=["docker"], returncode=0,
+            stdout="[]", stderr="",
+        )
+        case = _make_case()
+        run_docker(
+            case, SAMPLE_DIFF, None, "diff-only",
+            cli_tool="gemini", timeout=600,
+        )
+        cmd = mock_run.call_args[0][0]
+        cmd_str = " ".join(cmd)
+        assert "gemini" in cmd_str
+        assert "--yolo" in cmd_str
+
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_builds_codex_command(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        import subprocess as sp
+
+        mock_run.return_value = sp.CompletedProcess(
+            args=["docker"], returncode=0,
+            stdout="[]", stderr="",
+        )
+        case = _make_case()
+        run_docker(
+            case, SAMPLE_DIFF, None, "diff-only",
+            cli_tool="codex", timeout=600,
+        )
+        cmd = mock_run.call_args[0][0]
+        cmd_str = " ".join(cmd)
+        assert "codex" in cmd_str
+
+
+class TestRunDockerMountsWorkspace:
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_mounts_workspace_at_work(
+        self, mock_run: MagicMock,
+    ) -> None:
+        import subprocess as sp
+
+        mock_run.return_value = sp.CompletedProcess(
+            args=["docker"], returncode=0,
+            stdout="[]", stderr="",
+        )
+        case = _make_case()
+        run_docker(
+            case, SAMPLE_DIFF, None, "diff-only",
+            cli_tool="claude", timeout=600,
+        )
+        cmd = mock_run.call_args[0][0]
+        # Find -v flag and check mount target
+        found_mount = False
+        for i, arg in enumerate(cmd):
+            if arg == "-v" and i + 1 < len(cmd):
+                mount = cmd[i + 1]
+                assert mount.endswith(":/work"), f"Expected :/work mount, got {mount}"
+                found_mount = True
+                break
+        assert found_mount, "No -v mount found in docker command"
+
+
+class TestRunDockerPassesApiKey:
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_passes_anthropic_api_key(
+        self, mock_run: MagicMock,
+    ) -> None:
+        import subprocess as sp
+
+        mock_run.return_value = sp.CompletedProcess(
+            args=["docker"], returncode=0,
+            stdout="[]", stderr="",
+        )
+        case = _make_case()
+        run_docker(
+            case, SAMPLE_DIFF, None, "diff-only",
+            cli_tool="claude", timeout=600,
+        )
+        cmd = mock_run.call_args[0][0]
+        # Check -e ANTHROPIC_API_KEY is in command
+        found_env = False
+        for i, arg in enumerate(cmd):
+            if arg == "-e" and i + 1 < len(cmd):
+                if cmd[i + 1] == "ANTHROPIC_API_KEY":
+                    found_env = True
+                    break
+        assert found_env, "ANTHROPIC_API_KEY not passed via -e"
+
+
+class TestRunDockerUsesDangerouslySkipPermissions:
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_claude_has_skip_permissions(
+        self, mock_run: MagicMock,
+    ) -> None:
+        import subprocess as sp
+
+        mock_run.return_value = sp.CompletedProcess(
+            args=["docker"], returncode=0,
+            stdout="[]", stderr="",
+        )
+        case = _make_case()
+        run_docker(
+            case, SAMPLE_DIFF, None, "diff-only",
+            cli_tool="claude", timeout=600,
+        )
+        cmd = mock_run.call_args[0][0]
+        assert "--dangerously-skip-permissions" in cmd
+
+
+class TestIsDockerAvailable:
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_available(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = MagicMock(returncode=0)
+        assert is_docker_available() is True
+
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_not_available_nonzero(self, mock_run: MagicMock) -> None:
+        mock_run.return_value = MagicMock(returncode=1)
+        assert is_docker_available() is False
+
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_not_available_not_found(self, mock_run: MagicMock) -> None:
+        mock_run.side_effect = FileNotFoundError
+        assert is_docker_available() is False
+
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_not_available_timeout(self, mock_run: MagicMock) -> None:
+        import subprocess as sp
+
+        mock_run.side_effect = sp.TimeoutExpired(cmd="docker", timeout=5)
+        assert is_docker_available() is False
+
+
+class TestRunDockerSavesTranscript:
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_transcript_saved(
+        self, mock_run: MagicMock, tmp_path: Path,
+    ) -> None:
+        import subprocess as sp
+
+        output = {
+            "result": "[]",
+            "cost": {"input_tokens": 10, "output_tokens": 5},
+        }
+        mock_run.return_value = sp.CompletedProcess(
+            args=["docker"], returncode=0,
+            stdout=json_mod.dumps(output), stderr="",
+        )
+        transcript_dir = tmp_path / "transcripts"
+        case = _make_case()
+        result = run_docker(
+            case, SAMPLE_DIFF, None, "diff-only",
+            cli_tool="claude", timeout=600,
+            transcript_dir=transcript_dir,
+        )
+        assert result.transcript_path != ""
+        assert Path(result.transcript_path).exists()
+
+
+class TestRunDockerTimeout:
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_timeout_returns_error(
+        self, mock_run: MagicMock,
+    ) -> None:
+        import subprocess as sp
+
+        mock_run.side_effect = sp.TimeoutExpired(cmd="docker", timeout=600)
+        case = _make_case()
+        result = run_docker(
+            case, SAMPLE_DIFF, None, "diff-only",
+            cli_tool="claude", timeout=600,
+        )
+        assert "timed out" in result.error.lower()
+
+
+class TestRunDockerCustomImage:
+    @patch("bugeval.agent_runner.subprocess.run")
+    def test_custom_image_used(
+        self, mock_run: MagicMock,
+    ) -> None:
+        import subprocess as sp
+
+        mock_run.return_value = sp.CompletedProcess(
+            args=["docker"], returncode=0,
+            stdout="[]", stderr="",
+        )
+        case = _make_case()
+        run_docker(
+            case, SAMPLE_DIFF, None, "diff-only",
+            cli_tool="claude", timeout=600,
+            image="my-custom-image:latest",
+        )
+        cmd = mock_run.call_args[0][0]
+        assert "my-custom-image:latest" in cmd

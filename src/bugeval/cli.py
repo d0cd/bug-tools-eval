@@ -121,6 +121,14 @@ def clean_cases(repo: str, count: int, cases_dir: str, since: str) -> None:
     "--org", default="",
     help="GitHub org for PR tool forks (copilot, greptile, coderabbit)",
 )
+@click.option(
+    "--docker", is_flag=True,
+    help="Run agent in Docker container (allows Bash tool safely)",
+)
+@click.option(
+    "--docker-image", default="bugeval-agent",
+    help="Docker image name for --docker mode",
+)
 def evaluate(
     tool: str,
     cases_dir: str,
@@ -133,6 +141,8 @@ def evaluate(
     thinking_budget: int,
     model: str,
     org: str,
+    docker: bool,
+    docker_image: str,
 ) -> None:
     """Run a tool against test cases."""
     from pathlib import Path
@@ -151,6 +161,8 @@ def evaluate(
         thinking_budget=thinking_budget,
         model=model,
         org=org,
+        docker=docker,
+        docker_image=docker_image,
     )
 
 
@@ -246,3 +258,9 @@ def add_case(pr_url: str, cases_dir: str, repo_dir: str, dry_run: bool) -> None:
         click.echo(f"[dry-run] Would add: {result.id} (PR #{result.fix_pr_number})")
     else:
         click.echo(f"Added: {result.id} (PR #{result.fix_pr_number})")
+
+
+# Import and register curate command
+from bugeval.curate import curate  # noqa: E402
+
+cli.add_command(curate)

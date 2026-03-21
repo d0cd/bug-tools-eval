@@ -182,18 +182,13 @@ class TestRunCodeRabbit:
                 return_value="diff content",
             ),
             patch(
-                "bugeval.coderabbit_runner.ensure_fork",
-                return_value="org/leo",
+                "bugeval.coderabbit_runner.ensure_tool_repo",
+                return_value="org/leo-coderabbit",
             ),
             patch(
-                "bugeval.coderabbit_runner.create_eval_branch",
-                return_value="eval/leo-001",
+                "bugeval.coderabbit_runner.create_eval_branches",
+                return_value=("base-abc", "review-abc"),
             ),
-            patch(
-                "bugeval.coderabbit_runner._default_branch",
-                return_value="main",
-            ),
-            patch("bugeval.coderabbit_runner._isolate_fork"),
             patch(
                 "bugeval.coderabbit_runner.open_eval_pr",
                 return_value=42,
@@ -226,7 +221,9 @@ class TestRunCodeRabbit:
         assert len(result.comments) == 1
         assert result.comments[0].file == "src/lib.rs"
         assert result.error == ""
-        mock_close.assert_called_once_with("org/leo", 42, "eval/leo-001")
+        mock_close.assert_called_once_with(
+            "org/leo-coderabbit", 42, "review-abc", "base-abc",
+        )
 
     def test_timeout_returns_error(self, tmp_path: Path) -> None:
         case = _make_case()
@@ -239,18 +236,13 @@ class TestRunCodeRabbit:
                 return_value="diff",
             ),
             patch(
-                "bugeval.coderabbit_runner.ensure_fork",
-                return_value="org/leo",
+                "bugeval.coderabbit_runner.ensure_tool_repo",
+                return_value="org/leo-coderabbit",
             ),
             patch(
-                "bugeval.coderabbit_runner.create_eval_branch",
-                return_value="eval/leo-001",
+                "bugeval.coderabbit_runner.create_eval_branches",
+                return_value=("base-abc", "review-abc"),
             ),
-            patch(
-                "bugeval.coderabbit_runner._default_branch",
-                return_value="main",
-            ),
-            patch("bugeval.coderabbit_runner._isolate_fork"),
             patch(
                 "bugeval.coderabbit_runner.open_eval_pr",
                 return_value=42,
